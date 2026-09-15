@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MarkdownMessage } from "./components/MarkdownMessage";
 
 type Role = "user" | "assistant";
 
@@ -33,8 +34,12 @@ const FALLBACK_MODELS: ModelEntry[] = [
 ];
 
 const SYSTEM_PROMPT =
-  "Kamu adalah Filius AI, asisten pribadi yang membantu dalam bahasa Indonesia. " +
-  "Jawab dengan jelas, ringkas, dan ramah. Gunakan markdown untuk struktur bila perlu.";
+  "Kamu adalah Filius AI, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
+  "Aturan Jawaban:\n" +
+  "1. Berikan jawaban yang mendalam, terstruktur rapi, dan mudah dipahami dalam bahasa Indonesia.\n" +
+  "2. Gunakan Markdown yang kaya (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel) untuk menyusun jawaban agar terlihat rapi dan profesional seperti ChatGPT.\n" +
+  "3. Untuk potongan kode/program, SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python atau ```javascript).\n" +
+  "4. Jawab pertanyaan pengguna secara akurat, lugas, solutif, dan berikan penjelasan konseptual bila relevan.";
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
@@ -338,11 +343,15 @@ export default function Home() {
                 <div
                   className={
                     msg.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-accent px-4 py-2.5 text-sm text-white"
-                      : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm border border-zinc-800 bg-surface px-4 py-2.5 text-sm leading-relaxed text-zinc-100"
+                      ? "max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-4 py-2.5 text-sm text-white shadow-sm"
+                      : "max-w-[88%] rounded-2xl rounded-bl-sm border border-zinc-800/80 bg-surface px-4.5 py-3 text-sm leading-relaxed text-zinc-100 shadow-sm"
                   }
                 >
-                  {msg.content}
+                  {msg.role === "user" ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                  ) : (
+                    <MarkdownMessage content={msg.content} />
+                  )}
                 </div>
               </div>
             ))}
