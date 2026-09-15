@@ -21,9 +21,14 @@ const ALL_MODELS: ModelEntry[] = [
   // ── Groq ──────────────────────────────────────────────────────────────────
   { id: "groq:llama-3.3-70b-versatile", label: "[Groq] Llama 3.3 70B Versatile", provider: "groq" },
   { id: "groq:llama3-8b-8192", label: "[Groq] Llama 3 8B", provider: "groq" },
-  { id: "groq:mixtral-8x7b-32768", label: "[Groq] Mixtral 8x7B", provider: "groq" },
   { id: "groq:deepseek-r1-distill-llama-70b", label: "[Groq] DeepSeek R1 70B", provider: "groq" },
   { id: "groq:qwen-qwq-32b", label: "[Groq] QwQ 32B", provider: "groq" },
+  { id: "groq:meta-llama/llama-4-maverick-17b-128e-instruct", label: "[Groq] Llama 4 Maverick 17B", provider: "groq" },
+
+  // ── Cerebras ──────────────────────────────────────────────────────────────
+  { id: "cerebras:llama-3.3-70b", label: "[Cerebras] Llama 3.3 70B", provider: "cerebras" },
+  { id: "cerebras:llama3.1-8b", label: "[Cerebras] Llama 3.1 8B", provider: "cerebras" },
+  { id: "cerebras:qwen-3-32b", label: "[Cerebras] Qwen 3 32B", provider: "cerebras" },
 
   // ── OpenRouter ────────────────────────────────────────────────────────────
   { id: "openrouter:deepseek/deepseek-chat-v3-0324:free", label: "[OpenRouter] DeepSeek V3 (free)", provider: "openrouter" },
@@ -31,16 +36,19 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "openrouter:google/gemma-3-27b-it:free", label: "[OpenRouter] Gemma 3 27B (free)", provider: "openrouter" },
   { id: "openrouter:qwen/qwq-32b:free", label: "[OpenRouter] QwQ 32B (free)", provider: "openrouter" },
   { id: "openrouter:mistralai/mistral-7b-instruct:free", label: "[OpenRouter] Mistral 7B (free)", provider: "openrouter" },
+  { id: "openrouter:google/gemini-2.0-flash-exp:free", label: "[OpenRouter] Gemini 2.0 Flash (free)", provider: "openrouter" },
 
   // ── Together AI ───────────────────────────────────────────────────────────
   { id: "together:meta-llama/Llama-3.3-70B-Instruct-Turbo", label: "[Together] Llama 3.3 70B Turbo", provider: "together" },
   { id: "together:deepseek-ai/DeepSeek-R1", label: "[Together] DeepSeek R1", provider: "together" },
   { id: "together:Qwen/Qwen3-235B-A22B", label: "[Together] Qwen3 235B", provider: "together" },
+  { id: "together:meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8", label: "[Together] Llama 4 Maverick", provider: "together" },
 
   // ── HuggingFace ───────────────────────────────────────────────────────────
   { id: "hf:meta-llama/Llama-3.1-8B-Instruct", label: "[HF] Llama 3.1 8B", provider: "hf" },
   { id: "hf:Qwen/Qwen2.5-72B-Instruct", label: "[HF] Qwen 2.5 72B", provider: "hf" },
   { id: "hf:deepseek-ai/DeepSeek-V3", label: "[HF] DeepSeek V3", provider: "hf" },
+  { id: "hf:google/gemma-3-27b-it", label: "[HF] Gemma 3 27B", provider: "hf" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -65,6 +73,7 @@ export async function GET() {
 
   if (process.env.GEMINI_API_KEY) configured.add("gemini");
   if (process.env.GROQ_API_KEY) configured.add("groq");
+  if (process.env.CEREBRAS_API_KEY) configured.add("cerebras");
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
   if (process.env.HF_API_KEY) configured.add("hf");

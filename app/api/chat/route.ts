@@ -24,6 +24,10 @@ function getProviders(): Record<string, ProviderConfig> {
       endpoint: "https://api.groq.com/openai/v1/chat/completions",
       apiKey: process.env.GROQ_API_KEY || "",
     },
+    cerebras: {
+      endpoint: "https://api.cerebras.ai/v1/chat/completions",
+      apiKey: process.env.CEREBRAS_API_KEY || "",
+    },
     openrouter: {
       endpoint: "https://openrouter.ai/api/v1/chat/completions",
       apiKey: process.env.OPENROUTER_API_KEY || "",
