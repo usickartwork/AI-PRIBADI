@@ -38,6 +38,16 @@ function getProviders(): Record<string, ProviderConfig> {
       endpoint: "https://router.huggingface.co/v1/chat/completions",
       apiKey: process.env.HF_API_KEY || "",
     },
+    nvidia: {
+      endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
+      apiKey: process.env.NVIDIA_API_KEY || "",
+    },
+    ollama: {
+      endpoint:
+        (process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "") ||
+          "https://api.ollama.com") + "/v1/chat/completions",
+      apiKey: process.env.OLLAMA_API_KEY || "",
+    },
   };
 }
 
@@ -155,6 +165,7 @@ export async function POST(request: Request) {
       body: reqBody,
     });
 
+    // Auto-fallback if primary model is experiencing high demand (503/429)
     if (
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&

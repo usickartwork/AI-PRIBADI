@@ -21,6 +21,18 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "groq:openai/gpt-oss-20b", label: "[Groq] GPT OSS 20B", provider: "groq" },
   { id: "groq:qwen/qwen3.8-27b", label: "[Groq] Qwen 3.8 27B", provider: "groq" },
 
+  // ── NVIDIA NIM ────────────────────────────────────────────────────────────
+  { id: "nvidia:meta/llama-3.3-70b-instruct", label: "[NVIDIA] Llama 3.3 70B", provider: "nvidia" },
+  { id: "nvidia:nvidia/llama-3.1-nemotron-70b-instruct", label: "[NVIDIA] Nemotron 70B", provider: "nvidia" },
+  { id: "nvidia:deepseek-ai/deepseek-r1", label: "[NVIDIA] DeepSeek R1", provider: "nvidia" },
+  { id: "nvidia:mistralai/mistral-large-2-instruct", label: "[NVIDIA] Mistral Large 2", provider: "nvidia" },
+
+  // ── Ollama Cloud ──────────────────────────────────────────────────────────
+  { id: "ollama:llama3.3", label: "[Ollama] Llama 3.3", provider: "ollama" },
+  { id: "ollama:deepseek-r1", label: "[Ollama] DeepSeek R1", provider: "ollama" },
+  { id: "ollama:qwen2.5-coder", label: "[Ollama] Qwen 2.5 Coder", provider: "ollama" },
+  { id: "ollama:gemma2", label: "[Ollama] Gemma 2", provider: "ollama" },
+
   // ── OpenRouter ────────────────────────────────────────────────────────────
   { id: "openrouter:deepseek/deepseek-chat", label: "[OpenRouter] DeepSeek V3", provider: "openrouter" },
   { id: "openrouter:meta-llama/llama-3.3-70b-instruct", label: "[OpenRouter] Llama 3.3 70B", provider: "openrouter" },
@@ -51,6 +63,8 @@ export async function GET() {
 
   if (process.env.GEMINI_API_KEY) configured.add("gemini");
   if (process.env.GROQ_API_KEY) configured.add("groq");
+  if (process.env.NVIDIA_API_KEY) configured.add("nvidia");
+  if (process.env.OLLAMA_API_KEY || process.env.OLLAMA_BASE_URL) configured.add("ollama");
   if (process.env.CEREBRAS_API_KEY) configured.add("cerebras");
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
