@@ -26,8 +26,13 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "nvidia:nvidia/llama-3.1-nemotron-70b-instruct", label: "[NVIDIA] Nemotron 70B", provider: "nvidia" },
   { id: "nvidia:deepseek-ai/deepseek-r1", label: "[NVIDIA] DeepSeek R1", provider: "nvidia" },
   { id: "nvidia:mistralai/mistral-large-2-instruct", label: "[NVIDIA] Mistral Large 2", provider: "nvidia" },
+  { id: "nvidia:google/gemma-3-12b-it", label: "[NVIDIA] Gemma 3 12B", provider: "nvidia" },
+  { id: "nvidia:google/gemma-4-31b-it", label: "[NVIDIA] Gemma 4 31B", provider: "nvidia" },
+  { id: "nvidia:deepseek-ai/deepseek-v4-flash-0731", label: "[NVIDIA] DeepSeek V4 Flash", provider: "nvidia" },
+  { id: "nvidia:ibm/granite-3.0-8b-instruct", label: "[NVIDIA] Granite 3.0 8B", provider: "nvidia" },
 
   // ── Ollama Cloud ──────────────────────────────────────────────────────────
+  // ── Ollama Cloud / Remote ─────────────────────────────────────────────────
   { id: "ollama:llama3.3", label: "[Ollama] Llama 3.3", provider: "ollama" },
   { id: "ollama:deepseek-r1", label: "[Ollama] DeepSeek R1", provider: "ollama" },
   { id: "ollama:qwen2.5-coder", label: "[Ollama] Qwen 2.5 Coder", provider: "ollama" },
@@ -81,3 +86,4 @@ export async function GET() {
 
   return Response.json({ models }, { headers: CORS_HEADERS });
 }
+
