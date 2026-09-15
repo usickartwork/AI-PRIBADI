@@ -26,9 +26,10 @@ type StreamChunk = {
 const STORAGE_KEY = "filius-ai-history";
 
 const FALLBACK_MODELS: ModelEntry[] = [
-  { id: "gemini:gemini-2.0-flash", label: "[Gemini] 2.0 Flash" },
-  { id: "groq:llama-3.3-70b-versatile", label: "[Groq] Llama 3.3 70B Versatile" },
-  { id: "openrouter:deepseek/deepseek-chat:free", label: "[OpenRouter] DeepSeek V3 (free)" },
+  { id: "gemini:gemini-3.6-flash", label: "[Gemini] 3.6 Flash" },
+  { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B" },
+  { id: "openrouter:deepseek/deepseek-chat", label: "[OpenRouter] DeepSeek V3" },
+  { id: "hf:meta-llama/Llama-3.1-8B-Instruct", label: "[HF] Llama 3.1 8B" },
 ];
 
 const SYSTEM_PROMPT =

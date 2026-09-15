@@ -9,8 +9,6 @@ export const dynamic = "force-dynamic";
 type ProviderConfig = {
   endpoint: string;
   apiKey: string;
-  // Some providers need the prefix stripped from the model name
-  stripPrefix?: boolean;
 };
 
 function getProviders(): Record<string, ProviderConfig> {
@@ -61,6 +59,7 @@ const CORS_HEADERS = {
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
   modelName: string;
+  providerName: string;
 } | null {
   const providers = getProviders();
 
@@ -71,9 +70,8 @@ function resolveProvider(modelId: string): {
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
     if (provider && provider.apiKey) {
-      return { provider, modelName };
+      return { provider, modelName, providerName: prefix };
     }
-    // Provider found but no API key
     if (provider) {
       return null;
     }
@@ -84,7 +82,7 @@ function resolveProvider(modelId: string): {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
       if (provider.apiKey) {
-        return { provider, modelName };
+        return { provider, modelName, providerName: prefix };
       }
       return null;
     }
@@ -129,14 +127,14 @@ export async function POST(request: Request) {
     console.error(`[api/chat] No API key configured for model: ${modelId}`);
     return Response.json(
       {
-        error: `API key untuk provider "${missingKey}" belum dikonfigurasi. Tambahkan key di Environment Variables Vercel.`,
+        error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel Dashboard.`,
         model: modelId,
       },
       { status: 503, headers: CORS_HEADERS }
     );
   }
 
-  const { provider, modelName } = resolved;
+  const { provider, modelName, providerName } = resolved;
 
   const reqHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -163,9 +161,23 @@ export async function POST(request: Request) {
         `[api/chat] upstream error ${upstream.status} for ${modelId}:`,
         errText.slice(0, 300)
       );
+
+      let detailMsg = errText.slice(0, 200);
+      try {
+        const parsed = JSON.parse(errText) as {
+          error?: { message?: string };
+          message?: string;
+        };
+        if (parsed.error?.message) {
+          detailMsg = parsed.error.message;
+        } else if (parsed.message) {
+          detailMsg = parsed.message;
+        }
+      } catch {}
+
       return Response.json(
         {
-          error: `Provider gagal merespons (HTTP ${upstream.status}). Periksa API key dan model yang dipilih.`,
+          error: `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
           detail: errText.slice(0, 300),
         },
         { status: upstream.status, headers: CORS_HEADERS }
@@ -174,7 +186,7 @@ export async function POST(request: Request) {
 
     if (!upstream.body) {
       return Response.json(
-        { error: "Provider tidak mengembalikan response body." },
+        { error: `Provider [${providerName.toUpperCase()}] tidak mengembalikan response body.` },
         { status: 502, headers: CORS_HEADERS }
       );
     }
@@ -192,7 +204,7 @@ export async function POST(request: Request) {
     console.error(`[api/chat] network error for ${modelId}:`, err);
     return Response.json(
       {
-        error: `Tidak bisa terhubung ke provider. Periksa koneksi internet Vercel atau konfigurasi API key.`,
+        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}]. Periksa koneksi internet Vercel atau API key.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );
