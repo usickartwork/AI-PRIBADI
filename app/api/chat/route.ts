@@ -4,12 +4,20 @@ export const dynamic = "force-dynamic";
 // ─── Provider Configuration ───────────────────────────────────────────────────
 // Each provider maps a model-prefix to its OpenAI-compatible endpoint.
 // Model ID format in the UI: "provider:model-name"
-// e.g. "gemini:gemini-2.0-flash", "groq:llama-3.3-70b-versatile"
+// e.g. "gemini:gemini-3.6-flash", "groq:openai/gpt-oss-120b"
 
 type ProviderConfig = {
   endpoint: string;
   apiKey: string;
 };
+
+function getOllamaEndpoint(rawUrl?: string): string {
+  const base = rawUrl?.trim() || "https://api.ollama.com";
+  const clean = base.replace(/\/+$/, "");
+  if (clean.endsWith("/chat/completions")) return clean;
+  if (clean.endsWith("/v1")) return clean + "/chat/completions";
+  return clean + "/v1/chat/completions";
+}
 
 function getProviders(): Record<string, ProviderConfig> {
   return {
@@ -21,6 +29,14 @@ function getProviders(): Record<string, ProviderConfig> {
     groq: {
       endpoint: "https://api.groq.com/openai/v1/chat/completions",
       apiKey: process.env.GROQ_API_KEY || "",
+    },
+    nvidia: {
+      endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
+      apiKey: process.env.NVIDIA_API_KEY || "",
+    },
+    ollama: {
+      endpoint: getOllamaEndpoint(process.env.OLLAMA_BASE_URL),
+      apiKey: process.env.OLLAMA_API_KEY || "",
     },
     cerebras: {
       endpoint: "https://api.cerebras.ai/v1/chat/completions",
@@ -37,16 +53,6 @@ function getProviders(): Record<string, ProviderConfig> {
     hf: {
       endpoint: "https://router.huggingface.co/v1/chat/completions",
       apiKey: process.env.HF_API_KEY || "",
-    },
-    nvidia: {
-      endpoint: "https://integrate.api.nvidia.com/v1/chat/completions",
-      apiKey: process.env.NVIDIA_API_KEY || "",
-    },
-    ollama: {
-      endpoint:
-        (process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "") ||
-          "https://api.ollama.com") + "/v1/chat/completions",
-      apiKey: process.env.OLLAMA_API_KEY || "",
     },
   };
 }
@@ -79,7 +85,7 @@ function resolveProvider(modelId: string): {
     const prefix = modelId.slice(0, colonIdx);
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
-    if (provider && provider.apiKey) {
+    if (provider && (provider.apiKey || prefix === "ollama")) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -91,7 +97,7 @@ function resolveProvider(modelId: string): {
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey) {
+      if (provider.apiKey || prefix === "ollama") {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -148,8 +154,10 @@ export async function POST(request: Request) {
 
   const reqHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${provider.apiKey}`,
   };
+  if (provider.apiKey) {
+    reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
+  }
 
   const reqBody = JSON.stringify({
     model: modelName,
@@ -203,11 +211,14 @@ export async function POST(request: Request) {
         const parsed = JSON.parse(errText) as {
           error?: { message?: string };
           message?: string;
+          detail?: string;
         };
         if (parsed.error?.message) {
           detailMsg = parsed.error.message;
         } else if (parsed.message) {
           detailMsg = parsed.message;
+        } else if (parsed.detail) {
+          detailMsg = parsed.detail;
         }
       } catch {}
 
