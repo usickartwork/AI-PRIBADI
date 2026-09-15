@@ -1,89 +1,83 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getRouterModelsEndpoint(rawUrl?: string): string {
-  const url = rawUrl?.trim() || "http://localhost:20128/v1/models";
-  if (url.endsWith("/models")) {
-    return url;
-  }
-  const base = url.replace(/\/chat\/completions\/?$/, "");
-  if (base.endsWith("/v1")) {
-    return base + "/models";
-  }
-  return base.replace(/\/+$/, "") + "/v1/models";
-}
+// ─── Model catalogue ──────────────────────────────────────────────────────────
+// Format model ID: "provider:actual-model-id-sent-to-api"
+// This keeps the UI decoupled from provider specifics.
 
-const ROUTER_MODELS_ENDPOINT = getRouterModelsEndpoint(process.env.ROUTER_URL);
-const ROUTER_API_KEY = process.env.ROUTER_API_KEY || "";
+type ModelEntry = {
+  id: string;    // full ID used in /api/chat: "provider:model"
+  label: string; // display name in dropdown
+  provider: string;
+};
+
+const ALL_MODELS: ModelEntry[] = [
+  // ── Gemini ────────────────────────────────────────────────────────────────
+  { id: "gemini:gemini-2.0-flash", label: "[Gemini] 2.0 Flash", provider: "gemini" },
+  { id: "gemini:gemini-2.0-flash-lite", label: "[Gemini] 2.0 Flash Lite", provider: "gemini" },
+  { id: "gemini:gemini-2.5-flash-preview-05-20", label: "[Gemini] 2.5 Flash Preview", provider: "gemini" },
+  { id: "gemini:gemini-2.5-pro-preview-06-05", label: "[Gemini] 2.5 Pro Preview", provider: "gemini" },
+
+  // ── Groq ──────────────────────────────────────────────────────────────────
+  { id: "groq:llama-3.3-70b-versatile", label: "[Groq] Llama 3.3 70B Versatile", provider: "groq" },
+  { id: "groq:llama3-8b-8192", label: "[Groq] Llama 3 8B", provider: "groq" },
+  { id: "groq:mixtral-8x7b-32768", label: "[Groq] Mixtral 8x7B", provider: "groq" },
+  { id: "groq:deepseek-r1-distill-llama-70b", label: "[Groq] DeepSeek R1 70B", provider: "groq" },
+  { id: "groq:qwen-qwq-32b", label: "[Groq] QwQ 32B", provider: "groq" },
+
+  // ── OpenRouter ────────────────────────────────────────────────────────────
+  { id: "openrouter:deepseek/deepseek-chat-v3-0324:free", label: "[OpenRouter] DeepSeek V3 (free)", provider: "openrouter" },
+  { id: "openrouter:meta-llama/llama-3.3-70b-instruct:free", label: "[OpenRouter] Llama 3.3 70B (free)", provider: "openrouter" },
+  { id: "openrouter:google/gemma-3-27b-it:free", label: "[OpenRouter] Gemma 3 27B (free)", provider: "openrouter" },
+  { id: "openrouter:qwen/qwq-32b:free", label: "[OpenRouter] QwQ 32B (free)", provider: "openrouter" },
+  { id: "openrouter:mistralai/mistral-7b-instruct:free", label: "[OpenRouter] Mistral 7B (free)", provider: "openrouter" },
+
+  // ── Together AI ───────────────────────────────────────────────────────────
+  { id: "together:meta-llama/Llama-3.3-70B-Instruct-Turbo", label: "[Together] Llama 3.3 70B Turbo", provider: "together" },
+  { id: "together:deepseek-ai/DeepSeek-R1", label: "[Together] DeepSeek R1", provider: "together" },
+  { id: "together:Qwen/Qwen3-235B-A22B", label: "[Together] Qwen3 235B", provider: "together" },
+
+  // ── HuggingFace ───────────────────────────────────────────────────────────
+  { id: "hf:meta-llama/Llama-3.1-8B-Instruct", label: "[HF] Llama 3.1 8B", provider: "hf" },
+  { id: "hf:Qwen/Qwen2.5-72B-Instruct", label: "[HF] Qwen 2.5 72B", provider: "hf" },
+  { id: "hf:deepseek-ai/DeepSeek-V3", label: "[HF] DeepSeek V3", provider: "hf" },
+];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// ─── CORS preflight ───────────────────────────────────────────────────────────
+
 export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-function formatLabel(id: string): string {
-  const parts = id.split("/");
-  if (parts.length === 2) {
-    const provider = parts[0];
-    const name = parts[1]
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
-    return `[${provider.toUpperCase()}] ${name}`;
-  }
-  if (parts.length >= 3) {
-    const provider = parts[0];
-    const name = parts.slice(1).join("/");
-    return `[${provider.toUpperCase()}] ${name}`;
-  }
-  return id;
-}
+// ─── GET /api/models ──────────────────────────────────────────────────────────
+// Returns only models whose provider has an API key configured.
 
 export async function GET() {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (ROUTER_API_KEY) {
-    headers["Authorization"] = `Bearer ${ROUTER_API_KEY}`;
+  const configured = new Set<string>();
+
+  if (process.env.GEMINI_API_KEY) configured.add("gemini");
+  if (process.env.GROQ_API_KEY) configured.add("groq");
+  if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
+  if (process.env.TOGETHER_API_KEY) configured.add("together");
+  if (process.env.HF_API_KEY) configured.add("hf");
+
+  let models: ModelEntry[];
+
+  if (configured.size === 0) {
+    // No keys configured → return all models so UI is never empty
+    // (chat will fail with a clear error message about missing key)
+    models = ALL_MODELS;
+  } else {
+    models = ALL_MODELS.filter((m) => configured.has(m.provider));
   }
 
-  try {
-    let res: Response;
-    try {
-      res = await fetch(ROUTER_MODELS_ENDPOINT, { headers });
-    } catch {
-      if (ROUTER_MODELS_ENDPOINT.includes("localhost")) {
-        const fallback = ROUTER_MODELS_ENDPOINT.replace("localhost", "127.0.0.1");
-        res = await fetch(fallback, { headers });
-      } else {
-        return Response.json({ models: [] }, { headers: CORS_HEADERS });
-      }
-    }
-
-    if (!res.ok) {
-      return Response.json({ models: [] }, { headers: CORS_HEADERS });
-    }
-
-    const data = (await res.json()) as { data?: { id?: string }[] };
-    const rawList = Array.isArray(data.data) ? data.data : [];
-    const models = rawList
-      .filter((m) => typeof m.id === "string" && m.id.length > 0)
-      .map((m) => ({
-        id: m.id as string,
-        label: formatLabel(m.id as string),
-      }));
-
-    return Response.json({ models }, { headers: CORS_HEADERS });
-  } catch (err) {
-    console.error("[api/models] error", err);
-    return Response.json({ models: [] }, { headers: CORS_HEADERS });
-  }
+  return Response.json({ models }, { headers: CORS_HEADERS });
 }

@@ -10,6 +10,12 @@ type ChatMessage = {
   content: string;
 };
 
+type ModelEntry = {
+  id: string;
+  label: string;
+  provider?: string;
+};
+
 type StreamChunk = {
   choices?: {
     delta?: { content?: string };
@@ -19,20 +25,11 @@ type StreamChunk = {
 
 const STORAGE_KEY = "filius-ai-history";
 
-const DEFAULT_MODELS = [
-  { id: "oc/mimo-v2.5-free", label: "MiMo v2.5 (free)" },
-  { id: "gemini/gemini-3.8-flash", label: "[GEMINI] Gemini 3.8 Flash" },
-  { id: "gemini/gemini-3.7-flash", label: "[GEMINI] Gemini 3.7 Flash" },
-  { id: "groq/llama-3.3-70b-versatile", label: "[GROQ] Llama 3.3 70B Versatile" },
-  { id: "hf/deepseek-ai/DeepSeek-V4.1-Flash", label: "[HF] DeepSeek V4.1 Flash" },
-  { id: "hf/Qwen/Qwen3.8-27B", label: "[HF] Qwen 3.8 27B" },
-  { id: "cerebras/llama-3.3-70b", label: "[CEREBRAS] Llama 3.3 70B" },
-  { id: "together/meta-llama/Llama-3.3-70B-Instruct-Turbo", label: "[TOGETHER] Llama 3.3 70B Turbo" },
-  { id: "ocg/mimo-v2.5", label: "[OCG] MiMo v2.5" },
-  { id: "oc/nemotron-3-ultra-free", label: "Nemotron 3 Ultra (free)" },
-  { id: "oc/muse-spark-1.3-contributor-free", label: "Muse Spark 1.3 (free)" },
-  { id: "oc/ling-3.0-flash-fin-free", label: "Ling 3.0 Flash (free)" },
-  { id: "oc/deepseek-v4-flash-free", label: "DeepSeek V4 Flash (free)" },
+// Fallback models shown before /api/models responds
+const FALLBACK_MODELS: ModelEntry[] = [
+  { id: "gemini:gemini-2.0-flash", label: "[Gemini] 2.0 Flash" },
+  { id: "groq:llama-3.3-70b-versatile", label: "[Groq] Llama 3.3 70B Versatile" },
+  { id: "openrouter:meta-llama/llama-3.3-70b-instruct:free", label: "[OpenRouter] Llama 3.3 70B (free)" },
 ];
 
 const SYSTEM_PROMPT =
@@ -78,20 +75,22 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [models, setModels] = useState(DEFAULT_MODELS);
-  const [model, setModel] = useState(DEFAULT_MODELS[0].id);
+  const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
+  const [model, setModel] = useState(FALLBACK_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Load model list from server
   useEffect(() => {
     fetch("/api/models")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: { models?: ModelEntry[] }) => {
         if (data.models && Array.isArray(data.models) && data.models.length > 0) {
           setModels(data.models);
+          setModel(data.models[0].id);
         }
       })
       .catch(() => {});
@@ -151,7 +150,7 @@ export default function Home() {
         const err = await res.json().catch(() => null);
         throw new Error(
           err?.error ||
-            `Terjadi kesalahan (HTTP ${res.status}). Pastikan server dan 9Router aktif.`
+            `Terjadi kesalahan (HTTP ${res.status}). Periksa konfigurasi API key di Vercel.`
         );
       }
 
@@ -242,7 +241,7 @@ export default function Home() {
                   ...m,
                   content:
                     "Maaf, terjadi kesalahan saat menghubungi AI. " +
-                    "Pastikan server dan 9Router aktif di PC host lalu coba lagi.",
+                    "Periksa konfigurasi API key di Vercel, lalu coba lagi.",
                 }
               : m
           )
@@ -303,6 +302,7 @@ export default function Home() {
             ))}
           </select>
           <button
+            type="button"
             onClick={newChat}
             className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-surface-hover"
           >
@@ -321,7 +321,7 @@ export default function Home() {
                 </div>
                 <h2 className="mb-1 text-xl font-semibold">Filius AI</h2>
                 <p className="text-sm text-muted">
-                  Asisten AI pribadi kamu — gratis lewat 9Router.
+                  Asisten AI pribadi kamu — pilih model dan mulai ngobrol!
                   <br />
                   Coba tanya: &quot;Bantuin aku belajar coding&quot;
                 </p>
@@ -399,7 +399,7 @@ export default function Home() {
             </button>
           </div>
           <p className="mt-2 text-center text-xs text-zinc-600">
-            Filius AI terhubung ke 9Router melalui server — pastikan 9Router aktif di PC host.
+            Filius AI — didukung multi-provider AI cloud.
           </p>
         </div>
       </footer>

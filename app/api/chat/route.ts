@@ -1,17 +1,45 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getRouterEndpoint(rawUrl?: string): string {
-  const url = rawUrl?.trim() || "http://localhost:20128/v1/chat/completions";
-  if (url.endsWith("/chat/completions")) {
-    return url;
-  }
-  return url.replace(/\/+$/, "") + "/chat/completions";
+// ─── Provider Configuration ───────────────────────────────────────────────────
+// Each provider maps a model-prefix to its OpenAI-compatible endpoint.
+// Model ID format in the UI: "provider:model-name"
+// e.g. "gemini:gemini-2.0-flash", "groq:llama-3.3-70b-versatile"
+
+type ProviderConfig = {
+  endpoint: string;
+  apiKey: string;
+  // Some providers need the prefix stripped from the model name
+  stripPrefix?: boolean;
+};
+
+function getProviders(): Record<string, ProviderConfig> {
+  return {
+    gemini: {
+      endpoint:
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      apiKey: process.env.GEMINI_API_KEY || "",
+    },
+    groq: {
+      endpoint: "https://api.groq.com/openai/v1/chat/completions",
+      apiKey: process.env.GROQ_API_KEY || "",
+    },
+    openrouter: {
+      endpoint: "https://openrouter.ai/api/v1/chat/completions",
+      apiKey: process.env.OPENROUTER_API_KEY || "",
+    },
+    together: {
+      endpoint: "https://api.together.xyz/v1/chat/completions",
+      apiKey: process.env.TOGETHER_API_KEY || "",
+    },
+    hf: {
+      endpoint: "https://router.huggingface.co/v1/chat/completions",
+      apiKey: process.env.HF_API_KEY || "",
+    },
+  };
 }
 
-const ROUTER_ENDPOINT = getRouterEndpoint(process.env.ROUTER_URL);
-const ROUTER_API_KEY = process.env.ROUTER_API_KEY || "";
-const DEFAULT_MODEL = process.env.ROUTER_MODEL || "oc/mimo-v2.5-free";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -24,39 +52,53 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS,
-  });
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function resolveProvider(modelId: string): {
+  provider: ProviderConfig;
+  modelName: string;
+} | null {
+  const providers = getProviders();
+
+  // Model ID format: "prefix:actual-model-name"
+  const colonIdx = modelId.indexOf(":");
+  if (colonIdx > 0) {
+    const prefix = modelId.slice(0, colonIdx);
+    const modelName = modelId.slice(colonIdx + 1);
+    const provider = providers[prefix];
+    if (provider && provider.apiKey) {
+      return { provider, modelName };
+    }
+    // Provider found but no API key
+    if (provider) {
+      return null;
+    }
+  }
+
+  // Legacy fallback: try to match prefix from model string (e.g. "gemini/gemini-flash")
+  for (const [prefix, provider] of Object.entries(providers)) {
+    if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
+      const modelName = modelId.slice(prefix.length + 1);
+      if (provider.apiKey) {
+        return { provider, modelName };
+      }
+      return null;
+    }
+  }
+
+  return null;
 }
 
-async function requestUpstream(bodyJson: string, headers: Record<string, string>) {
-  try {
-    return await fetch(ROUTER_ENDPOINT, {
-      method: "POST",
-      headers,
-      body: bodyJson,
-    });
-  } catch (primaryErr) {
-    // Fallback if localhost fails due to Windows IPv6 ::1 vs IPv4 127.0.0.1
-    if (ROUTER_ENDPOINT.includes("localhost")) {
-      const fallbackEndpoint = ROUTER_ENDPOINT.replace("localhost", "127.0.0.1");
-      return await fetch(fallbackEndpoint, {
-        method: "POST",
-        headers,
-        body: bodyJson,
-      });
-    }
-    throw primaryErr;
-  }
+// ─── CORS preflight ───────────────────────────────────────────────────────────
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
+
+// ─── POST /api/chat ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  let body: {
-    messages?: ChatMessage[];
-    model?: string;
-  };
+  let body: { messages?: ChatMessage[]; model?: string };
 
   try {
     body = await request.json();
@@ -75,32 +117,52 @@ export async function POST(request: Request) {
     );
   }
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (ROUTER_API_KEY) {
-    headers["Authorization"] = `Bearer ${ROUTER_API_KEY}`;
+  const modelId = body.model || "";
+  const resolved = resolveProvider(modelId);
+
+  if (!resolved) {
+    const missingKey = modelId.split(/[:/]/)[0] || "provider";
+    console.error(`[api/chat] No API key configured for model: ${modelId}`);
+    return Response.json(
+      {
+        error: `API key untuk provider "${missingKey}" belum dikonfigurasi. Tambahkan key di Environment Variables Vercel.`,
+        model: modelId,
+      },
+      { status: 503, headers: CORS_HEADERS }
+    );
   }
 
+  const { provider, modelName } = resolved;
+
+  const reqHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${provider.apiKey}`,
+  };
+
+  const reqBody = JSON.stringify({
+    model: modelName,
+    messages,
+    stream: true,
+    max_tokens: 4096,
+  });
+
   try {
-    const upstream = await requestUpstream(
-      JSON.stringify({
-        model: body.model || DEFAULT_MODEL,
-        messages,
-        stream: true,
-        max_tokens: 4096,
-      }),
-      headers
-    );
+    const upstream = await fetch(provider.endpoint, {
+      method: "POST",
+      headers: reqHeaders,
+      body: reqBody,
+    });
 
     if (!upstream.ok) {
       const errText = await upstream.text();
-      console.error("[api/chat] upstream error", upstream.status, errText.slice(0, 500));
+      console.error(
+        `[api/chat] upstream error ${upstream.status} for ${modelId}:`,
+        errText.slice(0, 300)
+      );
       return Response.json(
         {
-          error:
-            "9Router gagal merespons. Pastikan 9Router aktif di server host dan provider sudah terhubung.",
-          detail: errText.slice(0, 500),
+          error: `Provider gagal merespons (HTTP ${upstream.status}). Periksa API key dan model yang dipilih.`,
+          detail: errText.slice(0, 300),
         },
         { status: upstream.status, headers: CORS_HEADERS }
       );
@@ -108,7 +170,7 @@ export async function POST(request: Request) {
 
     if (!upstream.body) {
       return Response.json(
-        { error: "No response body from 9Router" },
+        { error: "Provider tidak mengembalikan response body." },
         { status: 502, headers: CORS_HEADERS }
       );
     }
@@ -123,11 +185,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("[api/chat] network error", err);
+    console.error(`[api/chat] network error for ${modelId}:`, err);
     return Response.json(
       {
-        error:
-          "Tidak bisa terhubung ke 9Router dari server. Pastikan 9Router aktif di PC host.",
+        error: `Tidak bisa terhubung ke provider. Periksa koneksi internet Vercel atau konfigurasi API key.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );
