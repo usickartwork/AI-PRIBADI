@@ -25,11 +25,10 @@ type StreamChunk = {
 
 const STORAGE_KEY = "filius-ai-history";
 
-// Fallback models shown before /api/models responds
 const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-2.0-flash", label: "[Gemini] 2.0 Flash" },
   { id: "groq:llama-3.3-70b-versatile", label: "[Groq] Llama 3.3 70B Versatile" },
-  { id: "openrouter:meta-llama/llama-3.3-70b-instruct:free", label: "[OpenRouter] Llama 3.3 70B (free)" },
+  { id: "openrouter:deepseek/deepseek-chat:free", label: "[OpenRouter] DeepSeek V3 (free)" },
 ];
 
 const SYSTEM_PROMPT =
