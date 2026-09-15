@@ -19,8 +19,16 @@ type StreamChunk = {
 
 const STORAGE_KEY = "filius-ai-history";
 
-const MODELS = [
+const DEFAULT_MODELS = [
   { id: "oc/mimo-v2.5-free", label: "MiMo v2.5 (free)" },
+  { id: "gemini/gemini-3.8-flash", label: "[GEMINI] Gemini 3.8 Flash" },
+  { id: "gemini/gemini-3.7-flash", label: "[GEMINI] Gemini 3.7 Flash" },
+  { id: "groq/llama-3.3-70b-versatile", label: "[GROQ] Llama 3.3 70B Versatile" },
+  { id: "hf/deepseek-ai/DeepSeek-V4.1-Flash", label: "[HF] DeepSeek V4.1 Flash" },
+  { id: "hf/Qwen/Qwen3.8-27B", label: "[HF] Qwen 3.8 27B" },
+  { id: "cerebras/llama-3.3-70b", label: "[CEREBRAS] Llama 3.3 70B" },
+  { id: "together/meta-llama/Llama-3.3-70B-Instruct-Turbo", label: "[TOGETHER] Llama 3.3 70B Turbo" },
+  { id: "ocg/mimo-v2.5", label: "[OCG] MiMo v2.5" },
   { id: "oc/nemotron-3-ultra-free", label: "Nemotron 3 Ultra (free)" },
   { id: "oc/muse-spark-1.3-contributor-free", label: "Muse Spark 1.3 (free)" },
   { id: "oc/ling-3.0-flash-fin-free", label: "Ling 3.0 Flash (free)" },
@@ -70,12 +78,24 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [model, setModel] = useState(MODELS[0].id);
+  const [models, setModels] = useState(DEFAULT_MODELS);
+  const [model, setModel] = useState(DEFAULT_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch("/api/models")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.models && Array.isArray(data.models) && data.models.length > 0) {
+          setModels(data.models);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -274,9 +294,9 @@ export default function Home() {
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="max-w-40 truncate rounded-lg border border-zinc-800 bg-surface px-3 py-1.5 text-xs text-zinc-200 focus:border-accent focus:outline-none"
+            className="max-w-44 sm:max-w-64 truncate rounded-lg border border-zinc-800 bg-surface px-3 py-1.5 text-xs text-zinc-200 focus:border-accent focus:outline-none"
           >
-            {MODELS.map((m) => (
+            {models.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
               </option>
