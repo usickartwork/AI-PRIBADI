@@ -149,11 +149,36 @@ export async function POST(request: Request) {
   });
 
   try {
-    const upstream = await fetch(provider.endpoint, {
+    let upstream = await fetch(provider.endpoint, {
       method: "POST",
       headers: reqHeaders,
       body: reqBody,
     });
+
+    if (
+      !upstream.ok &&
+      (upstream.status === 503 || upstream.status === 429) &&
+      providerName === "gemini" &&
+      modelName !== "gemini-3.6-flash"
+    ) {
+      console.warn(
+        `[api/chat] ${modelName} returned ${upstream.status}, trying fallback gemini-3.6-flash`
+      );
+      const fallbackBody = JSON.stringify({
+        model: "gemini-3.6-flash",
+        messages,
+        stream: true,
+        max_tokens: 4096,
+      });
+      const fallbackUpstream = await fetch(provider.endpoint, {
+        method: "POST",
+        headers: reqHeaders,
+        body: fallbackBody,
+      });
+      if (fallbackUpstream.ok) {
+        upstream = fallbackUpstream;
+      }
+    }
 
     if (!upstream.ok) {
       const errText = await upstream.text();
