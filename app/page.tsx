@@ -37,7 +37,7 @@ type StreamChunk = {
 
 const STORAGE_KEY = "filius-ai-history";
 
-// 8 Verified Models (GLM removed as requested)
+// 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B", provider: "ollama" },
@@ -93,12 +93,17 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false); // Thinking (browse)
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -147,6 +152,12 @@ export default function Home() {
     } catch {}
   }, [messages]);
 
+  const closeSidebarOnMobile = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   const updateAssistantContent = (id: string, text: string) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, content: text } : m))
@@ -169,10 +180,11 @@ export default function Home() {
     const text = (customPrompt || input).trim();
     if (!text || isStreaming) return;
 
+    closeSidebarOnMobile();
     setError(null);
     setIsStreaming(true);
     if (webSearchEnabled) {
-      setStatusMessage("🧠 Thinking & Browsing the web...");
+      setStatusMessage("Thinking & Browsing the web...");
     } else {
       setStatusMessage(null);
     }
@@ -337,6 +349,7 @@ export default function Home() {
 
   const newChat = () => {
     if (abortRef.current) abortRef.current.abort();
+    closeSidebarOnMobile();
     setMessages([]);
     setError(null);
     setIsStreaming(false);
@@ -374,7 +387,7 @@ export default function Home() {
       desc: "Buat daftar tugas terstruktur untuk proyek baru.",
       prompt: "Buatkan daftar to-do list terstruktur dan prioritas langkah pengerjaan untuk proyek web aplikasi baru dari nol hingga rilis.",
       icon: (
-        <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
@@ -384,7 +397,7 @@ export default function Home() {
       desc: "Buat draf surel profesional merespons tawaran kerja.",
       prompt: "Tuliskan draf email yang sangat profesional, ramah, dan percaya diri untuk merespons tawaran pekerjaan (job offer) dengan apresiasi tinggi.",
       icon: (
-        <svg className="w-4 h-4 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-pink-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
@@ -394,7 +407,7 @@ export default function Home() {
       desc: "Ringkas materi atau teks panjang menjadi poin padat.",
       prompt: "Jelaskan dan rangkum secara padat dalam 1 paragraf: Mengapa teknologi LLM (Large Language Model) berkembang sangat pesat dan menjadi kunci inovasi modern?",
       icon: (
-        <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
@@ -404,7 +417,7 @@ export default function Home() {
       desc: "Penjelasan konseptual dan teknis arsitektur AI.",
       prompt: "Jelaskan bagaimana AI berbasis transformer dan neural network bekerja secara teknis, dari tokenization hingga attention mechanism secara jelas dan mudah dipahami.",
       icon: (
-        <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
       ),
@@ -413,16 +426,24 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#fafafc] text-zinc-900 font-sans antialiased">
-      {/* ─── SIDEBAR (White / Light Theme) ─────────────────────────────────── */}
+      {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-zinc-900/30 backdrop-blur-[2px] md:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ─── SIDEBAR (Responsive / Mobile-Friendly Drawer) ─────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-zinc-200/80 bg-white transition-all duration-300 ease-in-out md:static ${
-          sidebarOpen ? "w-64 translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-zinc-200/80 bg-white shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out md:static md:w-64 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
         {/* Brand & Logo Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
-            {/* 3D Prismatic Star Glyph Logo */}
             <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 shadow-md shadow-violet-500/25">
               <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
@@ -436,7 +457,8 @@ export default function Home() {
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            title="Tutup menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -444,24 +466,21 @@ export default function Home() {
           </button>
         </div>
 
-        {/* New Thread Button (Harmonious Violet Theme) */}
+        {/* New Thread Button */}
         <div className="p-3">
           <button
             onClick={newChat}
-            className="group flex w-full items-center justify-between rounded-xl bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm shadow-violet-600/20"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm shadow-violet-600/20 cursor-pointer"
           >
-            <span className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 text-xs font-bold">+</span>
-              <span>New Thread</span>
-            </span>
-            <kbd className="text-[10px] text-violet-200 bg-violet-800/40 px-1.5 py-0.5 rounded">⌘N</kbd>
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 text-xs font-bold">+</span>
+            <span>New Thread</span>
           </button>
         </div>
 
         {/* Quick Navigation Sections */}
         <div className="px-3 py-1 space-y-0.5 text-xs text-zinc-600 font-medium">
           <div className="flex items-center gap-2.5 rounded-lg bg-zinc-100 text-zinc-900 px-3 py-2 cursor-pointer transition font-semibold">
-            <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             <span>Chats</span>
@@ -474,7 +493,7 @@ export default function Home() {
             }`}
           >
             <span className="flex items-center gap-2.5">
-              <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               <span>Thinking (Browse)</span>
@@ -491,7 +510,7 @@ export default function Home() {
               <button
                 onClick={newChat}
                 title="Hapus riwayat"
-                className="text-zinc-400 hover:text-red-500 text-[10px] transition"
+                className="text-zinc-400 hover:text-red-500 text-[10px] transition cursor-pointer"
               >
                 Clear
               </button>
@@ -504,7 +523,10 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-1">
-              <div className="group flex items-center justify-between rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/70 px-3 py-2 text-xs text-zinc-800 cursor-pointer transition">
+              <div
+                onClick={closeSidebarOnMobile}
+                className="group flex items-center justify-between rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/70 px-3 py-2 text-xs text-zinc-800 cursor-pointer transition"
+              >
                 <div className="truncate pr-2">
                   <p className="truncate font-medium text-zinc-800">
                     {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
@@ -514,11 +536,16 @@ export default function Home() {
                   </p>
                 </div>
                 <button
-                  onClick={newChat}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    newChat();
+                  }}
+                  className="p-1 text-zinc-400 hover:text-red-500 transition"
                   title="Hapus chat ini"
                 >
-                  ×
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -541,7 +568,7 @@ export default function Home() {
             <button
               onClick={newChat}
               title="Reset Percakapan"
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
+              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -551,55 +578,74 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* ─── MAIN WORKSPACE (White Canvas) ─────────────────────────────────── */}
+      {/* ─── MAIN WORKSPACE ────────────────────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full overflow-hidden bg-[#fafafc]">
-        {/* Top App Bar - Clean Minimalist */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
-          <div className="flex items-center gap-3">
+        {/* Top App Bar - Mobile Optimized Minimalist Header */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-3 py-2.5 sm:px-6 sm:py-3 backdrop-blur-xl">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="rounded-xl border border-zinc-200 bg-white p-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 shadow-sm transition"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 shadow-xs transition cursor-pointer"
               title="Toggle Sidebar"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
             </button>
+            <span className="text-sm font-semibold tracking-tight text-zinc-900 md:hidden">
+              Filius AI
+            </span>
           </div>
+
+          <button
+            onClick={newChat}
+            className="flex md:hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-xs transition"
+            title="Percakapan Baru"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </header>
 
-        {/* ─── SCROLLABLE CONTENT ───────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto pb-48 pt-6 px-4 sm:px-6">
-          <div className="mx-auto max-w-3xl space-y-6">
+        {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto pb-44 sm:pb-48 pt-4 sm:pt-6 px-3 sm:px-6">
+          <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
 
             {/* Error Notice */}
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 shadow-sm animate-in fade-in-0">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5 sm:p-4 text-xs text-red-700 shadow-sm animate-in fade-in-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5">
-                    <span className="text-red-600 font-bold text-sm">⚠</span>
+                    <svg className="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
                     <div>
                       <p className="font-bold text-red-900">Terjadi Kendala</p>
                       <p className="mt-0.5 text-red-700 leading-relaxed">{error}</p>
                     </div>
                   </div>
-                  <button onClick={() => setError(null)} className="text-red-500 hover:text-red-900 text-base">×</button>
+                  <button onClick={() => setError(null)} className="text-red-500 hover:text-red-900 text-base font-bold px-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             )}
 
             {/* ─── HERO / EMPTY STATE (Sapaan Filius) ────────────────────────── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center">
+              <div className="flex flex-col items-center justify-center pt-4 sm:pt-8 pb-4 text-center">
                 {/* 3D Iridescent Glowing Orb */}
-                <div className="relative mb-6 flex items-center justify-center animate-float">
-                  <div className="absolute h-28 w-28 rounded-full bg-violet-400/25 blur-2xl animate-pulse-glow" />
-                  <div className="absolute h-20 w-20 rounded-full bg-fuchsia-300/20 blur-xl" />
+                <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+                  <div className="absolute h-20 w-20 sm:h-28 sm:w-28 rounded-full bg-violet-400/25 blur-2xl animate-pulse-glow" />
+                  <div className="absolute h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-fuchsia-300/20 blur-xl" />
 
-                  <div className="relative h-18 w-18 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-violet-300 p-0.5 shadow-xl shadow-purple-500/30">
+                  <div className="relative h-14 w-14 sm:h-18 sm:w-18 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-violet-300 p-0.5 shadow-xl shadow-purple-500/30">
                     <div className="h-full w-full rounded-full bg-gradient-to-br from-violet-300 via-purple-600 to-indigo-900 opacity-95 flex items-center justify-center">
-                      <div className="absolute top-2 left-3 h-4 w-7 rounded-full bg-white/50 blur-[2px] transform -rotate-45" />
-                      <svg className="w-7 h-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
+                      <div className="absolute top-1.5 left-2 h-3 w-5 sm:top-2 sm:left-3 sm:h-4 sm:w-7 rounded-full bg-white/50 blur-[2px] transform -rotate-45" />
+                      <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                       </svg>
                     </div>
@@ -607,43 +653,46 @@ export default function Home() {
                 </div>
 
                 {/* Sapaan Filius */}
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
+                <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
                   {getTimeGreeting()}, Filius
                 </h1>
-                <p className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
+                <p className="mt-0.5 sm:mt-1 text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
                   What&apos;s on <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">your mind?</span>
                 </p>
-                <p className="mt-2 text-xs sm:text-sm text-zinc-500 max-w-md">
+                <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-zinc-500 max-w-md px-2">
                   Pilih contoh di bawah atau tanyakan apa saja langsung kepada Filius AI.
                 </p>
 
-                {/* Quick Start Suggestions Grid */}
-                <div className="w-full mt-10 text-left">
-                  <div className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-3 px-1">
+                {/* Quick Start Suggestions Grid (Mobile 1 column, Tablet+ 2 columns) */}
+                <div className="w-full mt-6 sm:mt-10 text-left">
+                  <div className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-2.5 sm:mb-3 px-1">
                     Get started with an example below
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {quickPrompts.map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => sendMessage(item.prompt)}
-                        className="glass-card flex flex-col justify-between rounded-2xl p-4 text-left group cursor-pointer"
+                        className="glass-card flex flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left group cursor-pointer"
                       >
                         <div>
-                          <h3 className="text-[13px] font-semibold text-zinc-900 group-hover:text-violet-700 transition">
+                          <h3 className="text-xs sm:text-[13px] font-semibold text-zinc-900 group-hover:text-violet-700 transition">
                             {item.title}
                           </h3>
-                          <p className="text-[11.5px] text-zinc-500 mt-1 leading-relaxed line-clamp-2">
+                          <p className="text-[11px] sm:text-[11.5px] text-zinc-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2">
                             {item.desc}
                           </p>
                         </div>
-                        <div className="mt-3 flex items-center justify-between pt-2 border-t border-zinc-100">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-violet-100 transition">
+                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t border-zinc-100">
+                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-violet-100 transition">
                             {item.icon}
                           </div>
                           <span className="text-[11px] text-violet-600 opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1">
-                            Coba sekarang →
+                            <span>Coba sekarang</span>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
                           </span>
                         </div>
                       </button>
@@ -653,26 +702,26 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── ACTIVE CHAT MESSAGES (Pure Harmonious Light Theme) ───────── */}
+            {/* ─── ACTIVE CHAT MESSAGES ─────────────────────────────────────── */}
             {messages.map((msg) => {
               const isUser = msg.role === "user";
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"} animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
+                  className={`flex gap-2.5 sm:gap-3.5 ${isUser ? "justify-end" : "justify-start"} animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
                 >
                   {/* Assistant Avatar */}
                   {!isUser && (
-                    <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-md shadow-violet-600/20">
-                      <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-md shadow-violet-600/20">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                       </svg>
                     </div>
                   )}
 
-                  {/* Message Bubble (User = Violet, Assistant = White Card) */}
+                  {/* Message Bubble */}
                   <div
-                    className={`relative max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 text-sm ${
+                    className={`relative max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 sm:p-4 text-[13.5px] sm:text-sm ${
                       isUser
                         ? "bg-violet-600 text-white shadow-sm shadow-violet-600/20 rounded-tr-sm"
                         : "bg-white border border-zinc-200/90 text-zinc-900 shadow-sm rounded-tl-sm"
@@ -692,15 +741,18 @@ export default function Home() {
                         <MarkdownMessage content={msg.content} />
 
                         {msg.searchError && (
-                          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                            ⚠ Catatan pencarian: {msg.searchError}
+                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                            <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Catatan pencarian: {msg.searchError}</span>
                           </div>
                         )}
 
                         {/* Sources Citations */}
                         {msg.sources && msg.sources.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-zinc-100">
-                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-violet-700 uppercase tracking-wider mb-2">
+                          <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-100">
+                            <div className="flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-violet-700 uppercase tracking-wider mb-2">
                               <svg className="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                               </svg>
@@ -726,7 +778,7 @@ export default function Home() {
                                       {idx + 1}
                                     </span>
                                     <div className="truncate">
-                                      <p className="truncate font-semibold text-[12px] group-hover:text-violet-700 transition">
+                                      <p className="truncate font-semibold text-[11.5px] sm:text-[12px] group-hover:text-violet-700 transition">
                                         {src.title || domain}
                                       </p>
                                       <p className="text-[10px] text-zinc-400 truncate">{domain}</p>
@@ -738,17 +790,19 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Copy Response Action */}
+                        {/* Copy Action */}
                         {msg.content && (
-                          <div className="mt-3 flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-100">
+                          <div className="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-100">
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
-                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition"
+                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition cursor-pointer"
                             >
                               {copiedId === msg.id ? (
                                 <>
-                                  <span className="text-emerald-600 font-bold">✓</span>
+                                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                  </svg>
                                   <span className="text-emerald-600 font-semibold">Tersalin</span>
                                 </>
                               ) : (
@@ -768,7 +822,7 @@ export default function Home() {
 
                   {/* User Avatar */}
                   {isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700 border border-violet-200">
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700 border border-violet-200">
                       U
                     </div>
                   )}
@@ -778,7 +832,7 @@ export default function Home() {
 
             {/* Status searching pulse */}
             {statusMessage && (
-              <div className="flex items-center gap-2 text-xs text-violet-700 pl-11 animate-pulse font-medium">
+              <div className="flex items-center gap-2 text-xs text-violet-700 pl-10 sm:pl-11 animate-pulse font-medium">
                 <div className="h-2 w-2 rounded-full bg-violet-600" />
                 <span>{statusMessage}</span>
               </div>
@@ -788,10 +842,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── FLOATING ELEVATED INPUT BAR ──────────────────────────────────── */}
-        <div className="absolute inset-x-0 bottom-0 z-30 p-4 sm:p-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/95 to-transparent pt-10">
+        {/* ─── FLOATING ELEVATED INPUT BAR (Mobile Responsive) ──────────────── */}
+        <div className="absolute inset-x-0 bottom-0 z-30 p-2.5 sm:p-6 pb-3 sm:pb-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/95 to-transparent pt-8 sm:pt-10">
           <div className="mx-auto max-w-3xl pointer-events-auto">
-            <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 transition-all">
+            <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all">
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -803,39 +857,49 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask AI a question or make a request..."
                 rows={1}
-                className="w-full bg-transparent px-2.5 pt-1 text-[14.5px] text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none leading-relaxed"
-                style={{ maxHeight: "180px" }}
+                className="w-full bg-transparent px-2 sm:px-2.5 pt-1 text-base sm:text-[14.5px] text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none leading-relaxed"
+                style={{ maxHeight: "160px" }}
               />
 
               {/* Bottom Actions Bar inside Floating Card */}
-              <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-zinc-100">
+              <div className="mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t border-zinc-100 gap-1.5 sm:gap-2">
                 {/* Left Action: Model Selector Pill + Thinking Toggle */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                   
-                  {/* LLM Selector Button */}
-                  <div className="relative" ref={inputDropdownRef}>
+                  {/* LLM Selector Button (Clean SVG, No Emojis) */}
+                  <div className="relative shrink-0" ref={inputDropdownRef}>
                     <button
                       type="button"
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/80 px-3 py-1 text-xs font-semibold text-zinc-800 transition shadow-xs"
+                      className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/80 px-2.5 sm:px-3 py-1 text-xs font-semibold text-zinc-800 transition shadow-xs cursor-pointer max-w-[130px] sm:max-w-[220px]"
                       title="Pilih Model AI"
                     >
-                      <span className="text-violet-600">✨</span>
-                      <span className="truncate max-w-[140px] sm:max-w-[220px]">
+                      <svg className="w-3.5 h-3.5 text-violet-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                      </svg>
+                      <span className="truncate">
                         {activeModelObj.label}
                       </span>
-                      <svg className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200 ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
 
-                    {/* Popover list if opened from bottom bar */}
+                    {/* Popover list (Responsive: Fixed modal on mobile, dropdown on desktop) */}
                     {modelDropdownOpen && (
-                      <div className="absolute bottom-full left-0 mb-2 w-72 sm:w-80 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-2xl z-50 animate-in fade-in-0 zoom-in-95">
-                        <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
-                          Pilih Model LLM ({models.length} Model Tersedia)
+                      <div className="fixed inset-x-3 bottom-20 z-50 max-h-[55vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:mb-2 sm:w-80 sm:max-h-72 animate-in fade-in-0 zoom-in-95">
+                        <div className="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
+                          <span>Pilih Model LLM ({models.length})</span>
+                          <button
+                            onClick={() => setModelDropdownOpen(false)}
+                            className="sm:hidden text-zinc-400 hover:text-zinc-700"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1 space-y-0.5">
+                        <div className="py-1 space-y-0.5">
                           {models.map((m) => {
                             const isSelected = m.id === model;
                             return (
@@ -846,7 +910,7 @@ export default function Home() {
                                   setModel(m.id);
                                   setModelDropdownOpen(false);
                                 }}
-                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition ${
+                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 sm:py-2 text-left text-xs transition cursor-pointer ${
                                   isSelected
                                     ? "bg-violet-600 text-white font-medium shadow-sm"
                                     : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
@@ -870,7 +934,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                       webSearchEnabled
                         ? "border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-600/30"
                         : "border-zinc-200/90 bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
@@ -884,13 +948,13 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Right Action: Send / Stop Circular Button (Violet when active) */}
-                <div className="flex items-center gap-2">
+                {/* Right Action: Send / Stop Circular Button */}
+                <div className="flex items-center gap-2 shrink-0">
                   {isStreaming ? (
                     <button
                       type="button"
                       onClick={handleStop}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm"
+                      className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
                       title="Hentikan respons"
                     >
                       <div className="h-2.5 w-2.5 bg-white rounded-sm" />
@@ -900,7 +964,7 @@ export default function Home() {
                       type="button"
                       onClick={() => sendMessage()}
                       disabled={!input.trim()}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${
+                      className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
                         input.trim()
                           ? "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/25 hover:scale-105 active:scale-95 cursor-pointer"
                           : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
@@ -915,7 +979,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="mt-2 text-center text-[10px] text-zinc-400">
+            <div className="mt-1.5 sm:mt-2 text-center text-[10px] text-zinc-400">
               Filius AI dapat menghasilkan informasi yang bervariasi. Selalu verifikasi fakta krusial.
             </div>
           </div>

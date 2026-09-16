@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   description: "Personal AI Assistant",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#fafafc",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -24,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased light`}
       style={{ colorScheme: "light" }}
     >
-      <body className="min-h-full flex flex-col bg-[#fafafc] text-zinc-900 antialiased">
+      <body className="min-h-full flex flex-col bg-[#fafafc] text-zinc-900 antialiased selection:bg-violet-100 selection:text-violet-900">
         {children}
       </body>
     </html>
