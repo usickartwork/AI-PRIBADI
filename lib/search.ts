@@ -27,7 +27,18 @@ export async function searchTavily(query: string, apiKey: string): Promise<Searc
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw new Error(`Tavily API merespons HTTP ${res.status}: ${errText.slice(0, 150)}`);
+      let msg = errText.slice(0, 150);
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.detail?.error) msg = parsed.detail.error;
+        else if (parsed.message) msg = parsed.message;
+      } catch {}
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(`API Key Tavily tidak valid. Periksa TAVILY_API_KEY di .env.local / Vercel.`);
+      }
+
+      throw new Error(`Tavily API merespons error (HTTP ${res.status}): ${msg}`);
     }
 
     const data = (await res.json()) as {
@@ -58,17 +69,19 @@ export async function searchTavily(query: string, apiKey: string): Promise<Searc
 export async function searchWeb(query: string): Promise<SearchResult[]> {
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
 
+  // If Tavily API key is set, use Tavily directly
   if (tavilyKey) {
-    try {
-      return await searchTavily(query, tavilyKey);
-    } catch (tavilyErr: unknown) {
-      console.warn("[searchWeb] Tavily failed, trying SearXNG fallback:", tavilyErr);
-      // Fallback to SearXNG if configured
-      return await searchSearxng(query);
-    }
+    return await searchTavily(query, tavilyKey);
   }
 
-  // Fallback if no Tavily API Key provided
-  return await searchSearxng(query);
-}
+  // If Tavily key is missing, check if SearXNG is explicitly configured
+  const searxngUrl = process.env.SEARXNG_URL?.trim();
+  if (searxngUrl && searxngUrl !== "http://localhost:8080") {
+    return await searchSearxng(query);
+  }
 
+  // If neither Tavily Key nor custom SearXNG is set, throw informative error for Tavily
+  throw new Error(
+    "API Key Tavily belum dikonfigurasi. Silakan tambahkan TAVILY_API_KEY di file .env.local atau Vercel Dashboard (Dapatkan gratis di https://tavily.com)."
+  );
+}
