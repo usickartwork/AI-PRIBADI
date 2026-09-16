@@ -425,7 +425,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#fafafc] text-zinc-900 font-sans antialiased">
+    <div className="flex h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-[#fafafc] text-zinc-900 font-sans antialiased">
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -472,7 +472,7 @@ export default function Home() {
             onClick={newChat}
             className="group flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm shadow-violet-600/20 cursor-pointer"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 text-xs font-bold">+</span>
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             <span>New Thread</span>
           </button>
         </div>
@@ -579,9 +579,9 @@ export default function Home() {
       </aside>
 
       {/* ─── MAIN WORKSPACE ────────────────────────────────────────────────── */}
-      <main className="relative flex flex-1 flex-col h-full overflow-hidden bg-[#fafafc]">
+      <main className="flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-[#fafafc]">
         {/* Top App Bar - Mobile Optimized Minimalist Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-3 py-2.5 sm:px-6 sm:py-3 backdrop-blur-xl">
+        <header className="shrink-0 w-full z-20 flex items-center justify-between border-b border-zinc-200/80 bg-white/95 px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -592,9 +592,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
             </button>
-            <span className="text-sm font-semibold tracking-tight text-zinc-900 md:hidden">
-              Filius AI
-            </span>
+            <div className="flex items-center gap-1.5 md:hidden"><div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-xs"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" /></svg></div><span className="text-sm font-bold tracking-tight text-zinc-900">Filius AI</span></div>
           </div>
 
           <button
@@ -603,13 +601,13 @@ export default function Home() {
             title="Percakapan Baru"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
         </header>
 
         {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto pb-44 sm:pb-48 pt-4 sm:pt-6 px-3 sm:px-6">
+        <div className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5">
           <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
 
             {/* Error Notice */}
@@ -843,8 +841,8 @@ export default function Home() {
         </div>
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Mobile Responsive) ──────────────── */}
-        <div className="absolute inset-x-0 bottom-0 z-30 p-2.5 sm:p-6 pb-3 sm:pb-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/95 to-transparent pt-8 sm:pt-10">
-          <div className="mx-auto max-w-3xl pointer-events-auto">
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#fafafc] via-[#fafafc] to-transparent">
+          <div className="mx-auto max-w-3xl w-full">
             <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all">
               {/* Textarea Input */}
               <textarea
@@ -857,8 +855,8 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask AI a question or make a request..."
                 rows={1}
-                className="w-full bg-transparent px-2 sm:px-2.5 pt-1 text-base sm:text-[14.5px] text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none leading-relaxed"
-                style={{ maxHeight: "160px" }}
+                className="w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none leading-relaxed"
+                style={{ maxHeight: "140px" }}
               />
 
               {/* Bottom Actions Bar inside Floating Card */}
@@ -874,8 +872,8 @@ export default function Home() {
                       className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/80 px-2.5 sm:px-3 py-1 text-xs font-semibold text-zinc-800 transition shadow-xs cursor-pointer max-w-[130px] sm:max-w-[220px]"
                       title="Pilih Model AI"
                     >
-                      <svg className="w-3.5 h-3.5 text-violet-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                      <svg className="w-3.5 h-3.5 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
                       <span className="truncate">
                         {activeModelObj.label}
@@ -887,7 +885,16 @@ export default function Home() {
 
                     {/* Popover list (Responsive: Fixed modal on mobile, dropdown on desktop) */}
                     {modelDropdownOpen && (
-                      <div className="fixed inset-x-3 bottom-20 z-50 max-h-[55vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:mb-2 sm:w-80 sm:max-h-72 animate-in fade-in-0 zoom-in-95">
+                      <div
+                        className="fixed inset-0 z-40 bg-zinc-900/20 backdrop-blur-[1px] sm:hidden"
+                        onClick={() => setModelDropdownOpen(false)}
+                        aria-hidden="true"
+                      />
+                    )}
+
+                    {/* Popover list (Responsive: Centered sheet on mobile, anchored popover on desktop) */}
+                    {modelDropdownOpen && (
+                      <div className="fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-72 animate-in fade-in-0 zoom-in-95">
                         <div className="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
                           <span>Pilih Model LLM ({models.length})</span>
                           <button

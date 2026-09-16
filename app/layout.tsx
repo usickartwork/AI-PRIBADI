@@ -21,6 +21,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
   themeColor: "#fafafc",
 };
 
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased light`}
       style={{ colorScheme: "light" }}
     >
-      <body className="min-h-full flex flex-col bg-[#fafafc] text-zinc-900 antialiased selection:bg-violet-100 selection:text-violet-900">
+      <body className="h-[100dvh] w-full overflow-hidden flex flex-col bg-[#fafafc] text-zinc-900 antialiased selection:bg-violet-100 selection:text-violet-900">
         {children}
       </body>
     </html>
