@@ -1,16 +1,20 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { searchWeb, SearchResult } from "@/lib/search";
+import { searchSearxng, SearchResult } from "@/lib/searxng";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
+// Each provider maps a model-prefix to its OpenAI-compatible endpoint.
+// Model ID format in the UI: "provider:model-name"
+// e.g. "gemini:gemini-3.6-flash", "groq:openai/gpt-oss-120b"
+
 type ProviderConfig = {
   endpoint: string;
   apiKey: string;
 };
 
 function getOllamaEndpoint(rawUrl?: string): string {
-  const base = rawUrl?.trim() || "https://api.ollama.com";
+  const base = rawUrl?.trim() || "http://localhost:11434";
   const clean = base.replace(/\/+$/, "");
   if (clean.endsWith("/chat/completions")) return clean;
   if (clean.endsWith("/v1")) return clean + "/chat/completions";
@@ -77,6 +81,7 @@ function resolveProvider(modelId: string): {
 } | null {
   const providers = getProviders();
 
+  // Model ID format: "prefix:actual-model-name"
   const colonIdx = modelId.indexOf(":");
   if (colonIdx > 0) {
     const prefix = modelId.slice(0, colonIdx);
@@ -90,6 +95,7 @@ function resolveProvider(modelId: string): {
     }
   }
 
+  // Legacy fallback: try to match prefix from model string (e.g. "gemini/gemini-flash")
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
@@ -146,7 +152,7 @@ export async function POST(request: Request) {
     if (lastUserMsg) {
       try {
         // Limit max 3 search calls per user request limit (here 1 call, max 5 results per call)
-        sources = await searchWeb(lastUserMsg);
+        sources = await searchSearxng(lastUserMsg);
 
         if (sources.length > 0) {
           const contextPrompt =
@@ -219,6 +225,7 @@ export async function POST(request: Request) {
       body: reqBody,
     });
 
+    // Auto-fallback if primary model is experiencing high demand (503/429)
     if (
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&

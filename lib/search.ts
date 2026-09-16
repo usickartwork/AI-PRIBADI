@@ -71,3 +71,4 @@ export async function searchWeb(query: string): Promise<SearchResult[]> {
   // Fallback if no Tavily API Key provided
   return await searchSearxng(query);
 }
+

@@ -45,7 +45,7 @@ export async function GET() {
   if (process.env.GEMINI_API_KEY) configured.add("gemini");
   if (process.env.GROQ_API_KEY) configured.add("groq");
   if (process.env.NVIDIA_API_KEY) configured.add("nvidia");
-  if (process.env.OLLAMA_API_KEY || process.env.OLLAMA_BASE_URL) configured.add("ollama");
+  configured.add("ollama");
   if (process.env.CEREBRAS_API_KEY) configured.add("cerebras");
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
