@@ -10,7 +10,8 @@ type ProviderConfig = {
 };
 
 function getOllamaEndpoint(rawUrl?: string): string {
-  const base = rawUrl?.trim() || "http://localhost:11434";
+  const base = rawUrl?.trim() || "";
+  if (!base) return "";
   const clean = base.replace(/\/+$/, "");
   if (clean.endsWith("/chat/completions") || clean.endsWith("/api/chat")) return clean;
   if (clean.endsWith("/v1")) return clean + "/chat/completions";
@@ -82,7 +83,7 @@ function resolveProvider(modelId: string): {
     const prefix = modelId.slice(0, colonIdx);
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
-    if (provider && (provider.apiKey || prefix === "ollama")) {
+    if (provider && (provider.apiKey || (prefix === "ollama" && Boolean(process.env.OLLAMA_BASE_URL?.trim())))) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -93,7 +94,7 @@ function resolveProvider(modelId: string): {
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey || prefix === "ollama") {
+      if (provider.apiKey || (prefix === "ollama" && Boolean(process.env.OLLAMA_BASE_URL?.trim()))) {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -183,7 +184,18 @@ export async function POST(request: Request) {
 
   if (!resolved) {
     const missingKey = modelId.split(/[:/]/)[0] || "provider";
-    console.error(`[api/chat] No API key configured for model: ${modelId}`);
+    console.error(`[api/chat] Provider or key not configured for model: ${modelId}`);
+
+    if (missingKey.toLowerCase() === "ollama") {
+      return Response.json(
+        {
+          error:
+            "OLLAMA_BASE_URL belum dikonfigurasi pada Vercel Dashboard (Settings -> Environment Variables). Silakan tambahkan OLLAMA_BASE_URL dengan URL server Ollama publik Anda.",
+          model: modelId,
+        },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
 
     return Response.json(
       {
@@ -219,22 +231,24 @@ export async function POST(request: Request) {
 
     // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
     if (!upstream.ok && providerName === "ollama" && (upstream.status === 405 || upstream.status === 404)) {
-      const baseUrl = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/+$/, "");
-      const nativeEndpoint = `${baseUrl}/api/chat`;
-      console.warn(`[api/chat] Ollama ${provider.endpoint} returned ${upstream.status}, trying native ${nativeEndpoint}`);
+      const baseUrl = (process.env.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
+      if (baseUrl) {
+        const nativeEndpoint = `${baseUrl}/api/chat`;
+        console.warn(`[api/chat] Ollama ${provider.endpoint} returned ${upstream.status}, trying native ${nativeEndpoint}`);
 
-      const nativeUpstream = await fetch(nativeEndpoint, {
-        method: "POST",
-        headers: reqHeaders,
-        body: JSON.stringify({
-          model: modelName,
-          messages,
-          stream: true,
-        }),
-      });
+        const nativeUpstream = await fetch(nativeEndpoint, {
+          method: "POST",
+          headers: reqHeaders,
+          body: JSON.stringify({
+            model: modelName,
+            messages,
+            stream: true,
+          }),
+        });
 
-      if (nativeUpstream.ok) {
-        upstream = nativeUpstream;
+        if (nativeUpstream.ok) {
+          upstream = nativeUpstream;
+        }
       }
     }
 
@@ -351,7 +365,7 @@ export async function POST(request: Request) {
     console.error(`[api/chat] network error for ${modelId}:`, fetchErrMsg);
     return Response.json(
       {
-        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server Ollama/Provider sedang berjalan atau periksa OLLAMA_BASE_URL.`,
+        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] pada URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa OLLAMA_BASE_URL di Vercel Dashboard.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );
