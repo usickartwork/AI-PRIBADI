@@ -51,12 +51,6 @@ export async function GET() {
   if (process.env.HF_API_KEY) configured.add("hf");
   configured.add("ollama");
 
-  // Only add ollama if a custom remote server URL is configured
-  const ollamaUrl = process.env.OLLAMA_BASE_URL?.trim();
-  if (ollamaUrl && !ollamaUrl.includes("localhost") && !ollamaUrl.includes("127.0.0.1")) {
-    configured.add("ollama");
-  }
-
   let models: ModelEntry[];
 
   if (configured.size === 0) {

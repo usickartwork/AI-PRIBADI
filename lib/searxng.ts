@@ -10,7 +10,10 @@ export type SearxngSearchResponse = {
 };
 
 export async function searchSearxng(query: string): Promise<SearchResult[]> {
-  const baseUrl = (process.env.SEARXNG_URL || "http://localhost:8080").replace(/\/+$/, "");
+  const baseUrl = (process.env.SEARXNG_URL || "").replace(/\/+$/, "");
+  if (!baseUrl) {
+    throw new Error("SEARXNG_URL belum dikonfigurasi.");
+  }
   const searchUrl = `${baseUrl}/search?q=${encodeURIComponent(query)}&format=json`;
 
   const controller = new AbortController();

@@ -9,13 +9,26 @@ type ProviderConfig = {
   apiKey: string;
 };
 
-function getOllamaEndpoint(rawUrl?: string): string {
-  const base = rawUrl?.trim() || "";
+function cleanOllamaBaseUrl(rawUrl?: string): string {
+  let base = rawUrl?.trim() || "";
   if (!base) return "";
-  const clean = base.replace(/\/+$/, "");
-  if (clean.endsWith("/chat/completions") || clean.endsWith("/api/chat")) return clean;
-  if (clean.endsWith("/v1")) return clean + "/chat/completions";
-  return clean + "/v1/chat/completions";
+  // Hapus trailing slash
+  base = base.replace(/\/+$/, "");
+  // Hapus suffix endpoint jika user memasukkan URL lengkap
+  base = base.replace(/\/v1\/chat\/completions$/, "");
+  base = base.replace(/\/chat\/completions$/, "");
+  base = base.replace(/\/api\/chat$/, "");
+  // Hapus suffix /api/v1, /v1, atau /api agar tidak menghasilkan path ganda
+  base = base.replace(/\/api\/v1$/, "");
+  base = base.replace(/\/v1$/, "");
+  base = base.replace(/\/api$/, "");
+  return base.replace(/\/+$/, "");
+}
+
+function getOllamaEndpoint(rawUrl?: string): string {
+  const clean = cleanOllamaBaseUrl(rawUrl);
+  if (!clean) return "";
+  return `${clean}/v1/chat/completions`;
 }
 
 function getProviders(): Record<string, ProviderConfig> {
@@ -83,7 +96,7 @@ function resolveProvider(modelId: string): {
     const prefix = modelId.slice(0, colonIdx);
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
-    if (provider && (provider.apiKey || (prefix === "ollama" && Boolean(process.env.OLLAMA_BASE_URL?.trim())))) {
+    if (provider && (provider.apiKey || (prefix === "ollama" && Boolean(provider.endpoint)))) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -94,7 +107,7 @@ function resolveProvider(modelId: string): {
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey || (prefix === "ollama" && Boolean(process.env.OLLAMA_BASE_URL?.trim()))) {
+      if (provider.apiKey || (prefix === "ollama" && Boolean(provider.endpoint))) {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -190,10 +203,10 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error:
-            "OLLAMA_BASE_URL belum dikonfigurasi pada Vercel Dashboard (Settings -> Environment Variables). Silakan tambahkan OLLAMA_BASE_URL dengan URL server Ollama publik Anda.",
+            "OLLAMA_BASE_URL belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan OLLAMA_BASE_URL dengan URL server Ollama Anda (contoh: https://my-ollama-host.com).",
           model: modelId,
         },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 503, headers: CORS_HEADERS }
       );
     }
 
@@ -231,9 +244,9 @@ export async function POST(request: Request) {
 
     // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
     if (!upstream.ok && providerName === "ollama" && (upstream.status === 405 || upstream.status === 404)) {
-      const baseUrl = (process.env.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
-      if (baseUrl) {
-        const nativeEndpoint = `${baseUrl}/api/chat`;
+      const cleanBase = cleanOllamaBaseUrl(process.env.OLLAMA_BASE_URL);
+      if (cleanBase) {
+        const nativeEndpoint = `${cleanBase}/api/chat`;
         console.warn(`[api/chat] Ollama ${provider.endpoint} returned ${upstream.status}, trying native ${nativeEndpoint}`);
 
         const nativeUpstream = await fetch(nativeEndpoint, {
@@ -288,11 +301,13 @@ export async function POST(request: Request) {
       let detailMsg = errText.slice(0, 200);
       try {
         const parsed = JSON.parse(errText) as {
-          error?: { message?: string };
+          error?: { message?: string } | string;
           message?: string;
           detail?: string;
         };
-        if (parsed.error?.message) {
+        if (typeof parsed.error === "string") {
+          detailMsg = parsed.error;
+        } else if (parsed.error?.message) {
           detailMsg = parsed.error.message;
         } else if (parsed.message) {
           detailMsg = parsed.message;
@@ -365,7 +380,7 @@ export async function POST(request: Request) {
     console.error(`[api/chat] network error for ${modelId}:`, fetchErrMsg);
     return Response.json(
       {
-        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] pada URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa OLLAMA_BASE_URL di Vercel Dashboard.`,
+        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server Ollama/Provider sedang berjalan atau periksa OLLAMA_BASE_URL.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );
