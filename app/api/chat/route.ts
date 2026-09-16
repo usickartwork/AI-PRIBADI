@@ -12,7 +12,7 @@ type ProviderConfig = {
 function getOllamaEndpoint(rawUrl?: string): string {
   const base = rawUrl?.trim() || "http://localhost:11434";
   const clean = base.replace(/\/+$/, "");
-  if (clean.endsWith("/chat/completions")) return clean;
+  if (clean.endsWith("/chat/completions") || clean.endsWith("/api/chat")) return clean;
   if (clean.endsWith("/v1")) return clean + "/chat/completions";
   return clean + "/v1/chat/completions";
 }
@@ -70,14 +70,6 @@ const CORS_HEADERS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isOllamaConfigured(): boolean {
-  const url = process.env.OLLAMA_BASE_URL?.trim() || "";
-  const key = process.env.OLLAMA_API_KEY?.trim() || "";
-  if (key) return true;
-  if (url && !url.includes("localhost") && !url.includes("127.0.0.1")) return true;
-  return false;
-}
-
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
   modelName: string;
@@ -90,7 +82,7 @@ function resolveProvider(modelId: string): {
     const prefix = modelId.slice(0, colonIdx);
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
-    if (provider && (provider.apiKey || (prefix === "ollama" && isOllamaConfigured()))) {
+    if (provider && (provider.apiKey || prefix === "ollama")) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -101,7 +93,7 @@ function resolveProvider(modelId: string): {
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey || (prefix === "ollama" && isOllamaConfigured())) {
+      if (provider.apiKey || prefix === "ollama") {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -146,7 +138,7 @@ export async function POST(request: Request) {
   let sources: SearchResult[] = [];
   let searchError: string | null = null;
 
-  // ── Web Search Integration (Tavily AI Search) ──────────────────────────────────
+  // ── Web Search Integration ────────────────────────────────────────────────────
   if (webSearch) {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
 
@@ -193,17 +185,6 @@ export async function POST(request: Request) {
     const missingKey = modelId.split(/[:/]/)[0] || "provider";
     console.error(`[api/chat] No API key configured for model: ${modelId}`);
 
-    if (missingKey.toLowerCase() === "ollama") {
-      return Response.json(
-        {
-          error:
-            'Model [Ollama] memerlukan server Ollama publik (OLLAMA_BASE_URL) di Vercel Dashboard. Untuk menggunakan model GPT OSS 120B di Vercel secara gratis tanpa server lokal, silakan pilih model "[Groq] GPT OSS 120B" di dropdown.',
-          model: modelId,
-        },
-        { status: 400, headers: CORS_HEADERS }
-      );
-    }
-
     return Response.json(
       {
         error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel.`,
@@ -236,6 +217,28 @@ export async function POST(request: Request) {
       body: reqBody,
     });
 
+    // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
+    if (!upstream.ok && providerName === "ollama" && (upstream.status === 405 || upstream.status === 404)) {
+      const baseUrl = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/+$/, "");
+      const nativeEndpoint = `${baseUrl}/api/chat`;
+      console.warn(`[api/chat] Ollama ${provider.endpoint} returned ${upstream.status}, trying native ${nativeEndpoint}`);
+
+      const nativeUpstream = await fetch(nativeEndpoint, {
+        method: "POST",
+        headers: reqHeaders,
+        body: JSON.stringify({
+          model: modelName,
+          messages,
+          stream: true,
+        }),
+      });
+
+      if (nativeUpstream.ok) {
+        upstream = nativeUpstream;
+      }
+    }
+
+    // ── Gemini Fallback ────────────────────────────────────────────────────────
     if (
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&
@@ -343,11 +346,12 @@ export async function POST(request: Request) {
         ...CORS_HEADERS,
       },
     });
-  } catch (err) {
-    console.error(`[api/chat] network error for ${modelId}:`, err);
+  } catch (err: unknown) {
+    const fetchErrMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[api/chat] network error for ${modelId}:`, fetchErrMsg);
     return Response.json(
       {
-        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}]. Periksa koneksi internet Vercel atau API key.`,
+        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server Ollama/Provider sedang berjalan atau periksa OLLAMA_BASE_URL.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );

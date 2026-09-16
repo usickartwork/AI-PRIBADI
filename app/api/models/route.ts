@@ -11,6 +11,7 @@ type ModelEntry = {
 };
 
 const ALL_MODELS: ModelEntry[] = [
+  // ── Groq (Cloud LLM - Super Fast) ─────────────────────────────────────────
   // ── Groq (Cloud LLM - Super Fast Default for Vercel) ──────────────────────
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
 
@@ -50,9 +51,16 @@ export async function GET() {
   if (process.env.HF_API_KEY) configured.add("hf");
   configured.add("ollama");
 
+  // Only add ollama if a custom remote server URL is configured
+  const ollamaUrl = process.env.OLLAMA_BASE_URL?.trim();
+  if (ollamaUrl && !ollamaUrl.includes("localhost") && !ollamaUrl.includes("127.0.0.1")) {
+    configured.add("ollama");
+  }
+
   let models: ModelEntry[];
 
   if (configured.size === 0) {
+    // No keys configured → return all cloud models so UI is never empty
     models = ALL_MODELS;
   } else {
     models = ALL_MODELS.filter((m) => configured.has(m.provider));
@@ -60,3 +68,4 @@ export async function GET() {
 
   return Response.json({ models }, { headers: CORS_HEADERS });
 }
+

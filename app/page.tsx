@@ -38,6 +38,7 @@ type StreamChunk = {
 const STORAGE_KEY = "filius-ai-history";
 
 const FALLBACK_MODELS: ModelEntry[] = [
+  { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B" },
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview" },
@@ -528,6 +529,7 @@ export default function Home() {
             </button>
           </div>
           <p className="mt-2 text-center text-xs text-zinc-600">
+            Filius AI — didukung multi-provider AI cloud.
             Filius AI — didukung multi-provider AI cloud & SearXNG Web Search.
           </p>
         </div>
