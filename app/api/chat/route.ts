@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { searchSearxng, SearchResult } from "@/lib/searxng";
+import { searchWeb, SearchResult } from "@/lib/search";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
 type ProviderConfig = {
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
     if (lastUserMsg) {
       try {
         // Limit max 3 search calls per user request limit (here 1 call, max 5 results per call)
-        sources = await searchSearxng(lastUserMsg);
+        sources = await searchWeb(lastUserMsg);
 
         if (sources.length > 0) {
           const contextPrompt =

@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { searchSearxng } from "@/lib/searxng";
+import { searchWeb } from "@/lib/search";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await searchSearxng(q);
+    const results = await searchWeb(q);
     return Response.json({ query: q, count: results.length, results });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Search error";
