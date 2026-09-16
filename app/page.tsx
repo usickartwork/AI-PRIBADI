@@ -40,6 +40,7 @@ const STORAGE_KEY = "filius-ai-history";
 const FALLBACK_MODELS: ModelEntry[] = [
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B", provider: "ollama" },
+  { id: "glm:glm-4-flash", label: "[GLM] GLM 4 Flash (Free/Fast)", provider: "glm" },
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
@@ -80,7 +81,6 @@ function loadHistory(): ChatMessage[] {
   }
 }
 
-// Sapaan waktu dinamis
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
   if (hour >= 4 && hour < 11) return "Good Morning";
@@ -105,15 +105,14 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-        inputDropdownRef.current && !inputDropdownRef.current.contains(e.target as Node)
+        inputDropdownRef.current &&
+        !inputDropdownRef.current.contains(e.target as Node)
       ) {
         setModelDropdownOpen(false);
       }
@@ -445,7 +444,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* New Thread Button (Image 1: "+ New Thread") */}
+        {/* New Thread Button */}
         <div className="p-3">
           <button
             onClick={newChat}
@@ -554,7 +553,7 @@ export default function Home() {
 
       {/* ─── MAIN WORKSPACE (White Canvas) ─────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full overflow-hidden bg-[#fafafc]">
-        {/* Top App Bar */}
+        {/* Top App Bar - Clean Minimalist (Tombol-tombol berlebih di atas sudah dihapus sesuai permintaan user) */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
             {/* Toggle Sidebar Button */}
@@ -566,86 +565,6 @@ export default function Home() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
-            </button>
-
-            {/* Model Selector Pill in Header */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 px-3.5 py-1.5 text-xs font-medium text-zinc-800 shadow-sm transition"
-              >
-                <span className="text-violet-600">✨</span>
-                <span className="truncate max-w-[180px] sm:max-w-[260px] font-semibold">
-                  {activeModelObj.label}
-                </span>
-                <svg className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Model Dropdown Menu */}
-              {modelDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-72 sm:w-80 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl backdrop-blur-2xl z-50 animate-in fade-in-0 zoom-in-95">
-                  <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
-                    Select AI Engine (8 Verified Models)
-                  </div>
-                  <div className="max-h-72 overflow-y-auto py-1 space-y-0.5">
-                    {models.map((m) => {
-                      const isSelected = m.id === model;
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => {
-                            setModel(m.id);
-                            setModelDropdownOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition ${
-                            isSelected
-                              ? "bg-violet-600 text-white font-medium shadow-sm"
-                              : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
-                          }`}
-                        >
-                          <span className="truncate pr-2">{m.label}</span>
-                          {isSelected && (
-                            <svg className="w-4 h-4 shrink-0 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-2">
-            {/* Thinking / Browse Quick Indicator */}
-            <button
-              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-              className={`hidden sm:flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                webSearchEnabled
-                  ? "border-violet-300 bg-violet-50 text-violet-700 shadow-sm"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span>{webSearchEnabled ? "Thinking ON" : "Thinking OFF"}</span>
-            </button>
-
-            {/* "+ New Thread" Pill Button */}
-            <button
-              onClick={newChat}
-              className="flex items-center gap-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 px-3.5 py-1.5 text-xs font-medium text-white transition shadow-sm"
-            >
-              <span className="font-bold">+</span>
-              <span className="hidden sm:inline">New Thread</span>
             </button>
           </div>
         </header>
@@ -670,10 +589,10 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── HERO / EMPTY STATE (Matching Image 1: White Canvas with 3D Orb) ─ */}
+            {/* ─── HERO / EMPTY STATE (Sapaan Filius) ────────────────────────── */}
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center">
-                {/* 3D Iridescent Glowing Orb (Image 1) */}
+                {/* 3D Iridescent Glowing Orb */}
                 <div className="relative mb-6 flex items-center justify-center animate-float">
                   {/* Ambient Soft Glow */}
                   <div className="absolute h-28 w-28 rounded-full bg-violet-400/25 blur-2xl animate-pulse-glow" />
@@ -690,9 +609,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Greeting Typography (Image 1) */}
+                {/* Sapaan Filius (Menggantikan Jason) */}
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-                  {getTimeGreeting()}, Jason
+                  {getTimeGreeting()}, Filius
                 </h1>
                 <p className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
                   What&apos;s on <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">your mind?</span>
@@ -701,7 +620,7 @@ export default function Home() {
                   Pilih contoh di bawah atau tanyakan apa saja langsung kepada Filius AI.
                 </p>
 
-                {/* Quick Start Suggestions Grid (Image 1) */}
+                {/* Quick Start Suggestions Grid */}
                 <div className="w-full mt-10 text-left">
                   <div className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-3 px-1">
                     Get started with an example below
@@ -872,7 +791,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── FLOATING ELEVATED INPUT BAR (White Theme) ────────────────────── */}
+        {/* ─── FLOATING ELEVATED INPUT BAR ──────────────────────────────────── */}
         <div className="absolute inset-x-0 bottom-0 z-30 p-4 sm:p-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/90 to-transparent pt-10">
           <div className="mx-auto max-w-3xl pointer-events-auto">
             <div className="glass-input relative rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 transition-all">
@@ -893,10 +812,10 @@ export default function Home() {
 
               {/* Bottom Actions Bar inside Floating Card */}
               <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-zinc-100">
-                {/* Left Action: Model Selector Pill + Thinking (Browse) Toggle */}
+                {/* Left Action: Model Selector Pill + Thinking Toggle */}
                 <div className="flex items-center gap-2 flex-wrap">
                   
-                  {/* LLM Selector Button (Menggantikan Attach sesuai permintaan user) */}
+                  {/* LLM Selector Button */}
                   <div className="relative" ref={inputDropdownRef}>
                     <button
                       type="button"
@@ -917,7 +836,7 @@ export default function Home() {
                     {modelDropdownOpen && (
                       <div className="absolute bottom-full left-0 mb-2 w-72 sm:w-80 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-2xl z-50 animate-in fade-in-0 zoom-in-95">
                         <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
-                          Pilih Model LLM (8 Model Terverifikasi)
+                          Pilih Model LLM ({models.length} Model Tersedia)
                         </div>
                         <div className="max-h-64 overflow-y-auto py-1 space-y-0.5">
                           {models.map((m) => {
@@ -950,7 +869,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Thinking (Browse) Toggle Switch (Menggantikan Citation) */}
+                  {/* Thinking (Browse) Toggle Switch */}
                   <button
                     type="button"
                     onClick={() => setWebSearchEnabled(!webSearchEnabled)}
@@ -961,7 +880,6 @@ export default function Home() {
                     }`}
                     title="Aktifkan fitur Thinking / Web Browse"
                   >
-                    {/* Switch Pill Graphic */}
                     <div className={`relative h-3.5 w-6 rounded-full transition-colors ${webSearchEnabled ? "bg-white/30" : "bg-zinc-300"}`}>
                       <div className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${webSearchEnabled ? "bg-white translate-x-3" : "bg-white translate-x-0.5"}`} />
                     </div>
@@ -969,7 +887,7 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Right Action: Send / Stop Circular Button (Image 1: Circular dark button ↑) */}
+                {/* Right Action: Send / Stop Circular Button */}
                 <div className="flex items-center gap-2">
                   {isStreaming ? (
                     <button

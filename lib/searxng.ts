@@ -10,10 +10,7 @@ export type SearxngSearchResponse = {
 };
 
 export async function searchSearxng(query: string): Promise<SearchResult[]> {
-  const baseUrl = (process.env.SEARXNG_URL || "").replace(/\/+$/, "");
-  if (!baseUrl) {
-    throw new Error("SEARXNG_URL belum dikonfigurasi.");
-  }
+  const baseUrl = (process.env.SEARXNG_URL || "http://localhost:8080").replace(/\/+$/, "");
   const searchUrl = `${baseUrl}/search?q=${encodeURIComponent(query)}&format=json`;
 
   const controller = new AbortController();
@@ -81,3 +78,4 @@ export async function searchSearxng(query: string): Promise<SearchResult[]> {
     throw new Error("Terjadi kesalahan tidak diketahui saat menghubungi SearXNG.");
   }
 }
+
