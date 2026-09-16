@@ -11,8 +11,11 @@ type ModelEntry = {
 };
 
 const ALL_MODELS: ModelEntry[] = [
-  // ── Groq (Cloud LLM - Super Fast) ─────────────────────────────────────────
+  // ── Groq (Cloud LLM - Super Fast Default for Vercel) ──────────────────────
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
+
+  // ── Ollama (Lokal / Server Remote) ─────────────────────────────────────────
+  { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B (Lokal/Server)", provider: "ollama" },
 
   // ── Gemini (Google AI Studio) ──────────────────────────────────────────────
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
@@ -45,17 +48,11 @@ export async function GET() {
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
   if (process.env.HF_API_KEY) configured.add("hf");
-
-  // Only add ollama if a custom remote server URL is configured
-  const ollamaUrl = process.env.OLLAMA_BASE_URL?.trim();
-  if (ollamaUrl && !ollamaUrl.includes("localhost") && !ollamaUrl.includes("127.0.0.1")) {
-    configured.add("ollama");
-  }
+  configured.add("ollama");
 
   let models: ModelEntry[];
 
   if (configured.size === 0) {
-    // No keys configured → return all cloud models so UI is never empty
     models = ALL_MODELS;
   } else {
     models = ALL_MODELS.filter((m) => configured.has(m.provider));
