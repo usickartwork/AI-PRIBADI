@@ -12,45 +12,21 @@ type ModelEntry = {
 };
 
 const ALL_MODELS: ModelEntry[] = [
-  // ── Gemini (Google AI Studio) ──────────────────────────────────────────────
-  { id: "gemini:gemini-3.6-flash", label: "[Gemini] 3.6 Flash", provider: "gemini" },
-  { id: "gemini:gemini-3.7-flash", label: "[Gemini] 3.7 Flash", provider: "gemini" },
+  // ── Ollama ─────────────────────────────────────────────────────────────────
+  { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B", provider: "ollama" },
 
   // ── Groq ──────────────────────────────────────────────────────────────────
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
-  { id: "groq:openai/gpt-oss-20b", label: "[Groq] GPT OSS 20B", provider: "groq" },
-  { id: "groq:qwen/qwen3.8-27b", label: "[Groq] Qwen 3.8 27B", provider: "groq" },
 
-  // ── NVIDIA NIM ────────────────────────────────────────────────────────────
-  { id: "nvidia:meta/llama-3.3-70b-instruct", label: "[NVIDIA] Llama 3.3 70B", provider: "nvidia" },
-  { id: "nvidia:nvidia/llama-3.1-nemotron-70b-instruct", label: "[NVIDIA] Nemotron 70B", provider: "nvidia" },
-  { id: "nvidia:deepseek-ai/deepseek-r1", label: "[NVIDIA] DeepSeek R1", provider: "nvidia" },
-  { id: "nvidia:mistralai/mistral-large-2-instruct", label: "[NVIDIA] Mistral Large 2", provider: "nvidia" },
-  { id: "nvidia:google/gemma-3-12b-it", label: "[NVIDIA] Gemma 3 12B", provider: "nvidia" },
-  { id: "nvidia:google/gemma-4-31b-it", label: "[NVIDIA] Gemma 4 31B", provider: "nvidia" },
-  { id: "nvidia:deepseek-ai/deepseek-v4-flash-0731", label: "[NVIDIA] DeepSeek V4 Flash", provider: "nvidia" },
-  { id: "nvidia:ibm/granite-3.0-8b-instruct", label: "[NVIDIA] Granite 3.0 8B", provider: "nvidia" },
-
-  // ── Ollama Cloud ──────────────────────────────────────────────────────────
-  // ── Ollama Cloud / Remote ─────────────────────────────────────────────────
-  { id: "ollama:llama3.3", label: "[Ollama] Llama 3.3", provider: "ollama" },
-  { id: "ollama:deepseek-r1", label: "[Ollama] DeepSeek R1", provider: "ollama" },
-  { id: "ollama:qwen2.5-coder", label: "[Ollama] Qwen 2.5 Coder", provider: "ollama" },
-  { id: "ollama:gemma2", label: "[Ollama] Gemma 2", provider: "ollama" },
+  // ── Gemini (Google AI Studio) ──────────────────────────────────────────────
+  { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
+  { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
 
   // ── OpenRouter ────────────────────────────────────────────────────────────
-  { id: "openrouter:deepseek/deepseek-chat", label: "[OpenRouter] DeepSeek V3", provider: "openrouter" },
-  { id: "openrouter:meta-llama/llama-3.3-70b-instruct", label: "[OpenRouter] Llama 3.3 70B", provider: "openrouter" },
-
-  // ── HuggingFace ───────────────────────────────────────────────────────────
-  { id: "hf:meta-llama/Llama-3.1-8B-Instruct", label: "[HF] Llama 3.1 8B", provider: "hf" },
-  { id: "hf:Qwen/Qwen2.5-72B-Instruct", label: "[HF] Qwen 2.5 72B", provider: "hf" },
-
-  // ── Cerebras ──────────────────────────────────────────────────────────────
-  { id: "cerebras:qwen-3.8-27b", label: "[Cerebras] Qwen 3.8 27B", provider: "cerebras" },
-
-  // ── Together AI ───────────────────────────────────────────────────────────
-  { id: "together:meta-llama/Llama-3.3-70B-Instruct-Turbo", label: "[Together] Llama 3.3 70B", provider: "together" },
+  { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
+  { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
+  { id: "openrouter:inclusionai/ling-3.0-flash-vl:free", label: "[OpenRouter] Ling 3.0 Flash VL (Free)", provider: "openrouter" },
+  { id: "openrouter:nex-agi/nex-n2.5-pro:free", label: "[OpenRouter] Nex N2.5 Pro (Free)", provider: "openrouter" },
 ];
 
 const CORS_HEADERS = {

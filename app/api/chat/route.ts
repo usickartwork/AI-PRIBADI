@@ -178,13 +178,13 @@ export async function POST(request: Request) {
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&
       providerName === "gemini" &&
-      modelName !== "gemini-3.6-flash"
+      modelName !== "gemini-3.5-flash-lite"
     ) {
       console.warn(
-        `[api/chat] ${modelName} returned ${upstream.status}, trying fallback gemini-3.6-flash`
+        `[api/chat] ${modelName} returned ${upstream.status}, trying fallback gemini-3.5-flash-lite`
       );
       const fallbackBody = JSON.stringify({
-        model: "gemini-3.6-flash",
+        model: "gemini-3.5-flash-lite",
         messages,
         stream: true,
         max_tokens: 4096,

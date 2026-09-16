@@ -27,10 +27,14 @@ type StreamChunk = {
 const STORAGE_KEY = "filius-ai-history";
 
 const FALLBACK_MODELS: ModelEntry[] = [
-  { id: "gemini:gemini-3.6-flash", label: "[Gemini] 3.6 Flash" },
+  { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B" },
-  { id: "openrouter:deepseek/deepseek-chat", label: "[OpenRouter] DeepSeek V3" },
-  { id: "hf:meta-llama/Llama-3.1-8B-Instruct", label: "[HF] Llama 3.1 8B" },
+  { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite" },
+  { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview" },
+  { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)" },
+  { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)" },
+  { id: "openrouter:inclusionai/ling-3.0-flash-vl:free", label: "[OpenRouter] Ling 3.0 Flash VL (Free)" },
+  { id: "openrouter:nex-agi/nex-n2.5-pro:free", label: "[OpenRouter] Nex N2.5 Pro (Free)" },
 ];
 
 const SYSTEM_PROMPT =
