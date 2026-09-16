@@ -4,10 +4,6 @@ export const dynamic = "force-dynamic";
 import { searchWeb, SearchResult } from "@/lib/search";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
-// Each provider maps a model-prefix to its OpenAI-compatible endpoint.
-// Model ID format in the UI: "provider:model-name"
-// e.g. "gemini:gemini-3.6-flash", "groq:openai/gpt-oss-120b"
-
 type ProviderConfig = {
   endpoint: string;
   apiKey: string;
@@ -74,6 +70,14 @@ const CORS_HEADERS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isOllamaConfigured(): boolean {
+  const url = process.env.OLLAMA_BASE_URL?.trim() || "";
+  const key = process.env.OLLAMA_API_KEY?.trim() || "";
+  if (key) return true;
+  if (url && !url.includes("localhost") && !url.includes("127.0.0.1")) return true;
+  return false;
+}
+
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
   modelName: string;
@@ -81,13 +85,12 @@ function resolveProvider(modelId: string): {
 } | null {
   const providers = getProviders();
 
-  // Model ID format: "prefix:actual-model-name"
   const colonIdx = modelId.indexOf(":");
   if (colonIdx > 0) {
     const prefix = modelId.slice(0, colonIdx);
     const modelName = modelId.slice(colonIdx + 1);
     const provider = providers[prefix];
-    if (provider && (provider.apiKey || prefix === "ollama")) {
+    if (provider && (provider.apiKey || (prefix === "ollama" && isOllamaConfigured()))) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -95,11 +98,10 @@ function resolveProvider(modelId: string): {
     }
   }
 
-  // Legacy fallback: try to match prefix from model string (e.g. "gemini/gemini-flash")
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey || prefix === "ollama") {
+      if (provider.apiKey || (prefix === "ollama" && isOllamaConfigured())) {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -144,14 +146,12 @@ export async function POST(request: Request) {
   let sources: SearchResult[] = [];
   let searchError: string | null = null;
 
-  // ── SearXNG Web Search Integration ───────────────────────────────────────────
+  // ── Web Search Integration (Tavily AI Search) ──────────────────────────────────
   if (webSearch) {
-    // Find last user query
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
 
     if (lastUserMsg) {
       try {
-        // Limit max 3 search calls per user request limit (here 1 call, max 5 results per call)
         sources = await searchWeb(lastUserMsg);
 
         if (sources.length > 0) {
@@ -167,7 +167,6 @@ export async function POST(request: Request) {
             `1. Manfaatkan informasi dari hasil pencarian di atas untuk memberikan jawaban yang paling mutakhir dan akurat.\n` +
             `2. Cantumkan referensi sumber dalam format link Markdown [Judul](URL) jika Anda menggunakan informasinya.`;
 
-          // Append search context to system message or add a new system prompt
           const systemMsgIdx = messages.findIndex((m) => m.role === "system");
           if (systemMsgIdx >= 0) {
             messages[systemMsgIdx] = {
@@ -193,9 +192,21 @@ export async function POST(request: Request) {
   if (!resolved) {
     const missingKey = modelId.split(/[:/]/)[0] || "provider";
     console.error(`[api/chat] No API key configured for model: ${modelId}`);
+
+    if (missingKey.toLowerCase() === "ollama") {
+      return Response.json(
+        {
+          error:
+            'Model [Ollama] memerlukan server Ollama publik (OLLAMA_BASE_URL) di Vercel Dashboard. Untuk menggunakan model GPT OSS 120B di Vercel secara gratis tanpa server lokal, silakan pilih model "[Groq] GPT OSS 120B" di dropdown.',
+          model: modelId,
+        },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
     return Response.json(
       {
-        error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel Dashboard.`,
+        error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel.`,
         model: modelId,
       },
       { status: 503, headers: CORS_HEADERS }
@@ -225,7 +236,6 @@ export async function POST(request: Request) {
       body: reqBody,
     });
 
-    // Auto-fallback if primary model is experiencing high demand (503/429)
     if (
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&
@@ -292,13 +302,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Wrap upstream body in a ReadableStream to yield initial metadata events if sources/searchError exist
     const encoder = new TextEncoder();
     const upstreamReader = upstream.body.getReader();
 
     const stream = new ReadableStream({
       async start(controller) {
-        // If webSearch was requested and sources were retrieved, send metadata chunk first
         if (sources.length > 0) {
           const sourcesEvent = `data: ${JSON.stringify({ type: "sources", sources })}\n\n`;
           controller.enqueue(encoder.encode(sourcesEvent));

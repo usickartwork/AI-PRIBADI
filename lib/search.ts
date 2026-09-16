@@ -35,7 +35,7 @@ export async function searchTavily(query: string, apiKey: string): Promise<Searc
       } catch {}
 
       if (res.status === 401 || res.status === 403) {
-        throw new Error(`API Key Tavily tidak valid. Periksa TAVILY_API_KEY di .env.local / Vercel.`);
+        throw new Error(`API Key Tavily tidak valid. Periksa TAVILY_API_KEY di Vercel Dashboard.`);
       }
 
       throw new Error(`Tavily API merespons error (HTTP ${res.status}): ${msg}`);
@@ -69,19 +69,19 @@ export async function searchTavily(query: string, apiKey: string): Promise<Searc
 export async function searchWeb(query: string): Promise<SearchResult[]> {
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
 
-  // If Tavily API key is set, use Tavily directly
+  // Primary: Tavily API
   if (tavilyKey) {
     return await searchTavily(query, tavilyKey);
   }
 
-  // If Tavily key is missing, check if SearXNG is explicitly configured
+  // Secondary: Custom Remote SearXNG (only if not pointing to localhost)
   const searxngUrl = process.env.SEARXNG_URL?.trim();
-  if (searxngUrl && searxngUrl !== "http://localhost:8080") {
+  if (searxngUrl && !searxngUrl.includes("localhost") && !searxngUrl.includes("127.0.0.1")) {
     return await searchSearxng(query);
   }
 
-  // If neither Tavily Key nor custom SearXNG is set, throw informative error for Tavily
+  // Clear Vercel-focused error message if TAVILY_API_KEY is not configured
   throw new Error(
-    "API Key Tavily belum dikonfigurasi. Silakan tambahkan TAVILY_API_KEY di file .env.local atau Vercel Dashboard (Dapatkan gratis di https://tavily.com)."
+    "Fitur Web Search memerlukan TAVILY_API_KEY pada Vercel Dashboard (Settings -> Environment Variables). Silakan dapatkan API key gratis di https://tavily.com."
   );
 }
