@@ -1,11 +1,9 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// ─── Provider Configuration ───────────────────────────────────────────────────
-// Each provider maps a model-prefix to its OpenAI-compatible endpoint.
-// Model ID format in the UI: "provider:model-name"
-// e.g. "gemini:gemini-3.6-flash", "groq:openai/gpt-oss-120b"
+import { searchSearxng, SearchResult } from "@/lib/searxng";
 
+// ─── Provider Configuration ───────────────────────────────────────────────────
 type ProviderConfig = {
   endpoint: string;
   apiKey: string;
@@ -79,7 +77,6 @@ function resolveProvider(modelId: string): {
 } | null {
   const providers = getProviders();
 
-  // Model ID format: "prefix:actual-model-name"
   const colonIdx = modelId.indexOf(":");
   if (colonIdx > 0) {
     const prefix = modelId.slice(0, colonIdx);
@@ -93,7 +90,6 @@ function resolveProvider(modelId: string): {
     }
   }
 
-  // Legacy fallback: try to match prefix from model string (e.g. "gemini/gemini-flash")
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
       const modelName = modelId.slice(prefix.length + 1);
@@ -116,7 +112,7 @@ export async function OPTIONS() {
 // ─── POST /api/chat ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  let body: { messages?: ChatMessage[]; model?: string };
+  let body: { messages?: ChatMessage[]; model?: string; webSearch?: boolean };
 
   try {
     body = await request.json();
@@ -127,15 +123,65 @@ export async function POST(request: Request) {
     );
   }
 
-  const messages = body.messages;
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  const rawMessages = body.messages;
+  if (!rawMessages || !Array.isArray(rawMessages) || rawMessages.length === 0) {
     return Response.json(
       { error: "Messages required" },
       { status: 400, headers: CORS_HEADERS }
     );
   }
 
+  const messages: ChatMessage[] = [...rawMessages];
+  const webSearch = Boolean(body.webSearch);
   const modelId = body.model || "";
+
+  let sources: SearchResult[] = [];
+  let searchError: string | null = null;
+
+  // ── SearXNG Web Search Integration ───────────────────────────────────────────
+  if (webSearch) {
+    // Find last user query
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content;
+
+    if (lastUserMsg) {
+      try {
+        // Limit max 3 search calls per user request limit (here 1 call, max 5 results per call)
+        sources = await searchSearxng(lastUserMsg);
+
+        if (sources.length > 0) {
+          const contextPrompt =
+            `\n\n[Hasil Pencarian Web dari SearXNG untuk: "${lastUserMsg}"]:\n` +
+            sources
+              .map(
+                (s, i) =>
+                  `${i + 1}. Judul: ${s.title}\n   URL: ${s.url}\n   Ringkasan: ${s.snippet}`
+              )
+              .join("\n\n") +
+            `\n\nAturan Penggunaan Web Search:\n` +
+            `1. Manfaatkan informasi dari hasil pencarian di atas untuk memberikan jawaban yang paling mutakhir dan akurat.\n` +
+            `2. Cantumkan referensi sumber dalam format link Markdown [Judul](URL) jika Anda menggunakan informasinya.`;
+
+          // Append search context to system message or add a new system prompt
+          const systemMsgIdx = messages.findIndex((m) => m.role === "system");
+          if (systemMsgIdx >= 0) {
+            messages[systemMsgIdx] = {
+              ...messages[systemMsgIdx],
+              content: messages[systemMsgIdx].content + contextPrompt,
+            };
+          } else {
+            messages.unshift({
+              role: "system",
+              content: contextPrompt,
+            });
+          }
+        }
+      } catch (err: unknown) {
+        searchError = err instanceof Error ? err.message : "Gagal melakukan web search.";
+        console.warn("[api/chat] SearXNG search failed:", searchError);
+      }
+    }
+  }
+
   const resolved = resolveProvider(modelId);
 
   if (!resolved) {
@@ -173,7 +219,6 @@ export async function POST(request: Request) {
       body: reqBody,
     });
 
-    // Auto-fallback if primary model is experiencing high demand (503/429)
     if (
       !upstream.ok &&
       (upstream.status === 503 || upstream.status === 429) &&
@@ -226,6 +271,8 @@ export async function POST(request: Request) {
         {
           error: `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
           detail: errText.slice(0, 300),
+          sources,
+          searchError,
         },
         { status: upstream.status, headers: CORS_HEADERS }
       );
@@ -238,7 +285,41 @@ export async function POST(request: Request) {
       );
     }
 
-    return new Response(upstream.body, {
+    // Wrap upstream body in a ReadableStream to yield initial metadata events if sources/searchError exist
+    const encoder = new TextEncoder();
+    const upstreamReader = upstream.body.getReader();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        // If webSearch was requested and sources were retrieved, send metadata chunk first
+        if (sources.length > 0) {
+          const sourcesEvent = `data: ${JSON.stringify({ type: "sources", sources })}\n\n`;
+          controller.enqueue(encoder.encode(sourcesEvent));
+        }
+
+        if (searchError) {
+          const errorEvent = `data: ${JSON.stringify({ type: "search_error", error: searchError })}\n\n`;
+          controller.enqueue(encoder.encode(errorEvent));
+        }
+
+        try {
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            controller.enqueue(value);
+          }
+          controller.close();
+        } catch (readErr) {
+          controller.error(readErr);
+        }
+      },
+
+      cancel() {
+        upstreamReader.cancel();
+      },
+    });
+
+    return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",

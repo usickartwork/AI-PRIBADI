@@ -5,10 +5,18 @@ import { MarkdownMessage } from "./components/MarkdownMessage";
 
 type Role = "user" | "assistant";
 
+type SearchSource = {
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
 type ChatMessage = {
   id: string;
   role: Role;
   content: string;
+  sources?: SearchSource[];
+  searchError?: string;
 };
 
 type ModelEntry = {
@@ -18,6 +26,9 @@ type ModelEntry = {
 };
 
 type StreamChunk = {
+  type?: string;
+  sources?: SearchSource[];
+  error?: string;
   choices?: {
     delta?: { content?: string };
     message?: { content?: string };
@@ -84,6 +95,8 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +120,7 @@ export default function Home() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, statusMessage]);
 
   useEffect(() => {
     try {
@@ -121,6 +134,11 @@ export default function Home() {
 
     setError(null);
     setIsStreaming(true);
+    if (webSearchEnabled) {
+      setStatusMessage("🔎 Searching the web...");
+    } else {
+      setStatusMessage(null);
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -151,7 +169,11 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, model }),
+        body: JSON.stringify({
+          messages: apiMessages,
+          model,
+          webSearch: webSearchEnabled,
+        }),
         signal: controller.signal,
       });
 
@@ -163,9 +185,21 @@ export default function Home() {
         );
       }
 
-      const updateAssistant = (text: string) => {
+      const updateAssistantContent = (text: string) => {
         setMessages((prev) =>
           prev.map((m) => (m.id === assistantId ? { ...m, content: text } : m))
+        );
+      };
+
+      const updateAssistantSources = (sources: SearchSource[]) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, sources } : m))
+        );
+      };
+
+      const updateAssistantSearchError = (searchError: string) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, searchError } : m))
         );
       };
 
@@ -180,13 +214,20 @@ export default function Home() {
           if (data === "[DONE]") continue;
           try {
             const chunk = JSON.parse(data) as StreamChunk;
-            const delta =
-              chunk.choices?.[0]?.delta?.content ??
-              chunk.choices?.[0]?.message?.content;
-            if (delta) fullText += delta;
+            if (chunk.type === "sources" && chunk.sources) {
+              updateAssistantSources(chunk.sources);
+            } else if (chunk.type === "search_error" && chunk.error) {
+              updateAssistantSearchError(chunk.error);
+            } else {
+              const delta =
+                chunk.choices?.[0]?.delta?.content ??
+                chunk.choices?.[0]?.message?.content;
+              if (delta) fullText += delta;
+            }
           } catch {}
         }
-        updateAssistant(fullText);
+        updateAssistantContent(fullText);
+        setStatusMessage(null);
         return;
       }
 
@@ -212,12 +253,21 @@ export default function Home() {
 
           try {
             const chunk = JSON.parse(data) as StreamChunk;
-            const delta =
-              chunk.choices?.[0]?.delta?.content ??
-              chunk.choices?.[0]?.message?.content;
-            if (delta) {
-              fullText += delta;
-              updateAssistant(fullText);
+            if (chunk.type === "sources" && Array.isArray(chunk.sources)) {
+              setStatusMessage(null);
+              updateAssistantSources(chunk.sources);
+            } else if (chunk.type === "search_error" && chunk.error) {
+              setStatusMessage(null);
+              updateAssistantSearchError(chunk.error);
+            } else {
+              const delta =
+                chunk.choices?.[0]?.delta?.content ??
+                chunk.choices?.[0]?.message?.content;
+              if (delta) {
+                setStatusMessage(null);
+                fullText += delta;
+                updateAssistantContent(fullText);
+              }
             }
           } catch {}
         }
@@ -230,10 +280,16 @@ export default function Home() {
           if (data !== "[DONE]") {
             try {
               const chunk = JSON.parse(data) as StreamChunk;
-              const delta =
-                chunk.choices?.[0]?.delta?.content ??
-                chunk.choices?.[0]?.message?.content;
-              if (delta) updateAssistant(fullText + delta);
+              if (chunk.type === "sources" && Array.isArray(chunk.sources)) {
+                updateAssistantSources(chunk.sources);
+              } else if (chunk.type === "search_error" && chunk.error) {
+                updateAssistantSearchError(chunk.error);
+              } else {
+                const delta =
+                  chunk.choices?.[0]?.delta?.content ??
+                  chunk.choices?.[0]?.message?.content;
+                if (delta) updateAssistantContent(fullText + delta);
+              }
             } catch {}
           }
         }
@@ -250,7 +306,7 @@ export default function Home() {
                   ...m,
                   content:
                     "Maaf, terjadi kesalahan saat menghubungi AI. " +
-                    "Periksa konfigurasi API key di Vercel, lalu coba lagi.",
+                    "Periksa koneksi atau konfigurasi API key.",
                 }
               : m
           )
@@ -258,6 +314,7 @@ export default function Home() {
       }
     } finally {
       setIsStreaming(false);
+      setStatusMessage(null);
       abortRef.current = null;
       textareaRef.current?.focus();
     }
@@ -268,6 +325,7 @@ export default function Home() {
     setMessages([WELCOME_MESSAGE]);
     setError(null);
     setIsStreaming(false);
+    setStatusMessage(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -288,7 +346,7 @@ export default function Home() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 sm:px-6">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
             F
@@ -298,7 +356,24 @@ export default function Home() {
             <p className="text-xs text-muted">Asisten AI pribadimu</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* SearXNG Web Search Toggle */}
+          <button
+            type="button"
+            onClick={() => setWebSearchEnabled((prev) => !prev)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+              webSearchEnabled
+                ? "border-emerald-500/50 bg-emerald-950/40 text-emerald-300 shadow-sm"
+                : "border-zinc-800 bg-surface text-zinc-400 hover:bg-surface-hover hover:text-zinc-200"
+            }`}
+            title="Toggle Web Search (SearXNG)"
+          >
+            <span>🌐 Web Search:</span>
+            <span className={webSearchEnabled ? "font-bold text-emerald-400" : "text-zinc-500"}>
+              {webSearchEnabled ? "ON" : "OFF"}
+            </span>
+          </button>
+
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
@@ -354,11 +429,53 @@ export default function Home() {
                   {msg.role === "user" ? (
                     <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                   ) : (
-                    <MarkdownMessage content={msg.content} />
+                    <div>
+                      <MarkdownMessage content={msg.content} />
+
+                      {/* Display SearXNG Sources List */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-3.5 border-t border-zinc-800/80 pt-2.5">
+                          <div className="mb-1.5 text-xs font-semibold text-zinc-400 flex items-center gap-1.5">
+                            <span>🌐</span>
+                            <span>Sumber Referensi ({msg.sources.length}):</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {msg.sources.map((src, i) => (
+                              <a
+                                key={i}
+                                href={src.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-emerald-400 transition hover:border-emerald-500/40 hover:bg-zinc-800 hover:text-emerald-300"
+                                title={src.snippet || src.url}
+                              >
+                                <span className="truncate max-w-56">{src.title}</span>
+                                <span className="text-[10px] text-zinc-500">↗</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display SearXNG Error if present */}
+                      {msg.searchError && (
+                        <div className="mt-2 text-xs text-amber-400/90 bg-amber-950/20 border border-amber-800/30 rounded px-2.5 py-1.5">
+                          ⚠️ {msg.searchError}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             ))}
+
+          {/* Searching Web Loading State */}
+          {isStreaming && statusMessage && (
+            <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 rounded-lg px-3 py-2 w-fit">
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-400/30 border-t-emerald-400" />
+              <span className="font-medium">{statusMessage}</span>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
@@ -412,7 +529,7 @@ export default function Home() {
             </button>
           </div>
           <p className="mt-2 text-center text-xs text-zinc-600">
-            Filius AI — didukung multi-provider AI cloud.
+            Filius AI — didukung multi-provider AI cloud & SearXNG Web Search.
           </p>
         </div>
       </footer>
