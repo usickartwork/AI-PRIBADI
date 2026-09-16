@@ -50,7 +50,7 @@ const FALLBACK_MODELS: ModelEntry[] = [
 ];
 
 const SYSTEM_PROMPT =
-  "Kamu adalah Filius AI, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
+  "Kamu adalah Usick V1, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
   "Aturan Jawaban:\n" +
   "1. Berikan jawaban yang mendalam, terstruktur rapi, dan mudah dipahami dalam bahasa Indonesia.\n" +
   "2. Gunakan Markdown yang kaya (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel) untuk menyusun jawaban agar terlihat rapi dan profesional seperti ChatGPT.\n" +
@@ -451,7 +451,7 @@ export default function Home() {
               <div className="absolute -inset-0.5 rounded-xl bg-violet-400/20 blur-[4px] -z-10 animate-pulse-glow" />
             </div>
             <div>
-              <span className="font-bold tracking-tight text-zinc-900 text-[15px]">Filius AI</span>
+              <span className="font-bold tracking-tight text-zinc-900 text-[15px]">Usick V1</span>
               <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 py-0.2 text-[10px] font-semibold text-violet-700">v2.0</span>
             </div>
           </div>
@@ -557,7 +557,7 @@ export default function Home() {
           <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200/80 p-2.5 shadow-sm">
             <div className="flex items-center gap-2.5">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-violet-600 to-purple-600 text-xs font-bold text-white shadow-sm">
-                F
+                U
                 <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
               </div>
               <div className="truncate">
@@ -592,7 +592,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
             </button>
-            <div className="flex items-center gap-1.5 md:hidden"><div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-xs"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" /></svg></div><span className="text-sm font-bold tracking-tight text-zinc-900">Filius AI</span></div>
+            <div className="flex items-center gap-1.5"><div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-xs"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" /></svg></div><span className="text-sm font-bold tracking-tight text-zinc-900">Usick V1</span></div>
           </div>
 
           <button
@@ -652,13 +652,13 @@ export default function Home() {
 
                 {/* Sapaan Filius */}
                 <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-                  {getTimeGreeting()}, Filius
+                  {getTimeGreeting()}, Usick V1
                 </h1>
                 <p className="mt-0.5 sm:mt-1 text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
                   What&apos;s on <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">your mind?</span>
                 </p>
                 <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-zinc-500 max-w-md px-2">
-                  Pilih contoh di bawah atau tanyakan apa saja langsung kepada Filius AI.
+                  Pilih contoh di bawah atau tanyakan apa saja langsung kepada Usick V1.
                 </p>
 
                 {/* Quick Start Suggestions Grid (Mobile 1 column, Tablet+ 2 columns) */}
@@ -987,7 +987,7 @@ export default function Home() {
               </div>
             </div>
             <div className="mt-1.5 sm:mt-2 text-center text-[10px] text-zinc-400">
-              Filius AI dapat menghasilkan informasi yang bervariasi. Selalu verifikasi fakta krusial.
+              Usick V1 dapat menghasilkan informasi yang bervariasi. Selalu verifikasi fakta krusial.
             </div>
           </div>
         </div>

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Filius AI",
+  title: "Usick V1",
   description: "Personal AI Assistant",
 };
 
