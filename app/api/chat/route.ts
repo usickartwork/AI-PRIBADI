@@ -58,10 +58,6 @@ function getProviders(): Record<string, ProviderConfig> {
       endpoint: "https://openrouter.ai/api/v1/chat/completions",
       apiKey: process.env.OPENROUTER_API_KEY || "",
     },
-    glm: {
-      endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      apiKey: process.env.GLM_API_KEY || process.env.ZHIPUAI_API_KEY || "",
-    },
     together: {
       endpoint: "https://api.together.xyz/v1/chat/completions",
       apiKey: process.env.TOGETHER_API_KEY || "",

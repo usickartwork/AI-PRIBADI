@@ -37,10 +37,10 @@ type StreamChunk = {
 
 const STORAGE_KEY = "filius-ai-history";
 
+// 8 Verified Models (GLM removed as requested)
 const FALLBACK_MODELS: ModelEntry[] = [
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B", provider: "ollama" },
-  { id: "glm:glm-4-flash", label: "[GLM] GLM 4 Flash (Free/Fast)", provider: "glm" },
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
@@ -444,17 +444,17 @@ export default function Home() {
           </button>
         </div>
 
-        {/* New Thread Button */}
+        {/* New Thread Button (Harmonious Violet Theme) */}
         <div className="p-3">
           <button
             onClick={newChat}
-            className="group flex w-full items-center justify-between rounded-xl bg-zinc-900 hover:bg-zinc-800 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm"
+            className="group flex w-full items-center justify-between rounded-xl bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm shadow-violet-600/20"
           >
             <span className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 text-xs font-bold">+</span>
               <span>New Thread</span>
             </span>
-            <kbd className="text-[10px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">⌘N</kbd>
+            <kbd className="text-[10px] text-violet-200 bg-violet-800/40 px-1.5 py-0.5 rounded">⌘N</kbd>
           </button>
         </div>
 
@@ -553,10 +553,9 @@ export default function Home() {
 
       {/* ─── MAIN WORKSPACE (White Canvas) ─────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full overflow-hidden bg-[#fafafc]">
-        {/* Top App Bar - Clean Minimalist (Tombol-tombol berlebih di atas sudah dihapus sesuai permintaan user) */}
+        {/* Top App Bar - Clean Minimalist */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
-            {/* Toggle Sidebar Button */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="rounded-xl border border-zinc-200 bg-white p-2 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 shadow-sm transition"
@@ -594,11 +593,9 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center">
                 {/* 3D Iridescent Glowing Orb */}
                 <div className="relative mb-6 flex items-center justify-center animate-float">
-                  {/* Ambient Soft Glow */}
                   <div className="absolute h-28 w-28 rounded-full bg-violet-400/25 blur-2xl animate-pulse-glow" />
                   <div className="absolute h-20 w-20 rounded-full bg-fuchsia-300/20 blur-xl" />
 
-                  {/* 3D Sphere Orb */}
                   <div className="relative h-18 w-18 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-violet-300 p-0.5 shadow-xl shadow-purple-500/30">
                     <div className="h-full w-full rounded-full bg-gradient-to-br from-violet-300 via-purple-600 to-indigo-900 opacity-95 flex items-center justify-center">
                       <div className="absolute top-2 left-3 h-4 w-7 rounded-full bg-white/50 blur-[2px] transform -rotate-45" />
@@ -609,7 +606,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Sapaan Filius (Menggantikan Jason) */}
+                {/* Sapaan Filius */}
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
                   {getTimeGreeting()}, Filius
                 </h1>
@@ -656,7 +653,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── ACTIVE CHAT MESSAGES ─────────────────────────────────────── */}
+            {/* ─── ACTIVE CHAT MESSAGES (Pure Harmonious Light Theme) ───────── */}
             {messages.map((msg) => {
               const isUser = msg.role === "user";
               return (
@@ -673,16 +670,16 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Message Bubble */}
+                  {/* Message Bubble (User = Violet, Assistant = White Card) */}
                   <div
                     className={`relative max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 text-sm ${
                       isUser
-                        ? "bg-zinc-900 text-white shadow-sm rounded-tr-sm"
-                        : "glass-panel text-zinc-900 rounded-tl-sm"
+                        ? "bg-violet-600 text-white shadow-sm shadow-violet-600/20 rounded-tr-sm"
+                        : "bg-white border border-zinc-200/90 text-zinc-900 shadow-sm rounded-tl-sm"
                     }`}
                   >
                     {isUser ? (
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
@@ -771,7 +768,7 @@ export default function Home() {
 
                   {/* User Avatar */}
                   {isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-200 text-xs font-bold text-zinc-700">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700 border border-violet-200">
                       U
                     </div>
                   )}
@@ -792,9 +789,9 @@ export default function Home() {
         </div>
 
         {/* ─── FLOATING ELEVATED INPUT BAR ──────────────────────────────────── */}
-        <div className="absolute inset-x-0 bottom-0 z-30 p-4 sm:p-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/90 to-transparent pt-10">
+        <div className="absolute inset-x-0 bottom-0 z-30 p-4 sm:p-6 pointer-events-none bg-gradient-to-t from-[#fafafc] via-[#fafafc]/95 to-transparent pt-10">
           <div className="mx-auto max-w-3xl pointer-events-auto">
-            <div className="glass-input relative rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 transition-all">
+            <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 transition-all">
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -887,7 +884,7 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Right Action: Send / Stop Circular Button */}
+                {/* Right Action: Send / Stop Circular Button (Violet when active) */}
                 <div className="flex items-center gap-2">
                   {isStreaming ? (
                     <button
@@ -905,8 +902,8 @@ export default function Home() {
                       disabled={!input.trim()}
                       className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${
                         input.trim()
-                          ? "bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:scale-105 active:scale-95 cursor-pointer"
-                          : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                          ? "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/25 hover:scale-105 active:scale-95 cursor-pointer"
+                          : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
                       }`}
                       title="Kirim pesan (Enter)"
                     >

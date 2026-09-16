@@ -27,10 +27,6 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
   { id: "openrouter:inclusionai/ling-3.0-flash-vl:free", label: "[OpenRouter] Ling 3.0 Flash VL (Free)", provider: "openrouter" },
   { id: "openrouter:nex-agi/nex-n2.5-pro:free", label: "[OpenRouter] Nex N2.5 Pro (Free)", provider: "openrouter" },
-
-  // ── GLM (Zhipu AI BigModel) ────────────────────────────────────────────────
-  { id: "glm:glm-4-flash", label: "[GLM] GLM 4 Flash (Free/Fast)", provider: "glm" },
-  { id: "glm:glm-4-plus", label: "[GLM] GLM 4 Plus", provider: "glm" },
 ];
 
 const CORS_HEADERS = {
@@ -53,7 +49,6 @@ export async function GET() {
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
   if (process.env.HF_API_KEY) configured.add("hf");
-  if (process.env.GLM_API_KEY || process.env.ZHIPUAI_API_KEY) configured.add("glm");
   configured.add("ollama");
 
   let models: ModelEntry[];

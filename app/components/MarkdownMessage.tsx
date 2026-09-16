@@ -120,3 +120,4 @@ export function MarkdownMessage({ content }: MarkdownMessageProps) {
     </div>
   );
 }
+
