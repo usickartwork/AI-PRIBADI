@@ -511,6 +511,16 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Otomatis langsung pindah ke model Gemini 3.7 Flash saat upload file
+    const gemini37 =
+      models.find((m) => m.id === "custom:clario/gemini-3.7-flash") ||
+      models.find((m) => m.id === "custom:clario/gemini-3.7-flash-auto") ||
+      models.find((m) => m.id.toLowerCase().includes("gemini-3.7-flash")) ||
+      models.find((m) => m.id.toLowerCase().includes("gemini"));
+    if (gemini37) {
+      setModel(gemini37.id);
+    }
+
     // Jika user memilih foto/gambar di opsi file, alihkan ke pemrosesan gambar
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
