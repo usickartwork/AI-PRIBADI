@@ -671,6 +671,9 @@ export default function Home() {
       const decoder = new TextDecoder("utf-8");
       let fullText = "";
       let buffer = "";
+      let hasReceivedContent = false;
+      let reasoningBuffer = "";
+      const isCoderModel = model.toLowerCase().includes("coder");
 
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -718,16 +721,26 @@ export default function Home() {
               updateAssistantSearchError(assistantId, chunk.error);
               setStatusMessage(null);
             } else {
-              const reasoning = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
-              if (reasoning && !statusMessage) {
-                setStatusMessage("Sedang berpikir...");
-              }
-              const delta =
+              const contentText =
                 chunk.choices?.[0]?.delta?.content ||
                 chunk.choices?.[0]?.message?.content;
-              if (delta) {
+              const reasoningText = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
+
+              if (contentText) {
+                hasReceivedContent = true;
                 setStatusMessage(null);
-                await appendSmoothly(delta);
+                await appendSmoothly(contentText);
+              } else if (reasoningText) {
+                // Khusus model coder (qwen3-coder) yang seluruh jawabannya dibungkus oleh provider di reasoning_content
+                if (isCoderModel) {
+                  setStatusMessage(null);
+                  await appendSmoothly(reasoningText);
+                } else {
+                  reasoningBuffer += reasoningText;
+                  if (!statusMessage) {
+                    setStatusMessage("Sedang berpikir...");
+                  }
+                }
               }
             }
           } catch {}
@@ -746,16 +759,30 @@ export default function Home() {
               } else if (chunk.type === "search_error" && chunk.error) {
                 updateAssistantSearchError(assistantId, chunk.error);
               } else {
-                const delta =
+                const contentText =
                   chunk.choices?.[0]?.delta?.content ||
                   chunk.choices?.[0]?.message?.content;
-                if (delta) {
-                  await appendSmoothly(delta);
+                const reasoningText = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
+
+                if (contentText) {
+                  hasReceivedContent = true;
+                  await appendSmoothly(contentText);
+                } else if (reasoningText && isCoderModel) {
+                  await appendSmoothly(reasoningText);
+                } else if (reasoningText) {
+                  reasoningBuffer += reasoningText;
                 }
               }
             } catch {}
           }
         }
+      }
+
+      // Safety Fallback: Jika setelah stream selesai ternyata tidak ada contentText sama sekali
+      // (misal provider mengirim seluruh responnya di reasoning_content), tampilkan reasoningBuffer agar pesan tidak hilang!
+      if (!fullText && reasoningBuffer.trim()) {
+        setStatusMessage(null);
+        await appendSmoothly(reasoningBuffer.trim());
       }
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
