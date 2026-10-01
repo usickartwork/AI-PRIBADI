@@ -143,6 +143,27 @@ export default function Home() {
   });
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("usick-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    }
+    return "dark"; // Default to dark mode as requested
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("usick-theme", theme);
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } catch {}
+  }, [theme]);
+
+  const isDark = theme === "dark";
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -455,7 +476,7 @@ export default function Home() {
       desc: "Buat daftar tugas terstruktur untuk proyek baru.",
       prompt: "Buatkan daftar to-do list terstruktur dan prioritas langkah pengerjaan untuk proyek web aplikasi baru dari nol hingga rilis.",
       icon: (
-        <svg className="w-4 h-4 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
@@ -465,7 +486,7 @@ export default function Home() {
       desc: "Buat draf surel profesional merespons tawaran kerja.",
       prompt: "Tuliskan draf email yang sangat profesional, ramah, dan percaya diri untuk merespons tawaran pekerjaan (job offer) dengan apresiasi tinggi.",
       icon: (
-        <svg className="w-4 h-4 text-pink-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
@@ -475,7 +496,7 @@ export default function Home() {
       desc: "Ringkas materi atau teks panjang menjadi poin padat.",
       prompt: "Jelaskan dan rangkum secara padat dalam 1 paragraf: Mengapa teknologi LLM (Large Language Model) berkembang sangat pesat dan menjadi kunci inovasi modern?",
       icon: (
-        <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
@@ -485,7 +506,7 @@ export default function Home() {
       desc: "Penjelasan konseptual dan teknis arsitektur AI.",
       prompt: "Jelaskan bagaimana AI berbasis transformer dan neural network bekerja secara teknis, dari tokenization hingga attention mechanism secara jelas dan mudah dipahami.",
       icon: (
-        <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
       ),
@@ -493,7 +514,9 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-[#0d0d0f] text-zinc-900 font-sans antialiased p-0 sm:p-3 md:p-4">
+    <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+      isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#0d0d0f] text-zinc-900"
+    } font-sans antialiased p-0 sm:p-3 md:p-4`}>
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -505,26 +528,38 @@ export default function Home() {
 
       {/* ─── SIDEBAR (Responsive / Mobile-Friendly Drawer) ─────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border border-zinc-200/80 bg-white/95 backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out md:static md:w-64 md:mr-3 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border ${
+          isDark
+            ? "border-zinc-800/80 bg-[#121215]/95 text-zinc-200"
+            : "border-zinc-200/80 bg-white/95 text-zinc-900"
+        } backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out md:static md:w-64 md:mr-3 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none md:mr-0"
         }`}
       >
         {/* Brand & Logo Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-100">
+        <div className={`flex items-center justify-between px-4 py-4 border-b ${
+          isDark ? "border-zinc-800" : "border-zinc-100"
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-black text-white shadow-md shadow-black/25">
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <div className={`relative flex h-8 w-8 items-center justify-center rounded-xl ${
+              isDark ? "bg-white text-black shadow-md shadow-white/10" : "bg-black text-white shadow-md shadow-black/25"
+            }`}>
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                 <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
               </svg>
             </div>
             <div>
-              <span className="font-bold tracking-tight text-black text-[15px]">Usick V1</span>
-              <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.2 text-[10px] font-semibold text-zinc-700 border border-zinc-200">v2.0</span>
+              <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
+              <span className={`ml-1.5 rounded-full px-1.5 py-0.2 text-[10px] font-semibold border ${
+                isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
+              }`}>v2.0</span>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-black cursor-pointer"
+            className={`rounded-lg p-1.5 transition cursor-pointer ${
+              isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
+            }`}
             title="Tutup menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -537,17 +572,23 @@ export default function Home() {
         <div className="p-3">
           <button
             onClick={newChat}
-            className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-black hover:bg-zinc-800 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm cursor-pointer"
+            className={`group flex w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm cursor-pointer ${
+              isDark
+                ? "bg-white hover:bg-zinc-200 text-black shadow-white/5"
+                : "bg-black hover:bg-zinc-800 text-white shadow-black/25"
+            }`}
           >
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             <span>New Thread</span>
           </button>
         </div>
 
         {/* Quick Navigation Sections */}
-        <div className="px-3 py-1 space-y-0.5 text-xs text-zinc-600 font-medium">
-          <div className="flex items-center gap-2.5 rounded-xl bg-zinc-100 text-black px-3 py-2 cursor-pointer transition font-semibold">
-            <svg className="w-4 h-4 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="px-3 py-1 space-y-0.5 text-xs font-medium">
+          <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition font-semibold ${
+            isDark ? "bg-zinc-800/90 text-white" : "bg-zinc-100 text-black"
+          }`}>
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             <span>Chats</span>
@@ -556,28 +597,51 @@ export default function Home() {
           <div
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
             className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
-              webSearchEnabled ? "bg-zinc-900 text-white font-semibold shadow-xs" : "hover:bg-zinc-100 text-zinc-600"
+              webSearchEnabled
+                ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-zinc-900 text-white font-semibold shadow-xs")
+                : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-black")
             }`}
           >
             <span className="flex items-center gap-2.5">
-              <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? "text-white" : "text-zinc-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : "text-zinc-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               <span>Thinking (Browse)</span>
             </span>
-            <span className={`h-2 w-2 rounded-full ${webSearchEnabled ? "bg-white animate-pulse" : "bg-zinc-300"}`} />
+            <span className={`h-2 w-2 rounded-full ${
+              webSearchEnabled
+                ? (isDark ? "bg-black animate-pulse" : "bg-white animate-pulse")
+                : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+            }`} />
+          </div>
+
+          <div
+            onClick={() => setSettingsOpen(true)}
+            className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+            }`}
+          >
+            <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Pengaturan</span>
           </div>
         </div>
 
         {/* History / Recent Threads */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
-          <div className="flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider text-zinc-400 uppercase">
+          <div className={`flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider uppercase ${
+            isDark ? "text-zinc-500" : "text-zinc-400"
+          }`}>
             <span>Recent</span>
             {messages.length > 0 && (
               <button
                 onClick={newChat}
                 title="Hapus riwayat"
-                className="text-zinc-400 hover:text-red-500 text-[10px] transition cursor-pointer"
+                className={`text-[10px] transition cursor-pointer ${
+                  isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
+                }`}
               >
                 Clear
               </button>
@@ -585,20 +649,24 @@ export default function Home() {
           </div>
 
           {messages.length === 0 ? (
-            <div className="px-2 py-6 text-center text-xs text-zinc-400">
+            <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
               Belum ada percakapan aktif.
             </div>
           ) : (
             <div className="space-y-1">
               <div
                 onClick={closeSidebarOnMobile}
-                className="group flex items-center justify-between rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/70 px-3 py-2 text-xs text-zinc-800 cursor-pointer transition"
+                className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
+                  isDark
+                    ? "bg-zinc-900/60 hover:bg-zinc-800/70 border-zinc-800 text-zinc-200"
+                    : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800"
+                }`}
               >
                 <div className="truncate pr-2">
-                  <p className="truncate font-medium text-zinc-800">
+                  <p className={`truncate font-medium ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                     {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
                   </p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
+                  <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
                     {messages.length} pesan · Aktif
                   </p>
                 </div>
@@ -607,7 +675,7 @@ export default function Home() {
                     e.stopPropagation();
                     newChat();
                   }}
-                  className="p-1 text-zinc-400 hover:text-red-500 transition"
+                  className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"}`}
                   title="Hapus chat ini"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -620,22 +688,30 @@ export default function Home() {
         </div>
 
         {/* Bottom User Card / Status */}
-        <div className="p-3 border-t border-zinc-100 bg-zinc-50/50">
-          <div className="flex items-center justify-between rounded-2xl bg-white border border-zinc-200/80 p-2.5 shadow-xs">
+        <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
+            isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-zinc-900"
+          }`}>
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-bold text-white shadow-sm">
+              <div className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
+                isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}>
                 U
-                <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ${
+                  isDark ? "ring-[#18181b]" : "ring-white"
+                }`} />
               </div>
               <div className="truncate">
-                <div className="text-xs font-semibold text-zinc-900 truncate">Personal Studio</div>
-                <div className="text-[10px] text-zinc-500 font-medium">Pro Plan · Active</div>
+                <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>Personal Studio</div>
+                <div className={`text-[10px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Pro Plan · Active</div>
               </div>
             </div>
             <button
               onClick={newChat}
               title="Reset Percakapan"
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition cursor-pointer"
+              className={`rounded-lg p-1.5 transition cursor-pointer ${
+                isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              }`}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -645,14 +721,24 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* ─── MAIN WORKSPACE (Large Rounded White Canvas like Image) ───────── */}
-      <main className="flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-white sm:rounded-3xl border sm:border border-zinc-200/90 shadow-2xl shadow-black/40">
-        {/* Top App Bar - Minimalist High Fashion Header */}
-        <header className="shrink-0 w-full z-20 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
+      {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
+      <main className={`flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-colors ${
+        isDark
+          ? "bg-[#121215] border-zinc-800/90 shadow-2xl shadow-black/80 text-zinc-100"
+          : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
+      }`}>
+        {/* Top App Bar */}
+        <header className={`shrink-0 w-full z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
+          isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
+        }`}>
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black shadow-2xs transition cursor-pointer"
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
               title="Toggle Sidebar"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -660,19 +746,37 @@ export default function Home() {
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-black text-white shadow-xs">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-xl shadow-xs ${
+                isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}>
+                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                 </svg>
               </div>
-              <span className="text-sm font-bold tracking-tight text-black">Usick V1</span>
+              <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setSettingsOpen(true)}
+              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl sm:rounded-full border transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
+              title="Pengaturan"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+            <button
               onClick={newChat}
-              className="flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full bg-black hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+              className={`flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full text-xs font-semibold shadow-xs transition cursor-pointer ${
+                isDark ? "bg-white hover:bg-zinc-200 text-black" : "bg-black hover:bg-zinc-800 text-white"
+              }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -688,18 +792,18 @@ export default function Home() {
 
             {/* Error Notice */}
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5 sm:p-4 text-xs text-red-700 shadow-sm animate-in fade-in-0">
+              <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-3.5 sm:p-4 text-xs text-red-700 dark:text-red-400 shadow-sm animate-in fade-in-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5">
-                    <svg className="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <div>
-                      <p className="font-bold text-red-900">Terjadi Kendala</p>
-                      <p className="mt-0.5 text-red-700 leading-relaxed">{error}</p>
+                      <p className="font-bold text-red-900 dark:text-red-300">Terjadi Kendala</p>
+                      <p className="mt-0.5 text-red-700 dark:text-red-400 leading-relaxed">{error}</p>
                     </div>
                   </div>
-                  <button onClick={() => setError(null)} className="text-red-500 hover:text-red-900 text-base font-bold px-1">
+                  <button onClick={() => setError(null)} className="text-red-500 hover:text-red-900 dark:hover:text-red-200 text-base font-bold px-1">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -708,50 +812,51 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── HERO / EMPTY STATE (Obsidian Chrome Droplet Art from Reference) ─── */}
+            {/* ─── HERO / EMPTY STATE (Star Icon Monochrome Luxury) ─────────── */}
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-4 sm:pt-8 pb-4 text-center">
-                {/* 001 • CASE STUDIES / AI PILL BADGE */}
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-200/90 bg-zinc-50/80 px-3 py-1 text-[11px] font-semibold tracking-wider text-zinc-600 uppercase">
-                  <span className="h-1.5 w-1.5 rounded-full bg-black shrink-0" />
-                  <span>Usick AI Intelligence</span>
-                </div>
-
-                {/* 3D Glossy Liquid Obsidian Pill Card (from Image) */}
-                <div className="relative mb-5 sm:mb-7 flex items-center justify-center">
-                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 rounded-[28px] sm:rounded-[36px] bg-gradient-to-b from-[#2a2a2e] to-[#121214] p-1 shadow-2xl shadow-black/40 border border-white/20 flex items-center justify-center overflow-hidden">
-                    {/* Top glass reflection rim */}
-                    <div className="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-white/25 to-transparent rounded-t-[28px] sm:rounded-t-[36px]" />
-                    
-                    {/* Metallic Chrome Liquid Droplet Sculpture */}
-                    <div className="relative flex flex-col items-center justify-center">
-                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-radial from-white via-zinc-400 to-black shadow-lg shadow-black/80 flex items-center justify-center">
-                        <div className="h-2 w-2 rounded-full bg-white blur-[0.5px]" />
-                      </div>
-                      <div className="w-14 sm:w-16 h-3 bg-radial from-white/40 via-zinc-700 to-transparent rounded-full blur-[1px] mt-1" />
-                    </div>
+                
+                {/* Star Icon Container */}
+                <div className="relative mb-5 sm:mb-7 flex items-center justify-center animate-float">
+                  <div
+                    className={`absolute h-24 w-24 sm:h-28 sm:w-28 rounded-3xl blur-2xl transition-all ${
+                      isDark ? "bg-white/10" : "bg-zinc-900/10"
+                    }`}
+                  />
+                  <div
+                    className={`relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl border shadow-2xl transition-all ${
+                      isDark
+                        ? "bg-gradient-to-b from-zinc-800 via-zinc-900 to-black border-zinc-700/80 shadow-black/80"
+                        : "bg-gradient-to-b from-zinc-900 to-black border-zinc-800 shadow-black/30"
+                    }`}
+                  >
+                    <svg className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                    </svg>
                   </div>
                 </div>
 
-                {/* What We've Built Headline Style */}
-                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-black">
+                {/* Headline */}
+                <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {getTimeGreeting()}, Usick V1
                 </h1>
-                <p className="mt-1 text-base sm:text-lg font-medium text-zinc-500 max-w-md px-2">
+                <p className={`mt-1 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                   What would you like to build or explore today?
                 </p>
 
-                {/* Carousel Pagination Dots from Reference Image */}
+                {/* Carousel Pagination Dots */}
                 <div className="mt-4 flex items-center justify-center gap-1.5">
-                  <span className="h-1.5 w-4 rounded-full bg-black transition-all" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                  <span className={`h-1.5 w-4 rounded-full transition-all ${isDark ? "bg-white" : "bg-black"}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
                 </div>
 
                 {/* Quick Start Suggestions Grid */}
                 <div className="w-full mt-6 sm:mt-10 text-left">
-                  <div className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-2.5 sm:mb-3 px-1">
+                  <div className={`text-[11px] font-bold tracking-wider uppercase mb-2.5 sm:mb-3 px-1 ${
+                    isDark ? "text-zinc-500" : "text-zinc-400"
+                  }`}>
                     Get started with an example below
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
@@ -760,21 +865,35 @@ export default function Home() {
                         key={idx}
                         type="button"
                         onClick={() => sendMessage(item.prompt)}
-                        className="glass-card flex flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left group cursor-pointer"
+                        className={`flex flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left group cursor-pointer border transition-all ${
+                          isDark
+                            ? "bg-[#18181c] border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-black/30"
+                            : "bg-zinc-50 border-zinc-200/80 hover:border-zinc-300 hover:bg-white shadow-2xs"
+                        } hover:shadow-md`}
                       >
                         <div>
-                          <h3 className="text-xs sm:text-[13px] font-semibold text-zinc-900 group-hover:text-black transition">
+                          <h3 className={`text-xs sm:text-[13px] font-semibold transition ${
+                            isDark ? "text-zinc-100 group-hover:text-white" : "text-zinc-900 group-hover:text-black"
+                          }`}>
                             {item.title}
                           </h3>
-                          <p className="text-[11px] sm:text-[11.5px] text-zinc-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2">
+                          <p className={`text-[11px] sm:text-[11.5px] mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 ${
+                            isDark ? "text-zinc-400" : "text-zinc-500"
+                          }`}>
                             {item.desc}
                           </p>
                         </div>
-                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t border-zinc-200/60">
-                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-zinc-200 transition text-black">
+                        <div className={`mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t ${
+                          isDark ? "border-zinc-800/80" : "border-zinc-200/60"
+                        }`}>
+                          <div className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition ${
+                            isDark ? "bg-zinc-800 group-hover:bg-zinc-700 text-white" : "bg-zinc-200/70 group-hover:bg-zinc-300 text-black"
+                          }`}>
                             {item.icon}
                           </div>
-                          <span className="text-[11px] text-black opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1">
+                          <span className={`text-[11px] opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1 ${
+                            isDark ? "text-white" : "text-black"
+                          }`}>
                             <span>Mulai</span>
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -798,8 +917,10 @@ export default function Home() {
                 >
                   {/* Assistant Avatar */}
                   {!isUser && (
-                    <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-black text-white shadow-md shadow-black/30">
-                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <div className={`relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${
+                      isDark ? "bg-white text-black shadow-white/10" : "bg-black text-white shadow-black/30"
+                    }`}>
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
                         <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                       </svg>
                     </div>
@@ -809,8 +930,12 @@ export default function Home() {
                   <div
                     className={`relative max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 sm:p-4 text-[13.5px] sm:text-sm ${
                       isUser
-                        ? "bg-black text-white shadow-md shadow-black/20 rounded-tr-xs font-normal"
-                        : "bg-[#f8f8fa] border border-zinc-200/90 text-zinc-900 shadow-xs rounded-tl-xs"
+                        ? (isDark
+                            ? "bg-zinc-800 border border-zinc-750 text-white shadow-md rounded-tr-xs font-normal"
+                            : "bg-black text-white shadow-md shadow-black/20 rounded-tr-xs font-normal")
+                        : (isDark
+                            ? "bg-[#18181c] border border-zinc-800 text-zinc-100 shadow-xs rounded-tl-xs"
+                            : "bg-[#f8f8fa] border border-zinc-200/90 text-zinc-900 shadow-xs rounded-tl-xs")
                     }`}
                   >
                     {isUser ? (
@@ -818,8 +943,8 @@ export default function Home() {
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
-                          <div className="flex items-center gap-2 py-1 text-zinc-600 text-xs font-medium">
-                            <div className="h-2 w-2 rounded-full bg-black animate-ping" />
+                          <div className={`flex items-center gap-2 py-1 text-xs font-medium ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                            <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
                             <span>Sedang merumuskan jawaban...</span>
                           </div>
                         )}
@@ -827,13 +952,17 @@ export default function Home() {
                         <div className="relative">
                           <MarkdownMessage content={msg.content} />
                           {isStreaming && msg.content && msg.id === messages[messages.length - 1]?.id && (
-                            <span className="inline-block w-1.5 h-4 ml-1 bg-black align-middle animate-pulse rounded-xs" />
+                            <span className={`inline-block w-1.5 h-4 ml-1 align-middle animate-pulse rounded-xs ${isDark ? "bg-white" : "bg-black"}`} />
                           )}
                         </div>
 
                         {msg.searchError && (
-                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                            <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <div className={`mt-3 flex items-start gap-2 rounded-xl border p-2.5 text-xs ${
+                            isDark
+                              ? "border-amber-900/50 bg-amber-950/30 text-amber-300"
+                              : "border-amber-200 bg-amber-50 text-amber-800"
+                          }`}>
+                            <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                             <span>Catatan pencarian: {msg.searchError}</span>
@@ -842,9 +971,11 @@ export default function Home() {
 
                         {/* Sources Citations */}
                         {msg.sources && msg.sources.length > 0 && (
-                          <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-200/70">
-                            <div className="flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-black uppercase tracking-wider mb-2">
-                              <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <div className={`mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t ${isDark ? "border-zinc-800" : "border-zinc-200/70"}`}>
+                            <div className={`flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider mb-2 ${
+                              isDark ? "text-zinc-200" : "text-black"
+                            }`}>
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                               </svg>
                               <span>Sumber Referensi Web ({msg.sources.length})</span>
@@ -863,16 +994,24 @@ export default function Home() {
                                     href={src.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 p-2 text-xs text-zinc-900 transition group shadow-2xs"
+                                    className={`flex items-center gap-2 rounded-xl p-2 text-xs transition group shadow-2xs border ${
+                                      isDark
+                                        ? "bg-[#141417] hover:bg-zinc-800 border-zinc-800 text-zinc-200"
+                                        : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-900"
+                                    }`}
                                   >
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-black text-[10px] font-bold text-white">
+                                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
+                                      isDark ? "bg-white text-black" : "bg-black text-white"
+                                    }`}>
                                       {idx + 1}
                                     </span>
                                     <div className="truncate">
-                                      <p className="truncate font-semibold text-[11.5px] sm:text-[12px] group-hover:text-black transition">
+                                      <p className={`truncate font-semibold text-[11.5px] sm:text-[12px] transition ${
+                                        isDark ? "group-hover:text-white" : "group-hover:text-black"
+                                      }`}>
                                         {src.title || domain}
                                       </p>
-                                      <p className="text-[10px] text-zinc-500 truncate">{domain}</p>
+                                      <p className={`text-[10px] truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>{domain}</p>
                                     </div>
                                   </a>
                                 );
@@ -883,18 +1022,24 @@ export default function Home() {
 
                         {/* Copy Action */}
                         {msg.content && (
-                          <div className="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-200/60">
+                          <div className={`mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t ${
+                            isDark ? "border-zinc-800/80" : "border-zinc-200/60"
+                          }`}>
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
-                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-200/80 hover:text-black transition cursor-pointer"
+                              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition cursor-pointer ${
+                                isDark
+                                  ? "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                                  : "text-zinc-600 hover:bg-zinc-200/80 hover:text-black"
+                              }`}
                             >
                               {copiedId === msg.id ? (
                                 <>
-                                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                   </svg>
-                                  <span className="text-black font-semibold">Tersalin</span>
+                                  <span className="font-semibold">Tersalin</span>
                                 </>
                               ) : (
                                 <>
@@ -913,7 +1058,11 @@ export default function Home() {
 
                   {/* User Avatar */}
                   {isUser && (
-                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-200 text-xs font-bold text-black border border-zinc-300">
+                    <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold border ${
+                      isDark
+                        ? "bg-zinc-800 text-zinc-100 border-zinc-700"
+                        : "bg-zinc-200 text-black border border-zinc-300"
+                    }`}>
                       U
                     </div>
                   )}
@@ -923,8 +1072,10 @@ export default function Home() {
 
             {/* Status searching pulse */}
             {statusMessage && (
-              <div className="flex items-center gap-2 text-xs text-zinc-900 pl-10 sm:pl-11 animate-pulse font-medium">
-                <div className="h-2 w-2 rounded-full bg-black" />
+              <div className={`flex items-center gap-2 text-xs pl-10 sm:pl-11 animate-pulse font-medium ${
+                isDark ? "text-zinc-200" : "text-zinc-900"
+              }`}>
+                <div className={`h-2 w-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
                 <span>{statusMessage}</span>
               </div>
             )}
@@ -933,10 +1084,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── FLOATING ELEVATED INPUT BAR (Mobile Responsive) ──────────────── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-white via-white to-transparent">
+        {/* ─── FLOATING ELEVATED INPUT BAR ─────────────────────────────────── */}
+        <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+          isDark
+            ? "bg-gradient-to-t from-[#121215] via-[#121215] to-transparent"
+            : "bg-gradient-to-t from-white via-white to-transparent"
+        }`}>
           <div className="mx-auto max-w-3xl w-full">
-            <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all">
+            <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all border ${
+              isDark
+                ? "bg-[#18181c] border-zinc-800 shadow-2xl shadow-black/60"
+                : "bg-white border-zinc-200 shadow-xl shadow-zinc-900/[0.05]"
+            }`}>
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -948,35 +1107,45 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask AI a question or make a request..."
                 rows={1}
-                className="w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none leading-relaxed"
+                className={`w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
+                  isDark ? "text-zinc-100 placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-400"
+                }`}
                 style={{ maxHeight: "140px" }}
               />
 
               {/* Bottom Actions Bar inside Floating Card */}
-              <div className="mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t border-zinc-100 gap-1.5 sm:gap-2">
+              <div className={`mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t gap-1.5 sm:gap-2 ${
+                isDark ? "border-zinc-800" : "border-zinc-100"
+              }`}>
                 {/* Left Action: Model Selector Pill + Thinking Toggle */}
                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                   
-                  {/* LLM Selector Button (Clean SVG, No Emojis) */}
+                  {/* LLM Selector Button */}
                   <div className="relative shrink-0" ref={inputDropdownRef}>
                     <button
                       type="button"
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/90 px-2.5 sm:px-3 py-1 text-xs font-semibold text-zinc-900 transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px]"
+                      className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px] ${
+                        isDark
+                          ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100"
+                          : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-zinc-900"
+                      }`}
                       title="Pilih Model AI"
                     >
-                      <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-white" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
                       <span className="truncate">
                         {cleanModelLabel(activeModelObj.label)}
                       </span>
-                      <svg className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200 ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
+                        isDark ? "text-zinc-500" : "text-zinc-400"
+                      } ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
 
-                    {/* Popover list (Responsive: Fixed modal on mobile, dropdown on desktop) */}
+                    {/* Popover backdrop mobile */}
                     {modelDropdownOpen && (
                       <div
                         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
@@ -985,25 +1154,33 @@ export default function Home() {
                       />
                     )}
 
-                    {/* Popover list (Responsive: Centered sheet on mobile, anchored popover on desktop) */}
+                    {/* Popover list */}
                     {modelDropdownOpen && (
-                      <div className="fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-in-95">
-                        <div className="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
+                      <div className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-95 ${
+                        isDark
+                          ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
+                          : "bg-white border-zinc-200 text-zinc-900 shadow-2xl"
+                      }`}>
+                        <div className={`flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
+                          isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-zinc-400"
+                        }`}>
                           <span>Pilih Model LLM ({models.length})</span>
                           <button
                             onClick={() => setModelDropdownOpen(false)}
-                            className="sm:hidden text-zinc-400 hover:text-zinc-700"
+                            className={`sm:hidden ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-400 hover:text-black"}`}
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
                         </div>
-                        <div className="py-1 divide-y divide-zinc-100">
+                        <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
                           {groupedCategories.map((group) => (
                             <div key={group.name} className="py-1.5 first:pt-0.5 last:pb-0.5">
-                              <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-black shrink-0" />
+                              <div className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                                isDark ? "text-zinc-300" : "text-black"
+                              }`}>
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
                                 <span>{group.name}</span>
                               </div>
                               <div className="space-y-0.5">
@@ -1020,14 +1197,20 @@ export default function Home() {
                                       }}
                                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition cursor-pointer ${
                                         isSelected
-                                          ? "bg-black text-white font-medium shadow-xs"
-                                          : "text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                                          ? (isDark
+                                              ? "bg-white text-black font-semibold shadow-xs"
+                                              : "bg-black text-white font-medium shadow-xs")
+                                          : (isDark
+                                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                                              : "text-zinc-700 hover:bg-zinc-100 hover:text-black")
                                       }`}
                                     >
                                       <div className="flex items-center gap-2 truncate pr-2">
                                         <span
                                           className={`text-[11px] font-semibold w-4 shrink-0 ${
-                                            isSelected ? "text-zinc-300" : "text-zinc-400"
+                                            isSelected
+                                              ? (isDark ? "text-zinc-600" : "text-zinc-300")
+                                              : (isDark ? "text-zinc-500" : "text-zinc-400")
                                           }`}
                                         >
                                           {idx + 1}.
@@ -1036,7 +1219,7 @@ export default function Home() {
                                       </div>
                                       {isSelected && (
                                         <svg
-                                          className="w-4 h-4 shrink-0 text-white"
+                                          className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
                                           fill="none"
                                           viewBox="0 0 24 24"
                                           stroke="currentColor"
@@ -1066,13 +1249,25 @@ export default function Home() {
                     onClick={() => setWebSearchEnabled(!webSearchEnabled)}
                     className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                       webSearchEnabled
-                        ? "border-black bg-black text-white shadow-xs"
-                        : "border-zinc-200/90 bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
+                        ? (isDark
+                            ? "border-white bg-white text-black shadow-xs"
+                            : "border-black bg-black text-white shadow-xs")
+                        : (isDark
+                            ? "border-zinc-750 bg-zinc-800/90 text-zinc-400 hover:bg-zinc-750 hover:text-zinc-200"
+                            : "border-zinc-200/90 bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70")
                     }`}
                     title="Aktifkan fitur Thinking / Web Browse"
                   >
-                    <div className={`relative h-3.5 w-6 rounded-full transition-colors ${webSearchEnabled ? "bg-white/30" : "bg-zinc-300"}`}>
-                      <div className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${webSearchEnabled ? "bg-white translate-x-3" : "bg-white translate-x-0.5"}`} />
+                    <div className={`relative h-3.5 w-6 rounded-full transition-colors ${
+                      webSearchEnabled
+                        ? (isDark ? "bg-black/25" : "bg-white/30")
+                        : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+                    }`}>
+                      <div className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${
+                        webSearchEnabled
+                          ? `translate-x-3 ${isDark ? "bg-black" : "bg-white"}`
+                          : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
+                      }`} />
                     </div>
                     <span>Thinking</span>
                   </button>
@@ -1096,8 +1291,12 @@ export default function Home() {
                       disabled={!input.trim()}
                       className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
                         input.trim()
-                          ? "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer"
-                          : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
+                          ? (isDark
+                              ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
+                              : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer")
+                          : (isDark
+                              ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
+                              : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed")
                       }`}
                       title="Kirim pesan (Enter)"
                     >
@@ -1109,12 +1308,158 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="mt-1.5 sm:mt-2 text-center text-[10px] text-zinc-400">
+            <div className={`mt-1.5 sm:mt-2 text-center text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
               Usick V1 dapat menghasilkan informasi yang bervariasi. Selalu verifikasi fakta krusial.
             </div>
           </div>
         </div>
       </main>
+
+      {/* ─── SETTINGS MODAL (Dark / Light Theme Switcher) ───────────────────── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div
+            onClick={() => setSettingsOpen(false)}
+            className="absolute inset-0"
+            aria-hidden="true"
+          />
+          <div
+            className={`relative w-full max-w-md rounded-3xl border p-5 sm:p-6 shadow-2xl transition-all z-10 ${
+              isDark
+                ? "bg-[#18181c] border-zinc-800 text-zinc-100 shadow-black/80"
+                : "bg-white border-zinc-200 text-zinc-900 shadow-zinc-900/20"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between pb-4 border-b ${
+              isDark ? "border-zinc-800" : "border-zinc-100"
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                  isDark ? "bg-white text-black" : "bg-black text-white"
+                }`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold tracking-tight">Pengaturan</h2>
+                  <p className={`text-[11px] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Sesuaikan preferensi tampilan antarmuka</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className={`rounded-xl p-1.5 transition cursor-pointer ${
+                  isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
+                }`}
+                title="Tutup"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body: Theme Selector */}
+            <div className="py-4 space-y-4">
+              <div>
+                <label className={`text-xs font-bold uppercase tracking-wider block mb-2.5 ${
+                  isDark ? "text-zinc-400" : "text-zinc-500"
+                }`}>
+                  Tema Tampilan
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Dark Mode Card */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme("dark")}
+                    className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
+                      theme === "dark"
+                        ? (isDark
+                            ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
+                            : "border-black bg-zinc-900 text-white shadow-md")
+                        : (isDark
+                            ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600")
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black border border-zinc-700 text-white">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      </div>
+                      {theme === "dark" && (
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                          isDark ? "bg-white text-black" : "bg-white text-black"
+                        }`}>
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold block">Dark Mode</span>
+                    <span className="text-[10px] text-zinc-400 mt-0.5">Obsidian & gelap (Default)</span>
+                  </button>
+
+                  {/* Light Mode Card */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme("light")}
+                    className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
+                      theme === "light"
+                        ? (isDark
+                            ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
+                            : "border-black bg-white text-black shadow-md ring-1 ring-black/15")
+                        : (isDark
+                            ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600")
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-800">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      </div>
+                      {theme === "light" && (
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                          isDark ? "bg-white text-black" : "bg-black text-white"
+                        }`}>
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold block">Light Mode</span>
+                    <span className="text-[10px] text-zinc-400 mt-0.5">Monochrome & terang</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`pt-3 border-t flex justify-end ${
+              isDark ? "border-zinc-800" : "border-zinc-100"
+            }`}>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
