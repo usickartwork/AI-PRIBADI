@@ -271,6 +271,29 @@ export async function POST(request: Request) {
   }
 
   const isAnthropic = providerName === "claude" || providerName === "anthropic";
+  const isCloudflareDeepSeekR1 =
+    providerName === "cloudflare" && modelName.toLowerCase().includes("deepseek-r1");
+
+  if (isCloudflareDeepSeekR1) {
+    const r1Instruction =
+      "\n\nPENTING UNTUK DEEPSEEK R1:\n" +
+      "- Berikan jawaban akhir Anda HANYA dalam Bahasa Indonesia yang alami, luwes, dan mengalir seperti percakapan manusia berpendidikan tinggi.\n" +
+      "- Hindari bahasa klise AI dan pembuka kaku (JANGAN gunakan kata-kata seperti 'Sebagai AI', 'Sebagai model kecerdasan buatan', 'Tentu saja!', atau mengulangi pertanyaan pengguna).\n" +
+      "- Langsung berikan jawaban yang cerdas, praktis, dan to the point.";
+
+    const sysIdx = messages.findIndex((m) => m.role === "system");
+    if (sysIdx >= 0) {
+      messages[sysIdx] = {
+        ...messages[sysIdx],
+        content: messages[sysIdx].content + r1Instruction,
+      };
+    } else {
+      messages.unshift({
+        role: "system",
+        content: r1Instruction.trim(),
+      });
+    }
+  }
 
   const reqHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -484,6 +507,114 @@ export async function POST(request: Request) {
                   } catch {}
                 }
               }
+            }
+
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          } catch (readErr) {
+            controller.error(readErr);
+          }
+        } else if (isCloudflareDeepSeekR1) {
+          let buffer = "";
+          let thinkBuffer = "";
+          let inThink = false;
+          let isFirstToken = true;
+          const decoder = new TextDecoder();
+
+          function emitText(text: string) {
+            if (isFirstToken) {
+              text = text.replace(/^[\r\n]+/, "");
+              if (!text) return;
+              isFirstToken = false;
+            }
+            const chunk = {
+              choices: [{ delta: { content: text } }],
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+            );
+          }
+
+          function processDeltaText(deltaText: string) {
+            thinkBuffer += deltaText;
+
+            if (!inThink) {
+              const startIdx = thinkBuffer.indexOf("<think>");
+              if (startIdx !== -1) {
+                inThink = true;
+                const before = thinkBuffer.slice(0, startIdx);
+                if (before) emitText(before);
+                thinkBuffer = thinkBuffer.slice(startIdx + 7);
+              } else {
+                if ("<think>".startsWith(thinkBuffer)) return;
+                const matchLen = [6, 5, 4, 3, 2, 1].find((len) =>
+                  thinkBuffer.endsWith("<think>".slice(0, len))
+                );
+                if (matchLen) {
+                  const emitLen = thinkBuffer.length - matchLen;
+                  if (emitLen > 0) {
+                    emitText(thinkBuffer.slice(0, emitLen));
+                    thinkBuffer = thinkBuffer.slice(emitLen);
+                  }
+                  return;
+                }
+                emitText(thinkBuffer);
+                thinkBuffer = "";
+                return;
+              }
+            }
+
+            if (inThink) {
+              const endIdx = thinkBuffer.indexOf("</think>");
+              if (endIdx !== -1) {
+                inThink = false;
+                const after = thinkBuffer.slice(endIdx + 8);
+                thinkBuffer = "";
+                if (after) emitText(after);
+              }
+            }
+          }
+
+          try {
+            while (true) {
+              const { done, value } = await upstreamReader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || !trimmed.startsWith("data:")) continue;
+                const dataStr = trimmed.slice(5).trim();
+                if (dataStr === "[DONE]") continue;
+
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  const deltaText =
+                    parsed.choices?.[0]?.delta?.content ??
+                    parsed.choices?.[0]?.message?.content;
+                  if (deltaText) processDeltaText(deltaText);
+                } catch {}
+              }
+            }
+
+            if (buffer.trim()) {
+              const trimmed = buffer.trim();
+              if (trimmed.startsWith("data:") && trimmed.slice(5).trim() !== "[DONE]") {
+                try {
+                  const parsed = JSON.parse(trimmed.slice(5).trim());
+                  const deltaText =
+                    parsed.choices?.[0]?.delta?.content ??
+                    parsed.choices?.[0]?.message?.content;
+                  if (deltaText) processDeltaText(deltaText);
+                } catch {}
+              }
+            }
+
+            if (!inThink && thinkBuffer) {
+              emitText(thinkBuffer);
+              thinkBuffer = "";
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
