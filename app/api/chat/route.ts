@@ -103,6 +103,10 @@ function getProviders(): Record<string, ProviderConfig> {
       endpoint: "https://router.huggingface.co/v1/chat/completions",
       apiKey: process.env.HF_API_KEY || "",
     },
+    novita: {
+      endpoint: "https://api.novita.ai/v3/openai/chat/completions",
+      apiKey: process.env.NOVITA_API_KEY || "",
+    },
   };
 }
 

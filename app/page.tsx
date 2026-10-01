@@ -50,6 +50,8 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
+  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen3 Coder 30B A3B", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Qwen] Qwen 3.8 Flash", provider: "novita" },
   { id: "custom:clario/deepseek-v4.1-flash-auto", label: "[Custom] DeepSeek V4.1 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/deepseek-v4.1-flash", label: "[Custom] DeepSeek V4.1 Flash", provider: "custom" },
   { id: "custom:clario/deepseek-v4-flash", label: "[Custom] DeepSeek V4 Flash", provider: "custom" },
@@ -116,6 +118,7 @@ function getModelCategory(m: ModelEntry): string {
 
   // Pokoknya yang ada gpt masuk ke model chat gpt
   if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
+  if (lbl.includes("qwen") || id.includes("qwen")) return "Qwen";
   if (lbl.includes("llama") || id.includes("llama")) return "Llama";
   if (lbl.includes("deepseek") || id.includes("deepseek")) return "DeepSeek";
   if (prov === "gemini" || lbl.includes("gemini") || id.includes("gemini")) return "Gemini";

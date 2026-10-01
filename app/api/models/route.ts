@@ -34,6 +34,10 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
 
+  // ── Novita AI (Qwen Models) ───────────────────────────────────────────────
+  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen3 Coder 30B A3B", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Qwen] Qwen 3.8 Flash", provider: "novita" },
+
   // ── OpenRouter (Cloud LLMs) ───────────────────────────────────────────────
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
@@ -77,6 +81,7 @@ export async function GET() {
   if (process.env.OPENROUTER_API_KEY) configured.add("openrouter");
   if (process.env.TOGETHER_API_KEY) configured.add("together");
   if (process.env.HF_API_KEY) configured.add("hf");
+  if (process.env.NOVITA_API_KEY) configured.add("novita");
   configured.add("ollama");
 
   let models: ModelEntry[];
