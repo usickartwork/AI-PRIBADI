@@ -66,8 +66,11 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
     ? "bg-zinc-800/80 text-zinc-100 border-zinc-700/60"
     : "bg-zinc-200/70 text-zinc-900 border-zinc-300";
 
+  const inlineTextColor = isDark ? "#f4f4f5" : "#09090b";
+  const inlineHeadingColor = isDark ? "#ffffff" : "#000000";
+
   return (
-    <div className={`prose max-w-none text-[14.5px] leading-relaxed ${textClr}`}>
+    <div className={`prose max-w-none text-[14.5px] leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -86,18 +89,18 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
             return <CodeBlock className={className}>{children}</CodeBlock>;
           },
           h1: ({ children }) => (
-            <h1 className={`mb-3 mt-5 text-lg font-bold tracking-tight first:mt-0 ${headingClr}`}>{children}</h1>
+            <h1 className={`mb-3 mt-5 text-lg font-bold tracking-tight first:mt-0 ${headingClr}`} style={{ color: inlineHeadingColor }}>{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className={`mb-2.5 mt-4 text-base font-bold tracking-tight first:mt-0 ${subHeadingClr}`}>{children}</h2>
+            <h2 className={`mb-2.5 mt-4 text-base font-bold tracking-tight first:mt-0 ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{children}</h2>
           ),
           h3: ({ children }) => (
-            <h3 className={`mb-2 mt-3.5 text-sm font-semibold tracking-tight ${subHeadingClr}`}>{children}</h3>
+            <h3 className={`mb-2 mt-3.5 text-sm font-semibold tracking-tight ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{children}</h3>
           ),
-          p: ({ children }) => <p className={`mb-3 last:mb-0 leading-relaxed ${textClr}`}>{children}</p>,
-          ul: ({ children }) => <ul className={`mb-3 list-disc pl-5 space-y-1.5 ${textClr}`}>{children}</ul>,
-          ol: ({ children }) => <ol className={`mb-3 list-decimal pl-5 space-y-1.5 ${textClr}`}>{children}</ol>,
-          li: ({ children }) => <li className={`leading-relaxed ${textClr}`}>{children}</li>,
+          p: ({ children }) => <p className={`mb-3 last:mb-0 leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{children}</p>,
+          ul: ({ children }) => <ul className={`mb-3 list-disc pl-5 space-y-1.5 ${textClr}`} style={{ color: inlineTextColor }}>{children}</ul>,
+          ol: ({ children }) => <ol className={`mb-3 list-decimal pl-5 space-y-1.5 ${textClr}`} style={{ color: inlineTextColor }}>{children}</ol>,
+          li: ({ children }) => <li className={`leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{children}</li>,
           blockquote: ({ children }) => (
             <blockquote className={`my-3 border-l-2 py-1.5 pl-3.5 pr-2 italic rounded-r-lg ${
               isDark
@@ -118,12 +121,12 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
             </thead>
           ),
           th: ({ children }) => (
-            <th className={`px-3.5 py-2.5 font-bold border-b ${borderClr} ${headingClr}`}>
+            <th className={`px-3.5 py-2.5 font-bold border-b ${borderClr} ${headingClr}`} style={{ color: inlineHeadingColor }}>
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className={`px-3.5 py-2.5 border-b ${borderClr} ${textClr}`}>
+            <td className={`px-3.5 py-2.5 border-b ${borderClr} ${textClr}`} style={{ color: inlineTextColor }}>
               {children}
             </td>
           ),
