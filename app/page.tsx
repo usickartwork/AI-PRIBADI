@@ -42,6 +42,8 @@ const STORAGE_KEY = "filius-ai-history";
 
 // 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
+  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick Pro", provider: "novita" },
+  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
   { id: "claude:claude-3-5-sonnet-latest", label: "[Claude] 3.5 Sonnet", provider: "claude" },
@@ -50,8 +52,6 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
-  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Usick] Usick one pro", provider: "novita" },
-  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick one-mini", provider: "novita" },
   { id: "custom:clario/deepseek-v4.1-flash-auto", label: "[Custom] DeepSeek V4.1 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/deepseek-v4.1-flash", label: "[Custom] DeepSeek V4.1 Flash", provider: "custom" },
   { id: "custom:clario/deepseek-v4-flash", label: "[Custom] DeepSeek V4 Flash", provider: "custom" },
@@ -805,6 +805,12 @@ export default function Home() {
     }
     group.items.push(m);
   }
+  // Usick category always placed at the very top
+  groupedCategories.sort((a, b) => {
+    if (a.name === "Usick") return -1;
+    if (b.name === "Usick") return 1;
+    return 0;
+  });
 
   const userDisplayName =
     user?.user_metadata?.full_name ||
@@ -1401,9 +1407,13 @@ export default function Home() {
                       type="button"
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
                       className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px] ${
-                        isDark
-                          ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100"
-                          : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-black"
+                        getModelCategory(activeModelObj) === "Usick"
+                          ? (isDark
+                              ? "bg-zinc-800 text-white border-zinc-600 ring-1 ring-white/20"
+                              : "bg-zinc-100 text-black border-zinc-400 ring-1 ring-black/15")
+                          : (isDark
+                              ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100"
+                              : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-black")
                       }`}
                       title="Pilih Model AI"
                     >
@@ -1411,6 +1421,13 @@ export default function Home() {
                       <span className="truncate">
                         {cleanModelLabel(activeModelObj.label)}
                       </span>
+                      {getModelCategory(activeModelObj) === "Usick" && (
+                        <span className={`hidden sm:inline-block text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full ${
+                          isDark ? "bg-white text-black" : "bg-black text-white"
+                        }`}>
+                          Default
+                        </span>
+                      )}
                       <svg className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
                         isDark ? "text-zinc-500" : "text-black"
                       } ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1448,80 +1465,127 @@ export default function Home() {
                           </button>
                         </div>
                         <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
-                          {groupedCategories.map((group) => (
-                            <div key={group.name} className="py-1.5 first:pt-0.5 last:pb-0.5">
-                              <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 ${
-                                isDark ? "text-zinc-300" : "text-black"
-                              }`}>
-                                <ModelCategoryIcon category={group.name} />
-                                <span>{group.name}</span>
+                          {groupedCategories.map((group) => {
+                            const isUsickGroup = group.name === "Usick";
+                            return (
+                              <div
+                                key={group.name}
+                                className={`py-1.5 first:pt-0.5 last:pb-0.5 ${
+                                  isUsickGroup
+                                    ? (isDark ? "bg-white/[0.04] rounded-xl my-1 p-1" : "bg-black/[0.03] rounded-xl my-1 p-1")
+                                    : ""
+                                }`}
+                              >
+                                <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center justify-between ${
+                                  isUsickGroup
+                                    ? (isDark ? "text-white" : "text-black")
+                                    : (isDark ? "text-zinc-300" : "text-black")
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    <ModelCategoryIcon category={group.name} />
+                                    <span>{group.name}</span>
+                                  </div>
+                                  {isUsickGroup && (
+                                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                      isDark
+                                        ? "bg-white text-black shadow-xs shadow-white/20"
+                                        : "bg-black text-white shadow-xs shadow-black/20"
+                                    }`}>
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="space-y-0.5">
+                                  {group.items.map((m, idx) => {
+                                    const isSelected = m.id === model;
+                                    const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
+                                    const cleanName = cleanModelLabel(m.label);
+                                    const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash";
+                                    return (
+                                      <button
+                                        key={m.id}
+                                        type="button"
+                                        disabled={isDisabled}
+                                        onClick={() => {
+                                          if (isDisabled) return;
+                                          setModel(m.id);
+                                          setModelDropdownOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition relative ${
+                                          isDisabled
+                                            ? "opacity-40 cursor-not-allowed line-through text-zinc-500"
+                                            : isSelected
+                                            ? (isDark
+                                                ? "bg-white text-black font-semibold shadow-xs cursor-pointer"
+                                                : "bg-black text-white font-medium shadow-xs cursor-pointer")
+                                            : isUsick
+                                            ? (isDark
+                                                ? "bg-zinc-800/90 hover:bg-zinc-750 text-white font-semibold border border-zinc-700/80 cursor-pointer shadow-xs"
+                                                : "bg-zinc-100 hover:bg-zinc-200/90 text-black font-semibold border border-zinc-300 cursor-pointer shadow-xs")
+                                            : (isDark
+                                                ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+                                                : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 truncate pr-2">
+                                          <span
+                                            className={`text-[11px] font-semibold w-4 shrink-0 ${
+                                              isDisabled
+                                                ? "text-zinc-600"
+                                                : isSelected
+                                                ? (isDark ? "text-zinc-600" : "text-zinc-300")
+                                                : isUsick
+                                                ? (isDark ? "text-zinc-300" : "text-zinc-700")
+                                                : (isDark ? "text-zinc-500" : "text-zinc-500")
+                                            }`}
+                                          >
+                                            {idx + 1}.
+                                          </span>
+                                          <span className="truncate">{cleanName}</span>
+                                        </div>
+                                        {isDisabled ? (
+                                          <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
+                                            Limit
+                                          </span>
+                                        ) : isSelected ? (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            {isUsick && (
+                                              <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-sm ${
+                                                isDark ? "bg-black/10 text-black" : "bg-white/20 text-white"
+                                              }`}>
+                                                Pro
+                                              </span>
+                                            )}
+                                            <svg
+                                              className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2.5}
+                                                d="M5 13l4 4L19 7"
+                                              />
+                                            </svg>
+                                          </div>
+                                        ) : isUsick ? (
+                                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
+                                            isDark
+                                              ? "bg-white/15 text-white"
+                                              : "bg-black/10 text-black"
+                                          }`}>
+                                            Pro
+                                          </span>
+                                        ) : null}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                              <div className="space-y-0.5">
-                                {group.items.map((m, idx) => {
-                                  const isSelected = m.id === model;
-                                  const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
-                                  const cleanName = cleanModelLabel(m.label);
-                                  return (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      disabled={isDisabled}
-                                      onClick={() => {
-                                        if (isDisabled) return;
-                                        setModel(m.id);
-                                        setModelDropdownOpen(false);
-                                      }}
-                                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition ${
-                                        isDisabled
-                                          ? "opacity-40 cursor-not-allowed line-through text-zinc-500"
-                                          : isSelected
-                                          ? (isDark
-                                              ? "bg-white text-black font-semibold shadow-xs cursor-pointer"
-                                              : "bg-black text-white font-medium shadow-xs cursor-pointer")
-                                          : (isDark
-                                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-                                              : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2 truncate pr-2">
-                                        <span
-                                          className={`text-[11px] font-semibold w-4 shrink-0 ${
-                                            isDisabled
-                                              ? "text-zinc-600"
-                                              : isSelected
-                                              ? (isDark ? "text-zinc-600" : "text-zinc-300")
-                                              : (isDark ? "text-zinc-500" : "text-zinc-500")
-                                          }`}
-                                        >
-                                          {idx + 1}.
-                                        </span>
-                                        <span className="truncate">{cleanName}</span>
-                                      </div>
-                                      {isDisabled ? (
-                                        <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
-                                          Limit
-                                        </span>
-                                      ) : isSelected ? (
-                                        <svg
-                                          className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2.5}
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                      ) : null}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
