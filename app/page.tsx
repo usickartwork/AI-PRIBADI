@@ -166,9 +166,11 @@ export default function Home() {
   const isDark = theme === "dark";
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputDropdownRef = useRef<HTMLDivElement>(null);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -183,6 +185,41 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Touch swipe gesture listener for smooth sidebar opening/closing
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
+      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+      if (deltaY < 80) {
+        // Swipe to right from left edge (within 40px) to slide open panel
+        if (deltaX > 50 && touchStartX <= 40) {
+          setSidebarOpen(true);
+        }
+        // Swipe to left to close panel when open
+        if (deltaX < -50 && sidebarOpen) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [sidebarOpen]);
 
   // Load models from API
   useEffect(() => {
@@ -200,9 +237,19 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Smart autoscroll: only scrolls down if user hasn't scrolled up to read earlier text
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, statusMessage]);
+    if (!isUserScrolledUp) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, statusMessage, isUserScrolledUp]);
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    setIsUserScrolledUp(!isNearBottom);
+  };
 
   useEffect(() => {
     try {
@@ -241,6 +288,7 @@ export default function Home() {
     closeSidebarOnMobile();
     setError(null);
     setIsStreaming(true);
+    setIsUserScrolledUp(false);
     if (webSearchEnabled) {
       setStatusMessage("Thinking & Browsing the web...");
     } else {
@@ -526,197 +574,201 @@ export default function Home() {
         />
       )}
 
-      {/* ─── SIDEBAR (Responsive / Mobile-Friendly Drawer) ─────────────────── */}
+      {/* ─── SIDEBAR (Slide Morphing Smooth Drawer) ─────────────────── */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border ${
           isDark
             ? "border-zinc-800/80 bg-[#121215]/95 text-zinc-200"
             : "border-zinc-200/80 bg-white/95 text-zinc-900"
-        } backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out md:static md:w-64 md:mr-3 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none md:mr-0"
+        } backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
+          sidebarOpen
+            ? "translate-x-0 opacity-100 scale-100 md:w-64 md:mr-3"
+            : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
-        {/* Brand & Logo Header */}
-        <div className={`flex items-center justify-between px-4 py-4 border-b ${
-          isDark ? "border-zinc-800" : "border-zinc-100"
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <div className={`relative flex h-8 w-8 items-center justify-center rounded-xl ${
-              isDark ? "bg-white text-black shadow-md shadow-white/10" : "bg-black text-white shadow-md shadow-black/25"
-            }`}>
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-              </svg>
-            </div>
-            <div>
-              <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
-              <span className={`ml-1.5 rounded-full px-1.5 py-0.2 text-[10px] font-semibold border ${
-                isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
-              }`}>v2.0</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className={`rounded-lg p-1.5 transition cursor-pointer ${
-              isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
-            }`}
-            title="Tutup menu"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* New Thread Button */}
-        <div className="p-3">
-          <button
-            onClick={newChat}
-            className={`group flex w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm cursor-pointer ${
-              isDark
-                ? "bg-white hover:bg-zinc-200 text-black shadow-white/5"
-                : "bg-black hover:bg-zinc-800 text-white shadow-black/25"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-            <span>New Thread</span>
-          </button>
-        </div>
-
-        {/* Quick Navigation Sections */}
-        <div className="px-3 py-1 space-y-0.5 text-xs font-medium">
-          <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition font-semibold ${
-            isDark ? "bg-zinc-800/90 text-white" : "bg-zinc-100 text-black"
-          }`}>
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            <span>Chats</span>
-          </div>
-
-          <div
-            onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
-              webSearchEnabled
-                ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-zinc-900 text-white font-semibold shadow-xs")
-                : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-black")
-            }`}
-          >
-            <span className="flex items-center gap-2.5">
-              <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : "text-zinc-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span>Thinking (Browse)</span>
-            </span>
-            <span className={`h-2 w-2 rounded-full ${
-              webSearchEnabled
-                ? (isDark ? "bg-black animate-pulse" : "bg-white animate-pulse")
-                : (isDark ? "bg-zinc-700" : "bg-zinc-300")
-            }`} />
-          </div>
-
-          <div
-            onClick={() => setSettingsOpen(true)}
-            className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
-              isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
-            }`}
-          >
-            <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>Pengaturan</span>
-          </div>
-        </div>
-
-        {/* History / Recent Threads */}
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          <div className={`flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider uppercase ${
-            isDark ? "text-zinc-500" : "text-zinc-400"
-          }`}>
-            <span>Recent</span>
-            {messages.length > 0 && (
-              <button
-                onClick={newChat}
-                title="Hapus riwayat"
-                className={`text-[10px] transition cursor-pointer ${
-                  isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
-                }`}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          {messages.length === 0 ? (
-            <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-              Belum ada percakapan aktif.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <div
-                onClick={closeSidebarOnMobile}
-                className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
-                  isDark
-                    ? "bg-zinc-900/60 hover:bg-zinc-800/70 border-zinc-800 text-zinc-200"
-                    : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800"
-                }`}
-              >
-                <div className="truncate pr-2">
-                  <p className={`truncate font-medium ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
-                    {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
-                  </p>
-                  <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                    {messages.length} pesan · Aktif
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    newChat();
-                  }}
-                  className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"}`}
-                  title="Hapus chat ini"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Bottom User Card / Status */}
-        <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
-          <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
-            isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-zinc-900"
+        <div className="w-72 md:w-64 flex flex-col h-full min-w-[16rem]">
+          {/* Brand & Logo Header */}
+          <div className={`flex items-center justify-between px-4 py-4 border-b ${
+            isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center gap-2.5">
-              <div className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
-                isDark ? "bg-white text-black" : "bg-black text-white"
+              <div className={`relative flex h-8 w-8 items-center justify-center rounded-xl ${
+                isDark ? "bg-white text-black shadow-md shadow-white/10" : "bg-black text-white shadow-md shadow-black/25"
               }`}>
-                U
-                <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ${
-                  isDark ? "ring-[#18181b]" : "ring-white"
-                }`} />
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                </svg>
               </div>
-              <div className="truncate">
-                <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>Personal Studio</div>
-                <div className={`text-[10px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Pro Plan · Active</div>
+              <div>
+                <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
+                <span className={`ml-1.5 rounded-full px-1.5 py-0.2 text-[10px] font-semibold border ${
+                  isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                }`}>v2.0</span>
               </div>
             </div>
             <button
-              onClick={newChat}
-              title="Reset Percakapan"
+              onClick={() => setSidebarOpen(false)}
               className={`rounded-lg p-1.5 transition cursor-pointer ${
-                isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
               }`}
+              title="Tutup menu"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          </div>
+
+          {/* New Thread Button */}
+          <div className="p-3">
+            <button
+              onClick={newChat}
+              className={`group flex w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm cursor-pointer ${
+                isDark
+                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/5"
+                  : "bg-black hover:bg-zinc-800 text-white shadow-black/25"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              <span>New Thread</span>
+            </button>
+          </div>
+
+          {/* Quick Navigation Sections */}
+          <div className="px-3 py-1 space-y-0.5 text-xs font-medium">
+            <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition font-semibold ${
+              isDark ? "bg-zinc-800/90 text-white" : "bg-zinc-100 text-black"
+            }`}>
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              <span>Chats</span>
+            </div>
+
+            <div
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+              className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
+                webSearchEnabled
+                  ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-zinc-900 text-white font-semibold shadow-xs")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-black")
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : "text-zinc-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span>Thinking (Browse)</span>
+              </span>
+              <span className={`h-2 w-2 rounded-full ${
+                webSearchEnabled
+                  ? (isDark ? "bg-black animate-pulse" : "bg-white animate-pulse")
+                  : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+              }`} />
+            </div>
+
+            <div
+              onClick={() => setSettingsOpen(true)}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+              }`}
+            >
+              {/* Custom Designed Control Sliders Icon (No Emojis) */}
+              <svg className="w-4 h-4 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
+              </svg>
+              <span>Pengaturan</span>
+            </div>
+          </div>
+
+          {/* History / Recent Threads */}
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className={`flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider uppercase ${
+              isDark ? "text-zinc-500" : "text-zinc-400"
+            }`}>
+              <span>Recent</span>
+              {messages.length > 0 && (
+                <button
+                  onClick={newChat}
+                  title="Hapus riwayat"
+                  className={`text-[10px] transition cursor-pointer ${
+                    isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
+                  }`}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {messages.length === 0 ? (
+              <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                Belum ada percakapan aktif.
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div
+                  onClick={closeSidebarOnMobile}
+                  className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/70 border-zinc-800 text-zinc-200"
+                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800"
+                  }`}
+                >
+                  <div className="truncate pr-2">
+                    <p className={`truncate font-medium ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                      {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
+                    </p>
+                    <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                      {messages.length} pesan · Aktif
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      newChat();
+                    }}
+                    className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"}`}
+                    title="Hapus chat ini"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom User Card / Status */}
+          <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+            <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
+              isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-zinc-900"
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
+                  isDark ? "bg-white text-black" : "bg-black text-white"
+                }`}>
+                  U
+                  <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ${
+                    isDark ? "ring-[#18181b]" : "ring-white"
+                  }`} />
+                </div>
+                <div className="truncate">
+                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>Personal Studio</div>
+                  <div className={`text-[10px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Pro Plan · Active</div>
+                </div>
+              </div>
+              <button
+                onClick={newChat}
+                title="Reset Percakapan"
+                className={`rounded-lg p-1.5 transition cursor-pointer ${
+                  isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -759,20 +811,6 @@ export default function Home() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSettingsOpen(true)}
-              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl sm:rounded-full border transition cursor-pointer ${
-                isDark
-                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
-              }`}
-              title="Pengaturan"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-            <button
               onClick={newChat}
               className={`flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full text-xs font-semibold shadow-xs transition cursor-pointer ${
                 isDark ? "bg-white hover:bg-zinc-200 text-black" : "bg-black hover:bg-zinc-800 text-white"
@@ -787,7 +825,11 @@ export default function Home() {
         </header>
 
         {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5"
+        >
           <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
 
             {/* Error Notice */}
@@ -812,28 +854,20 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── HERO / EMPTY STATE (Star Icon Monochrome Luxury) ─────────── */}
+            {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box) ──────────── */}
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-4 sm:pt-8 pb-4 text-center">
                 
-                {/* Star Icon Container */}
-                <div className="relative mb-5 sm:mb-7 flex items-center justify-center animate-float">
-                  <div
-                    className={`absolute h-24 w-24 sm:h-28 sm:w-28 rounded-3xl blur-2xl transition-all ${
-                      isDark ? "bg-white/10" : "bg-zinc-900/10"
+                {/* Pure Star Icon only (No Box/Kotak) */}
+                <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+                  <svg
+                    className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                      isDark ? "text-white fill-white" : "text-black fill-black"
                     }`}
-                  />
-                  <div
-                    className={`relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl border shadow-2xl transition-all ${
-                      isDark
-                        ? "bg-gradient-to-b from-zinc-800 via-zinc-900 to-black border-zinc-700/80 shadow-black/80"
-                        : "bg-gradient-to-b from-zinc-900 to-black border-zinc-800 shadow-black/30"
-                    }`}
+                    viewBox="0 0 24 24"
                   >
-                    <svg className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                    </svg>
-                  </div>
+                    <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                  </svg>
                 </div>
 
                 {/* Headline */}
@@ -843,14 +877,6 @@ export default function Home() {
                 <p className={`mt-1 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                   What would you like to build or explore today?
                 </p>
-
-                {/* Carousel Pagination Dots */}
-                <div className="mt-4 flex items-center justify-center gap-1.5">
-                  <span className={`h-1.5 w-4 rounded-full transition-all ${isDark ? "bg-white" : "bg-black"}`} />
-                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
-                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
-                  <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-700" : "bg-zinc-300"}`} />
-                </div>
 
                 {/* Quick Start Suggestions Grid */}
                 <div className="w-full mt-6 sm:mt-10 text-left">
@@ -1084,6 +1110,30 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Floating pop-up saat user scroll ke atas sementara AI masih generate */}
+        {isStreaming && isUserScrolledUp && (
+          <div className="flex justify-center -mb-2 px-4 relative z-30 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+            <button
+              type="button"
+              onClick={() => {
+                setIsUserScrolledUp(false);
+                bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className={`group flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold shadow-xl backdrop-blur-md border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                isDark
+                  ? "bg-[#18181c]/95 border-zinc-700 text-white shadow-black/80"
+                  : "bg-white/95 border-zinc-200 text-zinc-900 shadow-zinc-900/15"
+              }`}
+            >
+              <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
+              <span>Sedang merumuskan jawaban...</span>
+              <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* ─── FLOATING ELEVATED INPUT BAR ─────────────────────────────────── */}
         <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
           isDark
@@ -1307,9 +1357,6 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            </div>
-            <div className={`mt-1.5 sm:mt-2 text-center text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-              Usick V1 dapat menghasilkan informasi yang bervariasi. Selalu verifikasi fakta krusial.
             </div>
           </div>
         </div>
