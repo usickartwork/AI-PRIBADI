@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
+import { AuthModal } from "./components/AuthModal";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 type Role = "user" | "assistant";
 
@@ -127,6 +130,9 @@ function getModelCategory(m: ModelEntry): string {
 }
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -151,6 +157,31 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Supabase Auth Session listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        setShowAuthModal(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setShowAuthModal(true);
+  };
 
   useEffect(() => {
     try {
@@ -286,6 +317,11 @@ export default function Home() {
   };
 
   const sendMessage = async (customPrompt?: string) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
     const text = (customPrompt || input).trim();
     if (!text || isStreaming) return;
 
@@ -526,7 +562,16 @@ export default function Home() {
     group.items.push(m);
   }
 
+  const userDisplayName =
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Tamu";
 
+  const userInitial = (
+    user?.user_metadata?.full_name ||
+    user?.email ||
+    "U"
+  )[0].toUpperCase();
 
   return (
     <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
@@ -710,31 +755,50 @@ export default function Home() {
             <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
               isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
             }`}>
-              <div className="flex items-center gap-2.5">
-                <div className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
+              <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                <div className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
                   isDark ? "bg-white text-black" : "bg-black text-white"
                 }`}>
-                  U
-                  <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ${
+                  {userInitial}
+                  <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${user ? "bg-emerald-500" : "bg-zinc-400"} ring-2 ${
                     isDark ? "ring-[#18181b]" : "ring-white"
                   }`} />
                 </div>
                 <div className="truncate">
-                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>Personal Studio</div>
-                  <div className={`text-[10px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Pro Plan · Active</div>
+                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
+                    {user ? userDisplayName : "Belum Masuk"}
+                  </div>
+                  <div className={`text-[10px] font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                    {user ? user.email : "Akun Diperlukan"}
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={newChat}
-                title="Reset Percakapan"
-                className={`rounded-lg p-1.5 transition cursor-pointer ${
-                  isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
+
+              {user ? (
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  title="Keluar (Logout)"
+                  className={`rounded-lg p-1.5 transition cursor-pointer shrink-0 ${
+                    isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-red-400" : "text-zinc-600 hover:bg-zinc-100 hover:text-red-600"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(true)}
+                  title="Masuk / Daftar"
+                  className={`rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer shrink-0 ${
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  Masuk
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1424,6 +1488,14 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* ─── MANDATORY AUTH MODAL (Login & Register via Supabase) ────────── */}
+      {(!authLoading && !user) || showAuthModal ? (
+        <AuthModal
+          isDark={isDark}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      ) : null}
     </div>
   );
 }
