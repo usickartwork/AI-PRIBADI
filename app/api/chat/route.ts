@@ -31,8 +31,29 @@ function getOllamaEndpoint(rawUrl?: string): string {
   return `${clean}/v1/chat/completions`;
 }
 
+function cleanCustomBaseUrl(rawUrl?: string): string {
+  let base = rawUrl?.trim() || "";
+  if (!base) return "";
+  base = base.replace(/\/+$/, "");
+  if (base.endsWith("/chat/completions")) {
+    return base;
+  }
+  if (base.endsWith("/v1")) {
+    return `${base}/chat/completions`;
+  }
+  return `${base}/v1/chat/completions`;
+}
+
+function getCustomEndpoint(rawUrl?: string): string {
+  return cleanCustomBaseUrl(rawUrl);
+}
+
 function getProviders(): Record<string, ProviderConfig> {
   return {
+    custom: {
+      endpoint: getCustomEndpoint(process.env.CUSTOM_BASE_URL),
+      apiKey: process.env.CUSTOM_API_KEY || "",
+    },
     claude: {
       endpoint: "https://api.anthropic.com/v1/messages",
       apiKey: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || "",
@@ -110,9 +131,17 @@ function resolveProvider(modelId: string): {
   const colonIdx = modelId.indexOf(":");
   if (colonIdx > 0) {
     const prefix = modelId.slice(0, colonIdx);
-    const modelName = modelId.slice(colonIdx + 1);
+    let modelName = modelId.slice(colonIdx + 1);
+    if (prefix === "custom" && process.env.CUSTOM_MODEL_NAME) {
+      modelName = process.env.CUSTOM_MODEL_NAME;
+    }
     const provider = providers[prefix];
-    if (provider && (provider.apiKey || (prefix === "ollama" && Boolean(provider.endpoint)))) {
+    if (
+      provider &&
+      (provider.apiKey ||
+        (prefix === "ollama" && Boolean(provider.endpoint)) ||
+        (prefix === "custom" && Boolean(provider.endpoint)))
+    ) {
       return { provider, modelName, providerName: prefix };
     }
     if (provider) {
@@ -122,8 +151,15 @@ function resolveProvider(modelId: string): {
 
   for (const [prefix, provider] of Object.entries(providers)) {
     if (modelId.startsWith(prefix + "/") || modelId.startsWith(prefix + ":")) {
-      const modelName = modelId.slice(prefix.length + 1);
-      if (provider.apiKey || (prefix === "ollama" && Boolean(provider.endpoint))) {
+      let modelName = modelId.slice(prefix.length + 1);
+      if (prefix === "custom" && process.env.CUSTOM_MODEL_NAME) {
+        modelName = process.env.CUSTOM_MODEL_NAME;
+      }
+      if (
+        provider.apiKey ||
+        (prefix === "ollama" && Boolean(provider.endpoint)) ||
+        (prefix === "custom" && Boolean(provider.endpoint))
+      ) {
         return { provider, modelName, providerName: prefix };
       }
       return null;
@@ -248,6 +284,17 @@ export async function POST(request: Request) {
       );
     }
 
+    if (missingKey.toLowerCase() === "custom") {
+      return Response.json(
+        {
+          error:
+            "CUSTOM_BASE_URL (atau CUSTOM_API_KEY) belum dikonfigurasi di Environment Variables (.env.local atau Vercel Dashboard). Silakan tambahkan CUSTOM_BASE_URL dan CUSTOM_API_KEY.",
+          model: modelId,
+        },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
+
     return Response.json(
       {
         error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel.`,
@@ -258,6 +305,17 @@ export async function POST(request: Request) {
   }
 
   const { provider, modelName, providerName } = resolved;
+
+  if (providerName === "custom" && !provider.endpoint) {
+    return Response.json(
+      {
+        error:
+          "CUSTOM_BASE_URL belum dikonfigurasi di Environment Variables (.env.local atau Vercel Dashboard). Silakan isi CUSTOM_BASE_URL dengan URL server API Anda.",
+        model: modelId,
+      },
+      { status: 503, headers: CORS_HEADERS }
+    );
+  }
 
   if (providerName === "cloudflare" && !process.env.CLOUDFLARE_ACCOUNT_ID) {
     return Response.json(

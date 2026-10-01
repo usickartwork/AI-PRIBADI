@@ -37,6 +37,9 @@ const ALL_MODELS: ModelEntry[] = [
   // ── OpenRouter (Cloud LLMs) ───────────────────────────────────────────────
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
+
+  // ── Custom API (OpenAI-Compatible with Base URL) ──────────────────────────
+  { id: "custom:custom-model", label: "[Custom] Custom Model", provider: "custom" },
 ];
 
 const CORS_HEADERS = {
@@ -52,6 +55,7 @@ export async function OPTIONS() {
 export async function GET() {
   const configured = new Set<string>();
 
+  if (process.env.CUSTOM_BASE_URL || process.env.CUSTOM_API_KEY) configured.add("custom");
   if (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY) configured.add("cloudflare");
   if (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) configured.add("claude");
   if (process.env.GEMINI_API_KEY) configured.add("gemini");
@@ -70,6 +74,21 @@ export async function GET() {
     models = ALL_MODELS;
   } else {
     models = ALL_MODELS.filter((m) => configured.has(m.provider));
+  }
+
+  // If custom provider is active, reflect CUSTOM_MODEL_NAME if specified
+  const customModelName = process.env.CUSTOM_MODEL_NAME?.trim();
+  if (customModelName) {
+    models = models.map((m) => {
+      if (m.provider === "custom") {
+        return {
+          ...m,
+          id: `custom:${customModelName}`,
+          label: `[Custom] ${customModelName}`,
+        };
+      }
+      return m;
+    });
   }
 
   return Response.json({ models }, { headers: CORS_HEADERS });

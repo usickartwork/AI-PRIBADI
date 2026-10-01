@@ -47,6 +47,7 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
+  { id: "custom:custom-model", label: "[Custom] Custom Model", provider: "custom" },
 ];
 
 const SYSTEM_PROMPT =
@@ -98,6 +99,7 @@ function getModelCategory(m: ModelEntry): string {
   const id = m.id.toLowerCase();
   const prov = (m.provider || "").toLowerCase();
 
+  if (prov === "custom" || lbl.includes("custom") || id.startsWith("custom:")) return "Custom";
   // Pokoknya yang ada gpt masuk ke model chat gpt
   if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
   if (lbl.includes("llama")) return "Llama";
