@@ -363,6 +363,10 @@ export async function POST(request: Request) {
   } else if (provider.apiKey) {
     reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
   }
+  if (providerName === "custom") {
+    reqHeaders["User-Agent"] =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+  }
 
   let reqBody: string;
 

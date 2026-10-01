@@ -784,7 +784,12 @@ export default function Home() {
                           </div>
                         )}
 
-                        <MarkdownMessage content={msg.content} />
+                        <div className="relative">
+                          <MarkdownMessage content={msg.content} />
+                          {isStreaming && msg.content && msg.id === messages[messages.length - 1]?.id && (
+                            <span className="inline-block w-1.5 h-4 ml-1 bg-violet-600 align-middle animate-pulse rounded-sm" />
+                          )}
+                        </div>
 
                         {msg.searchError && (
                           <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
