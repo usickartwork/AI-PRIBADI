@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +24,13 @@ type ChatMessage = {
   searchError?: string;
 };
 
+export type ChatSession = {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  updatedAt: number;
+};
+
 type ModelEntry = {
   id: string;
   label: string;
@@ -41,6 +48,8 @@ type StreamChunk = {
 };
 
 const STORAGE_KEY = "filius-ai-history";
+const SESSIONS_STORAGE_KEY = "filius-ai-sessions";
+const ACTIVE_SESSION_STORAGE_KEY = "filius-ai-active-session";
 
 // 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
@@ -84,15 +93,62 @@ function generateUUID(): string {
   });
 }
 
-function loadHistory(): ChatMessage[] {
+function parseRawToSessions(data: unknown): ChatSession[] {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    if (data.length === 0) return [];
+    // Cek apakah data ini adalah Array of ChatSession
+    if (data[0] && typeof data[0] === "object" && "messages" in data[0] && "id" in data[0]) {
+      return (data as ChatSession[]).filter(
+        (s) => s && Array.isArray(s.messages) && s.messages.length > 0
+      );
+    }
+    // Cek apakah data ini adalah Array of ChatMessage (format lama 1 thread)
+    if (data[0] && typeof data[0] === "object" && "role" in data[0]) {
+      const messages = data as ChatMessage[];
+      if (messages.length === 0) return [];
+      const firstUserMsg = messages.find((m) => m.role === "user");
+      const title = firstUserMsg?.content
+        ? firstUserMsg.content.slice(0, 36).trim() + (firstUserMsg.content.length > 36 ? "..." : "")
+        : "Percakapan Sebelumnya";
+      return [
+        {
+          id: generateUUID(),
+          title,
+          messages,
+          updatedAt: Date.now(),
+        },
+      ];
+    }
+  }
+  return [];
+}
+
+function loadSessions(): ChatSession[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
+    const rawSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
+    if (rawSessions) {
+      const parsed = JSON.parse(rawSessions);
+      const res = parseRawToSessions(parsed);
+      if (res.length > 0) return res;
+    }
+    const legacyRaw = localStorage.getItem(STORAGE_KEY);
+    if (legacyRaw) {
+      const parsed = JSON.parse(legacyRaw);
+      const res = parseRawToSessions(parsed);
+      if (res.length > 0) return res;
+    }
+  } catch {}
+  return [];
+}
+
+function loadHistory(): ChatMessage[] {
+  const sessions = loadSessions();
+  if (sessions.length > 0) {
+    return sessions[0].messages;
   }
+  return [];
 }
 
 function getTimeGreeting(): string {
@@ -323,8 +379,77 @@ function ModelCategoryIcon({ category }: { category: string }) {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+      if (saved) return saved;
+    }
+    const initialSessions = loadSessions();
+    if (initialSessions.length > 0) return initialSessions[0].id;
+    return generateUUID();
+  });
+
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+    try {
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, activeSessionId);
+    } catch {}
+  }, [activeSessionId]);
+
+  const currentSession = sessions.find((s) => s.id === activeSessionId);
+  const messages = currentSession?.messages || [];
+
+  const setMessages = useCallback(
+    (updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+      setSessions((prevSessions) => {
+        const curId = activeSessionIdRef.current;
+        const existingIndex = prevSessions.findIndex((s) => s.id === curId);
+        const prevMsgs = existingIndex >= 0 ? prevSessions[existingIndex].messages : [];
+        const nextMsgs = typeof updater === "function" ? updater(prevMsgs) : updater;
+
+        if (nextMsgs.length === 0) {
+          if (existingIndex >= 0) {
+            return prevSessions.filter((s) => s.id !== curId);
+          }
+          return prevSessions;
+        }
+
+        let title = existingIndex >= 0 ? prevSessions[existingIndex].title : "";
+        if (!title || title === "Percakapan Baru" || title === "Percakapan Sebelumnya") {
+          const firstUser = nextMsgs.find((m) => m.role === "user");
+          if (firstUser?.content) {
+            title = firstUser.content.slice(0, 36).trim() + (firstUser.content.length > 36 ? "..." : "");
+          } else {
+            title = "Percakapan Baru";
+          }
+        }
+
+        if (existingIndex >= 0) {
+          const updated = [...prevSessions];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            title,
+            messages: nextMsgs,
+            updatedAt: Date.now(),
+          };
+          return updated;
+        } else {
+          const newSession: ChatSession = {
+            id: curId,
+            title,
+            messages: nextMsgs,
+            updatedAt: Date.now(),
+          };
+          return [newSession, ...prevSessions];
+        }
+      });
+    },
+    []
+  );
+
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -434,20 +559,28 @@ export default function Home() {
           return;
         }
 
-        if (data && Array.isArray(data.messages) && data.messages.length > 0) {
-          if (isMounted) {
-            setMessages(data.messages);
+        if (data && data.messages) {
+          const parsed = parseRawToSessions(data.messages);
+          if (parsed.length > 0 && isMounted) {
+            setSessions(parsed);
+            if (!parsed.some((s) => s.id === activeSessionIdRef.current)) {
+              setActiveSessionId(parsed[0].id);
+            }
             try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.messages));
+              localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(parsed));
             } catch {}
           }
         } else {
           // Jika di cloud masih kosong tetapi ada riwayat lokal, cadangkan ke Supabase
-          const local = loadHistory();
-          if (local.length > 0) {
+          const localSessions = loadSessions();
+          if (localSessions.length > 0) {
+            const cleaned = localSessions.map((sess) => ({
+              ...sess,
+              messages: sess.messages.map(({ image, ...rest }) => rest),
+            }));
             await supabase.from("chat_history").upsert({
               user_id: user?.id,
-              messages: local,
+              messages: cleaned,
               updated_at: new Date().toISOString(),
             });
           }
@@ -744,8 +877,16 @@ export default function Home() {
   useEffect(() => {
     try {
       // Hapus data foto/file agar tidak pernah masuk ke database / localStorage (cuma sekali pakai)
-      const messagesToSave = messages.map(({ image, ...rest }) => rest);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messagesToSave));
+      const sessionsToSave = sessions.map((sess) => ({
+        ...sess,
+        messages: sess.messages.map(({ image, ...rest }) => rest),
+      }));
+
+      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessionsToSave));
+
+      // Simpan juga versi messages aktif ke legacy key untuk compatibility
+      const activeMsgs = currentSession?.messages.map(({ image, ...rest }) => rest) || [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(activeMsgs));
 
       // Simpan dan sinkronkan ke database Supabase jika pengguna sedang login
       if (user?.id) {
@@ -754,7 +895,7 @@ export default function Home() {
             .from("chat_history")
             .upsert({
               user_id: user?.id,
-              messages: messagesToSave,
+              messages: sessionsToSave,
               updated_at: new Date().toISOString(),
             })
             .then(({ error }) => {
@@ -765,7 +906,7 @@ export default function Home() {
         return () => clearTimeout(timer);
       }
     } catch {}
-  }, [messages, user?.id]);
+  }, [sessions, currentSession, user?.id]);
 
   const closeSidebarOnMobile = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -1212,7 +1353,6 @@ export default function Home() {
       readerRef.current = null;
     }
     closeSidebarOnMobile();
-    setMessages([]);
     setError(null);
     setIsStreaming(false);
     setStatusMessage(null);
@@ -1220,13 +1360,91 @@ export default function Home() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
+    const newId = generateUUID();
+    setActiveSessionId(newId);
     try {
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, newId);
+    } catch {}
+  };
+
+  const switchSession = (sessionId: string) => {
+    if (sessionId === activeSessionId) {
+      closeSidebarOnMobile();
+      return;
+    }
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {}
+      abortRef.current = null;
+    }
+    if (readerRef.current) {
+      try {
+        readerRef.current.cancel();
+      } catch {}
+      readerRef.current = null;
+    }
+    closeSidebarOnMobile();
+    setError(null);
+    setIsStreaming(false);
+    setStatusMessage(null);
+    setIsUserScrolledUp(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    setActiveSessionId(sessionId);
+    try {
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId);
+    } catch {}
+  };
+
+  const deleteSession = (sessionId: string) => {
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== sessionId);
+      if (activeSessionId === sessionId) {
+        if (next.length > 0) {
+          setActiveSessionId(next[0].id);
+        } else {
+          setActiveSessionId(generateUUID());
+        }
+      }
+      return next;
+    });
+  };
+
+  const clearAllSessions = () => {
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {}
+      abortRef.current = null;
+    }
+    if (readerRef.current) {
+      try {
+        readerRef.current.cancel();
+      } catch {}
+      readerRef.current = null;
+    }
+    closeSidebarOnMobile();
+    setError(null);
+    setIsStreaming(false);
+    setStatusMessage(null);
+    setIsUserScrolledUp(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    setSessions([]);
+    const newId = generateUUID();
+    setActiveSessionId(newId);
+    try {
+      localStorage.removeItem(SESSIONS_STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
       if (user?.id) {
         supabase
           .from("chat_history")
           .upsert({
-            user_id: user?.id,
+            user_id: user.id,
             messages: [],
             updated_at: new Date().toISOString(),
           })
@@ -1429,10 +1647,10 @@ export default function Home() {
               isDark ? "text-zinc-500" : "text-black"
             }`}>
               <span>Recent</span>
-              {messages.length > 0 && (
+              {sessions.length > 0 && (
                 <button
-                  onClick={newChat}
-                  title="Hapus riwayat"
+                  onClick={clearAllSessions}
+                  title="Hapus semua riwayat"
                   className={`text-[10px] transition cursor-pointer ${
                     isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"
                   }`}
@@ -1442,41 +1660,63 @@ export default function Home() {
               )}
             </div>
 
-            {messages.length === 0 ? (
+            {sessions.length === 0 ? (
               <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
-                Belum ada percakapan aktif.
+                Belum ada percakapan.
               </div>
             ) : (
               <div className="space-y-1">
-                <div
-                  onClick={closeSidebarOnMobile}
-                  className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
-                    isDark
-                      ? "bg-zinc-900/60 hover:bg-zinc-800/70 border-zinc-800 text-zinc-200"
-                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-black"
-                  }`}
-                >
-                  <div className="truncate pr-2">
-                    <p className={`truncate font-semibold ${isDark ? "text-zinc-200" : "text-black"}`}>
-                      {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
-                    </p>
-                    <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
-                      {messages.length} pesan · Aktif
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      newChat();
-                    }}
-                    className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"}`}
-                    title="Hapus chat ini"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                {sessions.map((sess) => {
+                  const isActive = sess.id === activeSessionId;
+                  return (
+                    <div
+                      key={sess.id}
+                      onClick={() => switchSession(sess.id)}
+                      className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
+                        isActive
+                          ? (isDark
+                              ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
+                              : "bg-zinc-200/90 border-zinc-300 text-black font-semibold shadow-xs")
+                          : (isDark
+                              ? "bg-zinc-900/50 hover:bg-zinc-800/60 border-zinc-800/60 text-zinc-300 hover:text-white"
+                              : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800")
+                      }`}
+                    >
+                      <div className="truncate pr-2 flex-1">
+                        <p className={`truncate ${
+                          isActive
+                            ? (isDark ? "text-white font-semibold" : "text-black font-semibold")
+                            : (isDark ? "text-zinc-300 group-hover:text-white" : "text-zinc-800")
+                        }`}>
+                          {sess.title || "Percakapan"}
+                        </p>
+                        <p className={`text-[10px] mt-0.5 truncate ${
+                          isActive
+                            ? (isDark ? "text-zinc-400" : "text-zinc-600")
+                            : (isDark ? "text-zinc-500" : "text-zinc-500")
+                        }`}>
+                          {sess.messages.length} pesan {isActive && "· Aktif"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(sess.id);
+                        }}
+                        className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition ${
+                          isDark
+                            ? "text-zinc-500 hover:text-red-400 hover:bg-zinc-700/50"
+                            : "text-zinc-400 hover:text-red-500 hover:bg-zinc-200"
+                        }`}
+                        title="Hapus obrolan ini"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
