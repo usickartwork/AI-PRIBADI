@@ -1524,7 +1524,7 @@ export default function Home() {
 
   return (
     <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
-      isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#0d0d0f] text-zinc-900"
+      isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
     } font-sans antialiased p-0 sm:p-3 md:p-4`}>
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
