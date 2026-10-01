@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
-import { CameraModal } from "./components/CameraModal";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -358,7 +357,6 @@ export default function Home() {
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [showCameraModal, setShowCameraModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Supabase Auth Session listener
@@ -446,10 +444,10 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const inputDropdownRef = useRef<HTMLDivElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
-  const handleDirectGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1641,21 +1639,51 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Textarea Input */}
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  autoResize();
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder={selectedImage ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..." : "Ask AI a question or make a request..."}
-                rows={1}
-                className={`w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
-                  isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
-                }`}
-                style={{ maxHeight: "140px" }}
+              {/* Textarea Row with Camera Icon Button */}
+              <div className="flex items-center gap-1 sm:gap-1.5 w-full">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    autoResize();
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={selectedImage ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..." : "Ask AI a question or make a request..."}
+                  rows={1}
+                  className={`flex-1 bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
+                    isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
+                  }`}
+                  style={{ maxHeight: "140px" }}
+                />
+
+                {/* Tombol Kamera (Cuma Icon Kamera Saja) */}
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
+                    selectedImage
+                      ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
+                      : isDark
+                      ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                      : "text-zinc-500 hover:text-black hover:bg-zinc-100"
+                  }`}
+                  title="Ambil foto atau pilih dari galeri"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Native System Camera & Gallery Picker Input */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCameraUpload}
               />
 
               {/* Bottom Actions Bar inside Liquid Glass Card */}
@@ -1867,54 +1895,7 @@ export default function Home() {
                     <span>Thinking</span>
                   </button>
 
-                  {/* Camera Button (ChatGPT Style) */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCameraModal(true)}
-                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                      selectedImage
-                        ? (isDark
-                            ? "border-emerald-500 bg-emerald-950/40 text-emerald-300 shadow-xs"
-                            : "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs")
-                        : (isDark
-                            ? "border-zinc-750 bg-zinc-800/90 text-zinc-300 hover:bg-zinc-750 hover:text-white"
-                            : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70")
-                    }`}
-                    title="Kamera / Ambil Foto (seperti ChatGPT)"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>Kamera</span>
-                  </button>
-
-                  {/* Gallery Direct Upload Button */}
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                      isDark
-                        ? "border-zinc-750 bg-zinc-800/90 text-zinc-300 hover:bg-zinc-750 hover:text-white"
-                        : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70"
-                    }`}
-                    title="Unggah Foto dari Galeri / File"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Galeri</span>
-                  </button>
                 </div>
-
-                {/* Hidden File Input for Direct Gallery Upload */}
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleDirectGalleryUpload}
-                />
 
                 {/* Right Action: Send / Stop Circular Button */}
                 <div className="flex items-center gap-2 shrink-0">
@@ -2109,22 +2090,6 @@ export default function Home() {
         />
       ) : null}
 
-      {/* ─── CHATGPT-STYLE CAMERA MODAL ──────────────────────────────────── */}
-      <CameraModal
-        isOpen={showCameraModal}
-        onClose={() => {
-          setShowCameraModal(false);
-          textareaRef.current?.focus();
-        }}
-        onCapture={(dataUrl) => {
-          setSelectedImage(dataUrl);
-          setShowCameraModal(false);
-          setTimeout(() => {
-            textareaRef.current?.focus();
-          }, 50);
-        }}
-        isDark={isDark}
-      />
 
       {/* ─── FULLSCREEN IMAGE PREVIEW LIGHTBOX ───────────────────────────── */}
       {previewImage && (
