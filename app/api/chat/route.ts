@@ -464,10 +464,24 @@ export async function POST(request: Request) {
         }
       } catch {}
 
+      const isLimitError =
+        upstream.status === 429 ||
+        upstream.status === 402 ||
+        upstream.status === 400 || // Cloudflare returns 400 for neuron/token limit
+        errText.toLowerCase().includes("rate limit") ||
+        errText.toLowerCase().includes("quota") ||
+        errText.toLowerCase().includes("limit") ||
+        errText.toLowerCase().includes("exceeded") ||
+        errText.toLowerCase().includes("exhausted") ||
+        errText.toLowerCase().includes("capacity") ||
+        errText.toLowerCase().includes("overloaded");
+
       return Response.json(
         {
           error: `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
           detail: errText.slice(0, 300),
+          isLimit: isLimitError,
+          model: modelId,
           sources,
           searchError,
         },

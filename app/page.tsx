@@ -140,7 +140,24 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
-  const [disabledModels, setDisabledModels] = useState<Set<string>>(new Set());
+  // Simpan model yang limit beserta timestamp kapan bisa di-reset kembali (default reset: 5 menit)
+  const [disabledModels, setDisabledModels] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-disabled-models");
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, number>;
+          const now = Date.now();
+          const active: Record<string, number> = {};
+          for (const [id, expireAt] of Object.entries(parsed)) {
+            if (expireAt > now) active[id] = expireAt;
+          }
+          return active;
+        }
+      } catch {}
+    }
+    return {};
+  });
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
@@ -208,6 +225,33 @@ export default function Home() {
       }
     } catch {}
   }, [theme]);
+
+  // Timer pemantau untuk mengaktifkan kembali model ketika cooldown / reset token sudah selesai
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      setDisabledModels((prev) => {
+        let changed = false;
+        const next: Record<string, number> = {};
+        for (const [id, expireAt] of Object.entries(prev)) {
+          if (expireAt > now) {
+            next[id] = expireAt;
+          } else {
+            changed = true; // Waktu reset token tiba: model otomatis aktif kembali!
+          }
+        }
+        if (changed) {
+          try {
+            localStorage.setItem("usick-disabled-models", JSON.stringify(next));
+          } catch {}
+          return next;
+        }
+        return prev;
+      });
+    }, 10000); // Cek setiap 10 detik
+
+    return () => clearInterval(checkInterval);
+  }, []);
 
   const isDark = theme === "dark";
 
@@ -393,8 +437,9 @@ export default function Home() {
 
         if (!res.ok) {
         let errDetail = `HTTP ${res.status}`;
+        let errJson: { error?: string; detail?: string; isLimit?: boolean; model?: string } = {};
         try {
-          const errJson = (await res.json()) as { error?: string; detail?: string };
+          errJson = (await res.json()) as { error?: string; detail?: string; isLimit?: boolean; model?: string };
           errDetail = errJson.error || errJson.detail || errDetail;
         } catch {
           const errRaw = await res.text().catch(() => "");
@@ -403,26 +448,33 @@ export default function Home() {
 
         // Deteksi apakah model terkena rate limit, quota exceeded, atau credit exhausted
         const isLimit =
+          Boolean(errJson.isLimit) ||
           res.status === 429 ||
           res.status === 402 ||
           errDetail.toLowerCase().includes("rate limit") ||
           errDetail.toLowerCase().includes("quota") ||
+          errDetail.toLowerCase().includes("limit") ||
           errDetail.toLowerCase().includes("exceeded") ||
           errDetail.toLowerCase().includes("exhausted") ||
+          errDetail.toLowerCase().includes("capacity") ||
+          errDetail.toLowerCase().includes("overloaded") ||
           errDetail.toLowerCase().includes("insufficient_quota");
 
         if (isLimit) {
+          const expireAt = Date.now() + 5 * 60 * 1000; // Cooldown 5 menit, setelah itu auto-aktif kembali
           setDisabledModels((prev) => {
-            const next = new Set(prev);
-            next.add(model);
+            const next = { ...prev, [model]: expireAt };
+            try {
+              localStorage.setItem("usick-disabled-models", JSON.stringify(next));
+            } catch {}
             return next;
           });
 
           // Otomatis pindah ke model alternatif yang masih aktif
-          const availableModel = models.find((m) => m.id !== model && !disabledModels.has(m.id));
+          const availableModel = models.find((m) => m.id !== model && (!disabledModels[m.id] || disabledModels[m.id] <= Date.now()));
           if (availableModel) {
             setModel(availableModel.id);
-            errDetail += ` (Model "${cleanModelLabel(activeModelObj.label)}" telah dinonaktifkan sementara karena limit. Dialihkan ke ${cleanModelLabel(availableModel.label)}).`;
+            errDetail += ` (Model "${cleanModelLabel(activeModelObj.label)}" telah dinonaktifkan sementara karena mencapai limit. Dialihkan ke ${cleanModelLabel(availableModel.label)}).`;
           }
         }
 
@@ -1258,7 +1310,7 @@ export default function Home() {
                               <div className="space-y-0.5">
                                 {group.items.map((m, idx) => {
                                   const isSelected = m.id === model;
-                                  const isDisabled = disabledModels.has(m.id);
+                                  const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
                                   const cleanName = cleanModelLabel(m.label);
                                   return (
                                     <button
