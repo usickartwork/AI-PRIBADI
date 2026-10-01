@@ -556,26 +556,9 @@ export async function POST(request: Request) {
           errText.toLowerCase().includes("media"));
 
       if (isVisionError) {
-        const supportedList = [
-          "DeepSeek V4.1 Flash (Auto)",
-          "DeepSeek V4 Flash",
-          "DeepSeek V4 Flash (0731)",
-          "DeepSeek V4 Pro",
-          "DeepSeek V4 Pro (0813)",
-          "Gemini 3.7 Flash (Auto)",
-          "Gemini 3.7 Flash",
-          "GPT-5.6 Sol",
-          "GLM-5.3 Flash",
-          "GLM 5.3",
-          "GLM-5.2",
-          "MiniMax M3",
-        ]
-          .map((m) => `• **${m}**`)
-          .join("\n");
-
         return Response.json(
           {
-            error: `Model ini saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah daftar model yang **mendukung analisis foto / Vision**:\n${supportedList}\n\nSilakan pilih salah satu model di atas pada menu pilihan model untuk menganalisis foto Anda.`,
+            error: `Model ini saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah model yang **mendukung analisis foto / Vision**:\n• **Gemini**\n• **Qwen**\n\nSilakan pilih model **Gemini** atau **Qwen** pada menu pilihan model untuk menganalisis foto Anda.`,
             isVisionUnsupported: true,
             model: modelId,
             sources,
