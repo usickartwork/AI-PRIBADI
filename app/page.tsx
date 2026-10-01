@@ -438,6 +438,7 @@ export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const inputDropdownRef = useRef<HTMLDivElement>(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
@@ -668,6 +669,7 @@ export default function Home() {
       }
 
       const reader = res.body.getReader();
+      readerRef.current = reader;
       const decoder = new TextDecoder("utf-8");
       let fullText = "";
       let buffer = "";
@@ -678,7 +680,7 @@ export default function Home() {
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
       const appendSmoothly = async (textChunk: string) => {
-        if (!textChunk) return;
+        if (!textChunk || controller.signal.aborted) return;
         // Jika chunk pendek (1-3 karakter), langsung tampilkan instan
         if (textChunk.length <= 3) {
           fullText += textChunk;
@@ -690,6 +692,7 @@ export default function Home() {
         // pecah menjadi sub-chunk halus (3-5 karakter) dengan jeda 12ms agar animasi mengetik halus terlihat
         const step = Math.max(2, Math.floor(textChunk.length / 10));
         for (let i = 0; i < textChunk.length; i += step) {
+          if (controller.signal.aborted) return;
           const slice = textChunk.slice(i, i + step);
           fullText += slice;
           updateAssistantContent(assistantId, fullText);
@@ -698,14 +701,16 @@ export default function Home() {
       };
 
       while (true) {
+        if (controller.signal.aborted) break;
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || controller.signal.aborted) break;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
 
         for (const line of lines) {
+          if (controller.signal.aborted) break;
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith("data:")) continue;
 
@@ -747,7 +752,7 @@ export default function Home() {
         }
       }
 
-      if (buffer.trim()) {
+      if (!controller.signal.aborted && buffer.trim()) {
         const trimmed = buffer.trim();
         if (trimmed.startsWith("data:")) {
           const data = trimmed.slice(5).trim();
@@ -780,12 +785,12 @@ export default function Home() {
 
       // Safety Fallback: Jika setelah stream selesai ternyata tidak ada contentText sama sekali
       // (misal provider mengirim seluruh responnya di reasoning_content), tampilkan reasoningBuffer agar pesan tidak hilang!
-      if (!fullText && reasoningBuffer.trim()) {
+      if (!controller.signal.aborted && !fullText && reasoningBuffer.trim()) {
         setStatusMessage(null);
         await appendSmoothly(reasoningBuffer.trim());
       }
     } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+      if ((err as Error).name === "AbortError" || controller.signal.aborted) return;
       console.error("Chat error:", err);
       setError((err as Error).message);
       if (assistantId) {
@@ -806,21 +811,46 @@ export default function Home() {
       setIsStreaming(false);
       setStatusMessage(null);
       abortRef.current = null;
+      if (readerRef.current) {
+        try {
+          readerRef.current.cancel();
+        } catch {}
+        readerRef.current = null;
+      }
       textareaRef.current?.focus();
     }
   };
 
   const handleStop = () => {
     if (abortRef.current) {
-      abortRef.current.abort();
+      try {
+        abortRef.current.abort();
+      } catch {}
       abortRef.current = null;
-      setIsStreaming(false);
-      setStatusMessage(null);
     }
+    if (readerRef.current) {
+      try {
+        readerRef.current.cancel();
+      } catch {}
+      readerRef.current = null;
+    }
+    setIsStreaming(false);
+    setStatusMessage(null);
   };
 
   const newChat = () => {
-    if (abortRef.current) abortRef.current.abort();
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {}
+      abortRef.current = null;
+    }
+    if (readerRef.current) {
+      try {
+        readerRef.current.cancel();
+      } catch {}
+      readerRef.current = null;
+    }
     closeSidebarOnMobile();
     setMessages([]);
     setError(null);
