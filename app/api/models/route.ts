@@ -38,8 +38,22 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
 
-  // ── Custom API (OpenAI-Compatible with Base URL) ──────────────────────────
-  { id: "custom:custom-model", label: "[Custom] Custom Model", provider: "custom" },
+  // ── Custom API (ClarioHub OpenAI-Compatible) ─────────────────────────────
+  { id: "custom:clario/deepseek-v4.1-flash-auto", label: "[Custom] DeepSeek V4.1 Flash (Auto)", provider: "custom" },
+  { id: "custom:clario/deepseek-v4.1-flash", label: "[Custom] DeepSeek V4.1 Flash", provider: "custom" },
+  { id: "custom:clario/deepseek-v4-flash", label: "[Custom] DeepSeek V4 Flash", provider: "custom" },
+  { id: "custom:clario/deepseek-v4-flash-0731", label: "[Custom] DeepSeek V4 Flash (0731)", provider: "custom" },
+  { id: "custom:clario/deepseek-v4-pro", label: "[Custom] DeepSeek V4 Pro", provider: "custom" },
+  { id: "custom:clario/deepseek-v4-pro-0813", label: "[Custom] DeepSeek V4 Pro (0813)", provider: "custom" },
+  { id: "custom:clario/gemini-3.7-flash-auto", label: "[Custom] Gemini 3.7 Flash (Auto)", provider: "custom" },
+  { id: "custom:clario/gemini-3.7-flash", label: "[Custom] Gemini 3.7 Flash", provider: "custom" },
+  { id: "custom:clario/gpt-5.6-sol", label: "[Custom] GPT-5.6 Sol", provider: "custom" },
+  { id: "custom:clario/opus-5", label: "[Custom] Claude Opus 5", provider: "custom" },
+  { id: "custom:clario/glm-5.3-flash-auto", label: "[Custom] GLM 5.3 Flash (Auto)", provider: "custom" },
+  { id: "custom:clario/glm-5.3-flash", label: "[Custom] GLM-5.3 Flash", provider: "custom" },
+  { id: "custom:clario/glm-5.3", label: "[Custom] GLM 5.3", provider: "custom" },
+  { id: "custom:clario/glm-5.2", label: "[Custom] GLM-5.2", provider: "custom" },
+  { id: "custom:clario/minimax-m3", label: "[Custom] MiniMax M3", provider: "custom" },
 ];
 
 const CORS_HEADERS = {
