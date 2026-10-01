@@ -132,6 +132,138 @@ function getModelCategory(m: ModelEntry): string {
   return "Lainnya";
 }
 
+function ModelCategoryIcon({ category }: { category: string }) {
+  const cat = category.toLowerCase();
+
+  if (cat === "chatgpt") {
+    // Official OpenAI Sparkle / Flower Hexagon
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M22.28 10.12a5.55 5.55 0 0 0-.48-4.58 5.6 5.6 0 0 0-3.92-2.77 5.63 5.63 0 0 0-4.68.75 5.54 5.54 0 0 0-3.8-1.52 5.58 5.58 0 0 0-5.26 3.82 5.57 5.57 0 0 0-2.3 4.02 5.61 5.61 0 0 0 .97 4.54 5.55 5.55 0 0 0 .48 4.58 5.6 5.6 0 0 0 3.92 2.77 5.6 5.6 0 0 0 4.68-.75 5.55 5.55 0 0 0 3.8 1.52 5.58 5.58 0 0 0 5.26-3.82 5.57 5.57 0 0 0 2.3-4.02 5.61 5.61 0 0 0-.97-4.54ZM12 14.5a2.5 2.5 0 1 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "deepseek") {
+    // DeepSeek Blue Whale / Fin Icon
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 13c1.5-3.5 5-6 9-6 4.5 0 8.5 3 9 7-1.5 2.5-4 4-7 4-3 0-5.5-1.5-7-3L3 13Z" />
+        <path d="M12 7c-1-2-2.5-3-4-3" />
+        <circle cx="8" cy="11.5" r="1" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (cat === "qwen") {
+    // Qwen Cube / Neural Diamond Lattice
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5Zm0 2.3 6.8 3.8L12 11.9 5.2 8.1 12 4.3Zm-7 5.2 6 3.4v6.8l-6-3.4V9.5Zm8 10.2v-6.8l6-3.4v6.8l-6 3.4Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "claude") {
+    // Claude Anthropic Sunburst Spark
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v3.08a1.5 1.5 0 0 1-3 0V3.5A1.5 1.5 0 0 1 12 2Zm7.07 3.93a1.5 1.5 0 0 1 0 2.12l-2.18 2.18a1.5 1.5 0 1 1-2.12-2.12l2.18-2.18a1.5 1.5 0 0 1 2.12 0ZM22 12a1.5 1.5 0 0 1-1.5 1.5h-3.08a1.5 1.5 0 0 1 0-3h3.08A1.5 1.5 0 0 1 22 12Zm-3.93 7.07a1.5 1.5 0 0 1-2.12 0l-2.18-2.18a1.5 1.5 0 1 1 2.12-2.12l2.18 2.18a1.5 1.5 0 0 1 0 2.12ZM12 22a1.5 1.5 0 0 1-1.5-1.5v-3.08a1.5 1.5 0 0 1 3 0v3.08A1.5 1.5 0 0 1 12 22Zm-7.07-3.93a1.5 1.5 0 0 1 0-2.12l2.18-2.18a1.5 1.5 0 1 1 2.12 2.12l-2.18 2.18a1.5 1.5 0 0 1-2.12 0ZM2 12a1.5 1.5 0 0 1 1.5-1.5h3.08a1.5 1.5 0 0 1 0 3H3.5A1.5 1.5 0 0 1 2 12Zm3.93-7.07a1.5 1.5 0 0 1 2.12 0l2.18 2.18a1.5 1.5 0 1 1-2.12 2.12L6.05 7.05a1.5 1.5 0 0 1 0-2.12Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "gemini") {
+    // Google Gemini Sparkle Star
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M12 2C12 7.52 7.52 12 2 12c5.52 0 10 4.48 10 10 0-5.52 4.48-10 10-10-5.52 0-10-4.48-10-10Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "llama") {
+    // Meta Llama / Infinity Loop
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.267-8-12.356-8-5.096 0-5.096 8 0 8 5.09 0 7.26-8 12.356-8Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "groq") {
+    // Groq Ultra-fast Lightning
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z" />
+      </svg>
+    );
+  }
+
+  if (cat === "ollama") {
+    // Ollama Llama / Alpaca Silhouette
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 3v4" />
+        <path d="M16 3v4" />
+        <rect x="5" y="7" width="14" height="13" rx="4" />
+        <circle cx="9" cy="12" r="1" fill="currentColor" />
+        <circle cx="15" cy="12" r="1" fill="currentColor" />
+        <path d="M10 16h4" />
+      </svg>
+    );
+  }
+
+  if (cat === "openrouter") {
+    // OpenRouter Hexagon Network Nodes
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" />
+        <path d="M12 3v7m8 6.5-6-3.5M4 16.5l6-3.5" />
+      </svg>
+    );
+  }
+
+  if (cat === "cloudflare") {
+    // Cloudflare Cloud Icon
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96Z" />
+      </svg>
+    );
+  }
+
+  if (cat === "glm") {
+    // GLM Zhipu AI Orbit / Atoms
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(30 12 12)" />
+        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-30 12 12)" />
+      </svg>
+    );
+  }
+
+  if (cat === "minimax") {
+    // MiniMax Double Wave / Audio Spectrum
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M4 12v3M8 9v9M12 6v15M16 9v9M20 12v3" />
+      </svg>
+    );
+  }
+
+  // Default Fallback: AI Chip Icon
+  return (
+    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <rect x="9" y="9" width="6" height="6" />
+      <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" />
+    </svg>
+  );
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1261,9 +1393,7 @@ export default function Home() {
                       }`}
                       title="Pilih Model AI"
                     >
-                      <svg className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-white" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                      </svg>
+                      <ModelCategoryIcon category={getModelCategory(activeModelObj)} />
                       <span className="truncate">
                         {cleanModelLabel(activeModelObj.label)}
                       </span>
@@ -1306,10 +1436,10 @@ export default function Home() {
                         <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
                           {groupedCategories.map((group) => (
                             <div key={group.name} className="py-1.5 first:pt-0.5 last:pb-0.5">
-                              <div className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                              <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 ${
                                 isDark ? "text-zinc-300" : "text-black"
                               }`}>
-                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
+                                <ModelCategoryIcon category={group.name} />
                                 <span>{group.name}</span>
                               </div>
                               <div className="space-y-0.5">
