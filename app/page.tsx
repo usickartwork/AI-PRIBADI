@@ -56,8 +56,6 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "custom:clario/gemini-3.7-flash-auto", label: "[Custom] Gemini 3.7 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/gemini-3.7-flash", label: "[Custom] Gemini 3.7 Flash", provider: "custom" },
   { id: "custom:clario/gpt-5.6-sol", label: "[Custom] GPT-5.6 Sol", provider: "custom" },
-  { id: "custom:clario/opus-5", label: "[Custom] Claude Opus 5", provider: "custom" },
-  { id: "custom:clario/glm-5.3-flash-auto", label: "[Custom] GLM 5.3 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/glm-5.3-flash", label: "[Custom] GLM-5.3 Flash", provider: "custom" },
   { id: "custom:clario/glm-5.3", label: "[Custom] GLM 5.3", provider: "custom" },
   { id: "custom:clario/glm-5.2", label: "[Custom] GLM-5.2", provider: "custom" },
@@ -113,13 +111,14 @@ function getModelCategory(m: ModelEntry): string {
   const id = m.id.toLowerCase();
   const prov = (m.provider || "").toLowerCase();
 
-  if (prov === "custom" || lbl.includes("custom") || id.startsWith("custom:")) return "Custom";
   // Pokoknya yang ada gpt masuk ke model chat gpt
   if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
-  if (lbl.includes("llama")) return "Llama";
-  if (lbl.includes("deepseek")) return "DeepSeek";
-  if (prov === "gemini" || lbl.includes("gemini")) return "Gemini";
-  if (prov === "claude" || lbl.includes("claude")) return "Claude";
+  if (lbl.includes("llama") || id.includes("llama")) return "Llama";
+  if (lbl.includes("deepseek") || id.includes("deepseek")) return "DeepSeek";
+  if (prov === "gemini" || lbl.includes("gemini") || id.includes("gemini")) return "Gemini";
+  if (prov === "claude" || lbl.includes("claude") || id.includes("claude")) return "Claude";
+  if (lbl.includes("glm") || id.includes("glm")) return "GLM";
+  if (lbl.includes("minimax") || id.includes("minimax")) return "MiniMax";
   if (prov === "openrouter" || lbl.includes("openrouter")) return "OpenRouter";
   if (prov === "groq" || lbl.includes("groq")) return "Groq";
   if (prov === "ollama" || lbl.includes("ollama")) return "Ollama";

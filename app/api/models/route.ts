@@ -48,8 +48,6 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "custom:clario/gemini-3.7-flash-auto", label: "[Custom] Gemini 3.7 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/gemini-3.7-flash", label: "[Custom] Gemini 3.7 Flash", provider: "custom" },
   { id: "custom:clario/gpt-5.6-sol", label: "[Custom] GPT-5.6 Sol", provider: "custom" },
-  { id: "custom:clario/opus-5", label: "[Custom] Claude Opus 5", provider: "custom" },
-  { id: "custom:clario/glm-5.3-flash-auto", label: "[Custom] GLM 5.3 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/glm-5.3-flash", label: "[Custom] GLM-5.3 Flash", provider: "custom" },
   { id: "custom:clario/glm-5.3", label: "[Custom] GLM 5.3", provider: "custom" },
   { id: "custom:clario/glm-5.2", label: "[Custom] GLM-5.2", provider: "custom" },
