@@ -374,6 +374,7 @@ export default function Home() {
     size: number;
     type: string;
     content?: string;
+    dataUrl?: string;
   } | null>(null);
 
   // Supabase Auth Session listener
@@ -572,15 +573,22 @@ export default function Home() {
       };
       reader.readAsText(file);
     } else {
-      setSelectedFile({
-        name: file.name,
-        size: file.size,
-        type: file.type || "application/octet-stream",
-      });
-      setSelectedImage(null);
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 50);
+      // PDF atau dokumen binary lainnya (PDF, DOCX, dll.)
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        setSelectedFile({
+          name: file.name,
+          size: file.size,
+          type: file.type || "application/pdf",
+          dataUrl,
+        });
+        setSelectedImage(null);
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 50);
+      };
+      reader.readAsDataURL(file);
     }
 
     e.target.value = "";
@@ -750,8 +758,10 @@ export default function Home() {
 
     const currentModelObj = models.find((m) => m.id === model) || FALLBACK_MODELS[0];
 
-    // Jika user mengirim foto dengan model yang tidak mendukung analisis gambar / vision
-    if (activeImage && !isVisionSupported(currentModelObj.id)) {
+    const hasMultimodalAttachment = Boolean(activeImage || (activeFile?.dataUrl && !activeFile?.content));
+
+    // Jika user mengirim foto atau dokumen binary dengan model yang tidak mendukung vision/multimodal
+    if (hasMultimodalAttachment && !isVisionSupported(currentModelObj.id)) {
       clearTimeout(timeoutId);
       setError(null);
       userMsgId = generateUUID();
@@ -759,7 +769,8 @@ export default function Home() {
         id: userMsgId,
         role: "user",
         content: text,
-        image: activeImage,
+        image: activeImage || activeFile?.dataUrl || undefined,
+        fileName: activeFile?.name,
       };
 
       assistantId = generateUUID();
@@ -772,8 +783,9 @@ export default function Home() {
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       if (!customPrompt) setInput("");
       setSelectedImage(null);
+      setSelectedFile(null);
 
-      // Foto dibersihkan setelah respon selesai (sesuai brief foto tidak masuk database)
+      // Foto/dokumen dibersihkan setelah respon selesai (sesuai brief foto tidak masuk database)
       setTimeout(() => {
         setMessages((prev) =>
           prev.map((m) => (m.id === userMsgId ? { ...m, image: undefined } : m))
@@ -790,7 +802,7 @@ export default function Home() {
         id: userMsgId,
         role: "user",
         content: text,
-        image: activeImage || undefined,
+        image: activeImage || activeFile?.dataUrl || undefined,
         fileName: activeFile?.name,
       };
 
@@ -813,17 +825,19 @@ export default function Home() {
           .filter((m) => m.id !== assistantId)
           .map((m) => {
             let content = m.content;
+            let image = m.image;
             if (m.id === userMsgId && activeFile) {
               if (activeFile.content) {
                 content = `[File terlampir: ${activeFile.name}]\n\`\`\`\n${activeFile.content}\n\`\`\`\n\n${text || "Tolong analisis isi file ini."}`;
-              } else {
-                content = `[File terlampir: ${activeFile.name} (${(activeFile.size / 1024).toFixed(1)} KB)]\n\n${text || "Tolong analisis file ini."}`;
+              } else if (activeFile.dataUrl) {
+                image = activeFile.dataUrl;
+                content = text || `Tolong baca, analisis, dan jelaskan isi file ${activeFile.name} ini secara lengkap.`;
               }
             }
             return {
               role: m.role,
               content,
-              image: m.image,
+              image,
             };
           }),
       ];
