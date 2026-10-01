@@ -540,7 +540,8 @@ export default function Home() {
               setStatusMessage(null);
             } else {
               const delta =
-                chunk.choices?.[0]?.delta?.content ??
+                chunk.choices?.[0]?.delta?.content ||
+                (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content ||
                 chunk.choices?.[0]?.message?.content;
               if (delta) {
                 setStatusMessage(null);
@@ -564,7 +565,8 @@ export default function Home() {
                 updateAssistantSearchError(assistantId, chunk.error);
               } else {
                 const delta =
-                  chunk.choices?.[0]?.delta?.content ??
+                  chunk.choices?.[0]?.delta?.content ||
+                  (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content ||
                   chunk.choices?.[0]?.message?.content;
                 if (delta) {
                   await appendSmoothly(delta);
