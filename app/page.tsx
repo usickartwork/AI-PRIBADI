@@ -160,6 +160,20 @@ export default function Home() {
 
   // Supabase Auth Session listener
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      if (code) {
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (!error && data?.session) {
+            setUser(data.session.user);
+            setShowAuthModal(false);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        });
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
