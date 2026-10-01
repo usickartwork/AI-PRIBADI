@@ -15,11 +15,10 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
   const streamRef = useRef<MediaStream | null>(null);
 
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
-  const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isStartingCamera, setIsStartingCamera] = useState(true);
 
-  // Stop camera tracks cleanly
+  // Stop camera stream cleanly
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -55,7 +54,7 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
       setIsStartingCamera(false);
     } catch (err: unknown) {
       console.warn("Camera start failed, trying fallback:", err);
-      // Try again without facingMode constraints (for desktop webcams)
+      // Fallback without constraints for webcams / laptops
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -71,7 +70,7 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
         console.error("Camera access failed:", err2);
         setIsStartingCamera(false);
         setCameraError(
-          "Tidak dapat mengakses kamera. Pastikan izin kamera aktif atau gunakan tombol Unggah Galeri di bawah."
+          "Tidak dapat mengakses kamera. Pastikan izin kamera aktif atau gunakan tombol Pilih dari Galeri di bawah."
         );
       }
     }
@@ -79,7 +78,6 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
 
   useEffect(() => {
     if (isOpen) {
-      setCapturedPreview(null);
       startCamera(facingMode);
     } else {
       stopCamera();
@@ -89,7 +87,7 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
     };
   }, [isOpen, facingMode]);
 
-  // Handle take photo from live stream
+  // Handle shutter click - capture frame and immediately attach like ChatGPT
   const handleTakePhoto = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
@@ -97,7 +95,6 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
     const height = video.videoHeight || 720;
 
     const canvas = document.createElement("canvas");
-    // Max dimension 1280px to optimize size while preserving quality
     const maxDim = 1280;
     let targetW = width;
     let targetH = height;
@@ -116,7 +113,6 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Flip horizontal if using front camera so it acts like a mirror
     if (facingMode === "user") {
       ctx.translate(targetW, 0);
       ctx.scale(-1, 1);
@@ -124,11 +120,13 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
 
     ctx.drawImage(video, 0, 0, targetW, targetH);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    setCapturedPreview(dataUrl);
+
     stopCamera();
+    onCapture(dataUrl);
+    onClose();
   };
 
-  // Handle file input upload
+  // Handle file input selection - compress and immediately attach
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,26 +154,15 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
         if (ctx) {
           ctx.drawImage(img, 0, 0, w, h);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          setCapturedPreview(dataUrl);
           stopCamera();
+          onCapture(dataUrl);
+          onClose();
         }
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
     e.target.value = "";
-  };
-
-  const handleConfirmPhoto = () => {
-    if (capturedPreview) {
-      onCapture(capturedPreview);
-      onClose();
-    }
-  };
-
-  const handleRetake = () => {
-    setCapturedPreview(null);
-    startCamera(facingMode);
   };
 
   const handleToggleFacingMode = () => {
@@ -198,12 +185,12 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-sm font-semibold tracking-wide">
-              {capturedPreview ? "Tinjau Foto" : "Kamera Usick AI"}
+              Kamera Usick AI
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            {!capturedPreview && !cameraError && (
+            {!cameraError && (
               <button
                 type="button"
                 onClick={handleToggleFacingMode}
@@ -229,15 +216,9 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
           </div>
         </div>
 
-        {/* Viewfinder / Preview Body */}
+        {/* Viewfinder Body */}
         <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-black overflow-hidden flex items-center justify-center">
-          {capturedPreview ? (
-            <img
-              src={capturedPreview}
-              alt="Hasil Kamera"
-              className="w-full h-full object-contain bg-black"
-            />
-          ) : cameraError ? (
+          {cameraError ? (
             <div className="px-6 text-center text-zinc-300">
               <svg className="w-12 h-12 mx-auto mb-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -261,7 +242,7 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
                 className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
               />
 
-              {/* Viewfinder Target Framing Guidelines */}
+              {/* Viewfinder Guidelines */}
               <div className="absolute inset-6 pointer-events-none border border-white/20 rounded-2xl flex items-center justify-center">
                 <div className="w-8 h-8 border-t-2 border-l-2 border-white/60 absolute top-0 left-0 rounded-tl-lg" />
                 <div className="w-8 h-8 border-t-2 border-r-2 border-white/60 absolute top-0 right-0 rounded-tr-lg" />
@@ -282,69 +263,50 @@ export function CameraModal({ isOpen, onClose, onCapture, isDark }: CameraModalP
           )}
         </div>
 
-        {/* Bottom Shutter & Action Bar */}
+        {/* Bottom Shutter & Gallery Buttons */}
         <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
-          {capturedPreview ? (
-            <div className="w-full flex items-center justify-end gap-3">
+          <div className="w-full flex items-center justify-between">
+            {/* Gallery Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              title="Pilih dari Galeri / File"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="hidden sm:inline">Galeri</span>
+            </button>
+
+            {/* Circular Shutter Button */}
+            <button
+              type="button"
+              onClick={handleTakePhoto}
+              disabled={Boolean(cameraError || isStartingCamera)}
+              className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center p-1 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/40 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              title="Ambil Foto"
+            >
+              <div className="h-full w-full rounded-full bg-white transition hover:bg-zinc-200" />
+            </button>
+
+            {/* Flip Camera Button */}
+            <div className="w-16 flex justify-end">
               <button
                 type="button"
-                onClick={handleRetake}
-                className="flex-1 py-2.5 rounded-xl border border-white/20 text-xs sm:text-sm font-semibold hover:bg-white/10 transition cursor-pointer"
+                onClick={handleToggleFacingMode}
+                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                title="Ganti Kamera"
               >
-                Ulangi
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmPhoto}
-                className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition shadow-lg shadow-white/10 cursor-pointer"
-              >
-                Gunakan Foto
-              </button>
-            </div>
-          ) : (
-            <div className="w-full flex items-center justify-between">
-              {/* Gallery Trigger Button */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                title="Pilih dari Galeri / File"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span className="hidden sm:inline">Galeri</span>
               </button>
-
-              {/* Shutter Button (ChatGPT / iPhone Camera Style) */}
-              <button
-                type="button"
-                onClick={handleTakePhoto}
-                disabled={Boolean(cameraError || isStartingCamera)}
-                className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center p-1 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/40 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                title="Ambil Foto"
-              >
-                <div className="h-full w-full rounded-full bg-white transition hover:bg-zinc-200" />
-              </button>
-
-              {/* Flip camera toggle button */}
-              <div className="w-16 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleToggleFacingMode}
-                  className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                  title="Ganti Kamera"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Hidden File Input for Gallery / Upload */}
+        {/* Hidden File Input */}
         <input
           ref={fileInputRef}
           type="file"
