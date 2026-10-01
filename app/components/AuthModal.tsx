@@ -80,7 +80,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
 
     setLoading(true);
     try {
-      const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+      const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
