@@ -11,6 +11,18 @@ type ModelEntry = {
 };
 
 const ALL_MODELS: ModelEntry[] = [
+  // ── Cloudflare Workers AI ──────────────────────────────────────────────────
+  { id: "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", label: "[Cloudflare] DeepSeek R1 Distill 32B", provider: "cloudflare" },
+  { id: "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "[Cloudflare] Llama 3.3 70B (Fast)", provider: "cloudflare" },
+  { id: "cloudflare:@cf/meta/llama-3.1-8b-instruct-fp8", label: "[Cloudflare] Llama 3.1 8B", provider: "cloudflare" },
+  { id: "cloudflare:@cf/meta/llama-3.2-3b-instruct", label: "[Cloudflare] Llama 3.2 3B", provider: "cloudflare" },
+
+  // ── Claude (Anthropic) ─────────────────────────────────────────────────────
+  { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
+  { id: "claude:claude-3-5-sonnet-latest", label: "[Claude] 3.5 Sonnet", provider: "claude" },
+  { id: "claude:claude-3-5-haiku-latest", label: "[Claude] 3.5 Haiku", provider: "claude" },
+  { id: "claude:claude-3-opus-latest", label: "[Claude] 3 Opus", provider: "claude" },
+
   // ── Groq (Cloud LLM - Super Fast) ─────────────────────────────────────────
   // ── Groq (Cloud LLM - Super Fast Default for Vercel) ──────────────────────
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
@@ -46,6 +58,8 @@ export async function OPTIONS() {
 export async function GET() {
   const configured = new Set<string>();
 
+  if (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY) configured.add("cloudflare");
+  if (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) configured.add("claude");
   if (process.env.GEMINI_API_KEY) configured.add("gemini");
   if (process.env.GROQ_API_KEY) configured.add("groq");
   if (process.env.NVIDIA_API_KEY) configured.add("nvidia");

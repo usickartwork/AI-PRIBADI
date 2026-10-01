@@ -33,6 +33,18 @@ function getOllamaEndpoint(rawUrl?: string): string {
 
 function getProviders(): Record<string, ProviderConfig> {
   return {
+    claude: {
+      endpoint: "https://api.anthropic.com/v1/messages",
+      apiKey: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || "",
+    },
+    cloudflare: {
+      endpoint: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID || ""}/ai/v1/chat/completions`,
+      apiKey: process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || "",
+    },
+    anthropic: {
+      endpoint: "https://api.anthropic.com/v1/messages",
+      apiKey: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || "",
+    },
     gemini: {
       endpoint:
         "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -214,6 +226,28 @@ export async function POST(request: Request) {
       );
     }
 
+    if (missingKey.toLowerCase() === "claude" || missingKey.toLowerCase() === "anthropic") {
+      return Response.json(
+        {
+          error:
+            "API key untuk Claude belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan ANTHROPIC_API_KEY (atau CLAUDE_API_KEY) di Vercel.",
+          model: modelId,
+        },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
+
+    if (missingKey.toLowerCase() === "cloudflare") {
+      return Response.json(
+        {
+          error:
+            "API Token untuk Cloudflare Workers AI belum dikonfigurasi. Silakan tambahkan CLOUDFLARE_API_TOKEN di file .env.local atau Vercel Dashboard.",
+          model: modelId,
+        },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
+
     return Response.json(
       {
         error: `API key untuk provider "${missingKey.toUpperCase()}" belum dikonfigurasi di Environment Variables Vercel Dashboard. Silakan tambahkan ${missingKey.toUpperCase()}_API_KEY di Vercel.`,
@@ -225,19 +259,67 @@ export async function POST(request: Request) {
 
   const { provider, modelName, providerName } = resolved;
 
+  if (providerName === "cloudflare" && !process.env.CLOUDFLARE_ACCOUNT_ID) {
+    return Response.json(
+      {
+        error:
+          "CLOUDFLARE_ACCOUNT_ID belum dikonfigurasi di Environment Variables (.env.local atau Vercel). Silakan tambahkan CLOUDFLARE_ACCOUNT_ID Anda (bisa disalin dari Cloudflare Dashboard URL atau sidebar).",
+        model: modelId,
+      },
+      { status: 503, headers: CORS_HEADERS }
+    );
+  }
+
+  const isAnthropic = providerName === "claude" || providerName === "anthropic";
+
   const reqHeaders: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (provider.apiKey) {
+  if (isAnthropic) {
+    reqHeaders["x-api-key"] = provider.apiKey;
+    reqHeaders["anthropic-version"] = "2023-06-01";
+  } else if (provider.apiKey) {
     reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
   }
 
-  const reqBody = JSON.stringify({
-    model: modelName,
-    messages,
-    stream: true,
-    max_tokens: 4096,
-  });
+  let reqBody: string;
+
+  if (isAnthropic) {
+    const systemTexts: string[] = [];
+    const anthropicMessages: { role: "user" | "assistant"; content: string }[] = [];
+
+    for (const m of messages) {
+      if (m.role === "system") {
+        systemTexts.push(m.content);
+      } else {
+        const last = anthropicMessages[anthropicMessages.length - 1];
+        if (last && last.role === m.role) {
+          last.content += "\n\n" + m.content;
+        } else {
+          anthropicMessages.push({ role: m.role, content: m.content });
+        }
+      }
+    }
+
+    if (anthropicMessages.length === 0 || anthropicMessages[0].role !== "user") {
+      anthropicMessages.unshift({ role: "user", content: "Halo" });
+    }
+
+    reqBody = JSON.stringify({
+      model: modelName,
+      messages: anthropicMessages,
+      system: systemTexts.length > 0 ? systemTexts.join("\n\n") : undefined,
+      stream: true,
+      max_tokens: 4096,
+    });
+  } else {
+    reqBody = JSON.stringify({
+      model: modelName,
+      messages,
+      stream: true,
+      max_tokens: 4096,
+    });
+  }
 
   try {
     let upstream = await fetch(provider.endpoint, {
@@ -353,15 +435,73 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode(errorEvent));
         }
 
-        try {
-          while (true) {
-            const { done, value } = await upstreamReader.read();
-            if (done) break;
-            controller.enqueue(value);
+        if (isAnthropic) {
+          let buffer = "";
+          const decoder = new TextDecoder();
+          try {
+            while (true) {
+              const { done, value } = await upstreamReader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || !trimmed.startsWith("data:")) continue;
+                const dataStr = trimmed.slice(5).trim();
+                if (dataStr === "[DONE]") continue;
+
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                    const chunk = {
+                      choices: [{ delta: { content: parsed.delta.text } }],
+                    };
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                    );
+                  }
+                } catch {}
+              }
+            }
+
+            if (buffer.trim()) {
+              const trimmed = buffer.trim();
+              if (trimmed.startsWith("data:")) {
+                const dataStr = trimmed.slice(5).trim();
+                if (dataStr !== "[DONE]") {
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                      const chunk = {
+                        choices: [{ delta: { content: parsed.delta.text } }],
+                      };
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                      );
+                    }
+                  } catch {}
+                }
+              }
+            }
+
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          } catch (readErr) {
+            controller.error(readErr);
           }
-          controller.close();
-        } catch (readErr) {
-          controller.error(readErr);
+        } else {
+          try {
+            while (true) {
+              const { done, value } = await upstreamReader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+            controller.close();
+          } catch (readErr) {
+            controller.error(readErr);
+          }
         }
       },
 
