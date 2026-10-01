@@ -45,6 +45,7 @@ const ALL_MODELS: ModelEntry[] = [
 
   // ── OpenRouter (Cloud LLMs) ───────────────────────────────────────────────
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
+  { id: "openrouter:nvidia/nemotron-3.5-lightning:free", label: "[OpenRouter] Nemotron 3.5 Lightning (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
 
   // ── Custom API (ClarioHub OpenAI-Compatible) ─────────────────────────────

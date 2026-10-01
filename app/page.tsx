@@ -52,6 +52,7 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
+  { id: "openrouter:nvidia/nemotron-3.5-lightning:free", label: "[OpenRouter] Nemotron 3.5 Lightning (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
   { id: "custom:clario/deepseek-v4.1-flash-auto", label: "[Custom] DeepSeek V4.1 Flash (Auto)", provider: "custom" },
   { id: "custom:clario/deepseek-v4.1-flash", label: "[Custom] DeepSeek V4.1 Flash", provider: "custom" },
@@ -577,6 +578,11 @@ export default function Home() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // Timeout failsafe 35 detik jika backend atau upstream provider macet/tidak merespons
+    const timeoutId = setTimeout(() => {
+      controller.abort("TIMEOUT");
+    }, 35000);
+
     let assistantId = "";
 
     try {
@@ -629,11 +635,12 @@ export default function Home() {
           if (errRaw) errDetail = errRaw.slice(0, 200);
         }
 
-        // Deteksi apakah model terkena rate limit, quota exceeded, atau credit exhausted
+        // Deteksi apakah model terkena rate limit, quota exceeded, server timeout, atau antrean offline
         const isLimit =
           Boolean(errJson.isLimit) ||
           res.status === 429 ||
           res.status === 402 ||
+          res.status === 504 ||
           errDetail.toLowerCase().includes("rate limit") ||
           errDetail.toLowerCase().includes("quota") ||
           errDetail.toLowerCase().includes("limit") ||
@@ -641,6 +648,8 @@ export default function Home() {
           errDetail.toLowerCase().includes("exhausted") ||
           errDetail.toLowerCase().includes("capacity") ||
           errDetail.toLowerCase().includes("overloaded") ||
+          errDetail.toLowerCase().includes("timeout") ||
+          errDetail.toLowerCase().includes("antrean") ||
           errDetail.toLowerCase().includes("insufficient_quota");
 
         if (isLimit) {
@@ -790,24 +799,43 @@ export default function Home() {
         await appendSmoothly(reasoningBuffer.trim());
       }
     } catch (err) {
-      if ((err as Error).name === "AbortError" || controller.signal.aborted) return;
-      console.error("Chat error:", err);
-      setError((err as Error).message);
-      if (assistantId) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  content:
-                    "Maaf, terjadi kesalahan saat menghubungi AI. " +
-                    "Periksa koneksi atau periksa pesan error di atas.",
-                }
-              : m
-          )
-        );
+      if (controller.signal.aborted && controller.signal.reason === "TIMEOUT") {
+        const timeoutMsg = "Koneksi ke AI melebihi batas waktu (timeout). Server model sedang sibuk, antre, atau offline. Silakan coba model lain.";
+        setError(timeoutMsg);
+        if (assistantId) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    content: timeoutMsg,
+                  }
+                : m
+            )
+          );
+        }
+      } else if ((err as Error).name === "AbortError" || controller.signal.aborted) {
+        return;
+      } else {
+        console.error("Chat error:", err);
+        setError((err as Error).message);
+        if (assistantId) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    content:
+                      "Maaf, terjadi kesalahan saat menghubungi AI. " +
+                      "Periksa koneksi atau periksa pesan error di atas.",
+                  }
+                : m
+            )
+          );
+        }
       }
     } finally {
+      clearTimeout(timeoutId);
       setIsStreaming(false);
       setStatusMessage(null);
       abortRef.current = null;

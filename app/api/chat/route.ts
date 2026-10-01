@@ -343,6 +343,10 @@ export async function POST(request: Request) {
   } else if (provider.apiKey) {
     reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
   }
+  if (providerName === "openrouter") {
+    reqHeaders["HTTP-Referer"] = "https://usick.ai";
+    reqHeaders["X-Title"] = "Usick AI";
+  }
   if (providerName === "custom") {
     reqHeaders["User-Agent"] =
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -378,6 +382,23 @@ export async function POST(request: Request) {
       stream: true,
       max_tokens: 4096,
     });
+  } else if (providerName === "openrouter") {
+    const isNemotron = modelName.toLowerCase().includes("nemotron");
+    const openRouterModels = isNemotron
+      ? [
+          modelName,
+          "nvidia/nemotron-3.5-lightning:free",
+          "nvidia/nemotron-3-ultra-550b-a55b:free",
+        ]
+      : [modelName];
+
+    reqBody = JSON.stringify({
+      model: modelName,
+      models: openRouterModels,
+      messages,
+      stream: true,
+      max_tokens: 4096,
+    });
   } else {
     reqBody = JSON.stringify({
       model: modelName,
@@ -392,6 +413,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: reqHeaders,
       body: reqBody,
+      signal: AbortSignal.timeout(25000),
     });
 
     // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
@@ -602,9 +624,27 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     const fetchErrMsg = err instanceof Error ? err.message : String(err);
     console.error(`[api/chat] network error for ${modelId}:`, fetchErrMsg);
+
+    const isTimeout =
+      (err instanceof DOMException && err.name === "TimeoutError") ||
+      (err instanceof Error && err.name === "TimeoutError") ||
+      fetchErrMsg.toLowerCase().includes("timeout") ||
+      fetchErrMsg.toLowerCase().includes("aborted");
+
+    if (isTimeout) {
+      return Response.json(
+        {
+          error: `Provider [${providerName.toUpperCase()}] tidak merespons dalam 25 detik (upstream timeout / server model sedang offline atau antrean penuh). Silakan coba lagi nanti atau pilih model lain.`,
+          model: modelId,
+          isLimit: true,
+        },
+        { status: 504, headers: CORS_HEADERS }
+      );
+    }
+
     return Response.json(
       {
-        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server Ollama/Provider sedang berjalan atau periksa OLLAMA_BASE_URL.`,
+        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server/koneksi provider sedang aktif atau periksa API Key / URL konfigurasi.`,
       },
       { status: 502, headers: CORS_HEADERS }
     );
