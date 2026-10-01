@@ -34,9 +34,9 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
 
-  // ── Novita AI (Qwen Models) ───────────────────────────────────────────────
-  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen3 Coder 30B A3B", provider: "novita" },
-  { id: "novita:qwen/qwen3.8-flash", label: "[Qwen] Qwen 3.8 Flash", provider: "novita" },
+  // ── Usick Models (Novita AI Qwen Engine) ──────────────────────────────────
+  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Usick] Usick one pro", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick one-mini", provider: "novita" },
 
   // ── OpenRouter (Cloud LLMs) ───────────────────────────────────────────────
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
