@@ -47,8 +47,6 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
   { id: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free", label: "[OpenRouter] Nemotron 3 Ultra 550B (Free)", provider: "openrouter" },
-  { id: "openrouter:inclusionai/ling-3.0-flash-vl:free", label: "[OpenRouter] Ling 3.0 Flash VL (Free)", provider: "openrouter" },
-  { id: "openrouter:nex-agi/nex-n2.5-pro:free", label: "[OpenRouter] Nex N2.5 Pro (Free)", provider: "openrouter" },
 ];
 
 const SYSTEM_PROMPT =
@@ -97,16 +95,18 @@ function cleanModelLabel(label: string): string {
 
 function getModelCategory(m: ModelEntry): string {
   const lbl = m.label.toLowerCase();
+  const id = m.id.toLowerCase();
   const prov = (m.provider || "").toLowerCase();
 
+  // Pokoknya yang ada gpt masuk ke model chat gpt
+  if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
   if (lbl.includes("llama")) return "Llama";
   if (lbl.includes("deepseek")) return "DeepSeek";
   if (prov === "gemini" || lbl.includes("gemini")) return "Gemini";
   if (prov === "claude" || lbl.includes("claude")) return "Claude";
+  if (prov === "openrouter" || lbl.includes("openrouter")) return "OpenRouter";
   if (prov === "groq" || lbl.includes("groq")) return "Groq";
   if (prov === "ollama" || lbl.includes("ollama")) return "Ollama";
-  if (prov === "openrouter" || lbl.includes("openrouter")) return "OpenRouter";
-  if (prov === "glm" || lbl.includes("glm")) return "GLM";
   if (prov === "cloudflare" || lbl.includes("cloudflare")) return "Cloudflare";
   return "Lainnya";
 }
