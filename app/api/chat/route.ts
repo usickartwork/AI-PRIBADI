@@ -664,7 +664,9 @@ export async function POST(request: Request) {
                   const parsed = JSON.parse(dataStr);
                   const deltaText =
                     parsed.choices?.[0]?.delta?.content ??
-                    parsed.choices?.[0]?.message?.content;
+                    parsed.choices?.[0]?.message?.content ??
+                    parsed.response ??
+                    parsed.text;
                   if (deltaText) processDeltaText(deltaText);
                 } catch {}
               }
@@ -677,7 +679,9 @@ export async function POST(request: Request) {
                   const parsed = JSON.parse(trimmed.slice(5).trim());
                   const deltaText =
                     parsed.choices?.[0]?.delta?.content ??
-                    parsed.choices?.[0]?.message?.content;
+                    parsed.choices?.[0]?.message?.content ??
+                    parsed.response ??
+                    parsed.text;
                   if (deltaText) processDeltaText(deltaText);
                 } catch {}
               }
