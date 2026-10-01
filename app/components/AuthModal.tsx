@@ -14,6 +14,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [pin, setPin] = useState("");
   
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -78,8 +79,28 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       return;
     }
 
+    if (!pin.trim()) {
+      setErrorMsg("Harap masukkan Kode PIN Verifikasi Akses.");
+      return;
+    }
+
     setLoading(true);
     try {
+      // 1. Verifikasi PIN Akses via API Server
+      const pinRes = await fetch("/api/auth/verify-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim() }),
+      });
+      const pinData = await pinRes.json();
+
+      if (!pinRes.ok || !pinData.valid) {
+        setErrorMsg(pinData.error || "Kode PIN Verifikasi salah. Hubungi admin untuk mendapatkan PIN akses.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Jika PIN valid, daftarkan akun ke Supabase
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -93,14 +114,20 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       if (error) {
         setErrorMsg(error.message);
       } else if (data.session) {
-        // Jika auto confirm aktif di Supabase
         onSuccess();
       } else {
-        // Jika perlu konfirmasi email
-        setSuccessMsg(
-          "Pendaftaran berhasil! Silakan periksa inbox/spam email Anda untuk tautan verifikasi aktivasi akun, lalu masuk."
-        );
-        setTab("login");
+        // Coba auto sign in jika auto confirm aktif
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (!signInErr && signInData.session) {
+          onSuccess();
+        } else {
+          setSuccessMsg("Pendaftaran berhasil diverifikasi! Silakan masuk dengan email dan kata sandi Anda.");
+          setTab("login");
+        }
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan saat pendaftaran.");
@@ -328,6 +355,32 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none transition ${
+                  isDark
+                    ? "bg-[#1a1a20] border-zinc-750 text-white placeholder-zinc-500 focus:border-white"
+                    : "bg-zinc-50 border-zinc-300 text-black placeholder-zinc-400 focus:border-black"
+                }`}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={`block text-xs font-bold ${isDark ? "text-zinc-300" : "text-black"}`}>
+                  Kode PIN Verifikasi Akses
+                </label>
+                <span className="text-[10px] text-amber-500 dark:text-amber-400 font-semibold flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Wajib Verifikasi
+                </span>
+              </div>
+              <input
+                type="password"
+                required
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="Masukkan PIN rahasia pendaftaran..."
+                className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none transition font-mono tracking-wider ${
                   isDark
                     ? "bg-[#1a1a20] border-zinc-750 text-white placeholder-zinc-500 focus:border-white"
                     : "bg-zinc-50 border-zinc-300 text-black placeholder-zinc-400 focus:border-black"
