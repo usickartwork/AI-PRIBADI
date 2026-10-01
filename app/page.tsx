@@ -201,12 +201,12 @@ export default function Home() {
       const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
 
       if (deltaY < 80) {
-        // Swipe to right from left edge (within 40px) to slide open panel
-        if (deltaX > 50 && touchStartX <= 40) {
+        // Swipe to right from anywhere on screen to slide open panel
+        if (deltaX > 45 && !sidebarOpen) {
           setSidebarOpen(true);
         }
         // Swipe to left to close panel when open
-        if (deltaX < -50 && sidebarOpen) {
+        if (deltaX < -45 && sidebarOpen) {
           setSidebarOpen(false);
         }
       }
@@ -237,10 +237,14 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  // Smart autoscroll: only scrolls down if user hasn't scrolled up to read earlier text
+  // Smart autoscroll: only scrolls down when there are active chat messages and user hasn't scrolled up
   useEffect(() => {
-    if (!isUserScrolledUp) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      if (!isUserScrolledUp) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    } else if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
     }
   }, [messages, statusMessage, isUserScrolledUp]);
 
@@ -480,6 +484,10 @@ export default function Home() {
     setError(null);
     setIsStreaming(false);
     setStatusMessage(null);
+    setIsUserScrolledUp(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
@@ -1134,18 +1142,21 @@ export default function Home() {
           </div>
         )}
 
-        {/* ─── FLOATING ELEVATED INPUT BAR ─────────────────────────────────── */}
+        {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling) ─────────── */}
         <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
           isDark
-            ? "bg-gradient-to-t from-[#121215] via-[#121215] to-transparent"
-            : "bg-gradient-to-t from-white via-white to-transparent"
+            ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
+            : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
         }`}>
           <div className="mx-auto max-w-3xl w-full">
-            <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all border ${
+            <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
               isDark
-                ? "bg-[#18181c] border-zinc-800 shadow-2xl shadow-black/60"
-                : "bg-white border-zinc-200 shadow-xl shadow-zinc-900/[0.05]"
+                ? "shadow-2xl shadow-black/80"
+                : "shadow-xl shadow-zinc-900/[0.08]"
             }`}>
+              {/* Liquid glass top specular reflection highlight line */}
+              <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
+
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -1163,9 +1174,9 @@ export default function Home() {
                 style={{ maxHeight: "140px" }}
               />
 
-              {/* Bottom Actions Bar inside Floating Card */}
+              {/* Bottom Actions Bar inside Liquid Glass Card */}
               <div className={`mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t gap-1.5 sm:gap-2 ${
-                isDark ? "border-zinc-800" : "border-zinc-100"
+                isDark ? "border-white/[0.08]" : "border-black/[0.06]"
               }`}>
                 {/* Left Action: Model Selector Pill + Thinking Toggle */}
                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">

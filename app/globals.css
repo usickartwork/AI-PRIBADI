@@ -99,3 +99,23 @@ textarea:focus {
   transform: translateY(-2px);
   box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
 }
+
+.liquid-glass {
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    0 20px 48px -12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset,
+    0 1px 2px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.dark .liquid-glass {
+  background: rgba(24, 24, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 24px 50px -12px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.07) inset,
+    0 1px 2px 0 rgba(255, 255, 255, 0.18) inset;
+}
