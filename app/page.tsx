@@ -416,6 +416,54 @@ export default function Home() {
     setShowAuthModal(true);
   };
 
+  // Sinkronisasi riwayat chat dari Supabase saat user login
+  useEffect(() => {
+    if (!user?.id) return;
+    let isMounted = true;
+
+    async function fetchUserChatHistory() {
+      try {
+        const { data, error } = await supabase
+          .from("chat_history")
+          .select("messages")
+          .eq("user_id", user?.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("[supabase] fetch history error:", error.message);
+          return;
+        }
+
+        if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+          if (isMounted) {
+            setMessages(data.messages);
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.messages));
+            } catch {}
+          }
+        } else {
+          // Jika di cloud masih kosong tetapi ada riwayat lokal, cadangkan ke Supabase
+          const local = loadHistory();
+          if (local.length > 0) {
+            await supabase.from("chat_history").upsert({
+              user_id: user?.id,
+              messages: local,
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[supabase] sync error:", err);
+      }
+    }
+
+    fetchUserChatHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
   useEffect(() => {
     try {
       localStorage.setItem("usick-theme", theme);
@@ -695,11 +743,29 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      // Hapus data foto agar tidak pernah masuk ke database / localStorage (cuma sekali pakai)
-      const messagesWithoutImage = messages.map(({ image, ...rest }) => rest);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messagesWithoutImage));
+      // Hapus data foto/file agar tidak pernah masuk ke database / localStorage (cuma sekali pakai)
+      const messagesToSave = messages.map(({ image, ...rest }) => rest);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messagesToSave));
+
+      // Simpan dan sinkronkan ke database Supabase jika pengguna sedang login
+      if (user?.id) {
+        const timer = setTimeout(() => {
+          supabase
+            .from("chat_history")
+            .upsert({
+              user_id: user?.id,
+              messages: messagesToSave,
+              updated_at: new Date().toISOString(),
+            })
+            .then(({ error }) => {
+              if (error) console.warn("[supabase] save chat_history error:", error.message);
+            });
+        }, 1000);
+
+        return () => clearTimeout(timer);
+      }
     } catch {}
-  }, [messages]);
+  }, [messages, user?.id]);
 
   const closeSidebarOnMobile = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -1156,6 +1222,16 @@ export default function Home() {
     }
     try {
       localStorage.removeItem(STORAGE_KEY);
+      if (user?.id) {
+        supabase
+          .from("chat_history")
+          .upsert({
+            user_id: user?.id,
+            messages: [],
+            updated_at: new Date().toISOString(),
+          })
+          .then(() => {});
+      }
     } catch {}
   };
 
