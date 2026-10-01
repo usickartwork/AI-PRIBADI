@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 type AuthModalProps = {
@@ -9,24 +9,38 @@ type AuthModalProps = {
 };
 
 export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
-  const [tab, setTab] = useState<"login" | "register">("login");
+  const [tab, setTab] = useState<"login" | "register" | "otp">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [pin, setPin] = useState("");
   
+  // State untuk alur OTP
+  const [otpCode, setOtpCode] = useState("");
+  const [activeOtp, setActiveOtp] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Timer countdown untuk kirim ulang OTP
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  // ─── LOGIN HANDLER ──────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
     if (!isSupabaseConfigured) {
-      setErrorMsg("Koneksi Supabase belum terkonfigurasi. Harap isi NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di file .env.local.");
+      setErrorMsg("Koneksi Supabase belum terkonfigurasi. Harap periksa file environment.");
       return;
     }
 
@@ -54,13 +68,14 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  // ─── REGISTER SUBMIT: GENERATE & REQUEST OTP ────────────────────────────────
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
     if (!isSupabaseConfigured) {
-      setErrorMsg("Koneksi Supabase belum terkonfigurasi. Harap isi NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di file .env.local.");
+      setErrorMsg("Koneksi Supabase belum terkonfigurasi. Harap periksa file environment.");
       return;
     }
 
@@ -79,29 +94,59 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       return;
     }
 
-    if (!pin.trim()) {
-      setErrorMsg("Harap masukkan Kode PIN Verifikasi Akses.");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", email: email.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || "Gagal membuat kode OTP verifikasi.");
+      } else {
+        setActiveOtp(data.otp);
+        setOtpCode("");
+        setCountdown(60);
+        setTab("otp");
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan saat meminta kode OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── VERIFY OTP & CREATE ACCOUNT IN SUPABASE ───────────────────────────────
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (otpCode.trim().length !== 6) {
+      setErrorMsg("Harap masukkan 6 digit kode OTP lengkap.");
       return;
     }
 
     setLoading(true);
     try {
-      // 1. Verifikasi PIN Akses via API Server
-      const pinRes = await fetch("/api/auth/verify-pin", {
+      // 1. Verifikasi kode OTP ke server
+      const res = await fetch("/api/auth/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pin.trim() }),
+        body: JSON.stringify({ action: "verify", email: email.trim(), code: otpCode.trim() }),
       });
-      const pinData = await pinRes.json();
+      const data = await res.json();
 
-      if (!pinRes.ok || !pinData.valid) {
-        setErrorMsg(pinData.error || "Kode PIN Verifikasi salah. Hubungi admin untuk mendapatkan PIN akses.");
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || "Kode OTP tidak valid.");
         setLoading(false);
         return;
       }
 
-      // 2. Jika PIN valid, daftarkan akun ke Supabase
-      const { data, error } = await supabase.auth.signUp({
+      // 2. Jika OTP valid, buat akun baru di Supabase
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -111,26 +156,51 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
         },
       });
 
-      if (error) {
-        setErrorMsg(error.message);
-      } else if (data.session) {
+      if (signUpError) {
+        setErrorMsg(signUpError.message);
+      } else if (signUpData.session) {
         onSuccess();
       } else {
-        // Coba auto sign in jika auto confirm aktif
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        // Otomatis login dengan kredensial yang baru diverifikasi
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
 
-        if (!signInErr && signInData.session) {
+        if (!signInError && signInData.session) {
           onSuccess();
         } else {
-          setSuccessMsg("Pendaftaran berhasil diverifikasi! Silakan masuk dengan email dan kata sandi Anda.");
+          setSuccessMsg("Akun berhasil diverifikasi! Silakan masuk dengan email dan kata sandi Anda.");
           setTab("login");
         }
       }
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan saat pendaftaran.");
+      setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan saat memverifikasi akun.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── KIRIM ULANG KODE OTP ───────────────────────────────────────────────────
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", email: email.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActiveOtp(data.otp);
+        setCountdown(60);
+      } else {
+        setErrorMsg(data.error || "Gagal mengirim ulang OTP.");
+      }
+    } catch {
+      setErrorMsg("Gagal mengirim ulang OTP.");
     } finally {
       setLoading(false);
     }
@@ -164,58 +234,47 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
             Usick V1 Intelligence
           </h2>
           <p className={`text-xs mt-1 font-medium ${isDark ? "text-zinc-400" : "text-black"}`}>
-            Silakan masuk atau buat akun untuk mulai menggunakan AI
+            {tab === "otp"
+              ? "Verifikasi 6-digit kode OTP untuk menyelesaikan pendaftaran"
+              : "Silakan masuk atau buat akun untuk mulai menggunakan AI"}
           </p>
         </div>
 
-        {/* Notice jika Supabase belum diisi */}
-        {!isSupabaseConfigured && (
-          <div className="mb-5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500 dark:text-amber-300 leading-relaxed">
-            <p className="font-bold flex items-center gap-1.5 mb-1">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>Setup Supabase Diperlukan</span>
-            </p>
-            <span>
-              Harap tambahkan <code>NEXT_PUBLIC_SUPABASE_URL</code> dan <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> pada file <code>.env.local</code>.
-            </span>
+        {/* Tabs: Masuk / Daftar (Hanya muncul jika bukan layar OTP) */}
+        {tab !== "otp" && (
+          <div className={`grid grid-cols-2 p-1 rounded-2xl mb-6 border ${
+            isDark ? "bg-[#111114] border-zinc-800" : "bg-zinc-100 border-zinc-200"
+          }`}>
+            <button
+              type="button"
+              onClick={() => {
+                setTab("login");
+                setErrorMsg(null);
+              }}
+              className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                tab === "login"
+                  ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
+                  : (isDark ? "text-zinc-400 hover:text-white" : "text-black hover:opacity-75")
+              }`}
+            >
+              Masuk (Login)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab("register");
+                setErrorMsg(null);
+              }}
+              className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                tab === "register"
+                  ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
+                  : (isDark ? "text-zinc-400 hover:text-white" : "text-black hover:opacity-75")
+              }`}
+            >
+              Daftar (Register)
+            </button>
           </div>
         )}
-
-        {/* Tabs: Masuk / Daftar */}
-        <div className={`grid grid-cols-2 p-1 rounded-2xl mb-6 border ${
-          isDark ? "bg-[#111114] border-zinc-800" : "bg-zinc-100 border-zinc-200"
-        }`}>
-          <button
-            type="button"
-            onClick={() => {
-              setTab("login");
-              setErrorMsg(null);
-            }}
-            className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-              tab === "login"
-                ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-                : (isDark ? "text-zinc-400 hover:text-white" : "text-black hover:opacity-75")
-            }`}
-          >
-            Masuk (Login)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab("register");
-              setErrorMsg(null);
-            }}
-            className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
-              tab === "register"
-                ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-                : (isDark ? "text-zinc-400 hover:text-white" : "text-black hover:opacity-75")
-            }`}
-          >
-            Daftar (Register)
-          </button>
-        </div>
 
         {/* Error Alert */}
         {errorMsg && (
@@ -237,8 +296,8 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
           </div>
         )}
 
-        {/* Form Content */}
-        {tab === "login" ? (
+        {/* ─── TAB 1: FORM LOGIN ────────────────────────────────────────────── */}
+        {tab === "login" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className={`block text-xs font-bold mb-1.5 ${isDark ? "text-zinc-300" : "text-black"}`}>
@@ -289,8 +348,11 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
               <span>{loading ? "Memproses Masuk..." : "Masuk ke Akun"}</span>
             </button>
           </form>
-        ) : (
-          <form onSubmit={handleRegister} className="space-y-3.5">
+        )}
+
+        {/* ─── TAB 2: FORM DAFTAR (REQUEST OTP) ─────────────────────────────── */}
+        {tab === "register" && (
+          <form onSubmit={handleRequestOtp} className="space-y-3.5">
             <div>
               <label className={`block text-xs font-bold mb-1 ${isDark ? "text-zinc-300" : "text-black"}`}>
                 Nama Lengkap / Panggilan
@@ -362,32 +424,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={`block text-xs font-bold ${isDark ? "text-zinc-300" : "text-black"}`}>
-                  Kode PIN Verifikasi Akses
-                </label>
-                <span className="text-[10px] text-amber-500 dark:text-amber-400 font-semibold flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Wajib Verifikasi
-                </span>
-              </div>
-              <input
-                type="password"
-                required
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="Masukkan PIN rahasia pendaftaran..."
-                className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none transition font-mono tracking-wider ${
-                  isDark
-                    ? "bg-[#1a1a20] border-zinc-750 text-white placeholder-zinc-500 focus:border-white"
-                    : "bg-zinc-50 border-zinc-300 text-black placeholder-zinc-400 focus:border-black"
-                }`}
-              />
-            </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -398,14 +434,118 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
               }`}
             >
               {loading && <div className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />}
-              <span>{loading ? "Mendaftarkan Akun..." : "Buat Akun Baru"}</span>
+              <span>{loading ? "Menyiapkan OTP..." : "Daftar & Dapatkan Kode OTP"}</span>
             </button>
+          </form>
+        )}
+
+        {/* ─── TAB 3: SCREEN VERIFIKASI KODE OTP ─────────────────────────────── */}
+        {tab === "otp" && (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            {/* Banner Kode OTP Verifikasi Aktif */}
+            <div className={`p-4 rounded-2xl border text-center relative overflow-hidden ${
+              isDark
+                ? "bg-[#111115] border-zinc-850 text-white"
+                : "bg-zinc-100 border-zinc-200 text-black"
+            }`}>
+              <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Kode Verifikasi OTP Anda:</span>
+              </div>
+              
+              {/* Tampilan 6 digit angka OTP yang estetik */}
+              <div className="flex justify-center items-center gap-1.5 sm:gap-2 my-2 font-mono font-black text-2xl sm:text-3xl tracking-widest text-emerald-600 dark:text-emerald-400">
+                {activeOtp ? (
+                  activeOtp.split("").map((digit, idx) => (
+                    <span
+                      key={idx}
+                      className={`h-11 w-9 sm:h-12 sm:w-10 rounded-xl flex items-center justify-center border shadow-xs ${
+                        isDark ? "bg-[#191920] border-zinc-750 text-white" : "bg-white border-zinc-300 text-black"
+                      }`}
+                    >
+                      {digit}
+                    </span>
+                  ))
+                ) : (
+                  <span>------</span>
+                )}
+              </div>
+              <p className={`text-[10.5px] mt-1.5 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                Berlaku selama 5 menit · Tanpa batasan kuota
+              </p>
+            </div>
+
+            {/* Input 6 digit OTP */}
+            <div>
+              <label className={`block text-xs font-bold mb-1.5 text-center ${isDark ? "text-zinc-300" : "text-black"}`}>
+                Ketik 6-Digit Kode di Atas:
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                required
+                autoFocus
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className={`w-full py-3 px-4 rounded-xl text-center font-mono font-black text-2xl tracking-[0.45em] border outline-none transition ${
+                  isDark
+                    ? "bg-[#1a1a20] border-zinc-700 text-white placeholder-zinc-600 focus:border-white"
+                    : "bg-zinc-50 border-zinc-300 text-black placeholder-zinc-400 focus:border-black"
+                }`}
+              />
+            </div>
+
+            {/* Tombol Verifikasi & Submit */}
+            <button
+              type="submit"
+              disabled={loading || otpCode.length !== 6}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                isDark
+                  ? "bg-white text-black hover:bg-zinc-200 disabled:opacity-50"
+                  : "bg-black text-white hover:bg-zinc-800 disabled:opacity-50"
+              }`}
+            >
+              {loading && <div className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />}
+              <span>{loading ? "Memverifikasi OTP..." : "Verifikasi & Buat Akun"}</span>
+            </button>
+
+            {/* Aksi Tambahan: Kirim Ulang & Kembali */}
+            <div className="flex items-center justify-between text-xs pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("register");
+                  setErrorMsg(null);
+                }}
+                className={`text-[11px] font-semibold underline underline-offset-2 transition cursor-pointer ${
+                  isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+              >
+                ← Ubah Data Pendaftaran
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={countdown > 0 || loading}
+                className={`text-[11px] font-semibold transition cursor-pointer ${
+                  countdown > 0
+                    ? (isDark ? "text-zinc-600 cursor-not-allowed" : "text-zinc-400 cursor-not-allowed")
+                    : (isDark ? "text-white underline hover:opacity-80" : "text-black underline hover:opacity-80")
+                }`}
+              >
+                {countdown > 0 ? `Kirim ulang (${countdown}s)` : "Kirim Ulang OTP"}
+              </button>
+            </div>
           </form>
         )}
 
         {/* Footer info */}
         <div className={`mt-5 text-center text-[11px] font-medium ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>
-          Terhubung dengan database aman Supabase
+          Sistem Autentikasi Mandiri & Database Supabase
         </div>
       </div>
     </div>
