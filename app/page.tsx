@@ -1948,7 +1948,7 @@ export default function Home() {
                         )}
 
                         <div className="relative">
-                          <MarkdownMessage content={msg.content} />
+                          <MarkdownMessage content={msg.content} isDark={isDark} />
                           {isStreaming && msg.content && msg.id === messages[messages.length - 1]?.id && (
                             <span className={`inline-block w-1.5 h-4 ml-1 align-middle animate-pulse rounded-xs ${isDark ? "bg-white" : "bg-black"}`} />
                           )}
