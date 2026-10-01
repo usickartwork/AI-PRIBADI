@@ -17,6 +17,9 @@ const ALL_MODELS: ModelEntry[] = [
   // ── Qwen (Novita AI Engine) ───────────────────────────────────────────────
   { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
 
+  // ── Moonshot AI (Novita Engine) ───────────────────────────────────────────
+  { id: "novita:moonshotai/kimi-k2-instruct", label: "[Kimi] Kimi K2 Instruct", provider: "novita" },
+
   // ── Cloudflare Workers AI ──────────────────────────────────────────────────
   { id: "cloudflare:@cf/deepseek-ai/deepseek-r1-distill-qwen-32b", label: "[Cloudflare] DeepSeek R1 Distill 32B", provider: "cloudflare" },
   { id: "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "[Cloudflare] Llama 3.3 70B (Fast)", provider: "cloudflare" },

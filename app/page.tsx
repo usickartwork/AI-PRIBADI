@@ -44,6 +44,7 @@ const STORAGE_KEY = "filius-ai-history";
 const FALLBACK_MODELS: ModelEntry[] = [
   { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick One", provider: "novita" },
   { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
+  { id: "novita:moonshotai/kimi-k2-instruct", label: "[Kimi] Kimi K2 Instruct", provider: "novita" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
   { id: "claude:claude-3-5-sonnet-latest", label: "[Claude] 3.5 Sonnet", provider: "claude" },
@@ -117,6 +118,7 @@ function getModelCategory(m: ModelEntry): string {
   // Pokoknya yang ada gpt masuk ke model chat gpt
   if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
   if (lbl.includes("qwen") || id.includes("qwen")) return "Qwen";
+  if (lbl.includes("kimi") || id.includes("kimi") || lbl.includes("moonshot") || id.includes("moonshot")) return "Kimi";
   if (lbl.includes("llama") || id.includes("llama")) return "Llama";
   if (prov === "gemini" || lbl.includes("gemini") || id.includes("gemini")) return "Gemini";
   if (prov === "claude" || lbl.includes("claude") || id.includes("claude")) return "Claude";
@@ -283,6 +285,15 @@ function ModelCategoryIcon({ category }: { category: string }) {
     return (
       <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <path d="M4 12v3M8 9v9M12 6v15M16 9v9M20 12v3" />
+      </svg>
+    );
+  }
+
+  if (cat === "kimi" || cat === "moonshot") {
+    // Moonshot AI / Kimi Crescent Star
+    return (
+      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
+        <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8C12.92 3.04 12.46 3 12 3Z" />
       </svg>
     );
   }
@@ -835,6 +846,7 @@ export default function Home() {
     "ChatGPT",
     "DeepSeek",
     "Qwen",
+    "Kimi",
     "Claude",
     "Gemini",
     "Llama",
