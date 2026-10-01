@@ -140,6 +140,7 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
+  const [disabledModels, setDisabledModels] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
@@ -390,7 +391,7 @@ export default function Home() {
         signal: controller.signal,
       });
 
-      if (!res.ok) {
+        if (!res.ok) {
         let errDetail = `HTTP ${res.status}`;
         try {
           const errJson = (await res.json()) as { error?: string; detail?: string };
@@ -399,6 +400,32 @@ export default function Home() {
           const errRaw = await res.text().catch(() => "");
           if (errRaw) errDetail = errRaw.slice(0, 200);
         }
+
+        // Deteksi apakah model terkena rate limit, quota exceeded, atau credit exhausted
+        const isLimit =
+          res.status === 429 ||
+          res.status === 402 ||
+          errDetail.toLowerCase().includes("rate limit") ||
+          errDetail.toLowerCase().includes("quota") ||
+          errDetail.toLowerCase().includes("exceeded") ||
+          errDetail.toLowerCase().includes("exhausted") ||
+          errDetail.toLowerCase().includes("insufficient_quota");
+
+        if (isLimit) {
+          setDisabledModels((prev) => {
+            const next = new Set(prev);
+            next.add(model);
+            return next;
+          });
+
+          // Otomatis pindah ke model alternatif yang masih aktif
+          const availableModel = models.find((m) => m.id !== model && !disabledModels.has(m.id));
+          if (availableModel) {
+            setModel(availableModel.id);
+            errDetail += ` (Model "${cleanModelLabel(activeModelObj.label)}" telah dinonaktifkan sementara karena limit. Dialihkan ke ${cleanModelLabel(availableModel.label)}).`;
+          }
+        }
+
         throw new Error(errDetail);
       }
 
@@ -1231,29 +1258,36 @@ export default function Home() {
                               <div className="space-y-0.5">
                                 {group.items.map((m, idx) => {
                                   const isSelected = m.id === model;
+                                  const isDisabled = disabledModels.has(m.id);
                                   const cleanName = cleanModelLabel(m.label);
                                   return (
                                     <button
                                       key={m.id}
                                       type="button"
+                                      disabled={isDisabled}
                                       onClick={() => {
+                                        if (isDisabled) return;
                                         setModel(m.id);
                                         setModelDropdownOpen(false);
                                       }}
-                                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition cursor-pointer ${
-                                        isSelected
+                                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition ${
+                                        isDisabled
+                                          ? "opacity-40 cursor-not-allowed line-through text-zinc-500"
+                                          : isSelected
                                           ? (isDark
-                                              ? "bg-white text-black font-semibold shadow-xs"
-                                              : "bg-black text-white font-medium shadow-xs")
+                                              ? "bg-white text-black font-semibold shadow-xs cursor-pointer"
+                                              : "bg-black text-white font-medium shadow-xs cursor-pointer")
                                           : (isDark
-                                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                                              : "text-black hover:bg-zinc-100 hover:text-black font-medium")
+                                              ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+                                              : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
                                       }`}
                                     >
                                       <div className="flex items-center gap-2 truncate pr-2">
                                         <span
                                           className={`text-[11px] font-semibold w-4 shrink-0 ${
-                                            isSelected
+                                            isDisabled
+                                              ? "text-zinc-600"
+                                              : isSelected
                                               ? (isDark ? "text-zinc-600" : "text-zinc-300")
                                               : (isDark ? "text-zinc-500" : "text-zinc-500")
                                           }`}
@@ -1262,7 +1296,11 @@ export default function Home() {
                                         </span>
                                         <span className="truncate">{cleanName}</span>
                                       </div>
-                                      {isSelected && (
+                                      {isDisabled ? (
+                                        <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
+                                          Limit
+                                        </span>
+                                      ) : isSelected ? (
                                         <svg
                                           className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
                                           fill="none"
@@ -1276,7 +1314,7 @@ export default function Home() {
                                             d="M5 13l4 4L19 7"
                                           />
                                         </svg>
-                                      )}
+                                      ) : null}
                                     </button>
                                   );
                                 })}
