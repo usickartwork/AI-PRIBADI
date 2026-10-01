@@ -28,7 +28,6 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
 
   // ── Ollama (Lokal / Server Remote) ─────────────────────────────────────────
-  { id: "ollama:llama3.1", label: "[Ollama] Llama 3.1", provider: "ollama" },
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B (Lokal/Server)", provider: "ollama" },
 
   // ── Gemini (Google AI Studio) ──────────────────────────────────────────────
