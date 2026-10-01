@@ -1690,7 +1690,9 @@ export default function Home() {
                   onClick={() => cameraInputRef.current?.click()}
                   className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
                     selectedImage
-                      ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/10"
+                      ? isDark
+                        ? "text-white bg-zinc-800 border border-zinc-700/80 shadow-xs"
+                        : "text-black bg-zinc-200 border border-zinc-300 shadow-xs"
                       : isDark
                       ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
                       : "text-zinc-500 hover:text-black hover:bg-zinc-100"
