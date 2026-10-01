@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
+import { CameraModal } from "./components/CameraModal";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -18,6 +19,7 @@ type ChatMessage = {
   id: string;
   role: Role;
   content: string;
+  image?: string;
   sources?: SearchSource[];
   searchError?: string;
 };
@@ -355,6 +357,9 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Supabase Auth Session listener
   useEffect(() => {
@@ -562,9 +567,12 @@ export default function Home() {
       return;
     }
 
-    const text = (customPrompt || input).trim();
-    if (!text || isStreaming) return;
+    const activeImage = selectedImage;
+    const rawText = (customPrompt || input).trim();
+    const text = rawText || (activeImage ? "Tolong analisis dan jelaskan foto ini secara rinci." : "");
+    if ((!text && !activeImage) || isStreaming) return;
 
+    setSelectedImage(null);
     closeSidebarOnMobile();
     setError(null);
     setIsStreaming(true);
@@ -590,6 +598,7 @@ export default function Home() {
         id: generateUUID(),
         role: "user",
         content: text,
+        image: activeImage || undefined,
       };
 
       assistantId = generateUUID();
@@ -610,7 +619,11 @@ export default function Home() {
         { role: "system", content: systemPrompt },
         ...updatedMessages
           .filter((m) => m.id !== assistantId)
-          .map((m) => ({ role: m.role, content: m.content })),
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+            image: m.image,
+          })),
       ];
 
       const res = await fetch("/api/chat", {
@@ -626,13 +639,35 @@ export default function Home() {
 
         if (!res.ok) {
         let errDetail = `HTTP ${res.status}`;
-        let errJson: { error?: string; detail?: string; isLimit?: boolean; model?: string } = {};
+        let errJson: { error?: string; detail?: string; isLimit?: boolean; isVisionUnsupported?: boolean; model?: string } = {};
         try {
-          errJson = (await res.json()) as { error?: string; detail?: string; isLimit?: boolean; model?: string };
+          errJson = (await res.json()) as { error?: string; detail?: string; isLimit?: boolean; isVisionUnsupported?: boolean; model?: string };
           errDetail = errJson.error || errJson.detail || errDetail;
         } catch {
           const errRaw = await res.text().catch(() => "");
           if (errRaw) errDetail = errRaw.slice(0, 200);
+        }
+
+        // Deteksi jika model tidak support analisis gambar / foto
+        // PENTING: User meminta "kalo misal ada yang tidak support kasih chat keterangan aja, jangan pop up merah diatas"
+        const isVisionUnsupported =
+          Boolean(errJson.isVisionUnsupported) ||
+          (Boolean(activeImage) && (
+            res.status === 400 ||
+            res.status === 422 ||
+            errDetail.toLowerCase().includes("image") ||
+            errDetail.toLowerCase().includes("vision") ||
+            errDetail.toLowerCase().includes("multimodal") ||
+            errDetail.toLowerCase().includes("tidak mendukung")
+          ));
+
+        if (isVisionUnsupported) {
+          setError(null);
+          const noticeMsg =
+            errJson.error ||
+            `Model "${cleanModelLabel(activeModelObj.label)}" saat ini tidak mendukung analisis gambar atau foto. Silakan beralih ke model yang mendukung Vision (seperti Gemini 3.5 Flash Lite atau Claude 3.7 Sonnet) untuk menganalisis foto ini.`;
+          updateAssistantContent(assistantId, noticeMsg);
+          return;
         }
 
         // Deteksi apakah model terkena rate limit, quota exceeded, server timeout, atau antrean offline
@@ -1332,7 +1367,22 @@ export default function Home() {
                     }`}
                   >
                     {isUser ? (
-                      <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
+                      <div>
+                        {msg.image && (
+                          <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-sm max-w-xs sm:max-w-sm">
+                            <img
+                              src={msg.image}
+                              alt="Foto terlampir"
+                              className="max-h-64 sm:max-h-80 w-auto rounded-xl object-contain cursor-pointer hover:opacity-90 transition bg-black/20"
+                              onClick={() => setPreviewImage(msg.image || null)}
+                              title="Klik untuk melihat ukuran penuh"
+                            />
+                          </div>
+                        )}
+                        {msg.content && (
+                          <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
+                        )}
+                      </div>
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
@@ -1516,6 +1566,31 @@ export default function Home() {
               {/* Liquid glass top specular reflection highlight line */}
               <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
 
+              {/* Photo Attachment Thumbnail Preview (ChatGPT Style) */}
+              {selectedImage && (
+                <div className="mb-2 px-1 relative inline-flex items-center">
+                  <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 shadow-lg group bg-black/20">
+                    <img
+                      src={selectedImage}
+                      alt="Foto Kamera"
+                      className="h-16 w-16 sm:h-20 sm:w-20 object-cover cursor-pointer hover:opacity-90 transition"
+                      onClick={() => setPreviewImage(selectedImage)}
+                      title="Klik untuk melihat pratinjau"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImage(null)}
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition shadow cursor-pointer"
+                      title="Hapus foto"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -1525,7 +1600,7 @@ export default function Home() {
                   autoResize();
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask AI a question or make a request..."
+                placeholder={selectedImage ? "Tanyakan sesuatu tentang foto ini (opsional)..." : "Ask AI a question or make a request..."}
                 rows={1}
                 className={`w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
                   isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
@@ -1741,6 +1816,28 @@ export default function Home() {
                     </div>
                     <span>Thinking</span>
                   </button>
+
+                  {/* Camera Button (ChatGPT Style) */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCameraModal(true)}
+                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                      selectedImage
+                        ? (isDark
+                            ? "border-emerald-500 bg-emerald-950/40 text-emerald-300 shadow-xs"
+                            : "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs")
+                        : (isDark
+                            ? "border-zinc-750 bg-zinc-800/90 text-zinc-300 hover:bg-zinc-750 hover:text-white"
+                            : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70")
+                    }`}
+                    title="Kamera / Ambil Foto (seperti ChatGPT)"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Kamera</span>
+                  </button>
                 </div>
 
                 {/* Right Action: Send / Stop Circular Button */}
@@ -1758,9 +1855,9 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => sendMessage()}
-                      disabled={!input.trim()}
+                      disabled={!input.trim() && !selectedImage}
                       className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
-                        input.trim()
+                        input.trim() || selectedImage
                           ? (isDark
                               ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
                               : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer")
@@ -1935,6 +2032,41 @@ export default function Home() {
           onSuccess={() => setShowAuthModal(false)}
         />
       ) : null}
+
+      {/* ─── CHATGPT-STYLE CAMERA MODAL ──────────────────────────────────── */}
+      <CameraModal
+        isOpen={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
+        onCapture={(dataUrl) => setSelectedImage(dataUrl)}
+        isDark={isDark}
+      />
+
+      {/* ─── FULLSCREEN IMAGE PREVIEW LIGHTBOX ───────────────────────────── */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in-0 duration-200 cursor-pointer"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-11 right-0 p-2 text-white/80 hover:text-white transition cursor-pointer"
+              title="Tutup"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={previewImage}
+              alt="Pratinjau Foto"
+              className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

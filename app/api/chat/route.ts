@@ -115,6 +115,7 @@ function getProviders(): Record<string, ProviderConfig> {
 type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
+  image?: string;
 };
 
 const CORS_HEADERS = {
@@ -356,14 +357,39 @@ export async function POST(request: Request) {
 
   if (isAnthropic) {
     const systemTexts: string[] = [];
-    const anthropicMessages: { role: "user" | "assistant"; content: string }[] = [];
+    const anthropicMessages: { role: "user" | "assistant"; content: any }[] = [];
 
     for (const m of messages) {
       if (m.role === "system") {
         systemTexts.push(m.content);
+      } else if (m.image && m.role === "user") {
+        const match = m.image.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          const mediaType = match[1];
+          const base64Data = match[2];
+          anthropicMessages.push({
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64Data,
+                },
+              },
+              {
+                type: "text",
+                text: m.content || "Tolong analisis dan jelaskan foto ini secara rinci.",
+              },
+            ],
+          });
+        } else {
+          anthropicMessages.push({ role: m.role, content: m.content });
+        }
       } else {
         const last = anthropicMessages[anthropicMessages.length - 1];
-        if (last && last.role === m.role) {
+        if (last && last.role === m.role && typeof last.content === "string") {
           last.content += "\n\n" + m.content;
         } else {
           anthropicMessages.push({ role: m.role, content: m.content });
@@ -382,30 +408,56 @@ export async function POST(request: Request) {
       stream: true,
       max_tokens: 4096,
     });
-  } else if (providerName === "openrouter") {
-    const isNemotron = modelName.toLowerCase().includes("nemotron");
-    const openRouterModels = isNemotron
-      ? [
-          modelName,
-          "nvidia/nemotron-3.5-lightning:free",
-          "nvidia/nemotron-3-ultra-550b-a55b:free",
-        ]
-      : [modelName];
-
-    reqBody = JSON.stringify({
-      model: modelName,
-      models: openRouterModels,
-      messages,
-      stream: true,
-      max_tokens: 4096,
-    });
   } else {
-    reqBody = JSON.stringify({
-      model: modelName,
-      messages,
-      stream: true,
-      max_tokens: 4096,
+    const formattedMessages = messages.map((m) => {
+      if (m.image && m.role === "user") {
+        return {
+          role: m.role,
+          content: [
+            {
+              type: "text",
+              text: m.content || "Tolong analisis dan jelaskan foto ini secara rinci.",
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: m.image,
+              },
+            },
+          ],
+        };
+      }
+      return {
+        role: m.role,
+        content: m.content,
+      };
     });
+
+    if (providerName === "openrouter") {
+      const isNemotron = modelName.toLowerCase().includes("nemotron");
+      const openRouterModels = isNemotron
+        ? [
+            modelName,
+            "nvidia/nemotron-3.5-lightning:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+          ]
+        : [modelName];
+
+      reqBody = JSON.stringify({
+        model: modelName,
+        models: openRouterModels,
+        messages: formattedMessages,
+        stream: true,
+        max_tokens: 4096,
+      });
+    } else {
+      reqBody = JSON.stringify({
+        model: modelName,
+        messages: formattedMessages,
+        stream: true,
+        max_tokens: 4096,
+      });
+    }
   }
 
   try {
@@ -489,6 +541,32 @@ export async function POST(request: Request) {
           detailMsg = parsed.detail;
         }
       } catch {}
+
+      const hasImage = messages.some((m) => Boolean(m.image));
+      const isVisionError =
+        hasImage &&
+        (upstream.status === 400 || upstream.status === 404 || upstream.status === 422) &&
+        (errText.toLowerCase().includes("image") ||
+          errText.toLowerCase().includes("vision") ||
+          errText.toLowerCase().includes("multimodal") ||
+          errText.toLowerCase().includes("expected a string") ||
+          errText.toLowerCase().includes("expected type") ||
+          errText.toLowerCase().includes("unsupported") ||
+          errText.toLowerCase().includes("not support") ||
+          errText.toLowerCase().includes("media"));
+
+      if (isVisionError) {
+        return Response.json(
+          {
+            error: `Model ini saat ini tidak mendukung analisis gambar atau foto. Silakan beralih ke model yang mendukung Vision (seperti Gemini 3.5 Flash Lite atau Claude 3.7 Sonnet) untuk menganalisis foto ini.`,
+            isVisionUnsupported: true,
+            model: modelId,
+            sources,
+            searchError,
+          },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
 
       const isLimitError =
         upstream.status === 429 ||
