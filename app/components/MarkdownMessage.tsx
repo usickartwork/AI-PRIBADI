@@ -77,42 +77,42 @@ export function MarkdownMessage({ content }: MarkdownMessageProps) {
             return <CodeBlock className={className}>{children}</CodeBlock>;
           },
           h1: ({ children }) => (
-            <h1 className="mb-3 mt-5 text-lg font-bold tracking-tight text-zinc-950 dark:text-white first:mt-0">{children}</h1>
+            <h1 className="mb-3 mt-5 text-lg font-bold tracking-tight text-black dark:text-white first:mt-0">{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-2.5 mt-4 text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100 first:mt-0">{children}</h2>
+            <h2 className="mb-2.5 mt-4 text-base font-bold tracking-tight text-black dark:text-zinc-100 first:mt-0">{children}</h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-2 mt-3.5 text-sm font-semibold tracking-tight text-zinc-850 dark:text-zinc-200">{children}</h3>
+            <h3 className="mb-2 mt-3.5 text-sm font-semibold tracking-tight text-black dark:text-zinc-200">{children}</h3>
           ),
-          p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-zinc-800 dark:text-zinc-200">{children}</p>,
-          ul: ({ children }) => <ul className="mb-3 list-disc pl-5 space-y-1.5 text-zinc-800 dark:text-zinc-200">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-3 list-decimal pl-5 space-y-1.5 text-zinc-800 dark:text-zinc-200">{children}</ol>,
-          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+          p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed text-black dark:text-zinc-200">{children}</p>,
+          ul: ({ children }) => <ul className="mb-3 list-disc pl-5 space-y-1.5 text-black dark:text-zinc-200">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-3 list-decimal pl-5 space-y-1.5 text-black dark:text-zinc-200">{children}</ol>,
+          li: ({ children }) => <li className="leading-relaxed text-black dark:text-zinc-200">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="my-3 border-l-2 border-zinc-400 dark:border-zinc-500 bg-zinc-100/70 dark:bg-zinc-800/60 py-1.5 pl-3.5 pr-2 italic text-zinc-700 dark:text-zinc-300 rounded-r-lg">
+            <blockquote className="my-3 border-l-2 border-zinc-500 dark:border-zinc-500 bg-zinc-100 dark:bg-zinc-800/60 py-1.5 pl-3.5 pr-2 italic text-black dark:text-zinc-300 rounded-r-lg">
               {children}
             </blockquote>
           ),
           table: ({ children }) => (
             <div className="my-3 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <table className="w-full text-left text-xs text-zinc-800 dark:text-zinc-200">{children}</table>
+              <table className="w-full text-left text-xs text-black dark:text-zinc-200">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold">{children}</thead>,
-          th: ({ children }) => <th className="px-3.5 py-2.5 font-semibold border-b border-zinc-200 dark:border-zinc-700">{children}</th>,
-          td: ({ children }) => <td className="px-3.5 py-2.5 border-b border-zinc-100 dark:border-zinc-800">{children}</td>,
+          thead: ({ children }) => <thead className="bg-zinc-100 dark:bg-zinc-800 text-black dark:text-zinc-100 font-bold">{children}</thead>,
+          th: ({ children }) => <th className="px-3.5 py-2.5 font-bold border-b border-zinc-200 dark:border-zinc-700 text-black dark:text-zinc-100">{children}</th>,
+          td: ({ children }) => <td className="px-3.5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 text-black dark:text-zinc-200">{children}</td>,
           a: ({ href, children }) => (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-zinc-900 dark:text-zinc-100 underline underline-offset-2 transition hover:opacity-80 font-medium"
+              className="text-black dark:text-zinc-100 underline underline-offset-2 transition hover:opacity-75 font-semibold"
             >
               {children}
             </a>
           ),
-          hr: () => <hr className="my-4 border-zinc-200 dark:border-zinc-800" />,
+          hr: () => <hr className="my-4 border-zinc-300 dark:border-zinc-800" />,
         }}
       >
         {content}

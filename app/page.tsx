@@ -526,48 +526,7 @@ export default function Home() {
     group.items.push(m);
   }
 
-  const quickPrompts = [
-    {
-      title: "Write a to-do list for a personal project",
-      desc: "Buat daftar tugas terstruktur untuk proyek baru.",
-      prompt: "Buatkan daftar to-do list terstruktur dan prioritas langkah pengerjaan untuk proyek web aplikasi baru dari nol hingga rilis.",
-      icon: (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Generate an email to reply to a job offer",
-      desc: "Buat draf surel profesional merespons tawaran kerja.",
-      prompt: "Tuliskan draf email yang sangat profesional, ramah, dan percaya diri untuk merespons tawaran pekerjaan (job offer) dengan apresiasi tinggi.",
-      icon: (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Summarize this article in one paragraph",
-      desc: "Ringkas materi atau teks panjang menjadi poin padat.",
-      prompt: "Jelaskan dan rangkum secara padat dalam 1 paragraf: Mengapa teknologi LLM (Large Language Model) berkembang sangat pesat dan menjadi kunci inovasi modern?",
-      icon: (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      ),
-    },
-    {
-      title: "How does AI work in a technical capacity",
-      desc: "Penjelasan konseptual dan teknis arsitektur AI.",
-      prompt: "Jelaskan bagaimana AI berbasis transformer dan neural network bekerja secara teknis, dari tokenization hingga attention mechanism secara jelas dan mudah dipahami.",
-      icon: (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
-      ),
-    },
-  ];
+
 
   return (
     <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
@@ -657,12 +616,12 @@ export default function Home() {
               onClick={() => setWebSearchEnabled(!webSearchEnabled)}
               className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
                 webSearchEnabled
-                  ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-zinc-900 text-white font-semibold shadow-xs")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-black")
+                  ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-black text-white font-semibold shadow-xs")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : "text-zinc-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : (isDark ? "text-zinc-400" : "text-black")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
                 <span>Thinking (Browse)</span>
@@ -677,11 +636,11 @@ export default function Home() {
             <div
               onClick={() => setSettingsOpen(true)}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
-                isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+                isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-black hover:text-black font-medium"
               }`}
             >
               {/* Custom Designed Control Sliders Icon (No Emojis) */}
-              <svg className="w-4 h-4 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <svg className={`w-4 h-4 shrink-0 ${isDark ? "text-zinc-400" : "text-black"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
               </svg>
               <span>Pengaturan</span>
@@ -691,7 +650,7 @@ export default function Home() {
           {/* History / Recent Threads */}
           <div className="flex-1 overflow-y-auto px-3 py-3">
             <div className={`flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider uppercase ${
-              isDark ? "text-zinc-500" : "text-zinc-400"
+              isDark ? "text-zinc-500" : "text-black"
             }`}>
               <span>Recent</span>
               {messages.length > 0 && (
@@ -699,7 +658,7 @@ export default function Home() {
                   onClick={newChat}
                   title="Hapus riwayat"
                   className={`text-[10px] transition cursor-pointer ${
-                    isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"
+                    isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"
                   }`}
                 >
                   Clear
@@ -708,7 +667,7 @@ export default function Home() {
             </div>
 
             {messages.length === 0 ? (
-              <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+              <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
                 Belum ada percakapan aktif.
               </div>
             ) : (
@@ -718,14 +677,14 @@ export default function Home() {
                   className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
                     isDark
                       ? "bg-zinc-900/60 hover:bg-zinc-800/70 border-zinc-800 text-zinc-200"
-                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800"
+                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-black"
                   }`}
                 >
                   <div className="truncate pr-2">
-                    <p className={`truncate font-medium ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                    <p className={`truncate font-semibold ${isDark ? "text-zinc-200" : "text-black"}`}>
                       {messages.find((m) => m.role === "user")?.content || "Percakapan Baru"}
                     </p>
-                    <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                    <p className={`text-[10px] mt-0.5 truncate ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
                       {messages.length} pesan · Aktif
                     </p>
                   </div>
@@ -734,7 +693,7 @@ export default function Home() {
                       e.stopPropagation();
                       newChat();
                     }}
-                    className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-400 hover:text-red-500"}`}
+                    className={`p-1 transition ${isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"}`}
                     title="Hapus chat ini"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -749,7 +708,7 @@ export default function Home() {
           {/* Bottom User Card / Status */}
           <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
             <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
-              isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-zinc-900"
+              isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
             }`}>
               <div className="flex items-center gap-2.5">
                 <div className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
@@ -761,7 +720,7 @@ export default function Home() {
                   }`} />
                 </div>
                 <div className="truncate">
-                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>Personal Studio</div>
+                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>Personal Studio</div>
                   <div className={`text-[10px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Pro Plan · Active</div>
                 </div>
               </div>
@@ -836,13 +795,13 @@ export default function Home() {
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5"
+          className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5 flex flex-col"
         >
-          <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
+          <div className={`mx-auto max-w-3xl w-full ${messages.length === 0 ? "flex-1 flex flex-col items-center justify-center my-auto" : "space-y-4 sm:space-y-6"}`}>
 
             {/* Error Notice */}
             {error && (
-              <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-3.5 sm:p-4 text-xs text-red-700 dark:text-red-400 shadow-sm animate-in fade-in-0">
+              <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-3.5 sm:p-4 text-xs text-red-700 dark:text-red-400 shadow-sm animate-in fade-in-0 w-full mb-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5">
                     <svg className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -862,9 +821,9 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box) ──────────── */}
+            {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center pt-4 sm:pt-8 pb-4 text-center">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
@@ -882,62 +841,9 @@ export default function Home() {
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {getTimeGreeting()}, Usick V1
                 </h1>
-                <p className={`mt-1 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?
                 </p>
-
-                {/* Quick Start Suggestions Grid */}
-                <div className="w-full mt-6 sm:mt-10 text-left">
-                  <div className={`text-[11px] font-bold tracking-wider uppercase mb-2.5 sm:mb-3 px-1 ${
-                    isDark ? "text-zinc-500" : "text-zinc-400"
-                  }`}>
-                    Get started with an example below
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                    {quickPrompts.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => sendMessage(item.prompt)}
-                        className={`flex flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left group cursor-pointer border transition-all ${
-                          isDark
-                            ? "bg-[#18181c] border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-black/30"
-                            : "bg-zinc-50 border-zinc-200/80 hover:border-zinc-300 hover:bg-white shadow-2xs"
-                        } hover:shadow-md`}
-                      >
-                        <div>
-                          <h3 className={`text-xs sm:text-[13px] font-semibold transition ${
-                            isDark ? "text-zinc-100 group-hover:text-white" : "text-zinc-900 group-hover:text-black"
-                          }`}>
-                            {item.title}
-                          </h3>
-                          <p className={`text-[11px] sm:text-[11.5px] mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 ${
-                            isDark ? "text-zinc-400" : "text-zinc-500"
-                          }`}>
-                            {item.desc}
-                          </p>
-                        </div>
-                        <div className={`mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t ${
-                          isDark ? "border-zinc-800/80" : "border-zinc-200/60"
-                        }`}>
-                          <div className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition ${
-                            isDark ? "bg-zinc-800 group-hover:bg-zinc-700 text-white" : "bg-zinc-200/70 group-hover:bg-zinc-300 text-black"
-                          }`}>
-                            {item.icon}
-                          </div>
-                          <span className={`text-[11px] opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1 ${
-                            isDark ? "text-white" : "text-black"
-                          }`}>
-                            <span>Mulai</span>
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
 
@@ -969,7 +875,7 @@ export default function Home() {
                             : "bg-black text-white shadow-md shadow-black/20 rounded-tr-xs font-normal")
                         : (isDark
                             ? "bg-[#18181c] border border-zinc-800 text-zinc-100 shadow-xs rounded-tl-xs"
-                            : "bg-[#f8f8fa] border border-zinc-200/90 text-zinc-900 shadow-xs rounded-tl-xs")
+                            : "bg-[#f8f8fa] border border-zinc-200/90 text-black shadow-xs rounded-tl-xs")
                     }`}
                   >
                     {isUser ? (
@@ -977,7 +883,7 @@ export default function Home() {
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
-                          <div className={`flex items-center gap-2 py-1 text-xs font-medium ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                          <div className={`flex items-center gap-2 py-1 text-xs font-medium ${isDark ? "text-zinc-400" : "text-black"}`}>
                             <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
                             <span>Sedang merumuskan jawaban...</span>
                           </div>
@@ -994,7 +900,7 @@ export default function Home() {
                           <div className={`mt-3 flex items-start gap-2 rounded-xl border p-2.5 text-xs ${
                             isDark
                               ? "border-amber-900/50 bg-amber-950/30 text-amber-300"
-                              : "border-amber-200 bg-amber-50 text-amber-800"
+                              : "border-amber-200 bg-amber-50 text-amber-900 font-medium"
                           }`}>
                             <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -1018,7 +924,7 @@ export default function Home() {
                               {msg.sources.map((src, idx) => {
                                 let domain = "";
                                 try {
-                                  domain = new URL(src.url).hostname.replace("www.", "");
+                                    domain = new URL(src.url).hostname.replace("www.", "");
                                 } catch {
                                   domain = src.url;
                                 }
@@ -1031,7 +937,7 @@ export default function Home() {
                                     className={`flex items-center gap-2 rounded-xl p-2 text-xs transition group shadow-2xs border ${
                                       isDark
                                         ? "bg-[#141417] hover:bg-zinc-800 border-zinc-800 text-zinc-200"
-                                        : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-900"
+                                        : "bg-white hover:bg-zinc-100 border-zinc-200 text-black font-medium"
                                     }`}
                                   >
                                     <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${
@@ -1041,11 +947,11 @@ export default function Home() {
                                     </span>
                                     <div className="truncate">
                                       <p className={`truncate font-semibold text-[11.5px] sm:text-[12px] transition ${
-                                        isDark ? "group-hover:text-white" : "group-hover:text-black"
+                                        isDark ? "group-hover:text-white" : "text-black group-hover:text-black"
                                       }`}>
                                         {src.title || domain}
                                       </p>
-                                      <p className={`text-[10px] truncate ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>{domain}</p>
+                                      <p className={`text-[10px] truncate ${isDark ? "text-zinc-500" : "text-zinc-600"}`}>{domain}</p>
                                     </div>
                                   </a>
                                 );
@@ -1065,7 +971,7 @@ export default function Home() {
                               className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition cursor-pointer ${
                                 isDark
                                   ? "text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                                  : "text-zinc-600 hover:bg-zinc-200/80 hover:text-black"
+                                  : "text-black hover:bg-zinc-200/80 hover:text-black font-medium"
                               }`}
                             >
                               {copiedId === msg.id ? (
@@ -1107,7 +1013,7 @@ export default function Home() {
             {/* Status searching pulse */}
             {statusMessage && (
               <div className={`flex items-center gap-2 text-xs pl-10 sm:pl-11 animate-pulse font-medium ${
-                isDark ? "text-zinc-200" : "text-zinc-900"
+                isDark ? "text-zinc-200" : "text-black font-semibold"
               }`}>
                 <div className={`h-2 w-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
                 <span>{statusMessage}</span>
@@ -1130,7 +1036,7 @@ export default function Home() {
               className={`group flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold shadow-xl backdrop-blur-md border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
                 isDark
                   ? "bg-[#18181c]/95 border-zinc-700 text-white shadow-black/80"
-                  : "bg-white/95 border-zinc-200 text-zinc-900 shadow-zinc-900/15"
+                  : "bg-white/95 border-zinc-200 text-black shadow-zinc-900/15"
               }`}
             >
               <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
@@ -1169,7 +1075,7 @@ export default function Home() {
                 placeholder="Ask AI a question or make a request..."
                 rows={1}
                 className={`w-full bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
-                  isDark ? "text-zinc-100 placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-400"
+                  isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
                 }`}
                 style={{ maxHeight: "140px" }}
               />
@@ -1189,7 +1095,7 @@ export default function Home() {
                       className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px] ${
                         isDark
                           ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100"
-                          : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-zinc-900"
+                          : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-black"
                       }`}
                       title="Pilih Model AI"
                     >
@@ -1200,7 +1106,7 @@ export default function Home() {
                         {cleanModelLabel(activeModelObj.label)}
                       </span>
                       <svg className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
-                        isDark ? "text-zinc-500" : "text-zinc-400"
+                        isDark ? "text-zinc-500" : "text-black"
                       } ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
@@ -1220,10 +1126,10 @@ export default function Home() {
                       <div className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-95 ${
                         isDark
                           ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
-                          : "bg-white border-zinc-200 text-zinc-900 shadow-2xl"
+                          : "bg-white border-zinc-200 text-black shadow-2xl"
                       }`}>
                         <div className={`flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
-                          isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-zinc-400"
+                          isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-black"
                         }`}>
                           <span>Pilih Model LLM ({models.length})</span>
                           <button
@@ -1263,7 +1169,7 @@ export default function Home() {
                                               : "bg-black text-white font-medium shadow-xs")
                                           : (isDark
                                               ? "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                                              : "text-zinc-700 hover:bg-zinc-100 hover:text-black")
+                                              : "text-black hover:bg-zinc-100 hover:text-black font-medium")
                                       }`}
                                     >
                                       <div className="flex items-center gap-2 truncate pr-2">
@@ -1271,7 +1177,7 @@ export default function Home() {
                                           className={`text-[11px] font-semibold w-4 shrink-0 ${
                                             isSelected
                                               ? (isDark ? "text-zinc-600" : "text-zinc-300")
-                                              : (isDark ? "text-zinc-500" : "text-zinc-400")
+                                              : (isDark ? "text-zinc-500" : "text-zinc-500")
                                           }`}
                                         >
                                           {idx + 1}.
@@ -1315,7 +1221,7 @@ export default function Home() {
                             : "border-black bg-black text-white shadow-xs")
                         : (isDark
                             ? "border-zinc-750 bg-zinc-800/90 text-zinc-400 hover:bg-zinc-750 hover:text-zinc-200"
-                            : "border-zinc-200/90 bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70")
+                            : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70")
                     }`}
                     title="Aktifkan fitur Thinking / Web Browse"
                   >
@@ -1423,7 +1329,7 @@ export default function Home() {
             <div className="py-4 space-y-4">
               <div>
                 <label className={`text-xs font-bold uppercase tracking-wider block mb-2.5 ${
-                  isDark ? "text-zinc-400" : "text-zinc-500"
+                  isDark ? "text-zinc-400" : "text-black"
                 }`}>
                   Tema Tampilan
                 </label>
@@ -1439,7 +1345,7 @@ export default function Home() {
                             : "border-black bg-zinc-900 text-white shadow-md")
                         : (isDark
                             ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
-                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600")
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
                     }`}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
@@ -1459,7 +1365,7 @@ export default function Home() {
                       )}
                     </div>
                     <span className="text-xs font-bold block">Dark Mode</span>
-                    <span className="text-[10px] text-zinc-400 mt-0.5">Obsidian & gelap (Default)</span>
+                    <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Obsidian & gelap (Default)</span>
                   </button>
 
                   {/* Light Mode Card */}
@@ -1473,11 +1379,11 @@ export default function Home() {
                             : "border-black bg-white text-black shadow-md ring-1 ring-black/15")
                         : (isDark
                             ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
-                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600")
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
                     }`}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-800">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 border border-zinc-200 text-black">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
@@ -1493,7 +1399,7 @@ export default function Home() {
                       )}
                     </div>
                     <span className="text-xs font-bold block">Light Mode</span>
-                    <span className="text-[10px] text-zinc-400 mt-0.5">Monochrome & terang</span>
+                    <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Monochrome & terang</span>
                   </button>
                 </div>
               </div>
