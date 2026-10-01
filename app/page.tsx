@@ -91,6 +91,26 @@ function getTimeGreeting(): string {
   return "Good Night";
 }
 
+function cleanModelLabel(label: string): string {
+  return label.replace(/^\[[^\]]+\]\s*/, "").replace(/^\([^)]+\)\s*/, "");
+}
+
+function getModelCategory(m: ModelEntry): string {
+  const lbl = m.label.toLowerCase();
+  const prov = (m.provider || "").toLowerCase();
+
+  if (lbl.includes("llama")) return "Llama";
+  if (lbl.includes("deepseek")) return "DeepSeek";
+  if (prov === "gemini" || lbl.includes("gemini")) return "Gemini";
+  if (prov === "claude" || lbl.includes("claude")) return "Claude";
+  if (prov === "groq" || lbl.includes("groq")) return "Groq";
+  if (prov === "ollama" || lbl.includes("ollama")) return "Ollama";
+  if (prov === "openrouter" || lbl.includes("openrouter")) return "OpenRouter";
+  if (prov === "glm" || lbl.includes("glm")) return "GLM";
+  if (prov === "cloudflare" || lbl.includes("cloudflare")) return "Cloudflare";
+  return "Lainnya";
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
   const [input, setInput] = useState("");
@@ -382,6 +402,17 @@ export default function Home() {
   };
 
   const activeModelObj = models.find((m) => m.id === model) || models[0] || FALLBACK_MODELS[0];
+
+  const groupedCategories: { name: string; items: ModelEntry[] }[] = [];
+  for (const m of models) {
+    const catName = getModelCategory(m);
+    let group = groupedCategories.find((g) => g.name === catName);
+    if (!group) {
+      group = { name: catName, items: [] };
+      groupedCategories.push(group);
+    }
+    group.items.push(m);
+  }
 
   const quickPrompts = [
     {
@@ -878,7 +909,7 @@ export default function Home() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
                       <span className="truncate">
-                        {activeModelObj.label}
+                        {cleanModelLabel(activeModelObj.label)}
                       </span>
                       <svg className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200 ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -896,7 +927,7 @@ export default function Home() {
 
                     {/* Popover list (Responsive: Centered sheet on mobile, anchored popover on desktop) */}
                     {modelDropdownOpen && (
-                      <div className="fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-72 animate-in fade-in-0 zoom-in-95">
+                      <div className="fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] bg-white rounded-2xl border border-zinc-200 shadow-2xl p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-in-95">
                         <div className="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
                           <span>Pilih Model LLM ({models.length})</span>
                           <button
@@ -908,32 +939,62 @@ export default function Home() {
                             </svg>
                           </button>
                         </div>
-                        <div className="py-1 space-y-0.5">
-                          {models.map((m) => {
-                            const isSelected = m.id === model;
-                            return (
-                              <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => {
-                                  setModel(m.id);
-                                  setModelDropdownOpen(false);
-                                }}
-                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 sm:py-2 text-left text-xs transition cursor-pointer ${
-                                  isSelected
-                                    ? "bg-violet-600 text-white font-medium shadow-sm"
-                                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
-                                }`}
-                              >
-                                <span className="truncate pr-2">{m.label}</span>
-                                {isSelected && (
-                                  <svg className="w-4 h-4 shrink-0 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </button>
-                            );
-                          })}
+                        <div className="py-1 divide-y divide-zinc-100">
+                          {groupedCategories.map((group) => (
+                            <div key={group.name} className="py-1.5 first:pt-0.5 last:pb-0.5">
+                              <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-violet-600 flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-violet-600 shrink-0" />
+                                <span>{group.name}</span>
+                              </div>
+                              <div className="space-y-0.5">
+                                {group.items.map((m, idx) => {
+                                  const isSelected = m.id === model;
+                                  const cleanName = cleanModelLabel(m.label);
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setModel(m.id);
+                                        setModelDropdownOpen(false);
+                                      }}
+                                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition cursor-pointer ${
+                                        isSelected
+                                          ? "bg-violet-600 text-white font-medium shadow-sm"
+                                          : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 truncate pr-2">
+                                        <span
+                                          className={`text-[11px] font-semibold w-4 shrink-0 ${
+                                            isSelected ? "text-violet-200" : "text-zinc-400"
+                                          }`}
+                                        >
+                                          {idx + 1}.
+                                        </span>
+                                        <span className="truncate">{cleanName}</span>
+                                      </div>
+                                      {isSelected && (
+                                        <svg
+                                          className="w-4 h-4 shrink-0 text-white"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2.5}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
