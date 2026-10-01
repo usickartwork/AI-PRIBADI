@@ -17,7 +17,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
   
   // State untuk alur OTP
   const [otpCode, setOtpCode] = useState("");
-  const [activeOtp, setActiveOtp] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
 
   const [loading, setLoading] = useState(false);
@@ -106,7 +105,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       if (!res.ok || !data.success) {
         setErrorMsg(data.error || "Gagal membuat kode OTP verifikasi.");
       } else {
-        setActiveOtp(data.otp);
         setOtpCode("");
         setCountdown(60);
         setTab("otp");
@@ -194,7 +192,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       });
       const data = await res.json();
       if (data.success) {
-        setActiveOtp(data.otp);
         setCountdown(60);
       } else {
         setErrorMsg(data.error || "Gagal mengirim ulang OTP.");
@@ -442,45 +439,33 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
         {/* ─── TAB 3: SCREEN VERIFIKASI KODE OTP ─────────────────────────────── */}
         {tab === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            {/* Banner Kode OTP Verifikasi Aktif */}
+            {/* Informasi Pengiriman Kode OTP ke Email */}
             <div className={`p-4 rounded-2xl border text-center relative overflow-hidden ${
               isDark
                 ? "bg-[#111115] border-zinc-850 text-white"
                 : "bg-zinc-100 border-zinc-200 text-black"
             }`}>
-              <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <span>Kode Verifikasi OTP Anda:</span>
+                <span>Kode OTP Terkirim ke Email</span>
               </div>
-              
-              {/* Tampilan 6 digit angka OTP yang estetik */}
-              <div className="flex justify-center items-center gap-1.5 sm:gap-2 my-2 font-mono font-black text-2xl sm:text-3xl tracking-widest text-emerald-600 dark:text-emerald-400">
-                {activeOtp ? (
-                  activeOtp.split("").map((digit, idx) => (
-                    <span
-                      key={idx}
-                      className={`h-11 w-9 sm:h-12 sm:w-10 rounded-xl flex items-center justify-center border shadow-xs ${
-                        isDark ? "bg-[#191920] border-zinc-750 text-white" : "bg-white border-zinc-300 text-black"
-                      }`}
-                    >
-                      {digit}
-                    </span>
-                  ))
-                ) : (
-                  <span>------</span>
-                )}
+              <p className={`text-xs mt-1 ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
+                Kami telah mengirimkan 6-digit kode verifikasi ke:
+              </p>
+              <div className="mt-1 font-semibold text-xs text-emerald-600 dark:text-emerald-400 break-all">
+                {email}
               </div>
-              <p className={`text-[10.5px] mt-1.5 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                Berlaku selama 5 menit · Tanpa batasan kuota
+              <p className={`text-[11px] mt-2 ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
+                Silakan cek kotak masuk (Inbox) atau folder Spam Anda.<br/>Kode berlaku selama 5 menit.
               </p>
             </div>
 
             {/* Input 6 digit OTP */}
             <div>
               <label className={`block text-xs font-bold mb-1.5 text-center ${isDark ? "text-zinc-300" : "text-black"}`}>
-                Ketik 6-Digit Kode di Atas:
+                Masukkan 6-Digit Kode OTP dari Email:
               </label>
               <input
                 type="text"

@@ -1,7 +1,68 @@
 import { NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 
-// Penyimpanan OTP sementara (email -> { otp, expiresAt })
+// Penyimpanan OTP sementara di memory server (email -> { otp, expiresAt })
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+// Helper pengiriman email via Resend REST API
+async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Usick AI <onboarding@resend.dev>",
+      to: [toEmail],
+      subject: `Kode Verifikasi OTP: ${otp} - Usick AI`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
+          <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
+          <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">Berikut adalah kode verifikasi OTP untuk menyelesaikan pendaftaran akun Anda:</p>
+          <div style="display: inline-block; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #34d399; font-family: monospace; margin-bottom: 24px;">
+            ${otp}
+          </div>
+          <p style="color: #71717a; font-size: 12px; line-height: 1.5;">Kode verifikasi ini hanya berlaku selama 5 menit.<br/>Jika Anda tidak meminta pendaftaran ini, abaikan pesan ini.</p>
+        </div>
+      `,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.error || "Gagal mengirim email via Resend.");
+  }
+  return data;
+}
+
+// Helper pengiriman email via Gmail SMTP (Nodemailer)
+async function sendViaGmail(user: string, pass: string, toEmail: string, otp: string) {
+  const cleanPass = pass.replace(/\s+/g, "");
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user,
+      pass: cleanPass,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"Usick AI" <${user}>`,
+    to: toEmail,
+    subject: `Kode Verifikasi OTP: ${otp} - Usick AI`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
+        <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">Berikut adalah kode verifikasi OTP untuk menyelesaikan pendaftaran akun Anda:</p>
+        <div style="display: inline-block; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #34d399; font-family: monospace; margin-bottom: 24px;">
+          ${otp}
+        </div>
+        <p style="color: #71717a; font-size: 12px; line-height: 1.5;">Kode verifikasi ini hanya berlaku selama 5 menit.<br/>Jika Anda tidak meminta pendaftaran ini, abaikan pesan ini.</p>
+      </div>
+    `,
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,21 +71,52 @@ export async function POST(request: Request) {
 
     const normalizedEmail = String(email || "").trim().toLowerCase();
     if (!normalizedEmail) {
-      return NextResponse.json({ success: false, error: "Email diperlukan." }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Alamat email diperlukan." }, { status: 400 });
     }
 
-    // ─── 1. KIRIM / GENERATE KODE OTP ──────────────────────────────────────────
+    // ─── 1. KIRIM KODE OTP KE EMAIL PENGGUNA ────────────────────────────────────
     if (action === "send") {
-      // Buat 6 digit kode OTP acak
       const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = Date.now() + 5 * 60 * 1000; // Berlaku 5 menit
 
+      const resendKey = process.env.RESEND_API_KEY?.trim();
+      const gmailUser = process.env.GMAIL_USER?.trim();
+      const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim();
+
+      // Pastikan ada salah satu provider pengirim email
+      if (!resendKey && (!gmailUser || !gmailPass)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Layanan email belum dikonfigurasi. Harap isi RESEND_API_KEY atau GMAIL_USER & GMAIL_APP_PASSWORD di environment variable.",
+          },
+          { status: 500 }
+        );
+      }
+
+      try {
+        if (resendKey) {
+          await sendViaResend(resendKey, normalizedEmail, generatedOtp);
+        } else if (gmailUser && gmailPass) {
+          await sendViaGmail(gmailUser, gmailPass, normalizedEmail, generatedOtp);
+        }
+      } catch (err: unknown) {
+        console.error("Error sending OTP email:", err);
+        return NextResponse.json(
+          {
+            success: false,
+            error: err instanceof Error ? err.message : "Gagal mengirimkan kode OTP ke email Anda.",
+          },
+          { status: 500 }
+        );
+      }
+
+      // Simpan OTP hanya jika email berhasil terkirim
       otpStore.set(normalizedEmail, { otp: generatedOtp, expiresAt });
 
       return NextResponse.json({
         success: true,
-        otp: generatedOtp,
-        message: "Kode OTP verifikasi berhasil dibuat.",
+        message: `Kode OTP 6-digit berhasil dikirim ke ${normalizedEmail}.`,
       });
     }
 
@@ -34,7 +126,7 @@ export async function POST(request: Request) {
 
       if (!record) {
         return NextResponse.json(
-          { success: false, error: "Kode OTP belum diminta atau sudah kedaluwarsa. Silakan kirim ulang." },
+          { success: false, error: "Kode OTP belum diminta atau sudah kedaluwarsa. Silakan kirim ulang kode." },
           { status: 400 }
         );
       }
@@ -42,7 +134,7 @@ export async function POST(request: Request) {
       if (Date.now() > record.expiresAt) {
         otpStore.delete(normalizedEmail);
         return NextResponse.json(
-          { success: false, error: "Kode OTP sudah kedaluwarsa. Silakan minta kode baru." },
+          { success: false, error: "Kode OTP sudah kedaluwarsa (lebih dari 5 menit). Silakan kirim ulang kode." },
           { status: 400 }
         );
       }
@@ -50,20 +142,23 @@ export async function POST(request: Request) {
       const inputCode = String(code || "").trim();
       if (record.otp !== inputCode) {
         return NextResponse.json(
-          { success: false, error: "Kode OTP salah. Periksa kembali 6-digit kode verifikasi Anda." },
+          { success: false, error: "Kode OTP salah. Periksa kembali 6 angka yang dikirimkan ke email Anda." },
           { status: 400 }
         );
       }
 
-      // Berhasil diverifikasi: hapus OTP dari antrian agar tidak bisa dipakai ulang
+      // Berhasil diverifikasi: hapus OTP agar tidak dapat digunakan ulang
       otpStore.delete(normalizedEmail);
       return NextResponse.json({ success: true, message: "Kode OTP valid." });
     }
 
     return NextResponse.json({ success: false, error: "Aksi tidak dikenal." }, { status: 400 });
-  } catch {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: "Terjadi kesalahan pada server saat memproses OTP." },
+      {
+        success: false,
+        error: err instanceof Error ? err.message : "Terjadi kesalahan pada server saat memproses OTP.",
+      },
       { status: 500 }
     );
   }
