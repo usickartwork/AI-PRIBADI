@@ -288,6 +288,28 @@ export default function Home() {
       let fullText = "";
       let buffer = "";
 
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const appendSmoothly = async (textChunk: string) => {
+        if (!textChunk) return;
+        // Jika chunk pendek (1-3 karakter), langsung tampilkan instan
+        if (textChunk.length <= 3) {
+          fullText += textChunk;
+          updateAssistantContent(assistantId, fullText);
+          return;
+        }
+
+        // Jika chunk berupa blok kata/kalimat sekaligus (burst dari upstream),
+        // pecah menjadi sub-chunk halus (3-5 karakter) dengan jeda 12ms agar animasi mengetik halus terlihat
+        const step = Math.max(2, Math.floor(textChunk.length / 10));
+        for (let i = 0; i < textChunk.length; i += step) {
+          const slice = textChunk.slice(i, i + step);
+          fullText += slice;
+          updateAssistantContent(assistantId, fullText);
+          await sleep(12);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -316,9 +338,8 @@ export default function Home() {
                 chunk.choices?.[0]?.delta?.content ??
                 chunk.choices?.[0]?.message?.content;
               if (delta) {
-                fullText += delta;
-                updateAssistantContent(assistantId, fullText);
                 setStatusMessage(null);
+                await appendSmoothly(delta);
               }
             }
           } catch {}
@@ -341,8 +362,7 @@ export default function Home() {
                   chunk.choices?.[0]?.delta?.content ??
                   chunk.choices?.[0]?.message?.content;
                 if (delta) {
-                  fullText += delta;
-                  updateAssistantContent(assistantId, fullText);
+                  await appendSmoothly(delta);
                 }
               }
             } catch {}
