@@ -277,8 +277,9 @@ export async function POST(request: Request) {
   if (isCloudflareDeepSeekR1) {
     const r1Instruction =
       "\n\nPENTING UNTUK DEEPSEEK R1:\n" +
-      "- Berikan jawaban akhir Anda HANYA dalam Bahasa Indonesia yang alami, luwes, dan mengalir seperti percakapan manusia berpendidikan tinggi.\n" +
-      "- Hindari bahasa klise AI dan pembuka kaku (JANGAN gunakan kata-kata seperti 'Sebagai AI', 'Sebagai model kecerdasan buatan', 'Tentu saja!', atau mengulangi pertanyaan pengguna).\n" +
+      "- Berikan jawaban akhir Anda HANYA dalam Bahasa Indonesia yang alami, santai, dan to the point.\n" +
+      "- JANGAN melakukan penalaran panjang yang berbelit-belit. Selesaikan proses berpikir secepat dan seringkas mungkin (maksimal 1-2 kalimat saja).\n" +
+      "- Hindari bahasa klise robotik AI (hindari kata 'Sebagai AI', 'Tentu saja!', atau mengulangi pertanyaan pengguna).\n" +
       "- Langsung berikan jawaban yang cerdas, praktis, dan to the point.";
 
     const sysIdx = messages.findIndex((m) => m.role === "system");
@@ -519,6 +520,7 @@ export async function POST(request: Request) {
           let thinkBuffer = "";
           let inThink = false;
           let isFirstToken = true;
+          let lastPing = Date.now();
           const decoder = new TextDecoder();
 
           function emitText(text: string) {
@@ -537,6 +539,13 @@ export async function POST(request: Request) {
 
           function processDeltaText(deltaText: string) {
             thinkBuffer += deltaText;
+
+            // Keep connection alive while model is thinking (prevents Vercel 15s timeout)
+            const now = Date.now();
+            if (now - lastPing > 1000) {
+              lastPing = now;
+              controller.enqueue(encoder.encode(": keep-alive\n\n"));
+            }
 
             if (!inThink) {
               const startIdx = thinkBuffer.indexOf("<think>");
@@ -612,7 +621,20 @@ export async function POST(request: Request) {
               }
             }
 
-            if (!inThink && thinkBuffer) {
+            if (inThink && isFirstToken) {
+              // The model finished or was cut off while still in thinking phase
+              const cleaned = thinkBuffer
+                .replace(/<think>[\s\S]*?<\/think>/g, "")
+                .replace(/<think>[\s\S]*/g, "")
+                .trim();
+              if (cleaned) {
+                emitText(cleaned);
+              } else {
+                emitText(
+                  "Mohon maaf, proses penalaran model memakan waktu terlalu lama. Silakan coba tanyakan kembali dengan lebih ringkas, atau pilih model [Cloudflare] Llama 3.3 / Llama 3.1 yang merespons instan tanpa delay."
+                );
+              }
+            } else if (!inThink && thinkBuffer) {
               emitText(thinkBuffer);
               thinkBuffer = "";
             }
