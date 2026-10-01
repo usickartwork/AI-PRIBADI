@@ -957,7 +957,7 @@ export default function Home() {
     setIsStreaming(true);
     setIsUserScrolledUp(false);
     if (webSearchEnabled) {
-      setStatusMessage("Thinking & Browsing the web...");
+      setStatusMessage("Browsing the web...");
     } else {
       setStatusMessage(null);
     }
@@ -1561,10 +1561,7 @@ export default function Home() {
                 </svg>
               </div>
               <div>
-                <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
-                <span className={`ml-1.5 rounded-full px-1.5 py-0.2 text-[10px] font-semibold border ${
-                  isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
-                }`}>v2.0</span>
+                <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
               </div>
             </div>
             <button
@@ -1604,27 +1601,6 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               <span>Chats</span>
-            </div>
-
-            <div
-              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-              className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
-                webSearchEnabled
-                  ? (isDark ? "bg-white text-black font-semibold shadow-xs" : "bg-black text-white font-semibold shadow-xs")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? (isDark ? "text-black" : "text-white") : (isDark ? "text-zinc-400" : "text-black")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <span>Thinking (Browse)</span>
-              </span>
-              <span className={`h-2 w-2 rounded-full ${
-                webSearchEnabled
-                  ? (isDark ? "bg-black animate-pulse" : "bg-white animate-pulse")
-                  : (isDark ? "bg-zinc-700" : "bg-zinc-300")
-              }`} />
             </div>
 
             <div
@@ -1807,7 +1783,7 @@ export default function Home() {
                   <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                 </svg>
               </div>
-              <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick V1</span>
+              <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
             </div>
           </div>
 
@@ -1874,7 +1850,7 @@ export default function Home() {
 
                 {/* Headline */}
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
-                  {getTimeGreeting()}, Usick V1
+                  {getTimeGreeting()}, Usick One
                 </h1>
                 <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?
@@ -2476,7 +2452,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Thinking (Browse) Toggle Switch */}
+                  {/* Browse Toggle Switch */}
                   <button
                     type="button"
                     onClick={() => setWebSearchEnabled(!webSearchEnabled)}
@@ -2489,7 +2465,7 @@ export default function Home() {
                             ? "border-zinc-750 bg-zinc-800/90 text-zinc-400 hover:bg-zinc-750 hover:text-zinc-200"
                             : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70")
                     }`}
-                    title="Aktifkan fitur Thinking / Web Browse"
+                    title="Aktifkan fitur Browse / Web Search"
                   >
                     <div className={`relative h-3.5 w-6 rounded-full transition-colors ${
                       webSearchEnabled
@@ -2502,7 +2478,7 @@ export default function Home() {
                           : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
                       }`} />
                     </div>
-                    <span>Thinking</span>
+                    <span>Browse</span>
                   </button>
 
                 </div>

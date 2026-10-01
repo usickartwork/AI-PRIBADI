@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Usick V1",
+  title: "Usick One",
   description: "Personal AI Assistant",
 };
 
