@@ -42,7 +42,7 @@ const STORAGE_KEY = "filius-ai-history";
 
 // 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
-  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick Pro", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick One", provider: "novita" },
   { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
@@ -68,12 +68,13 @@ const FALLBACK_MODELS: ModelEntry[] = [
 ];
 
 const SYSTEM_PROMPT =
-  "Kamu adalah Usick V1, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
-  "Aturan Jawaban:\n" +
-  "1. Berikan jawaban yang mendalam, terstruktur rapi, dan mudah dipahami dalam bahasa Indonesia.\n" +
-  "2. Gunakan Markdown yang kaya (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel) untuk menyusun jawaban agar terlihat rapi dan profesional seperti ChatGPT.\n" +
-  "3. Untuk potongan kode/program, SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python atau ```javascript).\n" +
-  "4. Jawab pertanyaan pengguna secara akurat, lugas, solutif, dan berikan penjelasan konseptual bila relevan.";
+  "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
+  "Pedoman Jawaban:\n" +
+  "1. Identitas: Jika ditanya siapa dirimu, jawablah dengan bangga bahwa kamu adalah Usick One, asisten AI pintar yang siap membantu berbagai keperluan seperti analisis, pemrograman, penulisan, dan pemecahan masalah.\n" +
+  "2. Kualitas: Berikan jawaban yang mendalam, terstruktur rapi, logis, dan mengalir secara alami dalam bahasa Indonesia yang baik.\n" +
+  "3. Format: Gunakan format Markdown yang bersih dan profesional (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel jika relevan).\n" +
+  "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang bersih dan siap dijalankan.\n" +
+  "5. Responsivitas: Jawab secara langsung, lugas, solutif, tanpa repetisi berlebihan, dan berikan penjelasan konseptual bila diperlukan.";
 
 function generateUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -685,9 +686,12 @@ export default function Home() {
               updateAssistantSearchError(assistantId, chunk.error);
               setStatusMessage(null);
             } else {
+              const reasoning = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
+              if (reasoning && !statusMessage) {
+                setStatusMessage("Sedang berpikir...");
+              }
               const delta =
                 chunk.choices?.[0]?.delta?.content ||
-                (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content ||
                 chunk.choices?.[0]?.message?.content;
               if (delta) {
                 setStatusMessage(null);
@@ -712,7 +716,6 @@ export default function Home() {
               } else {
                 const delta =
                   chunk.choices?.[0]?.delta?.content ||
-                  (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content ||
                   chunk.choices?.[0]?.message?.content;
                 if (delta) {
                   await appendSmoothly(delta);
@@ -805,11 +808,29 @@ export default function Home() {
     }
     group.items.push(m);
   }
-  // Usick category always placed at the very top
+  // Kategori Usick selalu di atas, dan Qwen diletakkan tepat di bawah DeepSeek
+  const CATEGORY_ORDER = [
+    "Usick",
+    "ChatGPT",
+    "DeepSeek",
+    "Qwen",
+    "Claude",
+    "Gemini",
+    "Llama",
+    "Groq",
+    "Ollama",
+    "OpenRouter",
+    "Cloudflare",
+    "GLM",
+    "MiniMax",
+    "Lainnya",
+  ];
   groupedCategories.sort((a, b) => {
-    if (a.name === "Usick") return -1;
-    if (b.name === "Usick") return 1;
-    return 0;
+    const idxA = CATEGORY_ORDER.indexOf(a.name);
+    const idxB = CATEGORY_ORDER.indexOf(b.name);
+    const posA = idxA === -1 ? 999 : idxA;
+    const posB = idxB === -1 ? 999 : idxB;
+    return posA - posB;
   });
 
   const userDisplayName =
@@ -1548,36 +1569,19 @@ export default function Home() {
                                             Limit
                                           </span>
                                         ) : isSelected ? (
-                                          <div className="flex items-center gap-1.5 shrink-0">
-                                            {isUsick && (
-                                              <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-sm ${
-                                                isDark ? "bg-black/10 text-black" : "bg-white/20 text-white"
-                                              }`}>
-                                                Pro
-                                              </span>
-                                            )}
-                                            <svg
-                                              className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2.5}
-                                                d="M5 13l4 4L19 7"
-                                              />
-                                            </svg>
-                                          </div>
-                                        ) : isUsick ? (
-                                          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
-                                            isDark
-                                              ? "bg-white/15 text-white"
-                                              : "bg-black/10 text-black"
-                                          }`}>
-                                            Pro
-                                          </span>
+                                          <svg
+                                            className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2.5}
+                                              d="M5 13l4 4L19 7"
+                                            />
+                                          </svg>
                                         ) : null}
                                       </button>
                                     );

@@ -12,7 +12,7 @@ type ModelEntry = {
 
 const ALL_MODELS: ModelEntry[] = [
   // ── Usick Flagship (Default) ──────────────────────────────────────────────
-  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick Pro", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick One", provider: "novita" },
 
   // ── Qwen (Novita AI Engine) ───────────────────────────────────────────────
   { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
