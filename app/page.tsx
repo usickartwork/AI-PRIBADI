@@ -106,6 +106,47 @@ function cleanModelLabel(label: string): string {
   return label.replace(/^\[[^\]]+\]\s*/, "").replace(/^\([^)]+\)\s*/, "");
 }
 
+const VISION_SUPPORTED_LIST = [
+  "DeepSeek V4.1 Flash (Auto)",
+  "DeepSeek V4 Flash",
+  "DeepSeek V4 Flash (0731)",
+  "DeepSeek V4 Pro",
+  "DeepSeek V4 Pro (0813)",
+  "Gemini 3.7 Flash (Auto)",
+  "Gemini 3.7 Flash",
+  "GPT-5.6 Sol",
+  "GLM-5.3 Flash",
+  "GLM 5.3",
+  "GLM-5.2",
+  "MiniMax M3",
+];
+
+function isVisionSupported(modelId: string): boolean {
+  if (
+    modelId.startsWith("claude:") ||
+    modelId.startsWith("anthropic:") ||
+    modelId.startsWith("gemini:")
+  ) {
+    return true;
+  }
+  if (modelId.startsWith("custom:")) {
+    const lower = modelId.toLowerCase();
+    return (
+      lower.includes("deepseek-v4") ||
+      lower.includes("gemini") ||
+      lower.includes("gpt") ||
+      lower.includes("glm") ||
+      lower.includes("minimax")
+    );
+  }
+  return false;
+}
+
+function getVisionUnsupportedNotice(modelLabel: string): string {
+  const listItems = VISION_SUPPORTED_LIST.map((m) => `• **${m}**`).join("\n");
+  return `Model **${cleanModelLabel(modelLabel)}** saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah daftar model yang **mendukung analisis foto / Vision**:\n${listItems}\n\nSilakan pilih salah satu model di atas pada menu pilihan model untuk menganalisis foto Anda.`;
+}
+
 function getModelCategory(m: ModelEntry): string {
   const lbl = m.label.toLowerCase();
   const id = m.id.toLowerCase();
@@ -634,6 +675,42 @@ export default function Home() {
     let assistantId = "";
     let userMsgId = "";
 
+    const currentModelObj = models.find((m) => m.id === model) || FALLBACK_MODELS[0];
+
+    // Jika user mengirim foto dengan model yang tidak mendukung analisis gambar / vision
+    if (activeImage && !isVisionSupported(currentModelObj.id)) {
+      clearTimeout(timeoutId);
+      setError(null);
+      userMsgId = generateUUID();
+      const userMsg: ChatMessage = {
+        id: userMsgId,
+        role: "user",
+        content: text,
+        image: activeImage,
+      };
+
+      assistantId = generateUUID();
+      const assistantMsg: ChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        content: getVisionUnsupportedNotice(currentModelObj.label),
+      };
+
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      if (!customPrompt) setInput("");
+      setSelectedImage(null);
+
+      // Foto dibersihkan setelah respon selesai (sesuai brief foto tidak masuk database)
+      setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMsgId ? { ...m, image: undefined } : m))
+        );
+      }, 1000);
+
+      setIsStreaming(false);
+      return;
+    }
+
     try {
       userMsgId = generateUUID();
       const userMsg: ChatMessage = {
@@ -654,7 +731,6 @@ export default function Home() {
       setMessages(updatedMessages);
       if (!customPrompt) setInput("");
 
-      const currentModelObj = models.find((m) => m.id === model) || FALLBACK_MODELS[0];
       const systemPrompt = getSystemPrompt(currentModelObj);
 
       const apiMessages = [
@@ -706,8 +782,7 @@ export default function Home() {
         if (isVisionUnsupported) {
           setError(null);
           const noticeMsg =
-            errJson.error ||
-            `Model "${cleanModelLabel(activeModelObj.label)}" saat ini tidak mendukung analisis gambar atau foto. Silakan beralih ke model yang mendukung Vision (seperti Gemini 3.5 Flash Lite atau Claude 3.7 Sonnet) untuk menganalisis foto ini.`;
+            errJson.error || getVisionUnsupportedNotice(activeModelObj.label);
           updateAssistantContent(assistantId, noticeMsg);
           return;
         }
@@ -1616,26 +1691,37 @@ export default function Home() {
 
               {/* Photo Attachment Thumbnail Preview (ChatGPT Style) */}
               {selectedImage && (
-                <div className="mb-2 px-1 relative inline-flex items-center">
-                  <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 shadow-lg group bg-black/20">
-                    <img
-                      src={selectedImage}
-                      alt="Foto Kamera"
-                      className="h-16 w-16 sm:h-20 sm:w-20 object-cover cursor-pointer hover:opacity-90 transition"
-                      onClick={() => setPreviewImage(selectedImage)}
-                      title="Klik untuk melihat pratinjau"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSelectedImage(null)}
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition shadow cursor-pointer"
-                      title="Hapus foto"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                <div className="mb-2 px-1 flex flex-wrap items-center gap-2">
+                  <div className="relative inline-flex items-center">
+                    <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 shadow-lg group bg-black/20">
+                      <img
+                        src={selectedImage}
+                        alt="Foto Kamera"
+                        className="h-16 w-16 sm:h-20 sm:w-20 object-cover cursor-pointer hover:opacity-90 transition"
+                        onClick={() => setPreviewImage(selectedImage)}
+                        title="Klik untuk melihat pratinjau"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedImage(null)}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition shadow cursor-pointer"
+                        title="Hapus foto"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
+
+                  {!isVisionSupported(model) && (
+                    <div className="text-[11px] sm:text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-xl">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Model ini tidak support foto. Pilih salah satu model Vision saat mengirim.</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1834,6 +1920,19 @@ export default function Home() {
                                             {idx + 1}.
                                           </span>
                                           <span className="truncate">{cleanName}</span>
+                                          {isVisionSupported(m.id) && (
+                                            <span
+                                              className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 border ${
+                                                isSelected
+                                                  ? (isDark
+                                                      ? "bg-black/10 text-emerald-800 border-black/20"
+                                                      : "bg-white/20 text-emerald-200 border-white/30")
+                                                  : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
+                                              }`}
+                                            >
+                                              Vision
+                                            </span>
+                                          )}
                                         </div>
                                         {isDisabled ? (
                                           <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
