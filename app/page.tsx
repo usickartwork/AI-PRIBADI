@@ -19,6 +19,7 @@ type ChatMessage = {
   role: Role;
   content: string;
   image?: string;
+  fileName?: string;
   sources?: SearchSource[];
   searchError?: string;
 };
@@ -367,6 +368,13 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{
+    name: string;
+    size: number;
+    type: string;
+    content?: string;
+  } | null>(null);
 
   // Supabase Auth Session listener
   useEffect(() => {
@@ -453,7 +461,9 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const inputDropdownRef = useRef<HTMLDivElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
   const handleCameraUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -484,6 +494,7 @@ export default function Home() {
           ctx.drawImage(img, 0, 0, w, h);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setSelectedImage(dataUrl);
+          setSelectedFile(null);
           setTimeout(() => {
             textareaRef.current?.focus();
           }, 50);
@@ -495,7 +506,87 @@ export default function Home() {
     e.target.value = "";
   };
 
-  // Close dropdown on outside click
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Jika user memilih foto/gambar di opsi file, alihkan ke pemrosesan gambar
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1280;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            setSelectedImage(dataUrl);
+            setSelectedFile(null);
+            setTimeout(() => {
+              textareaRef.current?.focus();
+            }, 50);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+      return;
+    }
+
+    const isTextFile =
+      file.type.startsWith("text/") ||
+      /\.(txt|md|csv|json|js|jsx|ts|tsx|py|html|css|xml|yaml|yml|sql|sh|log|env)$/i.test(
+        file.name
+      );
+
+    if (isTextFile) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setSelectedFile({
+          name: file.name,
+          size: file.size,
+          type: file.type || "text/plain",
+          content: content.slice(0, 50000),
+        });
+        setSelectedImage(null);
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 50);
+      };
+      reader.readAsText(file);
+    } else {
+      setSelectedFile({
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+      });
+      setSelectedImage(null);
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+    }
+
+    e.target.value = "";
+  };
+
+  // Close dropdown and attach menu on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -503,6 +594,12 @@ export default function Home() {
         !inputDropdownRef.current.contains(e.target as Node)
       ) {
         setModelDropdownOpen(false);
+      }
+      if (
+        attachMenuRef.current &&
+        !attachMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowAttachMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -617,11 +714,19 @@ export default function Home() {
     }
 
     const activeImage = selectedImage;
+    const activeFile = selectedFile;
     const rawText = (customPrompt || input).trim();
-    const text = rawText || (activeImage ? "Tolong analisis dan jelaskan foto ini secara rinci." : "");
-    if ((!text && !activeImage) || isStreaming) return;
+    const text =
+      rawText ||
+      (activeImage
+        ? "Tolong analisis dan jelaskan foto ini secara rinci."
+        : activeFile
+        ? `Tolong analisis isi file ${activeFile.name} ini.`
+        : "");
+    if ((!text && !activeImage && !activeFile) || isStreaming) return;
 
     setSelectedImage(null);
+    setSelectedFile(null);
     closeSidebarOnMobile();
     setError(null);
     setIsStreaming(true);
@@ -686,6 +791,7 @@ export default function Home() {
         role: "user",
         content: text,
         image: activeImage || undefined,
+        fileName: activeFile?.name,
       };
 
       assistantId = generateUUID();
@@ -705,11 +811,21 @@ export default function Home() {
         { role: "system", content: systemPrompt },
         ...updatedMessages
           .filter((m) => m.id !== assistantId)
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-            image: m.image,
-          })),
+          .map((m) => {
+            let content = m.content;
+            if (m.id === userMsgId && activeFile) {
+              if (activeFile.content) {
+                content = `[File terlampir: ${activeFile.name}]\n\`\`\`\n${activeFile.content}\n\`\`\`\n\n${text || "Tolong analisis isi file ini."}`;
+              } else {
+                content = `[File terlampir: ${activeFile.name} (${(activeFile.size / 1024).toFixed(1)} KB)]\n\n${text || "Tolong analisis file ini."}`;
+              }
+            }
+            return {
+              role: m.role,
+              content,
+              image: m.image,
+            };
+          }),
       ];
 
       const res = await fetch("/api/chat", {
@@ -1470,6 +1586,14 @@ export default function Home() {
                             />
                           </div>
                         )}
+                        {msg.fileName && (
+                          <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/10 border border-white/15 text-white shadow-xs">
+                            <svg className="w-4 h-4 shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="truncate max-w-[200px]">{msg.fileName}</span>
+                          </div>
+                        )}
                         {msg.content && (
                           <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
                         )}
@@ -1682,28 +1806,115 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Textarea Row with Camera Icon Button on the Left */}
+              {/* File Attachment Chip Preview (ChatGPT Style) */}
+              {selectedFile && (
+                <div className="mb-2 px-1 relative inline-flex items-center">
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl border shadow-sm ${
+                    isDark
+                      ? "bg-zinc-800/90 border-zinc-700/80 text-zinc-100"
+                      : "bg-zinc-100 border-zinc-200 text-zinc-900"
+                  }`}>
+                    <div className={`p-1.5 rounded-lg ${isDark ? "bg-zinc-700 text-white" : "bg-white text-black shadow-xs"}`}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col min-w-0 pr-1">
+                      <span className="text-xs font-medium truncate max-w-[160px] sm:max-w-[220px]">{selectedFile.name}</span>
+                      <span className="text-[10px] text-zinc-500">{(selectedFile.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFile(null)}
+                      className="h-5 w-5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition cursor-pointer text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                      title="Hapus file"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Textarea Row with Plus Attachment Button on the Left */}
               <div className="flex items-center gap-1 sm:gap-1.5 w-full">
-                {/* Tombol Kamera (Cuma Icon Kamera Saja di Kiri) */}
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                    selectedImage
-                      ? isDark
-                        ? "text-white bg-zinc-800 border border-zinc-700/80 shadow-xs"
-                        : "text-black bg-zinc-200 border border-zinc-300 shadow-xs"
-                      : isDark
-                      ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
-                      : "text-zinc-500 hover:text-black hover:bg-zinc-100"
-                  }`}
-                  title="Ambil foto atau pilih dari galeri"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
+                {/* Tombol Plus Attachment Menu (Kamera & File) */}
+                <div className="relative shrink-0" ref={attachMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachMenu((prev) => !prev)}
+                    className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
+                      showAttachMenu || selectedImage || selectedFile
+                        ? isDark
+                          ? "text-white bg-zinc-800 border border-zinc-700/80 shadow-xs"
+                          : "text-black bg-zinc-200 border border-zinc-300 shadow-xs"
+                        : isDark
+                        ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                        : "text-zinc-500 hover:text-black hover:bg-zinc-100"
+                    }`}
+                    title="Lampirkan foto atau file"
+                  >
+                    <svg
+                      className={`w-5 h-5 transition-transform duration-200 ${showAttachMenu ? "rotate-45" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+
+                  {/* Popup Menu: Kamera & File */}
+                  {showAttachMenu && (
+                    <div
+                      className={`absolute bottom-full left-0 mb-2 w-40 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 animate-in fade-in-0 zoom-in-95 duration-150 ${
+                        isDark
+                          ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
+                          : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
+                      }`}
+                    >
+                      {/* Opsi Kamera */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          cameraInputRef.current?.click();
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                          isDark
+                            ? "hover:bg-zinc-800 text-zinc-200 hover:text-white"
+                            : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                        }`}
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Kamera</span>
+                      </button>
+
+                      {/* Opsi File */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          fileInputRef.current?.click();
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                          isDark
+                            ? "hover:bg-zinc-800 text-zinc-200 hover:text-white"
+                            : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                        }`}
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>File</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <textarea
                   ref={textareaRef}
@@ -1713,7 +1924,13 @@ export default function Home() {
                     autoResize();
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder={selectedImage ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..." : "Ask AI a question or make a request..."}
+                  placeholder={
+                    selectedImage
+                      ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..."
+                      : selectedFile
+                      ? `Ketik perintah untuk file ${selectedFile.name}...`
+                      : "Ask AI a question or make a request..."
+                  }
                   rows={1}
                   className={`flex-1 bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
                     isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
@@ -1729,6 +1946,14 @@ export default function Home() {
                 accept="image/*"
                 className="hidden"
                 onChange={handleCameraUpload}
+              />
+
+              {/* Native System File Picker Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
               />
 
               {/* Bottom Actions Bar inside Liquid Glass Card */}
