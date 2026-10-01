@@ -67,15 +67,6 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "custom:clario/minimax-m3", label: "[Custom] MiniMax M3", provider: "custom" },
 ];
 
-const SYSTEM_PROMPT =
-  "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
-  "Pedoman Jawaban:\n" +
-  "1. Identitas: Jika ditanya siapa dirimu, jawablah dengan bangga bahwa kamu adalah Usick One, asisten AI pintar yang siap membantu berbagai keperluan seperti analisis, pemrograman, penulisan, dan pemecahan masalah.\n" +
-  "2. Kualitas: Berikan jawaban yang mendalam, terstruktur rapi, logis, dan mengalir secara alami dalam bahasa Indonesia yang baik.\n" +
-  "3. Format: Gunakan format Markdown yang bersih dan profesional (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel jika relevan).\n" +
-  "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang bersih dan siap dijalankan.\n" +
-  "5. Responsivitas: Jawab secara langsung, lugas, solutif, tanpa repetisi berlebihan, dan berikan penjelasan konseptual bila diperlukan.";
-
 function generateUUID(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     try {
@@ -136,6 +127,33 @@ function getModelCategory(m: ModelEntry): string {
   if (prov === "ollama" || lbl.includes("ollama")) return "Ollama";
   if (prov === "cloudflare" || lbl.includes("cloudflare")) return "Cloudflare";
   return "Lainnya";
+}
+
+function getSystemPrompt(m?: ModelEntry): string {
+  const isUsick = m && getModelCategory(m) === "Usick";
+
+  if (isUsick) {
+    return (
+      "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
+      "Pedoman Jawaban:\n" +
+      "1. Identitas: Jika ditanya siapa dirimu, jawablah bahwa kamu adalah Usick One, asisten AI pintar yang siap membantu berbagai keperluan seperti analisis, pemrograman, penulisan, dan pemecahan masalah.\n" +
+      "2. Kualitas: Berikan jawaban yang mendalam, terstruktur rapi, logis, dan mengalir secara alami dalam bahasa Indonesia yang baik.\n" +
+      "3. Format: Gunakan format Markdown yang bersih dan profesional (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel jika relevan).\n" +
+      "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang bersih dan siap dijalankan.\n" +
+      "5. Responsivitas: Jawab secara langsung, lugas, solutif, tanpa repetisi berlebihan, dan berikan penjelasan konseptual bila diperlukan."
+    );
+  }
+
+  // Model lainnya tetap sesuai identitas aslinya (Claude, ChatGPT, DeepSeek, Gemini, Qwen, dll.)
+  return (
+    "Kamu adalah asisten kecerdasan buatan yang profesional, cerdas, dan ramah.\n\n" +
+    "Pedoman Jawaban:\n" +
+    "1. Identitas: Tetap gunakan identitas dan nama model AI bawaanmu secara konsisten jika ditanya siapa dirimu. Jangan mengubah atau mengganti identitas aslimu.\n" +
+    "2. Kualitas: Berikan jawaban yang akurat, berbobot, terstruktur rapi, dan mudah dipahami dalam bahasa Indonesia yang baik.\n" +
+    "3. Format: Gunakan format Markdown yang bersih (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel bila relevan).\n" +
+    "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang siap pakai.\n" +
+    "5. Responsivitas: Jawab secara lugas, solutif, dan ramah."
+  );
 }
 
 function ModelCategoryIcon({ category }: { category: string }) {
@@ -567,8 +585,11 @@ export default function Home() {
       setMessages(updatedMessages);
       if (!customPrompt) setInput("");
 
+      const currentModelObj = models.find((m) => m.id === model) || FALLBACK_MODELS[0];
+      const systemPrompt = getSystemPrompt(currentModelObj);
+
       const apiMessages = [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         ...updatedMessages
           .filter((m) => m.id !== assistantId)
           .map((m) => ({ role: m.role, content: m.content })),
