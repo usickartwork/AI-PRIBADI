@@ -493,39 +493,38 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-[#fafafc] text-zinc-900 font-sans antialiased">
+    <div className="flex h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-[#0d0d0f] text-zinc-900 font-sans antialiased p-0 sm:p-3 md:p-4">
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-zinc-900/30 backdrop-blur-[2px] md:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
 
       {/* ─── SIDEBAR (Responsive / Mobile-Friendly Drawer) ─────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-zinc-200/80 bg-white shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out md:static md:w-64 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border border-zinc-200/80 bg-white/95 backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out md:static md:w-64 md:mr-3 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:pointer-events-none md:mr-0"
         }`}
       >
         {/* Brand & Logo Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 shadow-md shadow-violet-500/25">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-black text-white shadow-md shadow-black/25">
               <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
               </svg>
-              <div className="absolute -inset-0.5 rounded-xl bg-violet-400/20 blur-[4px] -z-10 animate-pulse-glow" />
             </div>
             <div>
-              <span className="font-bold tracking-tight text-zinc-900 text-[15px]">Usick V1</span>
-              <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 py-0.2 text-[10px] font-semibold text-violet-700">v2.0</span>
+              <span className="font-bold tracking-tight text-black text-[15px]">Usick V1</span>
+              <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.2 text-[10px] font-semibold text-zinc-700 border border-zinc-200">v2.0</span>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-black cursor-pointer"
             title="Tutup menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -538,7 +537,7 @@ export default function Home() {
         <div className="p-3">
           <button
             onClick={newChat}
-            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm shadow-violet-600/20 cursor-pointer"
+            className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-black hover:bg-zinc-800 px-3.5 py-2.5 text-sm font-medium text-white transition-all duration-200 shadow-sm cursor-pointer"
           >
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             <span>New Thread</span>
@@ -547,8 +546,8 @@ export default function Home() {
 
         {/* Quick Navigation Sections */}
         <div className="px-3 py-1 space-y-0.5 text-xs text-zinc-600 font-medium">
-          <div className="flex items-center gap-2.5 rounded-lg bg-zinc-100 text-zinc-900 px-3 py-2 cursor-pointer transition font-semibold">
-            <svg className="w-4 h-4 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex items-center gap-2.5 rounded-xl bg-zinc-100 text-black px-3 py-2 cursor-pointer transition font-semibold">
+            <svg className="w-4 h-4 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             <span>Chats</span>
@@ -556,17 +555,17 @@ export default function Home() {
 
           <div
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition ${
-              webSearchEnabled ? "bg-violet-50 text-violet-700 border border-violet-200/80 font-semibold" : "hover:bg-zinc-100 text-zinc-600"
+            className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition ${
+              webSearchEnabled ? "bg-zinc-900 text-white font-semibold shadow-xs" : "hover:bg-zinc-100 text-zinc-600"
             }`}
           >
             <span className="flex items-center gap-2.5">
-              <svg className="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`w-4 h-4 shrink-0 ${webSearchEnabled ? "text-white" : "text-zinc-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               <span>Thinking (Browse)</span>
             </span>
-            <span className={`h-2 w-2 rounded-full ${webSearchEnabled ? "bg-violet-600 animate-pulse" : "bg-zinc-300"}`} />
+            <span className={`h-2 w-2 rounded-full ${webSearchEnabled ? "bg-white animate-pulse" : "bg-zinc-300"}`} />
           </div>
         </div>
 
@@ -622,15 +621,15 @@ export default function Home() {
 
         {/* Bottom User Card / Status */}
         <div className="p-3 border-t border-zinc-100 bg-zinc-50/50">
-          <div className="flex items-center justify-between rounded-xl bg-white border border-zinc-200/80 p-2.5 shadow-sm">
+          <div className="flex items-center justify-between rounded-2xl bg-white border border-zinc-200/80 p-2.5 shadow-xs">
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-violet-600 to-purple-600 text-xs font-bold text-white shadow-sm">
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-bold text-white shadow-sm">
                 U
                 <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
               </div>
               <div className="truncate">
                 <div className="text-xs font-semibold text-zinc-900 truncate">Personal Studio</div>
-                <div className="text-[10px] text-violet-600 font-medium">Pro Plan · Active</div>
+                <div className="text-[10px] text-zinc-500 font-medium">Pro Plan · Active</div>
               </div>
             </div>
             <button
@@ -646,32 +645,41 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* ─── MAIN WORKSPACE ────────────────────────────────────────────────── */}
-      <main className="flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-[#fafafc]">
-        {/* Top App Bar - Mobile Optimized Minimalist Header */}
-        <header className="shrink-0 w-full z-20 flex items-center justify-between border-b border-zinc-200/80 bg-white/95 px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
+      {/* ─── MAIN WORKSPACE (Large Rounded White Canvas like Image) ───────── */}
+      <main className="flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-white sm:rounded-3xl border sm:border border-zinc-200/90 shadow-2xl shadow-black/40">
+        {/* Top App Bar - Minimalist High Fashion Header */}
+        <header className="shrink-0 w-full z-20 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 shadow-xs transition cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black shadow-2xs transition cursor-pointer"
               title="Toggle Sidebar"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
             </button>
-            <div className="flex items-center gap-1.5"><div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-xs"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" /></svg></div><span className="text-sm font-bold tracking-tight text-zinc-900">Usick V1</span></div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-black text-white shadow-xs">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                </svg>
+              </div>
+              <span className="text-sm font-bold tracking-tight text-black">Usick V1</span>
+            </div>
           </div>
 
-          <button
-            onClick={newChat}
-            className="flex md:hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-xs transition"
-            title="Percakapan Baru"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={newChat}
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full bg-black hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">New Chat</span>
+            </button>
+          </div>
         </header>
 
         {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
@@ -700,36 +708,48 @@ export default function Home() {
               </div>
             )}
 
-            {/* ─── HERO / EMPTY STATE (Sapaan Filius) ────────────────────────── */}
+            {/* ─── HERO / EMPTY STATE (Obsidian Chrome Droplet Art from Reference) ─── */}
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-4 sm:pt-8 pb-4 text-center">
-                {/* 3D Iridescent Glowing Orb */}
-                <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
-                  <div className="absolute h-20 w-20 sm:h-28 sm:w-28 rounded-full bg-violet-400/25 blur-2xl animate-pulse-glow" />
-                  <div className="absolute h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-fuchsia-300/20 blur-xl" />
+                {/* 001 • CASE STUDIES / AI PILL BADGE */}
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-200/90 bg-zinc-50/80 px-3 py-1 text-[11px] font-semibold tracking-wider text-zinc-600 uppercase">
+                  <span className="h-1.5 w-1.5 rounded-full bg-black shrink-0" />
+                  <span>Usick AI Intelligence</span>
+                </div>
 
-                  <div className="relative h-14 w-14 sm:h-18 sm:w-18 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-violet-300 p-0.5 shadow-xl shadow-purple-500/30">
-                    <div className="h-full w-full rounded-full bg-gradient-to-br from-violet-300 via-purple-600 to-indigo-900 opacity-95 flex items-center justify-center">
-                      <div className="absolute top-1.5 left-2 h-3 w-5 sm:top-2 sm:left-3 sm:h-4 sm:w-7 rounded-full bg-white/50 blur-[2px] transform -rotate-45" />
-                      <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                      </svg>
+                {/* 3D Glossy Liquid Obsidian Pill Card (from Image) */}
+                <div className="relative mb-5 sm:mb-7 flex items-center justify-center">
+                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 rounded-[28px] sm:rounded-[36px] bg-gradient-to-b from-[#2a2a2e] to-[#121214] p-1 shadow-2xl shadow-black/40 border border-white/20 flex items-center justify-center overflow-hidden">
+                    {/* Top glass reflection rim */}
+                    <div className="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-white/25 to-transparent rounded-t-[28px] sm:rounded-t-[36px]" />
+                    
+                    {/* Metallic Chrome Liquid Droplet Sculpture */}
+                    <div className="relative flex flex-col items-center justify-center">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-radial from-white via-zinc-400 to-black shadow-lg shadow-black/80 flex items-center justify-center">
+                        <div className="h-2 w-2 rounded-full bg-white blur-[0.5px]" />
+                      </div>
+                      <div className="w-14 sm:w-16 h-3 bg-radial from-white/40 via-zinc-700 to-transparent rounded-full blur-[1px] mt-1" />
                     </div>
                   </div>
                 </div>
 
-                {/* Sapaan Filius */}
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
+                {/* What We've Built Headline Style */}
+                <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-black">
                   {getTimeGreeting()}, Usick V1
                 </h1>
-                <p className="mt-0.5 sm:mt-1 text-xl sm:text-3xl font-bold tracking-tight text-zinc-900">
-                  What&apos;s on <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">your mind?</span>
-                </p>
-                <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-zinc-500 max-w-md px-2">
-                  Pilih contoh di bawah atau tanyakan apa saja langsung kepada Usick V1.
+                <p className="mt-1 text-base sm:text-lg font-medium text-zinc-500 max-w-md px-2">
+                  What would you like to build or explore today?
                 </p>
 
-                {/* Quick Start Suggestions Grid (Mobile 1 column, Tablet+ 2 columns) */}
+                {/* Carousel Pagination Dots from Reference Image */}
+                <div className="mt-4 flex items-center justify-center gap-1.5">
+                  <span className="h-1.5 w-4 rounded-full bg-black transition-all" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                </div>
+
+                {/* Quick Start Suggestions Grid */}
                 <div className="w-full mt-6 sm:mt-10 text-left">
                   <div className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-2.5 sm:mb-3 px-1">
                     Get started with an example below
@@ -743,19 +763,19 @@ export default function Home() {
                         className="glass-card flex flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left group cursor-pointer"
                       >
                         <div>
-                          <h3 className="text-xs sm:text-[13px] font-semibold text-zinc-900 group-hover:text-violet-700 transition">
+                          <h3 className="text-xs sm:text-[13px] font-semibold text-zinc-900 group-hover:text-black transition">
                             {item.title}
                           </h3>
                           <p className="text-[11px] sm:text-[11.5px] text-zinc-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2">
                             {item.desc}
                           </p>
                         </div>
-                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t border-zinc-100">
-                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-violet-100 transition">
+                        <div className="mt-2.5 sm:mt-3 flex items-center justify-between pt-2 border-t border-zinc-200/60">
+                          <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-zinc-100 group-hover:bg-zinc-200 transition text-black">
                             {item.icon}
                           </div>
-                          <span className="text-[11px] text-violet-600 opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1">
-                            <span>Coba sekarang</span>
+                          <span className="text-[11px] text-black opacity-0 group-hover:opacity-100 transition font-semibold flex items-center gap-1">
+                            <span>Mulai</span>
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                             </svg>
@@ -778,7 +798,7 @@ export default function Home() {
                 >
                   {/* Assistant Avatar */}
                   {!isUser && (
-                    <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-purple-600 text-white shadow-md shadow-violet-600/20">
+                    <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-black text-white shadow-md shadow-black/30">
                       <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                       </svg>
@@ -789,8 +809,8 @@ export default function Home() {
                   <div
                     className={`relative max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 sm:p-4 text-[13.5px] sm:text-sm ${
                       isUser
-                        ? "bg-violet-600 text-white shadow-sm shadow-violet-600/20 rounded-tr-sm"
-                        : "bg-white border border-zinc-200/90 text-zinc-900 shadow-sm rounded-tl-sm"
+                        ? "bg-black text-white shadow-md shadow-black/20 rounded-tr-xs font-normal"
+                        : "bg-[#f8f8fa] border border-zinc-200/90 text-zinc-900 shadow-xs rounded-tl-xs"
                     }`}
                   >
                     {isUser ? (
@@ -798,8 +818,8 @@ export default function Home() {
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
-                          <div className="flex items-center gap-2 py-1 text-zinc-500 text-xs">
-                            <div className="h-2 w-2 rounded-full bg-violet-600 animate-ping" />
+                          <div className="flex items-center gap-2 py-1 text-zinc-600 text-xs font-medium">
+                            <div className="h-2 w-2 rounded-full bg-black animate-ping" />
                             <span>Sedang merumuskan jawaban...</span>
                           </div>
                         )}
@@ -807,7 +827,7 @@ export default function Home() {
                         <div className="relative">
                           <MarkdownMessage content={msg.content} />
                           {isStreaming && msg.content && msg.id === messages[messages.length - 1]?.id && (
-                            <span className="inline-block w-1.5 h-4 ml-1 bg-violet-600 align-middle animate-pulse rounded-sm" />
+                            <span className="inline-block w-1.5 h-4 ml-1 bg-black align-middle animate-pulse rounded-xs" />
                           )}
                         </div>
 
@@ -822,9 +842,9 @@ export default function Home() {
 
                         {/* Sources Citations */}
                         {msg.sources && msg.sources.length > 0 && (
-                          <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-100">
-                            <div className="flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-violet-700 uppercase tracking-wider mb-2">
-                              <svg className="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-zinc-200/70">
+                            <div className="flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-black uppercase tracking-wider mb-2">
+                              <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                               </svg>
                               <span>Sumber Referensi Web ({msg.sources.length})</span>
@@ -843,16 +863,16 @@ export default function Home() {
                                     href={src.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/80 p-2 text-xs text-zinc-800 transition group"
+                                    className="flex items-center gap-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 p-2 text-xs text-zinc-900 transition group shadow-2xs"
                                   >
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-violet-100 text-[10px] font-bold text-violet-700">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-black text-[10px] font-bold text-white">
                                       {idx + 1}
                                     </span>
                                     <div className="truncate">
-                                      <p className="truncate font-semibold text-[11.5px] sm:text-[12px] group-hover:text-violet-700 transition">
+                                      <p className="truncate font-semibold text-[11.5px] sm:text-[12px] group-hover:text-black transition">
                                         {src.title || domain}
                                       </p>
-                                      <p className="text-[10px] text-zinc-400 truncate">{domain}</p>
+                                      <p className="text-[10px] text-zinc-500 truncate">{domain}</p>
                                     </div>
                                   </a>
                                 );
@@ -863,18 +883,18 @@ export default function Home() {
 
                         {/* Copy Action */}
                         {msg.content && (
-                          <div className="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-100">
+                          <div className="mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-200/60">
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
-                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition cursor-pointer"
+                              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-200/80 hover:text-black transition cursor-pointer"
                             >
                               {copiedId === msg.id ? (
                                 <>
-                                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                   </svg>
-                                  <span className="text-emerald-600 font-semibold">Tersalin</span>
+                                  <span className="text-black font-semibold">Tersalin</span>
                                 </>
                               ) : (
                                 <>
@@ -893,7 +913,7 @@ export default function Home() {
 
                   {/* User Avatar */}
                   {isUser && (
-                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700 border border-violet-200">
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-200 text-xs font-bold text-black border border-zinc-300">
                       U
                     </div>
                   )}
@@ -903,8 +923,8 @@ export default function Home() {
 
             {/* Status searching pulse */}
             {statusMessage && (
-              <div className="flex items-center gap-2 text-xs text-violet-700 pl-10 sm:pl-11 animate-pulse font-medium">
-                <div className="h-2 w-2 rounded-full bg-violet-600" />
+              <div className="flex items-center gap-2 text-xs text-zinc-900 pl-10 sm:pl-11 animate-pulse font-medium">
+                <div className="h-2 w-2 rounded-full bg-black" />
                 <span>{statusMessage}</span>
               </div>
             )}
@@ -914,7 +934,7 @@ export default function Home() {
         </div>
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Mobile Responsive) ──────────────── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#fafafc] via-[#fafafc] to-transparent">
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-white via-white to-transparent">
           <div className="mx-auto max-w-3xl w-full">
             <div className="bg-white border border-zinc-200 shadow-xl shadow-zinc-900/[0.05] relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all">
               {/* Textarea Input */}
@@ -942,10 +962,10 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/80 px-2.5 sm:px-3 py-1 text-xs font-semibold text-zinc-800 transition shadow-xs cursor-pointer max-w-[130px] sm:max-w-[220px]"
+                      className="flex items-center gap-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/90 px-2.5 sm:px-3 py-1 text-xs font-semibold text-zinc-900 transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px]"
                       title="Pilih Model AI"
                     >
-                      <svg className="w-3.5 h-3.5 text-violet-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
                       <span className="truncate">
@@ -959,7 +979,7 @@ export default function Home() {
                     {/* Popover list (Responsive: Fixed modal on mobile, dropdown on desktop) */}
                     {modelDropdownOpen && (
                       <div
-                        className="fixed inset-0 z-40 bg-zinc-900/20 backdrop-blur-[1px] sm:hidden"
+                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
                         onClick={() => setModelDropdownOpen(false)}
                         aria-hidden="true"
                       />
@@ -982,8 +1002,8 @@ export default function Home() {
                         <div className="py-1 divide-y divide-zinc-100">
                           {groupedCategories.map((group) => (
                             <div key={group.name} className="py-1.5 first:pt-0.5 last:pb-0.5">
-                              <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-violet-600 flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-violet-600 shrink-0" />
+                              <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-black shrink-0" />
                                 <span>{group.name}</span>
                               </div>
                               <div className="space-y-0.5">
@@ -1000,14 +1020,14 @@ export default function Home() {
                                       }}
                                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition cursor-pointer ${
                                         isSelected
-                                          ? "bg-violet-600 text-white font-medium shadow-sm"
-                                          : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+                                          ? "bg-black text-white font-medium shadow-xs"
+                                          : "text-zinc-700 hover:bg-zinc-100 hover:text-black"
                                       }`}
                                     >
                                       <div className="flex items-center gap-2 truncate pr-2">
                                         <span
                                           className={`text-[11px] font-semibold w-4 shrink-0 ${
-                                            isSelected ? "text-violet-200" : "text-zinc-400"
+                                            isSelected ? "text-zinc-300" : "text-zinc-400"
                                           }`}
                                         >
                                           {idx + 1}.
@@ -1046,7 +1066,7 @@ export default function Home() {
                     onClick={() => setWebSearchEnabled(!webSearchEnabled)}
                     className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                       webSearchEnabled
-                        ? "border-violet-600 bg-violet-600 text-white shadow-sm shadow-violet-600/30"
+                        ? "border-black bg-black text-white shadow-xs"
                         : "border-zinc-200/90 bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
                     }`}
                     title="Aktifkan fitur Thinking / Web Browse"
@@ -1076,7 +1096,7 @@ export default function Home() {
                       disabled={!input.trim()}
                       className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
                         input.trim()
-                          ? "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/25 hover:scale-105 active:scale-95 cursor-pointer"
+                          ? "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer"
                           : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
                       }`}
                       title="Kirim pesan (Enter)"
