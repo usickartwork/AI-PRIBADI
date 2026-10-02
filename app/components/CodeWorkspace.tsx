@@ -286,7 +286,19 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // State untuk memilih semua jawaban sebelum dikirim
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
+  const [showCustomInput, setShowCustomInput] = useState<Record<string, boolean>>({});
+
+  const autoResizeChat = () => {
+    const el = chatTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
 
   // Helper untuk mengekstrak pertanyaan pilihan ganda dari respons AI
   const parseQuestionsFromText = (text: string): { cleanText: string; questions: DiscoveryQuestion[] } => {
@@ -318,11 +330,44 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     return { cleanText: text, questions: [] };
   };
 
-  const handleSelectOther = (question: string) => {
-    setChatInput(`Mengenai "${question}": `);
-    setTimeout(() => {
-      chatInputRef.current?.focus();
-    }, 50);
+  const handleToggleOption = (question: string, option: string) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [question]: option,
+    }));
+    setShowCustomInput((prev) => ({
+      ...prev,
+      [question]: false,
+    }));
+  };
+
+  const handleOpenCustomInput = (question: string) => {
+    setShowCustomInput((prev) => ({
+      ...prev,
+      [question]: true,
+    }));
+    setSelectedAnswers((prev) => {
+      const next = { ...prev };
+      delete next[question];
+      return next;
+    });
+  };
+
+  const handleSubmitAllAnswers = (questions: DiscoveryQuestion[]) => {
+    const entries = questions
+      .map((q) => {
+        const ans = selectedAnswers[q.question] || customInputs[q.question]?.trim();
+        return ans ? `- **${q.question}**: ${ans}` : null;
+      })
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    const messageText = `Berikut klarifikasi kebutuhan proyek yang telah saya tentukan:\n${entries.join("\n")}`;
+    handleSendChatMessage(messageText);
+    setSelectedAnswers({});
+    setCustomInputs({});
+    setShowCustomInput({});
   };
 
   // Task Management Modal State
@@ -454,58 +499,139 @@ Jika pengguna baru memperkenalkan ide, menyapa, memberikan ide singkat, atau keb
 ]
 <<<END_QUESTIONS_JSON>>>
 
-FASE 2: BLUEPRINT GENERATION (PRD, Arsitektur & Tasks):
+FASE 2: BLUEPRINT GENERATION (PRD, Arsitektur & Tasks yang KAYA, MENDALAM & LENGKAP):
 Jika pengguna sudah menjawab pertanyaan discovery, ATAU pengguna secara eksplisit meminta: "buatkan prd", "generate blueprint", "rancang arsitektur", "buatkan task", atau informasi sudah cukup:
-- Berikan kesimpulan singkat (1-2 paragraf) bahwa seluruh spesifikasi telah dipahami.
-- WAJIB MENYERTAKAN BLOK BLUEPRINT LENGKAP di akhir respon menggunakan format persis berikut:
+- Berikan kesimpulan singkat & profesional (1-2 paragraf) bahwa seluruh spesifikasi teknis telah selesai dirumuskan.
+- WAJIB MENYERTAKAN BLOK BLUEPRINT LENGKAP, SANGAT DETAIL, DAN KOMPREHENSIF (JANGAN PERNAH MEMBERIKAN DATA MINIMALIS ATAU SEDIKIT) di akhir respon menggunakan format persis berikut:
 
 <<<BLUEPRINT_JSON>>>
 {
   "prd": {
-    "overview": "Ringkasan jelas project...",
-    "problemStatement": "Masalah nyata yang diselesaikan...",
-    "goals": ["Goal 1", "Goal 2", "Goal 3"],
-    "targetUsers": ["Target user 1", "Target user 2"],
-    "functionalRequirements": ["Requirement 1", "Requirement 2", "Requirement 3", "Requirement 4"],
-    "nonFunctionalRequirements": ["Kecepatan < 1s", "Keamanan enkripsi", "Desain mobile-first"]
+    "overview": "Deskripsi mendalam 2-3 paragraf mengenai visi aplikasi, target pasar, value proposition utama, dan batasan ruang lingkup pengembangan...",
+    "problemStatement": "Uraian mendalam pain points pengguna dan inefisiensi nyata yang diselesaikan...",
+    "goals": [
+      "Target strategis 1 (misal: Mengotomatisasi 100% proses pemesanan & rekonsiliasi)",
+      "Target strategis 2 (misal: Menghilangkan double booking dengan status ketersediaan real-time)",
+      "Target strategis 3 (misal: Memangkas waktu checkout di bawah 60 detik)",
+      "Target strategis 4 (misal: Menyediakan visibilitas pelaporan pendapatan transparan)"
+    ],
+    "targetUsers": [
+      "Pengguna Utama (Karakteristik, kebiasaan, dan kebutuhan)",
+      "Pengelola / Mitra Bisnis (Kebutuhan operasional, manajemen stok/jadwal)",
+      "Administrator Sistem (Monitoring, manajemen pengguna, keuangan & log audit)"
+    ],
+    "functionalRequirements": [
+      "Autentikasi multi-role (Admin, Mitra, Customer) dengan proteksi sesi & reset kata sandi",
+      "Katalog & Penelusuran Real-time dengan filter kategori, harga, dan ketersediaan dinamis",
+      "Modul Pemesanan / Transaksi dengan penguncian slot waktu sementara (hold mechanism) untuk mencegah bentrok",
+      "Integrasi Gateway Pembayaran Otomatis dengan dukungan QRIS, Virtual Account, dan verifikasi instan via webhook",
+      "Sistem Notifikasi Transaksi real-time via WhatsApp/Email untuk bukti bayar dan konfirmasi",
+      "Dashboard Manajemen & Pelaporan dengan visualisasi omzet harian, mingguan, dan bulanan",
+      "Manajemen Profil Pengguna dan Riwayat Transaksi dengan opsi unduh invoice PDF",
+      "Audit Log & Keamanan Akses untuk melacak seluruh modifikasi data penting"
+    ],
+    "nonFunctionalRequirements": [
+      "Performa: Waktu muat halaman pertama < 1.2s dan respons API database < 200ms",
+      "Keamanan: Enkripsi transit TLS 1.3, hashing kata sandi Argon2/Bcrypt, sanitasi SQL injection & proteksi CSRF/CORS",
+      "Ketersediaan & Reliabilitas: Target uptime 99.9% dengan fallback handling",
+      "Skalabilitas: Arsitektur stateless siap horizontal scaling pada traffic tinggi",
+      "Responsivitas: Antarmuka adaptif mobile-first, tablet, dan desktop",
+      "Aksesibilitas: Memenuhi standar WCAG 2.1 AA dengan navigasi keyboard dan kontras rasio ramah mata"
+    ]
   },
   "features": [
     {
-      "name": "Nama Fitur 1",
-      "description": "Deskripsi fitur...",
+      "name": "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
+      "description": "Autentikasi aman multi-peran (Admin, Staff, Customer) dengan session cookie dan proteksi route guard.",
       "priority": "High",
-      "subFeatures": ["Sub fitur A", "Sub fitur B"]
+      "subFeatures": [
+        "Login & Register dengan email atau Google OAuth",
+        "Role-based Access Control (RBAC) middleware",
+        "Manajemen profil pengguna & reset sandi via OTP/Email"
+      ]
     },
     {
-      "name": "Nama Fitur 2",
-      "description": "Deskripsi fitur...",
+      "name": "Katalog Interaktif & Penelusuran Real-Time",
+      "description": "Menampilkan daftar item, layanan, atau ketersediaan slot waktu secara dinamis dengan filter interaktif.",
+      "priority": "High",
+      "subFeatures": [
+        "Pencarian instan dengan debounce search",
+        "Filter kategori multi-kriteria dan sorting harga/popularitas",
+        "Indikator status ketersediaan live"
+      ]
+    },
+    {
+      "name": "Manajemen Transaksi & Booking Engine",
+      "description": "Mesin pemesanan transaksi dengan validasi integritas data dan proteksi slot bentrok.",
+      "priority": "High",
+      "subFeatures": [
+        "Pemilihan tanggal & slot waktu interaktif",
+        "Mekanisme reservasi sementara 10 menit saat checkout",
+        "Perhitungan otomatis biaya, pajak, dan kode unik"
+      ]
+    },
+    {
+      "name": "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
+      "description": "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
+      "priority": "High",
+      "subFeatures": [
+        "Integrasi QRIS dinamis & Virtual Account",
+        "Webhook handler untuk update status order otomatis",
+        "Penerbitan invoice dan kuitansi digital otomatis"
+      ]
+    },
+    {
+      "name": "Dashboard Admin, Analitik & Pelaporan",
+      "description": "Panel pusat kendali untuk pengelola bisnis memantau metrik performa dan operasional harian.",
       "priority": "Medium",
-      "subFeatures": ["Sub fitur A", "Sub fitur B"]
+      "subFeatures": [
+        "Visualisasi grafik pemasukan dan volume order",
+        "Export data transaksi ke format CSV / Excel",
+        "Manajemen operasional (tambah/edit jadwal, harga, atau inventaris)"
+      ]
+    },
+    {
+      "name": "Pusat Notifikasi & Riwayat Transaksi",
+      "description": "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
+      "priority": "Medium",
+      "subFeatures": [
+        "Pengiriman notifikasi status via WhatsApp API / Email",
+        "Riwayat aktivitas & unduh invoice PDF",
+        "Rating & ulasan kepuasan pelanggan"
+      ]
     }
   ],
-  "userFlow": "1. Halaman Depan -> 2. Autentikasi -> 3. Dashboard -> 4. Aksi Utama -> 5. Selesai",
+  "userFlow": "1. Halaman Utama / Landing Page -> 2. Autentikasi / Registrasi Pengguna -> 3. Jelajahi Katalog & Pilih Slot Ketersediaan -> 4. Formulir Data Pemesan & Ringkasan Order -> 5. Checkout & Pembayaran Otomatis (QRIS / VA) -> 6. Validasi Webhook & Update Status Sukses -> 7. Penerbitan Invoice Digital & Notifikasi WhatsApp -> 8. Dashboard Riwayat Pengguna",
   "architecture": {
-    "frontend": "Next.js (App Router), Tailwind CSS",
-    "backend": "Next.js Server Actions / API Routes",
-    "database": "PostgreSQL (Supabase)",
-    "auth": "Supabase Auth",
-    "storage": "Supabase Storage",
-    "deployment": "Vercel",
-    "dataSchema": "Table: users (id, name, email)\\nTable: items (id, user_id, title)"
+    "frontend": "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons, Framer Motion",
+    "backend": "Next.js Route Handlers & Server Actions, Zod Schema Validation",
+    "database": "PostgreSQL (Supabase / Neon) dengan indexing optimal",
+    "auth": "Supabase Auth / NextAuth dengan JWT & secure HttpOnly cookie",
+    "storage": "Supabase Storage / Cloudflare R2 untuk aset foto & dokumen",
+    "deployment": "Vercel (Edge Network) dengan automated CI/CD pipeline",
+    "dataSchema": "CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE NOT NULL, name VARCHAR(100) NOT NULL, role VARCHAR(20) DEFAULT 'customer', phone VARCHAR(30), created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE venues (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title VARCHAR(200) NOT NULL, description TEXT, price_per_hour NUMERIC(12,2) NOT NULL, image_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE bookings (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, venue_id UUID REFERENCES venues(id) ON DELETE CASCADE, start_time TIMESTAMPTZ NOT NULL, end_time TIMESTAMPTZ NOT NULL, status VARCHAR(30) DEFAULT 'pending', total_amount NUMERIC(12,2) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE, payment_method VARCHAR(50) NOT NULL, payment_status VARCHAR(30) DEFAULT 'unpaid', transaction_id VARCHAR(100), paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE activity_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE SET NULL, action VARCHAR(100) NOT NULL, details JSONB, created_at TIMESTAMPTZ DEFAULT NOW());"
   },
   "tasks": [
-    { "title": "Setup repository & database schema", "description": "Inisialisasi arsitektur dan tabel database.", "status": "todo", "phase": "Phase 1 - Setup" },
-    { "title": "Implementasi Autentikasi & Akun Pengguna", "description": "Login, register, dan middleware proteksi.", "status": "todo", "phase": "Phase 1 - Setup" },
-    { "title": "Pembangunan Fitur Inti Aplikasi", "description": "Halaman antarmuka dan logika bisnis utama.", "status": "todo", "phase": "Phase 2 - Core" },
-    { "title": "Integrasi Database & API Query", "description": "Menghubungkan antarmuka dengan database backend.", "status": "todo", "phase": "Phase 2 - Core" },
-    { "title": "Testing, UI Polish & Deployment", "description": "Pemeriksaan fungsi dan deploy ke production.", "status": "todo", "phase": "Phase 3 - Release" }
+    { "title": "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", "description": "Inisialisasi Next.js 15 App Router, konfigurasi Tailwind CSS, ESLint, TypeScript, dan environment variables.", "status": "todo", "phase": "Phase 1 - Inisialisasi" },
+    { "title": "Desain & Migrasi Skema Database PostgreSQL", "description": "Menulis DDL tabel users, items, bookings, payments, logs, membuat foreign keys dan index pencarian.", "status": "todo", "phase": "Phase 1 - Inisialisasi" },
+    { "title": "Implementasi Sistem Autentikasi & Session Middleware", "description": "Membangun login, register, cookie session handling, dan middleware proteksi rute untuk RBAC.", "status": "todo", "phase": "Phase 2 - Autentikasi" },
+    { "title": "Pembuatan Master Layout, Navigasi & Design System", "description": "Membangun Navbar, Sidebar, modal wrapper, alert component, dan layout responsif dark/light mode.", "status": "todo", "phase": "Phase 3 - Frontend Core" },
+    { "title": "Halaman Katalog Utama & Fitur Penelusuran Interaktif", "description": "Menampilkan kartu item, pagination, filter multi-kategori, dan instant search bar.", "status": "todo", "phase": "Phase 3 - Frontend Core" },
+    { "title": "Komponen Kalender & Pemilihan Slot Waktu Real-Time", "description": "Membuat antarmuka interaktif pemilihan jadwal dengan pengecekan ketersediaan slot langsung.", "status": "todo", "phase": "Phase 4 - Modul Transaksi" },
+    { "title": "Alur Checkout, Validasi Pesanan & Formulir Data", "description": "Validasi form data pemesan menggunakan Zod, kalkulasi harga total, dan penyiapan order payload.", "status": "todo", "phase": "Phase 4 - Modul Transaksi" },
+    { "title": "Integrasi Gateway Pembayaran & Webhook Listener", "description": "Menghubungkan API payment gateway (QRIS/VA), membuat endpoint /api/webhook untuk verifikasi otomatis.", "status": "todo", "phase": "Phase 5 - Integrasi" },
+    { "title": "Penerbitan Invoice PDF & Pengiriman Notifikasi Otomatis", "description": "Membuat template invoice digital dan trigger pengiriman notifikasi konfirmasi sukses pesanan.", "status": "todo", "phase": "Phase 5 - Integrasi" },
+    { "title": "Dashboard Admin: Manajemen Data Master & Inventaris", "description": "Membangun tabel CRUD data master dengan modal tambah/edit dan optimasi mutasi data.", "status": "todo", "phase": "Phase 6 - Dashboard Admin" },
+    { "title": "Dashboard Admin: Analitik Pendapatan & Export Laporan", "description": "Visualisasi grafik performa penjualan dan fitur unduh laporan rekap transaksi (CSV/PDF).", "status": "todo", "phase": "Phase 6 - Dashboard Admin" },
+    { "title": "Testing End-to-End, Security Hardening & Optimasi Performa", "description": "Melakukan uji alur dari login sampai pembayaran, audit keamanan header, dan kompresi bundle.", "status": "todo", "phase": "Phase 7 - QA & Deployment" },
+    { "title": "Deployment Production ke Vercel & Monitoring", "description": "Konfigurasi domain kustom, DNS, environment variables production, dan setup monitoring error log.", "status": "todo", "phase": "Phase 7 - QA & Deployment" }
   ]
 }
 <<<END_BLUEPRINT_JSON>>>
 
 PENTING:
-- Pastikan format JSON valid.
-- Jangan membuat teks narasi terlalu panjang bertele-tele di luar JSON agar tidak terpotong token limit.`;
+- Pastikan format JSON valid tanpa syntax error.
+- Hasilkan blueprint yang KAYA, SPESIFIK SESUAI TOPIK PENGGUNA, DAN SIAP DIGUNAKAN SEBAGAI PROMPT AI CODING TOOL.`;
 
     try {
       const res = await fetch("/api/chat", {
@@ -1336,95 +1462,197 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       </div>
                     </div>
                   ) : (
-                    /* Bubble Pesan AI: Tunggal, Halus, & Interaktif */
+                    /* Bubble Pesan AI: Tunggal, Halus, & Interaktif dengan Animasi */
                     <div className={`max-w-2xl rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed ${
                       isDark ? "bg-zinc-900 border border-zinc-800 text-zinc-200" : "bg-white border border-zinc-200 text-zinc-800 shadow-xs"
                     }`}>
                       {!m.content ? (
-                        /* Loading state di dalam satu bubble AI yang sama (mencegah bubble ganda) */
-                        <div className="flex items-center gap-2.5 py-1 text-zinc-400">
-                          <div className="flex items-center gap-1">
-                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.3s]" />
-                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.15s]" />
-                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce" />
+                        /* Animasi Generate: Skeleton & Pulse Shimmer saat menunggu respons awal */
+                        <div className="py-1">
+                          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-zinc-200/80 dark:border-zinc-800/80 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                            </span>
+                            <span className="animate-pulse">Sedang menganalisis kebutuhan &amp; merumuskan blueprint proyek...</span>
                           </div>
-                          <span className="text-xs font-medium">Sedang menganalisis &amp; merumuskan konsep...</span>
+                          <div className="space-y-2.5">
+                            <div className="h-3 w-4/5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 animate-pulse" />
+                            <div className="h-3 w-11/12 rounded-full bg-zinc-200/80 dark:bg-zinc-800 animate-pulse [animation-delay:0.2s]" />
+                            <div className="h-3 w-2/3 rounded-full bg-zinc-200/80 dark:bg-zinc-800 animate-pulse [animation-delay:0.4s]" />
+                          </div>
                         </div>
                       ) : (
                         <>
+                          {isChatLoading && (
+                            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-200/60 dark:border-zinc-800/60 text-[11px] font-semibold text-emerald-500 dark:text-emerald-400">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                              </span>
+                              <span className="animate-pulse">AI sedang merancang spesifikasi &amp; blueprint proyek...</span>
+                            </div>
+                          )}
+
                           <MarkdownMessage content={cleanText} isDark={isDark} />
 
-                          {/* Pertanyaan Discovery Interaktif / Pilihan Ganda */}
+                          {isChatLoading && (
+                            <span className="inline-block w-2 h-3.5 ml-1 align-middle bg-blue-500 dark:bg-blue-400 animate-pulse rounded-2xs" />
+                          )}
+
+                          {/* Pertanyaan Discovery Interaktif: Pilih Semua Baru Kirim Sekaligus */}
                           {questions.length > 0 && (
-                            <div className={`mt-3.5 space-y-3 pt-3 border-t border-dashed ${
+                            <div className={`mt-4 space-y-3 pt-3 border-t border-dashed ${
                               isDark ? "border-zinc-800" : "border-zinc-200"
                             }`}>
-                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                                <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>Pilihan Jawaban (Klik opsi untuk menjawab langsung):</span>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                  <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>Klarifikasi Kebutuhan Proyek:</span>
+                                </div>
+                                <span className="text-[10px] text-zinc-400">
+                                  Pilih semua jawaban lalu klik kirim
+                                </span>
                               </div>
 
-                              {questions.map((q, qIdx) => (
-                                <div
-                                  key={q.id || `q-${qIdx}`}
-                                  className={`rounded-xl p-3 border ${
-                                    isDark
-                                      ? "bg-zinc-950/70 border-zinc-800/80"
-                                      : "bg-zinc-50 border-zinc-200"
-                                  }`}
-                                >
-                                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-2.5">
-                                    {q.question}
-                                  </p>
+                              {questions.map((q, qIdx) => {
+                                const currentAnswer = selectedAnswers[q.question];
+                                const isCustomOpen = Boolean(showCustomInput[q.question]);
 
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {q.options?.map((opt, optIdx) => {
-                                      const letter = String.fromCharCode(65 + optIdx);
-                                      return (
-                                        <button
-                                          key={optIdx}
-                                          type="button"
-                                          disabled={isChatLoading}
-                                          onClick={() => handleSendChatMessage(`Jawaban untuk "${q.question}": ${opt}`)}
-                                          className={`text-left inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                                return (
+                                  <div
+                                    key={q.id || `q-${qIdx}`}
+                                    className={`rounded-xl p-3 border transition ${
+                                      isDark
+                                        ? "bg-zinc-950/70 border-zinc-800/80"
+                                        : "bg-zinc-50 border-zinc-200"
+                                    }`}
+                                  >
+                                    <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-2.5">
+                                      {qIdx + 1}. {q.question}
+                                    </p>
+
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {q.options?.map((opt, optIdx) => {
+                                        const letter = String.fromCharCode(65 + optIdx);
+                                        const isSelected = currentAnswer === opt;
+
+                                        return (
+                                          <button
+                                            key={optIdx}
+                                            type="button"
+                                            disabled={isChatLoading}
+                                            onClick={() => handleToggleOption(q.question, opt)}
+                                            className={`text-left inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                                              isSelected
+                                                ? isDark
+                                                  ? "bg-white text-black font-semibold border-white shadow-md ring-2 ring-white/20"
+                                                  : "bg-black text-white font-semibold border-black shadow-md ring-2 ring-black/10"
+                                                : isDark
+                                                  ? "bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700 border-zinc-800 text-zinc-200"
+                                                  : "bg-white hover:bg-zinc-100 hover:border-zinc-300 border-zinc-200 text-zinc-800 shadow-2xs"
+                                            } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                                            title={`Pilih ${opt}`}
+                                          >
+                                            <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-bold shrink-0 ${
+                                              isSelected
+                                                ? isDark ? "bg-black text-white" : "bg-white text-black"
+                                                : isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
+                                            }`}>
+                                              {letter}
+                                            </span>
+                                            <span>{opt}</span>
+                                            {isSelected && (
+                                              <svg className="w-3.5 h-3.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            )}
+                                          </button>
+                                        );
+                                      })}
+
+                                      {/* Opsi Lainnya / Tulis Sendiri */}
+                                      <button
+                                        type="button"
+                                        disabled={isChatLoading}
+                                        onClick={() => handleOpenCustomInput(q.question)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border border-dashed ${
+                                          isCustomOpen
+                                            ? isDark
+                                              ? "bg-white text-black font-semibold border-white ring-2 ring-white/20"
+                                              : "bg-black text-white font-semibold border-black ring-2 ring-black/10"
+                                            : isDark
+                                              ? "bg-zinc-900/40 hover:bg-zinc-850 hover:border-zinc-600 border-zinc-700/80 text-zinc-400 hover:text-zinc-200"
+                                              : "bg-white/70 hover:bg-zinc-50 hover:border-zinc-400 border-zinc-300 text-zinc-600 hover:text-zinc-900"
+                                        } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        title="Ketik jawaban kustom untuk pertanyaan ini"
+                                      >
+                                        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        <span>Lainnya / Tulis Sendiri</span>
+                                      </button>
+                                    </div>
+
+                                    {/* Input Jawaban Kustom */}
+                                    {isCustomOpen && (
+                                      <div className="mt-2.5 flex items-center gap-2">
+                                        <input
+                                          type="text"
+                                          value={customInputs[q.question] || ""}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setCustomInputs((prev) => ({ ...prev, [q.question]: val }));
+                                          }}
+                                          placeholder={`Tuliskan jawaban untuk: ${q.question}`}
+                                          className={`flex-1 rounded-xl px-3 py-2 text-xs border outline-none transition ${
                                             isDark
-                                              ? "bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700 border-zinc-800 text-zinc-200"
-                                              : "bg-white hover:bg-zinc-100 hover:border-zinc-300 border-zinc-200 text-zinc-800 shadow-2xs"
-                                          } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                                          title={`Pilih ${opt}`}
-                                        >
-                                          <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-bold shrink-0 ${
-                                            isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
-                                          }`}>
-                                            {letter}
-                                          </span>
-                                          <span>{opt}</span>
-                                        </button>
-                                      );
-                                    })}
+                                              ? "bg-zinc-900 border-zinc-700 text-white focus:border-white"
+                                              : "bg-white border-zinc-300 text-black focus:border-black"
+                                          }`}
+                                          autoFocus
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
 
-                                    {/* Opsi Lainnya / Tulis Sendiri */}
+                              {/* Footer Action: Tombol Kirim Semua Jawaban Sekaligus */}
+                              {(() => {
+                                const answeredCount = questions.filter(
+                                  (q) => Boolean(selectedAnswers[q.question]) || Boolean(customInputs[q.question]?.trim())
+                                ).length;
+                                const isReady = answeredCount > 0;
+
+                                return (
+                                  <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-3">
+                                    <span className="text-[11px] text-zinc-400 font-medium">
+                                      {answeredCount} dari {questions.length} pertanyaan dipilih
+                                    </span>
                                     <button
                                       type="button"
-                                      disabled={isChatLoading}
-                                      onClick={() => handleSelectOther(q.question)}
-                                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border border-dashed ${
-                                        isDark
-                                          ? "bg-zinc-900/40 hover:bg-zinc-850 hover:border-zinc-600 border-zinc-700/80 text-zinc-400 hover:text-zinc-200"
-                                          : "bg-white/70 hover:bg-zinc-50 hover:border-zinc-400 border-zinc-300 text-zinc-600 hover:text-zinc-900"
-                                      } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                                      title="Ketik jawaban kustom untuk pertanyaan ini"
+                                      disabled={!isReady || isChatLoading}
+                                      onClick={() => handleSubmitAllAnswers(questions)}
+                                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer ${
+                                        isReady && !isChatLoading
+                                          ? isDark
+                                            ? "bg-white text-black hover:bg-zinc-200 active:scale-98"
+                                            : "bg-black text-white hover:bg-zinc-800 active:scale-98"
+                                          : "bg-zinc-500/20 text-zinc-500 cursor-not-allowed"
+                                      }`}
+                                      title={isReady ? "Kirim semua jawaban sekaligus" : "Pilih minimal 1 jawaban terlebih dahulu"}
                                     >
-                                      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      <span>Kirim Semua Jawaban</span>
+                                      <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                                       </svg>
-                                      <span>Lainnya / Tulis Sendiri...</span>
                                     </button>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })()}
                             </div>
                           )}
                         </>
@@ -1437,80 +1665,77 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Quick Action Prompt Chips (Bebas Emote, Menggunakan SVG Icons Murni) */}
-          <div className={`px-4 sm:px-8 py-2 border-t flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-[11px] ${
-            isDark ? "border-zinc-850 bg-zinc-950/30" : "border-zinc-200 bg-white"
+          {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling Serasi Chat Utama) ─────────── */}
+          <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+            isDark
+              ? "bg-gradient-to-t from-[#0c0c0e]/95 via-[#0c0c0e]/60 to-transparent"
+              : "bg-gradient-to-t from-[#fafafc]/95 via-[#fafafc]/60 to-transparent"
           }`}>
-            <span className="text-zinc-400 shrink-0 font-medium">Aksi Cepat:</span>
-            <button
-              onClick={() => handleSendChatMessage("Tolong buatkan blueprint lengkap (PRD, fitur, arsitektur, dan task development) untuk project ini.")}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Generate PRD &amp; Tasks</span>
-            </button>
-            <button
-              onClick={() => handleSendChatMessage("Rancang rekomendasi tech stack, arsitektur backend, dan skema database untuk project ini.")}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <span>Tech Stack &amp; Schema</span>
-            </button>
-            <button
-              onClick={() => handleSendChatMessage("Pecah fitur-fitur ini menjadi daftar development task (Kanban board) dengan prioritas dan fase pengembangan.")}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3 h-3 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <span>Generate Task Board</span>
-            </button>
-          </div>
+            <div className="mx-auto max-w-3xl w-full">
+              <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
+                isDark
+                  ? "shadow-2xl shadow-black/80"
+                  : "shadow-xl shadow-zinc-900/[0.08]"
+              }`}>
+                {/* Liquid glass top specular reflection highlight line */}
+                <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
 
-          {/* Input Box */}
-          <div className={`p-3 sm:p-4 border-t ${isDark ? "border-zinc-850 bg-[#0c0c0e]" : "border-zinc-200 bg-[#fafafc]"}`}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendChatMessage();
-              }}
-              className="max-w-4xl mx-auto flex items-center gap-2"
-            >
-              <input
-                ref={chatInputRef}
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Diskusikan requirement project, minta perubahan fitur, atau buat PRD..."
-                className={`flex-1 rounded-2xl px-4 py-2.5 text-xs sm:text-sm border outline-none transition ${
-                  isDark
-                    ? "bg-zinc-900 border-zinc-800 focus:border-zinc-600 text-white placeholder-zinc-500"
-                    : "bg-white border-zinc-200 focus:border-zinc-400 text-black placeholder-zinc-400 shadow-xs"
-                }`}
-                disabled={isChatLoading}
-              />
-              <button
-                type="submit"
-                disabled={!chatInput.trim() || isChatLoading}
-                className={`rounded-2xl px-4 py-2.5 text-xs font-semibold transition shrink-0 shadow-xs ${
-                  chatInput.trim() && !isChatLoading
-                    ? isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                    : "bg-zinc-500/30 text-zinc-500 cursor-not-allowed"
-                }`}
-              >
-                Kirim
-              </button>
-            </form>
+                {/* Textarea Row */}
+                <div className="flex items-center gap-1.5 w-full">
+                  <textarea
+                    ref={chatTextareaRef}
+                    value={chatInput}
+                    onChange={(e) => {
+                      setChatInput(e.target.value);
+                      autoResizeChat();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendChatMessage();
+                      }
+                    }}
+                    placeholder="Diskusikan requirement project, minta perubahan fitur, atau buat PRD..."
+                    rows={1}
+                    className={`flex-1 bg-transparent px-2.5 pt-1 text-[15px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
+                      isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
+                    }`}
+                    style={{ maxHeight: "140px" }}
+                    disabled={isChatLoading}
+                  />
+                </div>
+
+                {/* Bottom Actions Bar */}
+                <div className={`mt-2 flex items-center justify-between pt-2 border-t gap-2 ${
+                  isDark ? "border-white/[0.08]" : "border-black/[0.06]"
+                }`}>
+                  <div className="text-[11px] text-zinc-400 font-medium px-1 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>AI Project Planner &amp; Architect</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendChatMessage()}
+                    disabled={!chatInput.trim() || isChatLoading}
+                    className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
+                      chatInput.trim() && !isChatLoading
+                        ? isDark
+                          ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
+                          : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer"
+                        : isDark
+                          ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
+                          : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
+                    }`}
+                    title="Kirim pesan (Enter)"
+                  >
+                    <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

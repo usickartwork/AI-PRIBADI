@@ -828,8 +828,8 @@ export default function Home() {
       const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
 
       if (deltaY < 80) {
-        // Swipe to right from anywhere on screen to slide open panel
-        if (deltaX > 45 && !sidebarOpen) {
+        // Swipe to right from anywhere on screen to slide open panel (nonaktif saat di halaman code)
+        if (deltaX > 45 && !sidebarOpen && activeView !== "code") {
           setSidebarOpen(true);
         }
         // Swipe to left to close panel when open
@@ -846,7 +846,7 @@ export default function Home() {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [sidebarOpen]);
+  }, [sidebarOpen, activeView]);
 
   // Load models from API
   useEffect(() => {
