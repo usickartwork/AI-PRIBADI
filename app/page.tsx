@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
+import { CodeWorkspace } from "./components/CodeWorkspace";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -497,6 +498,7 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"chats" | "code">("chats");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -1646,7 +1648,10 @@ export default function Home() {
           {/* New Thread Button */}
           <div className="p-3">
             <button
-              onClick={newChat}
+              onClick={() => {
+                setActiveView("chats");
+                newChat();
+              }}
               className={`group flex w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm cursor-pointer ${
                 isDark
                   ? "bg-white hover:bg-zinc-200 text-black shadow-white/5"
@@ -1660,13 +1665,39 @@ export default function Home() {
 
           {/* Quick Navigation Sections */}
           <div className="px-3 py-1 space-y-0.5 text-xs font-medium">
-            <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition font-semibold ${
-              isDark ? "bg-zinc-800/90 text-white" : "bg-zinc-100 text-black"
-            }`}>
+            <div
+              onClick={() => {
+                setActiveView("chats");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                activeView === "chats"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+              }`}
+            >
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               <span>Chats</span>
+            </div>
+
+            {/* Code Feature Button (Ngoding Pakai AI) */}
+            <div
+              onClick={() => {
+                setActiveView("code");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                activeView === "code"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span>Code</span>
             </div>
 
             <div
@@ -1823,7 +1854,11 @@ export default function Home() {
           ? "bg-[#121215] border-zinc-800/90 shadow-2xl shadow-black/80 text-zinc-100"
           : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
       }`}>
-        {/* Top App Bar */}
+        {activeView === "code" ? (
+          <CodeWorkspace isDark={isDark} onClose={() => setActiveView("chats")} />
+        ) : (
+          <>
+            {/* Top App Bar */}
         <header className={`shrink-0 w-full z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
           isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
         }`}>
@@ -2586,7 +2621,9 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </main>
+      </>
+    )}
+  </main>
 
       {/* ─── SETTINGS MODAL (Dark / Light Theme Switcher) ───────────────────── */}
       {settingsOpen && (
