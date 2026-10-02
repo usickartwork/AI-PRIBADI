@@ -1151,9 +1151,26 @@ export default function Home() {
       let buffer = "";
       let hasReceivedContent = false;
       let reasoningBuffer = "";
+      let rawContentBuffer = "";
+      let lastProcessedLength = 0;
+      let pendingSources: SearchSource[] | null = null;
+      let pendingSearchError: string | null = null;
       const isCoderModel = model.toLowerCase().includes("coder");
 
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const extractCleanAnswer = (raw: string) => {
+        const lower = raw.toLowerCase();
+        const lastOpen = lower.lastIndexOf("<think>");
+        const lastClose = lower.lastIndexOf("</think>");
+        const isThinking = lastOpen !== -1 && (lastClose === -1 || lastOpen > lastClose);
+
+        let clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, "");
+        if (isThinking) {
+          clean = clean.replace(/<think>[\s\S]*$/gi, "");
+        }
+        return { answer: clean.trimStart(), isThinking };
+      };
 
       const appendSmoothly = async (textChunk: string) => {
         if (!textChunk || controller.signal.aborted) return;
@@ -1173,6 +1190,24 @@ export default function Home() {
           fullText += slice;
           updateAssistantContent(assistantId, fullText);
           await sleep(12);
+        }
+      };
+
+      const processContentChunk = async (contentText: string) => {
+        rawContentBuffer += contentText;
+        const { answer, isThinking } = extractCleanAnswer(rawContentBuffer);
+
+        if (isThinking && !answer) {
+          setStatusMessage("Sedang berpikir...");
+        } else {
+          setStatusMessage(null);
+        }
+
+        if (answer.length > lastProcessedLength) {
+          const delta = answer.slice(lastProcessedLength);
+          lastProcessedLength = answer.length;
+          hasReceivedContent = true;
+          await appendSmoothly(delta);
         }
       };
 
@@ -1196,11 +1231,10 @@ export default function Home() {
           try {
             const chunk = JSON.parse(data) as StreamChunk;
             if (chunk.type === "sources" && Array.isArray(chunk.sources)) {
-              updateAssistantSources(assistantId, chunk.sources);
-              setStatusMessage(null);
+              // Tunda pemunculan sumber referensi browse hingga seluruh jawaban AI selesai
+              pendingSources = chunk.sources;
             } else if (chunk.type === "search_error" && chunk.error) {
-              updateAssistantSearchError(assistantId, chunk.error);
-              setStatusMessage(null);
+              pendingSearchError = chunk.error;
             } else {
               const contentText =
                 chunk.choices?.[0]?.delta?.content ||
@@ -1208,9 +1242,7 @@ export default function Home() {
               const reasoningText = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
 
               if (contentText) {
-                hasReceivedContent = true;
-                setStatusMessage(null);
-                await appendSmoothly(contentText);
+                await processContentChunk(contentText);
               } else if (reasoningText) {
                 // Khusus model coder (qwen3-coder) yang seluruh jawabannya dibungkus oleh provider di reasoning_content
                 if (isCoderModel) {
@@ -1236,9 +1268,9 @@ export default function Home() {
             try {
               const chunk = JSON.parse(data) as StreamChunk;
               if (chunk.type === "sources" && Array.isArray(chunk.sources)) {
-                updateAssistantSources(assistantId, chunk.sources);
+                pendingSources = chunk.sources;
               } else if (chunk.type === "search_error" && chunk.error) {
-                updateAssistantSearchError(assistantId, chunk.error);
+                pendingSearchError = chunk.error;
               } else {
                 const contentText =
                   chunk.choices?.[0]?.delta?.content ||
@@ -1246,8 +1278,7 @@ export default function Home() {
                 const reasoningText = (chunk.choices?.[0]?.delta as unknown as { reasoning_content?: string })?.reasoning_content;
 
                 if (contentText) {
-                  hasReceivedContent = true;
-                  await appendSmoothly(contentText);
+                  await processContentChunk(contentText);
                 } else if (reasoningText && isCoderModel) {
                   await appendSmoothly(reasoningText);
                 } else if (reasoningText) {
@@ -1259,11 +1290,31 @@ export default function Home() {
         }
       }
 
-      // Safety Fallback: Jika setelah stream selesai ternyata tidak ada contentText sama sekali
-      // (misal provider mengirim seluruh responnya di reasoning_content), tampilkan reasoningBuffer agar pesan tidak hilang!
-      if (!controller.signal.aborted && !fullText && reasoningBuffer.trim()) {
-        setStatusMessage(null);
-        await appendSmoothly(reasoningBuffer.trim());
+      // Safety Fallback: Jika setelah stream selesai ternyata tidak ada teks yang ter-render
+      // (misal provider mengirim seluruh responnya di reasoning_content atau terjebak dalam tag <think>)
+      if (!controller.signal.aborted && !fullText.trim()) {
+        if (rawContentBuffer.trim()) {
+          const fallbackClean = rawContentBuffer.replace(/<\/?think>/gi, "").trim();
+          if (fallbackClean) {
+            setStatusMessage(null);
+            await appendSmoothly(fallbackClean);
+          }
+        } else if (reasoningBuffer.trim()) {
+          setStatusMessage(null);
+          await appendSmoothly(reasoningBuffer.trim());
+        }
+      }
+
+      setStatusMessage(null);
+
+      // Tampilkan referensi web setelah seluruh respons chat dari AI selesai terkirim
+      if (!controller.signal.aborted) {
+        if (pendingSources && pendingSources.length > 0) {
+          updateAssistantSources(assistantId, pendingSources);
+        }
+        if (pendingSearchError) {
+          updateAssistantSearchError(assistantId, pendingSearchError);
+        }
       }
     } catch (err) {
       if (controller.signal.aborted && controller.signal.reason === "TIMEOUT") {
