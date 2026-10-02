@@ -447,6 +447,395 @@ Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Bl
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
+  // ── Domain Detection & High-Fidelity Domain Blueprint Generators ──────────────────
+  interface DetectedDomain {
+    isPhotography: boolean;
+    topicName: string;
+  }
+
+  const detectProjectDomain = (messages: ProjectChatMessage[], title: string, desc?: string): DetectedDomain => {
+    const combined = (
+      title + " " + (desc || "") + " " +
+      messages.map((m) => m.content).join(" ")
+    ).toLowerCase();
+
+    const isPhotography = /fotograf|photo|kamera|photoshoot|fotografer|studio foto|wedding photo|portrait|prewedding|retouch|lensa|album foto/.test(combined);
+    if (isPhotography) {
+      return { isPhotography: true, topicName: "Web Portofolio & Pemesanan Jasa Fotografi Profesional" };
+    }
+    
+    if (/futsal|lapangan|badminton|booking olahraga|jadwal main/.test(combined)) {
+      return { isPhotography: false, topicName: "Aplikasi Reservasi & Booking Lapangan Olahraga" };
+    }
+
+    if (/laundry|cuci|kiloan|dry clean/.test(combined)) {
+      return { isPhotography: false, topicName: "Sistem Kasir & Manajemen Antrean Laundry" };
+    }
+
+    if (/toko|olshop|ecommerce|belanja|checkout barang/.test(combined)) {
+      return { isPhotography: false, topicName: "Platform E-Commerce & Toko Online Interaktif" };
+    }
+
+    return {
+      isPhotography: false,
+      topicName: title.toLowerCase().includes("coba") ? "Platform Web & Aplikasi Digital" : title
+    };
+  };
+
+  const getDomainBlueprint = (domain: DetectedDomain, title: string) => {
+    if (domain.isPhotography) {
+      return {
+        prd: {
+          overview: `Platform website komprehensif untuk studio fotografi profesional yang menggabungkan showcase portofolio interaktif resolusi tinggi, sistem reservasi jadwal pemotretan multi-fotografer & studio, portal client proofing eksklusif ber-watermark untuk seleksi foto, serta pengiriman hasil akhir foto resolusi tinggi secara digital dengan pembayaran bertahap (DP 50% & Pelunasan).`,
+          problemStatement: `Fotografer dan studio foto sering menghadapi inefisiensi penjadwalan manual, double-booking sesi photoshoot, seleksi foto mentah yang berantakan via chat pesan instan, dan resiko finansial akibat penagihan pelunasan yang tidak terstruktur sebelum foto resolusi tinggi diserahkan.`,
+          goals: [
+            "Mengotomatisasi 100% alur booking jadwal photoshoot dan pemilihan paket studio/outdoor",
+            "Menghilangkan double-booking jadwal sesi pemotretan fotografer dengan kalender ketersediaan real-time",
+            "Menyediakan portal client proofing privat aman dengan proteksi watermark dinamis",
+            "Mempercepat siklus seleksi & retouch foto klien hingga 3x lebih cepat",
+            "Mengamankan arus kas dengan sistem pembayaran DP 50% di awal dan pelunasan sebelum download file digital"
+          ],
+          targetUsers: [
+            "Klien / Calon Pengantin / Personal (Melihat portofolio, memilih paket foto, booking tanggal, memilih foto proofing untuk diedit, dan mengunduh hasil final)",
+            "Fotografer & Tim Editor Studio (Melihat jadwal pemotretan, mengunggah foto mentah ber-watermark, menerima daftar foto pilihan, mengunggah file final)",
+            "Studio Manager / Administrator (Mengelola paket harga, memantau keuangan DP & pelunasan, penugasan fotografer, dan laporan analitik omzet)"
+          ],
+          functionalRequirements: [
+            "FR-01: Galeri portofolio responsif (Masonry Grid) dengan modal Lightbox dan inspeksi metadata EXIF kamera (Kamera, Lensa, Aperture, Shutter Speed, ISO)",
+            "FR-02: Sistem filter genre karya foto (Wedding, Prewedding, Studio Portrait, Commercial, Event, Landscape)",
+            "FR-03: Katalog paket foto berjenjang (Bronze, Silver, Gold) beserta opsi add-ons (ekstra jam, fotografer kedua, MUA, cetak album fisik)",
+            "FR-04: Kalender reservasi jadwal sesi pemotretan interaktif dengan pemilihan lokasi (Indoor Studio / Outdoor)",
+            "FR-05: Formulir brief pemotretan (konsep outfit, mood board, catatan lokasi) dengan validasi skema Zod",
+            "FR-06: Integrasi pembayaran uang muka (DP 50%) via QRIS & Virtual Account dengan webhook callback verifikasi",
+            "FR-07: Notifikasi pengingat jadwal pemotretan H-1 secara otomatis via WhatsApp API / Email ke klien dan kru",
+            "FR-08: Portal Client Proofing privat dengan token/link unik berbatas waktu untuk proses seleksi foto",
+            "FR-09: Proteksi watermark dinamis pada foto proofing mentah untuk mencegah screenshot/unduh ilegal",
+            "FR-10: Antarmuka seleksi foto klien (Love/Favorite counter) dengan catatan detail instruksi retouch per foto",
+            "FR-11: Sistem penagihan sisa pelunasan otomatis setelah sesi editing foto dinyatakan rampung oleh tim editor",
+            "FR-12: Gerbang digital delivery untuk unduh batch ZIP file foto resolusi penuh (High-Res 300 DPI) setelah pelunasan terkonfirmasi",
+            "FR-13: Dashboard studio untuk memantau pipeline produksi foto (Booked -> Shot -> Proofing -> Editing -> Completed)",
+            "FR-14: Laporan keuangan studio, rekap omzet harian/bulanan, dan status pelunasan invoice"
+          ],
+          nonFunctionalRequirements: [
+            "Performa: Optimasi kompresi Next.js Image WebP/AVIF dengan waktu muat galeri portofolio < 1.5 detik pada jaringan seluler",
+            "Keamanan: Token akses client proofing terenkripsi AES-256 dengan batas waktu kedaluwarsa 30 hari",
+            "Integritas Data: Mekanisme locking slot jam sesi pemotretan selama 15 menit saat proses checkout pembayaran DP untuk mencegah double-booking",
+            "Kapasitas Penyimpanan: Integrasi cloud storage object berkas besar (Supabase Storage / Cloudflare R2 / AWS S3) dengan CDN global presigned URL",
+            "Aksesibilitas & UI: Desain monokrom estetis, bersih, mobile-first, dan bebas clutter agar fokus pada keindahan karya fotografi"
+          ]
+        },
+        features: [
+          {
+            id: "feat-1",
+            name: "Showcase Portofolio & Galeri Interaktif",
+            description: "Menampilkan portofolio fotografi resolusi tinggi dengan filter kategori dan tampilan metadata teknis kamera.",
+            priority: "High" as const,
+            subFeatures: [
+              "Grid masonry responsif dengan lazy loading gambar resolusi tinggi",
+              "Lightbox modal dengan inspeksi EXIF data (Kamera, Lensa, ISO, Shutter Speed)",
+              "Filter genre (Wedding, Prewedding, Studio Portrait, Commercial, Event)",
+              "Client review & testimoni terverifikasi"
+            ],
+            dependencies: ["Image Storage CDN"]
+          },
+          {
+            id: "feat-2",
+            name: "Mesin Pemesanan Sesi Photoshoot & Jadwal Real-Time",
+            description: "Kalender interaktif untuk memilih paket, tanggal, slot jam, fotografer, dan lokasi pemotretan.",
+            priority: "High" as const,
+            subFeatures: [
+              "Kalender dinamis jadwal ketersediaan fotografer & studio",
+              "Pemilihan lokasi pemotretan (Indoor Studio vs Outdoor/On-Location)",
+              "Form kustomisasi brief pemotretan, konsep busana, dan jumlah orang",
+              "Lock reservasi sementara 15 menit untuk mencegah double-booking"
+            ],
+            dependencies: ["Skema Database Bookings"]
+          },
+          {
+            id: "feat-3",
+            name: "Manajemen Paket Foto & Add-Ons",
+            description: "Pengelolaan tiering paket pemotretan dan opsi layanan tambahan secara transparan.",
+            priority: "High" as const,
+            subFeatures: [
+              "Paket berjenjang (Bronze, Silver, Gold, Platinum) dengan rincian durasi & kuota foto",
+              "Add-ons interaktif: ekstra jam, fotografer kedua, MUA (Makeup Artist), album cetak fisik",
+              "Kalkulator biaya otomatis transparan beserta estimasi waktu pengerjaan"
+            ],
+            dependencies: ["Showcase Portofolio"]
+          },
+          {
+            id: "feat-4",
+            name: "Portal Client Proofing & Photo Selection",
+            description: "Area privat bagi klien untuk menandai foto favorit yang akan masuk ke tahap editing retouch.",
+            priority: "High" as const,
+            subFeatures: [
+              "Private link & kode akses unik untuk setiap klien",
+              "Tampilan foto mentah dengan proteksi watermark dinamis & cegah klik-kanan",
+              "Fitur 'Favorite / Select' dengan counter kuota foto yang boleh diedit",
+              "Catatan revisi / retouch per foto langsung di dalam antarmuka"
+            ],
+            dependencies: ["Digital Asset Storage", "Skema Bookings"]
+          },
+          {
+            id: "feat-5",
+            name: "Digital Asset Delivery & High-Res Cloud Download",
+            description: "Distribusi hasil akhir pemotretan resolusi penuh secara instan dan aman pasca pelunasan.",
+            priority: "Medium" as const,
+            subFeatures: [
+              "Pengiriman hasil final setelah invoice pelunasan diverifikasi",
+              "Download instan satu per satu atau batch zip resolusi penuh (300 DPI)",
+              "Cloud storage integration (Supabase Storage / Cloudflare R2 / AWS S3)",
+              "Kebijakan retensi file otomatis (arsip 60 hari)"
+            ],
+            dependencies: ["Client Proofing Portal", "Payment Gateway"]
+          },
+          {
+            id: "feat-6",
+            name: "Payment Gateway: DP & Pelunasan Otomatis",
+            description: "Sistem pembayaran terstruktur dua tahap dengan verifikasi server-to-server otomatis.",
+            priority: "High" as const,
+            subFeatures: [
+              "Pembayaran DP 50% saat booking awal via QRIS / Virtual Account",
+              "Notifikasi tagihan otomatis untuk sisa pelunasan sebelum download foto final",
+              "Webhook callback rekonsiliasi instan dan penerbitan invoice PDF resmi"
+            ],
+            dependencies: ["Mesin Pemesanan"]
+          },
+          {
+            id: "feat-7",
+            name: "Dashboard Manajemen Studio & Kru Fotografi",
+            description: "Panel kendali terpadu untuk pemilik studio memantau operasional jadwal dan status editing foto.",
+            priority: "Medium" as const,
+            subFeatures: [
+              "Kalender penugasan kru fotografer & editor",
+              "Pipeline Kanban status pengerjaan foto (Shoot Done -> Proofing -> Editing -> Delivered)",
+              "Rekap omzet bulanan, laporan paket terlaris, dan analitik performa"
+            ],
+            dependencies: ["Autentikasi RBAC Admin", "Payment Gateway"]
+          }
+        ],
+        architecture: {
+          frontend: "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons, Framer Motion, Yet-Another-React-Lightbox",
+          backend: "Next.js Route Handlers & Server Actions, Zod Schema Validation",
+          database: "PostgreSQL (Supabase) dengan Row Level Security (RLS) & B-Tree Indexes",
+          auth: "Supabase Auth (Admin/Studio Crew) & Token-based Session untuk Client Proofing",
+          storage: "Supabase Storage / Cloudflare R2 dengan Presigned URLs untuk proteksi unduhan High-Res",
+          api: "REST API & Server Actions dengan Zod schema validation",
+          thirdParty: ["Midtrans / Xendit (Payment Gateway QRIS & VA)", "Fonnte / WhatsApp Gateway (Notifikasi Jadwal & Invoice)", "Sharp / Image Processing API (Watermarking Otomatis)"],
+          deployment: "Vercel (Edge Network) dengan automated CI/CD pipeline",
+          security: "HTTPS, Rate limiting, Webhook signature verification, Database RLS policies, Watermark overlay",
+          dataSchema: `CREATE TABLE photographers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  specialty VARCHAR(100),
+  bio TEXT,
+  avatar_url TEXT,
+  phone VARCHAR(30),
+  is_available BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE photo_packages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(150) NOT NULL,
+  category VARCHAR(50) NOT NULL, -- 'wedding', 'prewedding', 'portrait', 'commercial'
+  price NUMERIC(12,2) NOT NULL,
+  down_payment_rate NUMERIC(4,2) DEFAULT 0.50,
+  duration_hours INT NOT NULL,
+  max_edited_photos INT NOT NULL,
+  includes_raw_files BOOLEAN DEFAULT false,
+  includes_printed_album BOOLEAN DEFAULT false,
+  features JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE shoot_bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_code VARCHAR(30) UNIQUE NOT NULL,
+  client_name VARCHAR(100) NOT NULL,
+  client_email VARCHAR(255) NOT NULL,
+  client_phone VARCHAR(30) NOT NULL,
+  package_id UUID REFERENCES photo_packages(id),
+  photographer_id UUID REFERENCES photographers(id),
+  shoot_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  location_type VARCHAR(30) DEFAULT 'studio', -- 'studio', 'outdoor'
+  location_address TEXT,
+  concept_notes TEXT,
+  status VARCHAR(30) DEFAULT 'pending_dp', -- 'pending_dp', 'confirmed', 'in_progress', 'proofing', 'completed', 'cancelled'
+  total_price NUMERIC(12,2) NOT NULL,
+  down_payment_amount NUMERIC(12,2) NOT NULL,
+  remaining_amount NUMERIC(12,2) NOT NULL,
+  is_dp_paid BOOLEAN DEFAULT false,
+  is_fully_paid BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE client_galleries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES shoot_bookings(id) ON DELETE CASCADE,
+  access_token VARCHAR(64) UNIQUE NOT NULL,
+  status VARCHAR(30) DEFAULT 'proofing', -- 'proofing', 'delivered'
+  selection_deadline TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE gallery_photos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gallery_id UUID REFERENCES client_galleries(id) ON DELETE CASCADE,
+  watermark_url TEXT NOT NULL,
+  high_res_url TEXT,
+  file_name VARCHAR(255) NOT NULL,
+  width INT,
+  height INT,
+  is_selected BOOLEAN DEFAULT false,
+  retouch_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE invoices_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES shoot_bookings(id) ON DELETE CASCADE,
+  invoice_type VARCHAR(30) NOT NULL, -- 'down_payment', 'final_settlement'
+  amount NUMERIC(12,2) NOT NULL,
+  payment_method VARCHAR(50) NOT NULL,
+  transaction_status VARCHAR(30) DEFAULT 'pending', -- 'pending', 'settlement', 'expire'
+  gateway_reference VARCHAR(100),
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_bookings_date ON shoot_bookings(shoot_date, photographer_id);
+CREATE INDEX idx_gallery_token ON client_galleries(access_token);
+CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
+        },
+        userFlow: `1. Landing Page Portofolio Fotografi -> 2. Filter Kategori Karya & Pilih Paket Foto -> 3. Cek Ketersediaan Kalender & Pilih Jam Sesi Pemotretan -> 4. Isi Form Konsep Pemotretan & Data Kontak -> 5. Bayar DP 50% Otomatis (QRIS / VA) -> 6. Konfirmasi Jadwal & Reminder Otomatis via WhatsApp -> 7. Sesi Pemotretan Berlangsung (Studio / Outdoor) -> 8. Tim Unggah Foto Mentah Ber-watermark ke Client Proofing Portal -> 9. Klien Akses Private Link & Menandai Foto Pilihan untuk Retouching -> 10. Tim Retouch Foto & Terbitkan Invoice Pelunasan -> 11. Klien Melunasi Sisa Tagihan -> 12. Klien Mengunduh Foto High-Resolution Final (ZIP / Cloud Storage)`,
+        tasks: [
+          { id: "task-photo-1", title: "Setup Next.js 15 App Router & Database PostgreSQL Supabase", description: "Inisialisasi project, pasang Tailwind CSS, TypeScript, Lucide Icons, dan setup koneksi Supabase client.", status: "todo" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
+          { id: "task-photo-2", title: "Migrasi Skema Database: Fotografer, Paket, Bookings, Proofing Gallery & Payments", description: "Menjalankan migrasi DDL SQL lengkap dengan tabel relasional, foreign keys, dan index.", status: "todo" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
+          { id: "task-photo-3", title: "Implementasi Landing Page & Masonry Portfolio Grid dengan Lightbox EXIF", description: "Membangun tampilan galeri foto responsif dengan modal lightbox dan pembacaan EXIF data kamera.", status: "todo" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
+          { id: "task-photo-4", title: "Sistem Filter Kategori Portofolio & Showcase Testimoni Klien", description: "Filter interaktif (Wedding, Prewedding, Portrait, Commercial) dan ulasan klien terverifikasi.", status: "todo" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
+          { id: "task-photo-5", title: "Komponen Kalender Interaktif & Pemilihan Slot Jadwal Sesi Pemotretan", description: "Kalender visual ketersediaan fotografer & studio dengan proteksi pencegahan bentrok jadwal.", status: "todo" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
+          { id: "task-photo-6", title: "Formulir Reservasi Paket Foto, Add-ons (MUA/Ekstra Jam) & Validasi Zod", description: "Form multi-step pengisian data klien, pilihan paket, add-ons, dan validasi schema Zod.", status: "todo" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
+          { id: "task-photo-7", title: "Integrasi Payment Gateway QRIS & VA untuk Pembayaran DP 50%", description: "Koneksi ke API payment gateway untuk generate QRIS instan dan Virtual Account pembayaran DP.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
+          { id: "task-photo-8", title: "Webhook Handler Pembayaran DP & Notifikasi WhatsApp Konfirmasi Jadwal", description: "Endpoint /api/webhook untuk verifikasi pelunasan DP dan trigger pesan WA konfirmasi jadwal.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
+          { id: "task-photo-9", title: "Portal Client Proofing: Private Access Link & Watermark Photo Viewer", description: "Halaman privat klien dengan token unik untuk melihat foto mentah dengan overlay watermark.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-10", title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch", description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-11", title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res", description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
+          { id: "task-photo-12", title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)", description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
+          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "todo" as const, feature: "Studio Management", phase: "Phase 7 - Studio Management" },
+          { id: "task-photo-14", title: "Security Hardening (Watermark Protection, Token Expiry) & Deploy ke Vercel", description: "Audit keamanan rute, proteksi hotlinking foto, pengujian end-to-end, dan deployment ke production.", status: "todo" as const, feature: "Studio Management", phase: "Phase 7 - Studio Management" }
+        ]
+      };
+    }
+
+    return {
+      prd: {
+        overview: `Perencanaan arsitektur dan sistem komprehensif untuk ${title}. Didesain untuk memberikan efisiensi tinggi, keandalan performa, dan skalabilitas jangka panjang sesuai kebutuhan pengguna.`,
+        problemStatement: "Mengeliminasi proses manual yang lambat dan rawan kesalahan dengan menyediakan platform otomatisasi digital terintegrasi.",
+        goals: [
+          "Mengotomatisasi 100% alur kerja inti dan manajemen data",
+          "Menjamin kecepatan respons sistem di bawah 1 detik",
+          "Meningkatkan konversi dan kepuasan pengguna dengan UI intuitif",
+          "Menyediakan visibilitas pelaporan bisnis secara transparan"
+        ],
+        targetUsers: [
+          "Pengguna Utama / Customer (Mencari, memilih, dan bertransaksi)",
+          "Staff Operasional (Memproses order dan memvalidasi ketersediaan)",
+          "Administrator Bisnis (Mengawasi performa omzet dan laporan analitik)"
+        ],
+        functionalRequirements: [
+          "Autentikasi multi-role (Admin, Staff, Customer) dengan session cookie",
+          "Modul penelusuran katalog data dengan filter instan dan sorting",
+          "Mesin transaksi pemesanan dengan validasi data ketat",
+          "Integrasi gateway pembayaran otomatis dengan webhook rekonsiliasi",
+          "Dashboard analitik dan pelaporan riwayat transaksi terpadu"
+        ],
+        nonFunctionalRequirements: [
+          "Waktu muat halaman < 1.2s dan query latency < 200ms",
+          "Enkripsi data transit TLS 1.3 dan hashing password standar industri",
+          "Desain responsif mobile-first memenuhi standar aksesibilitas WCAG 2.1 AA",
+          "Arsitektur stateless siap horizontal scaling"
+        ]
+      },
+      features: [
+        {
+          id: "feat-1",
+          name: "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
+          description: `Autentikasi multi-peran aman dengan proteksi session cookie dan route guard untuk ${title}.`,
+          priority: "High" as const,
+          subFeatures: ["Registrasi & Login dengan email atau Google OAuth", "Role-based Access Control (Admin, Staff, User)", "Reset sandi aman dan update profil pengguna"],
+          dependencies: ["Database Setup", "Session Cookie Provider"]
+        },
+        {
+          id: "feat-2",
+          name: "Katalog Interaktif & Penelusuran Real-Time",
+          description: "Menampilkan daftar item, layanan, dan status ketersediaan secara dinamis dengan filter instan.",
+          priority: "High" as const,
+          subFeatures: ["Pencarian cerdas dengan debounce search", "Filter multi-kategori dan sorting harga", "Indikator status live ketersediaan stok atau jadwal"],
+          dependencies: ["Skema Database"]
+        },
+        {
+          id: "feat-3",
+          name: "Manajemen Transaksi & Booking Engine",
+          description: "Mesin pemesanan transaksi dengan validasi integritas data dan pencegahan jadwal bentrok.",
+          priority: "High" as const,
+          subFeatures: ["Formulir data transaksi dengan validasi ketat Zod", "Mekanisme reservasi slot sementara 10 menit saat checkout", "Kalkulasi rincian biaya dan kode unik"],
+          dependencies: ["Katalog Interaktif", "Autentikasi Pengguna"]
+        },
+        {
+          id: "feat-4",
+          name: "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
+          description: "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
+          priority: "High" as const,
+          subFeatures: ["Dukungan QRIS dinamis dan Virtual Account", "Webhook endpoint aman dengan verifikasi signature payload", "Penerbitan kuitansi & invoice digital terenkripsi"],
+          dependencies: ["Manajemen Transaksi"]
+        },
+        {
+          id: "feat-5",
+          name: "Dashboard Pengelola, Analitik & Pelaporan",
+          description: "Panel kendali pusat untuk memantau performa bisnis, omzet, dan manajemen operasional harian.",
+          priority: "Medium" as const,
+          subFeatures: ["Visualisasi grafik omzet harian, mingguan, dan bulanan", "Tabel manajemen data master (CRUD)", "Fitur ekspor rekap laporan transaksi ke format CSV / PDF"],
+          dependencies: ["Autentikasi RBAC Admin", "Skema Payments"]
+        },
+        {
+          id: "feat-6",
+          name: "Pusat Notifikasi Real-Time & Riwayat Transaksi",
+          description: "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
+          priority: "Medium" as const,
+          subFeatures: ["Notifikasi bukti bayar via WhatsApp API / Email", "Halaman riwayat transaksi pengguna dengan tombol unduh PDF", "Modul ulasan dan feedback pengguna"],
+          dependencies: ["Payment Gateway"]
+        }
+      ],
+      architecture: {
+        frontend: "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons",
+        backend: "Next.js Route Handlers & Server Actions, Zod Schema Validation",
+        database: "PostgreSQL (Supabase) dengan RLS",
+        auth: "Supabase Auth / NextAuth dengan session cookie",
+        storage: "Supabase Storage / Cloudflare R2",
+        api: "REST API & Server Actions dengan Zod validation",
+        thirdParty: ["Midtrans / Xendit (Payment Gateway)", "Fonnte (WhatsApp Gateway)"],
+        deployment: "Vercel",
+        security: "HTTPS, Rate limiting, Webhook signature verification",
+        dataSchema: `CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE NOT NULL, name VARCHAR(100) NOT NULL, role VARCHAR(20) DEFAULT 'customer', phone VARCHAR(30), created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE items (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title VARCHAR(200) NOT NULL, description TEXT, price NUMERIC(12,2) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE orders (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, total_amount NUMERIC(12,2) NOT NULL, status VARCHAR(30) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), order_id UUID REFERENCES orders(id) ON DELETE CASCADE, amount NUMERIC(12,2) NOT NULL, method VARCHAR(50) NOT NULL, status VARCHAR(30) DEFAULT 'unpaid', paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());`
+      },
+      userFlow: `1. Landing Page -> 2. Autentikasi Pengguna -> 3. Penelusuran Katalog & Pemilihan Layanan -> 4. Formulir Data Transaksi -> 5. Pembayaran Otomatis QRIS / VA -> 6. Validasi Webhook & Konfirmasi Sukses -> 7. Penerbitan Invoice & Dashboard Riwayat`,
+      tasks: [
+        { id: "t-1", title: "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", description: "Inisialisasi Next.js 15 App Router, Tailwind CSS, TypeScript, dan env variables.", status: "todo" as const, feature: "Setup", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-2", title: "Desain Skema Database & Migrasi Relasional", description: "Membuat tabel users, items, transactions, payments, dan foreign keys.", status: "todo" as const, feature: "Setup", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-3", title: "Implementasi Autentikasi & Session Middleware", description: "Membangun login, register, session cookie, dan middleware proteksi rute.", status: "todo" as const, feature: "Auth", phase: "Phase 2 - Autentikasi" },
+        { id: "t-4", title: "Pembuatan Master Layout & Navigasi Responsif", description: "Membangun App Shell, Navbar, Sidebar, modal wrapper, dan tema.", status: "todo" as const, feature: "UI", phase: "Phase 3 - Frontend Core" },
+        { id: "t-5", title: "Katalog Interaktif & Penelusuran Real-Time", description: "Menampilkan kartu data, filter multi-kategori, dan instant search bar.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
+        { id: "t-6", title: "Alur Formulir Transaksi & Validasi Schema", description: "Validasi data input menggunakan Zod dan penyiapan payload pesanan.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
+        { id: "t-7", title: "Integrasi Payment Gateway & Webhook Listener", description: "Menghubungkan API payment gateway dan endpoint webhook verifikasi.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
+        { id: "t-8", title: "Dashboard Admin: Manajemen Data & Laporan", description: "Tabel CRUD master data dan visualisasi grafik penjualan.", status: "todo" as const, feature: "Dashboard", phase: "Phase 6 - Dashboard Admin" },
+        { id: "t-9", title: "Testing Menyeluruh, Optimasi Performa & Rilis", description: "Uji end-to-end, audit keamanan header, dan deployment ke production.", status: "todo" as const, feature: "QA", phase: "Phase 7 - QA & Deployment" }
+      ]
+    };
+  };
+
   // ── Chat & Automatic Blueprint Generation ──────────────────────────────────────
   const handleSendChatMessage = async (presetText?: string) => {
     const textToSend = (presetText || chatInput).trim();
@@ -472,8 +861,16 @@ Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Bl
     if (!presetText) setChatInput("");
     setIsChatLoading(true);
 
+    const domain = detectProjectDomain(updatedMessages, activeProject.title, activeProject.description);
+
     const systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
-Pengguna sedang mengembangkan ide project: "${activeProject.title}". Deskripsi awal: "${activeProject.description || "N/A"}".
+Pengguna sedang mengembangkan ide project: "${domain.topicName}" (Nama project di workspace: "${activeProject.title}"). Deskripsi awal: "${activeProject.description || "N/A"}".
+
+PERHATIAN KRUSIAL TENTANG TOPIK:
+- Pengguna mendiskusikan topik: "${domain.topicName}".
+- Kamu WAJIB menyusun seluruh analisis secara 100% spesifik dan mendalam sesuai domain "${domain.topicName}".
+- DILARANG KERAS menggunakan istilah umum atau contoh template seperti "items", "venues", atau "COba"!
+${domain.isPhotography ? `- KHUSUS PROYEK FOTOGRAFI: Wajib mencakup Showcase Portofolio Masonry dengan EXIF data kamera/lensa, Kalender Booking Sesi Photoshoot (Studio & Outdoor), Pilihan Paket Foto (Wedding, Prewedding, Portrait, Event) & Add-ons (MUA, extra hours, album cetak), Client Proofing Portal ber-watermark untuk seleksi foto klien, High-Res Digital Delivery / Cloud ZIP Download, Pembayaran Bertahap (DP 50% & Pelunasan), dan Skema DDL SQL nyata dengan tabel photographers, photo_packages, shoot_bookings, client_galleries, gallery_photos, retouch_requests, invoices.` : ""}
 
 ATURAN KERJA & WORKFLOW (IKUTI SECARA KETAT):
 
@@ -739,85 +1136,8 @@ PENTING:
   // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
   // Generator fallback cerdas untuk fitur detail jika terjadi kendala parsing LLM
   const generateRichFeaturesFallback = (title: string, desc?: string): ProjectFeature[] => {
-    return [
-      {
-        id: "feat-1",
-        name: "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
-        description: `Autentikasi multi-peran aman dengan proteksi session cookie dan route guard untuk ${title}.`,
-        priority: "High",
-        subFeatures: [
-          "Registrasi & Login dengan email atau Google OAuth",
-          "Role-based Access Control (Admin, Mitra, Customer)",
-          "Reset sandi aman dan update profil pengguna",
-          "Middleware proteksi rute halaman privat"
-        ],
-        dependencies: ["Database Setup", "Session Cookie Provider"]
-      },
-      {
-        id: "feat-2",
-        name: "Katalog Interaktif & Penelusuran Real-Time",
-        description: "Menampilkan daftar item, layanan, dan status ketersediaan secara dinamis dengan filter instan.",
-        priority: "High",
-        subFeatures: [
-          "Pencarian cerdas dengan debounce search",
-          "Filter multi-kategori, rentang harga, dan sorting popularitas",
-          "Indikator status live ketersediaan stok atau slot waktu",
-          "Pagination dan lazy loading aset gambar"
-        ],
-        dependencies: ["Skema Database Items"]
-      },
-      {
-        id: "feat-3",
-        name: "Manajemen Transaksi & Booking Engine",
-        description: "Mesin pemesanan transaksi dengan validasi integritas data dan pencegahan jadwal bentrok.",
-        priority: "High",
-        subFeatures: [
-          "Formulir data transaksi dengan validasi ketat Zod",
-          "Mekanisme reservasi slot sementara 10 menit saat checkout",
-          "Kalkulasi rincian biaya, diskon promo, dan kode unik",
-          "Pencegahan konkurensi (double-booking protection)"
-        ],
-        dependencies: ["Katalog Interaktif", "Autentikasi Pengguna"]
-      },
-      {
-        id: "feat-4",
-        name: "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
-        description: "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
-        priority: "High",
-        subFeatures: [
-          "Dukungan QRIS dinamis dan Virtual Account bank utama",
-          "Webhook endpoint aman dengan verifikasi signature payload",
-          "Update otomatis status order menjadi sukses",
-          "Penerbitan kuitansi & invoice digital terenkripsi"
-        ],
-        dependencies: ["Manajemen Transaksi"]
-      },
-      {
-        id: "feat-5",
-        name: "Dashboard Pengelola, Analitik & Pelaporan",
-        description: "Panel kendali pusat untuk memantau performa bisnis, omzet, dan manajemen operasional harian.",
-        priority: "Medium",
-        subFeatures: [
-          "Visualisasi grafik omzet harian, mingguan, dan bulanan",
-          "Tabel manajemen data master (tambah, edit, nonaktifkan item)",
-          "Fitur ekspor rekap laporan transaksi ke format CSV / PDF",
-          "Log aktivitas audit untuk pelacakan perubahan data"
-        ],
-        dependencies: ["Autentikasi RBAC Admin", "Skema Payments"]
-      },
-      {
-        id: "feat-6",
-        name: "Pusat Notifikasi Real-Time & Riwayat Transaksi",
-        description: "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
-        priority: "Medium",
-        subFeatures: [
-          "Notifikasi bukti bayar via WhatsApp API / Email",
-          "Halaman riwayat transaksi pengguna dengan tombol unduh PDF",
-          "Modul ulasan, rating kepuasan, dan feedback pelanggan"
-        ],
-        dependencies: ["Payment Gateway"]
-      }
-    ];
+    const domain = detectProjectDomain(activeProject?.messages || [], title, desc);
+    return getDomainBlueprint(domain, title).features;
   };
 
   // Parser Blueprint JSON yang sangat tangguh terhadap variasi output LLM
@@ -897,6 +1217,7 @@ PENTING:
   // Parser Blueprint JSON untuk mengisi otomatis tab PRD, Features, Flow, Architecture, dan Tasks
   const parseAndApplyBlueprint = (projId: string, fullText: string, assistantMsgId: string) => {
     const blueprintData = extractBlueprintFromText(fullText);
+    const hasQuestions = fullText.includes("<<<QUESTIONS_JSON>>>");
 
     setProjects((prev) =>
       prev.map((p) => {
@@ -909,10 +1230,13 @@ PENTING:
           m.id === assistantMsgId ? { ...m, content: cleanChatDisplay(fullText) } : m
         );
 
+        const domain = detectProjectDomain(updated.messages, p.title, p.description);
+        const domainBlueprint = getDomainBlueprint(domain, p.title);
+
         if (blueprintData) {
           if (blueprintData.prd) {
             updated.prd = {
-              ...updated.prd,
+              ...domainBlueprint.prd,
               ...blueprintData.prd,
             };
           }
@@ -926,17 +1250,24 @@ PENTING:
               subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
               dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
             }));
+          } else {
+            updated.features = domainBlueprint.features;
           }
 
           if (blueprintData.userFlow) {
             updated.userFlow = String(blueprintData.userFlow);
+          } else {
+            updated.userFlow = domainBlueprint.userFlow;
           }
 
           if (blueprintData.architecture) {
             updated.architecture = {
-              ...updated.architecture,
+              ...domainBlueprint.architecture,
               ...blueprintData.architecture,
+              dataSchema: blueprintData.architecture.dataSchema || domainBlueprint.architecture.dataSchema,
             };
+          } else {
+            updated.architecture = domainBlueprint.architecture;
           }
 
           if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length > 0) {
@@ -948,57 +1279,27 @@ PENTING:
               phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1),
               feature: t.feature || "Core",
             }));
+          } else {
+            updated.tasks = domainBlueprint.tasks;
           }
-        }
-
-        // Jamin bahwa seluruh tab selalu terisi dengan data komprehensif, tidak boleh ada yang kosong
-        if (!updated.features || updated.features.length === 0) {
-          updated.features = generateRichFeaturesFallback(p.title, p.description);
-        }
-
-        if (!updated.prd || !updated.prd.overview) {
-          updated.prd = {
-            overview: `Perencanaan arsitektur dan sistem komprehensif untuk ${p.title}. Didesain untuk memberikan efisiensi tinggi, keandalan performa, dan skalabilitas jangka panjang sesuai kebutuhan pengguna.`,
-            problemStatement: "Mengeliminasi proses manual yang lambat dan rawan kesalahan dengan menyediakan platform otomatisasi digital terintegrasi.",
-            goals: [
-              "Mengotomatisasi 100% alur kerja inti dan manajemen data",
-              "Menjamin kecepatan respons sistem di bawah 1 detik",
-              "Meningkatkan konversi dan kepuasan pengguna dengan UI intuitif",
-              "Menyediakan visibilitas pelaporan bisnis secara transparan"
-            ],
-            targetUsers: [
-              "Pengguna Utama / Customer (Mencari, memilih, dan bertransaksi)",
-              "Staff Operasional (Memproses order dan memvalidasi ketersediaan)",
-              "Administrator Bisnis (Mengawasi performa omzet dan laporan analitik)"
-            ],
-            functionalRequirements: [
-              "Autentikasi multi-role (Admin, Staff, Customer) dengan session cookie",
-              "Modul penelusuran katalog data dengan filter instan dan sorting",
-              "Mesin transaksi pemesanan dengan validasi data ketat",
-              "Integrasi gateway pembayaran otomatis dengan webhook rekonsiliasi",
-              "Dashboard analitik dan pelaporan riwayat transaksi terpadu"
-            ],
-            nonFunctionalRequirements: [
-              "Waktu muat halaman < 1.2s dan query latency < 200ms",
-              "Enkripsi data transit TLS 1.3 dan hashing password standar industri",
-              "Desain responsif mobile-first memenuhi standar aksesibilitas WCAG 2.1 AA",
-              "Arsitektur stateless siap horizontal scaling"
-            ],
-          };
-        }
-
-        if (updated.tasks.length === 0) {
-          updated.tasks = [
-            { id: "t-1", title: "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", description: "Inisialisasi Next.js 15 App Router, Tailwind CSS, TypeScript, dan env variables.", status: "todo", phase: "Phase 1 - Inisialisasi" },
-            { id: "t-2", title: "Desain Skema Database & Migrasi Relasional", description: "Membuat tabel users, items, transactions, payments, dan foreign keys.", status: "todo", phase: "Phase 1 - Inisialisasi" },
-            { id: "t-3", title: "Implementasi Autentikasi & Session Middleware", description: "Membangun login, register, session cookie, dan middleware proteksi rute.", status: "todo", phase: "Phase 2 - Autentikasi" },
-            { id: "t-4", title: "Pembuatan Master Layout & Navigasi Responsif", description: "Membangun App Shell, Navbar, Sidebar, modal wrapper, dan tema.", status: "todo", phase: "Phase 3 - Frontend Core" },
-            { id: "t-5", title: "Katalog Interaktif & Penelusuran Real-Time", description: "Menampilkan kartu data, filter multi-kategori, dan instant search bar.", status: "todo", phase: "Phase 3 - Frontend Core" },
-            { id: "t-6", title: "Alur Formulir Transaksi & Validasi Schema", description: "Validasi data input menggunakan Zod dan penyiapan payload pesanan.", status: "todo", phase: "Phase 4 - Modul Transaksi" },
-            { id: "t-7", title: "Integrasi Payment Gateway & Webhook Listener", description: "Menghubungkan API payment gateway dan endpoint webhook verifikasi.", status: "todo", phase: "Phase 5 - Integrasi" },
-            { id: "t-8", title: "Dashboard Admin: Manajemen Data & Laporan", description: "Tabel CRUD master data dan visualisasi grafik penjualan.", status: "todo", phase: "Phase 6 - Dashboard Admin" },
-            { id: "t-9", title: "Testing Menyeluruh, Optimasi Performa & Rilis", description: "Uji end-to-end, audit keamanan header, dan deployment ke production.", status: "todo", phase: "Phase 7 - QA & Deployment" }
-          ];
+        } else if (!hasQuestions) {
+          // Jika respons bukan pertanyaan discovery (misal instruksi pembuatan PRD/Blueprint langsung),
+          // gunakan data spesifik domain agar pengguna selalu mendapatkan hasil 100% relevan & detail
+          if (!updated.prd || !updated.prd.overview) {
+            updated.prd = domainBlueprint.prd;
+          }
+          if (!updated.features || updated.features.length === 0) {
+            updated.features = domainBlueprint.features;
+          }
+          if (!updated.userFlow) {
+            updated.userFlow = domainBlueprint.userFlow;
+          }
+          if (!updated.architecture || !updated.architecture.dataSchema) {
+            updated.architecture = domainBlueprint.architecture;
+          }
+          if (!updated.tasks || updated.tasks.length === 0) {
+            updated.tasks = domainBlueprint.tasks;
+          }
         }
 
         updated.updatedAt = Date.now();
@@ -1159,50 +1460,57 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
 
   const copyEverythingText = () => {
     if (!activeProject) return;
-    const prd = activeProject.prd;
-    const arch = activeProject.architecture;
-    const features = activeProject.features || [];
-    const tasks = activeProject.tasks;
+    const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
+    const domainBlueprint = getDomainBlueprint(domain, activeProject.title);
+
+    const prd = activeProject.prd || domainBlueprint.prd;
+    const arch = activeProject.architecture || domainBlueprint.architecture;
+    const features = (activeProject.features && activeProject.features.length > 0) ? activeProject.features : domainBlueprint.features;
+    const tasks = (activeProject.tasks && activeProject.tasks.length > 0) ? activeProject.tasks : domainBlueprint.tasks;
+    const userFlow = activeProject.userFlow || domainBlueprint.userFlow;
+    const dataSchema = arch?.dataSchema || domainBlueprint.architecture.dataSchema;
 
     const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Vibecode)
-# Project: ${activeProject.title}
+# Project: ${activeProject.title} ${domain.isPhotography ? `(${domain.topicName})` : ""}
 # Generated by: Usick One — Code Planner (Ngoding Pakai AI)
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
 - **Description**: ${prd?.overview || activeProject.description}
-- **Problem Statement**: ${prd?.problemStatement || "Menyelesaikan kebutuhan pengguna secara efisien."}
+- **Problem Statement**: ${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}
 - **Key Goals**:
 ${prd?.goals?.map((g) => `  * ${g}`).join("\n") || "  * Menghasilkan aplikasi fungsional yang stabil"}
 
 ---
 ## 2. TARGET USERS & REQUIREMENTS
-- **Target Users**: ${prd?.targetUsers?.join(", ") || "General Users"}
+- **Target Users**: ${prd?.targetUsers?.join(", ") || "Klien Utama, Staff Operasional, Administrator"}
 - **Functional Requirements**:
-${prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standard Web Features"}
+${prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi"}
+- **Non-Functional Requirements**:
+${prd?.nonFunctionalRequirements?.map((nf) => `  * ${nf}`).join("\n") || "  * Performa cepat dan aman"}
 
 ---
 ## 3. TECHNICAL ARCHITECTURE & STACK
-- **Frontend**: ${arch?.frontend || "Next.js (App Router), Tailwind CSS"}
-- **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers"}
+- **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
+- **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers, Zod Validation"}
 - **Database**: ${arch?.database || "PostgreSQL / Supabase"}
 - **Authentication**: ${arch?.auth || "Supabase Auth / NextAuth"}
-- **Storage**: ${arch?.storage || "Object Storage / Supabase Storage"}
-- **Third-party Services**: ${arch?.thirdParty?.join(", ") || "N/A"}
+- **Storage**: ${arch?.storage || "Supabase Storage / Cloudflare R2"}
+- **Third-party Services**: ${arch?.thirdParty?.join(", ") || "Payment Gateway, Notification Gateway"}
 - **Deployment**: ${arch?.deployment || "Vercel"}
 
 ### Data / Schema Blueprint:
 \`\`\`sql
-${arch?.dataSchema || "-- Skema tabel inti\n-- users, items, transactions"}
+${dataSchema}
 \`\`\`
 
 ---
 ## 4. USER FLOW
-${activeProject.userFlow || "Landing Page -> Login/Register -> Dashboard -> Core Actions -> Summary / Results"}
+${userFlow}
 
 ---
 ## 5. FEATURE BREAKDOWN
-${features.map((f, i) => `${i + 1}. **${f.name}** [${f.priority || "Medium"}]: ${f.description}`).join("\n") || "- Fitur inti aplikasi"}
+${features.map((f, i) => `${i + 1}. **${f.name}** [${f.priority || "Medium"}]: ${f.description}${f.subFeatures && f.subFeatures.length > 0 ? `\n   * Sub-fitur: ${f.subFeatures.join(", ")}` : ""}`).join("\n")}
 
 ---
 ## 6. ACTIONABLE DEVELOPMENT TASKS (${tasks.length} Tasks)
@@ -1476,7 +1784,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Tombol Generate Blueprint Otomatis */}
           <button
-            onClick={() => handleSendChatMessage("Tolong buatkan blueprint lengkap (PRD, fitur, arsitektur, dan task development) untuk project ini sekarang.")}
+            onClick={() => {
+              const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
+              handleSendChatMessage(`Tolong langsung buatkan blueprint lengkap (PRD mendalam, daftar fitur detail, skema PostgreSQL DDL lengkap, user flow langkah-demi-langkah, dan actionable task development) yang 100% spesifik untuk ${domain.topicName} sekarang tanpa mengajukan pertanyaan lagi!`);
+            }}
             disabled={isChatLoading}
             className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition border ${
               isDark
