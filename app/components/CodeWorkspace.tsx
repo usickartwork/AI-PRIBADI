@@ -49,6 +49,12 @@ export type ProjectArchitecture = {
   dataSchema?: string;
 };
 
+export type DiscoveryQuestion = {
+  id?: string;
+  question: string;
+  options: string[];
+};
+
 export type ProjectChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -280,6 +286,44 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper untuk mengekstrak pertanyaan pilihan ganda dari respons AI
+  const parseQuestionsFromText = (text: string): { cleanText: string; questions: DiscoveryQuestion[] } => {
+    const startTag = "<<<QUESTIONS_JSON>>>";
+    const endTag = "<<<END_QUESTIONS_JSON>>>";
+    const sIdx = text.indexOf(startTag);
+
+    if (sIdx !== -1) {
+      let cleanText = text.slice(0, sIdx).trim();
+      let questions: DiscoveryQuestion[] = [];
+      const eIdx = text.indexOf(endTag);
+      if (eIdx !== -1) {
+        const jsonStr = text.slice(sIdx + startTag.length, eIdx).trim();
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) {
+            questions = parsed;
+          }
+        } catch (err) {
+          console.warn("Failed to parse questions JSON:", err);
+        }
+        const after = text.slice(eIdx + endTag.length).trim();
+        if (after) {
+          cleanText = cleanText ? `${cleanText}\n\n${after}` : after;
+        }
+      }
+      return { cleanText, questions };
+    }
+    return { cleanText: text, questions: [] };
+  };
+
+  const handleSelectOther = (question: string) => {
+    setChatInput(`Mengenai "${question}": `);
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 50);
+  };
 
   // Task Management Modal State
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
@@ -386,10 +430,34 @@ Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Bl
     const systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
 Pengguna sedang mengembangkan ide project: "${activeProject.title}". Deskripsi awal: "${activeProject.description || "N/A"}".
 
-TUGAS UTAMA:
-Setiap kali pengguna memberikan brief project, berdiskusi, meminta fitur, atau meminta PRD/task, kamu harus:
-1. Memberikan respon ramah, ringkas, dan jelas dalam bahasa Indonesia (maksimal 2-3 paragraf singkat menjelaskan konsep dan highlight project).
-2. MENYERTAKAN BLOK BLUEPRINT LENGKAP di akhir respon menggunakan format khusus berikut agar sistem web langsung mengisi tab PRD, Features, Architecture, dan Kanban Tasks secara otomatis tanpa terpotong:
+ATURAN KERJA & WORKFLOW (IKUTI SECARA KETAT):
+
+FASE 1: REQUIREMENT DISCOVERY (Klarifikasi & Penggalian Kebutuhan):
+Jika pengguna baru memperkenalkan ide, menyapa, memberikan ide singkat, atau kebutuhan detail proyek belum jelas:
+- JANGAN langsung membuat PRD atau Task Board terburu-buru tanpa data yang cukup.
+- Berikan respon ramah & ringkas dalam bahasa Indonesia (1-2 paragraf pendek) yang mengapresiasi dan memetakan potensi ide tersebut.
+- Ajukan 2 sampai 4 pertanyaan krusial yang relevan untuk memperjelas kebutuhan (target pengguna, alur kerja utama, metode login/akses, atau sistem pembayaran).
+- SERTAKAN BLOK PILIHAN GANDA INTERAKTIF di akhir respon menggunakan format persis berikut:
+
+<<<QUESTIONS_JSON>>>
+[
+  {
+    "id": "q1",
+    "question": "Pertanyaan spesifik 1?",
+    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
+  },
+  {
+    "id": "q2",
+    "question": "Pertanyaan spesifik 2?",
+    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
+  }
+]
+<<<END_QUESTIONS_JSON>>>
+
+FASE 2: BLUEPRINT GENERATION (PRD, Arsitektur & Tasks):
+Jika pengguna sudah menjawab pertanyaan discovery, ATAU pengguna secara eksplisit meminta: "buatkan prd", "generate blueprint", "rancang arsitektur", "buatkan task", atau informasi sudah cukup:
+- Berikan kesimpulan singkat (1-2 paragraf) bahwa seluruh spesifikasi telah dipahami.
+- WAJIB MENYERTAKAN BLOK BLUEPRINT LENGKAP di akhir respon menggunakan format persis berikut:
 
 <<<BLUEPRINT_JSON>>>
 {
@@ -436,8 +504,8 @@ Setiap kali pengguna memberikan brief project, berdiskusi, meminta fitur, atau m
 <<<END_BLUEPRINT_JSON>>>
 
 PENTING:
-- Pastikan JSON di dalam tag <<<BLUEPRINT_JSON>>> valid dan terisi lengkap sesuai brief spesifik pengguna.
-- Jangan menuliskan puluhan paragraf panjang di luar JSON agar respon tidak terpotong (token limit). Cukup penjelasan ringkas 2 paragraf di awal lalu langsung sertakan tag JSON blueprint tersebut.`;
+- Pastikan format JSON valid.
+- Jangan membuat teks narasi terlalu panjang bertele-tele di luar JSON agar tidak terpotong token limit.`;
 
     try {
       const res = await fetch("/api/chat", {
@@ -497,15 +565,13 @@ PENTING:
             const chunk = parsed.choices?.[0]?.delta?.content || "";
             if (chunk) {
               rawStream += chunk;
-              // Bersihkan JSON tag dari tampilan chat bubble saat sedang streaming
-              const displayContent = cleanChatDisplay(rawStream);
               setProjects((prev) =>
                 prev.map((p) =>
                   p.id === projId
                     ? {
                         ...p,
                         messages: p.messages.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: displayContent } : m
+                          m.id === assistantMsgId ? { ...m, content: rawStream } : m
                         ),
                       }
                     : p
@@ -1241,6 +1307,13 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-5">
             {activeProject.messages.map((m) => {
               const isUser = m.role === "user";
+
+              // Jika pesan AI, parse konten dan opsi pertanyaan pilihan ganda
+              const rawClean = isUser ? "" : cleanChatDisplay(m.content);
+              const { cleanText, questions } = isUser
+                ? { cleanText: m.content, questions: [] }
+                : parseQuestionsFromText(rawClean);
+
               return (
                 <div key={m.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                   {!isUser && (
@@ -1251,32 +1324,116 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     </div>
                   )}
 
-                  <div className={`max-w-2xl rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed ${
-                    isUser
-                      ? isDark ? "bg-white text-black font-medium" : "bg-black text-white font-medium"
-                      : isDark ? "bg-zinc-900 border border-zinc-800 text-zinc-200" : "bg-white border border-zinc-200 text-zinc-800 shadow-xs"
-                  }`}>
-                    <MarkdownMessage content={m.content} isDark={isDark} />
-                  </div>
+                  {isUser ? (
+                    /* Bubble Pesan Pengguna: Kontras Jelas & Teks Terbaca Sempurna */
+                    <div className={`max-w-2xl rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed shadow-xs ${
+                      isDark
+                        ? "bg-white text-zinc-950 font-medium"
+                        : "bg-zinc-900 text-white font-medium"
+                    }`}>
+                      <div className="whitespace-pre-wrap select-text leading-relaxed font-sans">
+                        {m.content}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Bubble Pesan AI: Tunggal, Halus, & Interaktif */
+                    <div className={`max-w-2xl rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed ${
+                      isDark ? "bg-zinc-900 border border-zinc-800 text-zinc-200" : "bg-white border border-zinc-200 text-zinc-800 shadow-xs"
+                    }`}>
+                      {!m.content ? (
+                        /* Loading state di dalam satu bubble AI yang sama (mencegah bubble ganda) */
+                        <div className="flex items-center gap-2.5 py-1 text-zinc-400">
+                          <div className="flex items-center gap-1">
+                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.3s]" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.15s]" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-current animate-bounce" />
+                          </div>
+                          <span className="text-xs font-medium">Sedang menganalisis &amp; merumuskan konsep...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <MarkdownMessage content={cleanText} isDark={isDark} />
+
+                          {/* Pertanyaan Discovery Interaktif / Pilihan Ganda */}
+                          {questions.length > 0 && (
+                            <div className={`mt-3.5 space-y-3 pt-3 border-t border-dashed ${
+                              isDark ? "border-zinc-800" : "border-zinc-200"
+                            }`}>
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Pilihan Jawaban (Klik opsi untuk menjawab langsung):</span>
+                              </div>
+
+                              {questions.map((q, qIdx) => (
+                                <div
+                                  key={q.id || `q-${qIdx}`}
+                                  className={`rounded-xl p-3 border ${
+                                    isDark
+                                      ? "bg-zinc-950/70 border-zinc-800/80"
+                                      : "bg-zinc-50 border-zinc-200"
+                                  }`}
+                                >
+                                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-2.5">
+                                    {q.question}
+                                  </p>
+
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {q.options?.map((opt, optIdx) => {
+                                      const letter = String.fromCharCode(65 + optIdx);
+                                      return (
+                                        <button
+                                          key={optIdx}
+                                          type="button"
+                                          disabled={isChatLoading}
+                                          onClick={() => handleSendChatMessage(`Jawaban untuk "${q.question}": ${opt}`)}
+                                          className={`text-left inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
+                                            isDark
+                                              ? "bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700 border-zinc-800 text-zinc-200"
+                                              : "bg-white hover:bg-zinc-100 hover:border-zinc-300 border-zinc-200 text-zinc-800 shadow-2xs"
+                                          } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                                          title={`Pilih ${opt}`}
+                                        >
+                                          <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-bold shrink-0 ${
+                                            isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
+                                          }`}>
+                                            {letter}
+                                          </span>
+                                          <span>{opt}</span>
+                                        </button>
+                                      );
+                                    })}
+
+                                    {/* Opsi Lainnya / Tulis Sendiri */}
+                                    <button
+                                      type="button"
+                                      disabled={isChatLoading}
+                                      onClick={() => handleSelectOther(q.question)}
+                                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer border border-dashed ${
+                                        isDark
+                                          ? "bg-zinc-900/40 hover:bg-zinc-850 hover:border-zinc-600 border-zinc-700/80 text-zinc-400 hover:text-zinc-200"
+                                          : "bg-white/70 hover:bg-zinc-50 hover:border-zinc-400 border-zinc-300 text-zinc-600 hover:text-zinc-900"
+                                      } ${isChatLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                                      title="Ketik jawaban kustom untuk pertanyaan ini"
+                                    >
+                                      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                      <span>Lainnya / Tulis Sendiri...</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
-
-            {isChatLoading && (
-              <div className="flex gap-3 justify-start items-center text-xs text-zinc-400">
-                <div className={`flex h-7 w-7 items-center justify-center rounded-xl font-mono text-[11px] font-bold ${
-                  isDark ? "bg-white text-black" : "bg-black text-white"
-                }`}>
-                  AI
-                </div>
-                <div className="flex items-center gap-1.5 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                  <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                  <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                  <span className="ml-1 text-[11px]">AI sedang menganalisis &amp; merumuskan blueprint proyek...</span>
-                </div>
-              </div>
-            )}
             <div ref={chatBottomRef} />
           </div>
 
@@ -1330,6 +1487,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               className="max-w-4xl mx-auto flex items-center gap-2"
             >
               <input
+                ref={chatInputRef}
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -1882,3 +2040,4 @@ function TaskCard({
     </div>
   );
 }
+
