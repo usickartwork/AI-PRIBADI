@@ -287,7 +287,11 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   });
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("mindmap");
+  const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
+  const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
+  const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // New Project Modal State
@@ -1942,10 +1946,15 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER: Project Detail Workspace
   // ─────────────────────────────────────────────────────────────────────────────
-  const progress = calculateProgress(activeProject);
+  const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
+  const domainBlueprint = getDomainBlueprint(domain, activeProject.title);
+  const displayFeatures = (activeProject.features && activeProject.features.length > 0) ? activeProject.features : domainBlueprint.features;
+  const displayTasks = (activeProject.tasks && activeProject.tasks.length > 0) ? activeProject.tasks : domainBlueprint.tasks;
+  const displayPrd = activeProject.prd || domainBlueprint.prd;
+  const displayArch = activeProject.architecture || domainBlueprint.architecture;
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0c0c0e] text-white" : "bg-[#fafafc] text-black"}`}>
+    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0b0f19] text-white" : "bg-[#f8fafc] text-slate-900"}`}>
       {/* Toast Feedback */}
       {copyFeedback && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-black border border-zinc-700 dark:border-zinc-300 shadow-xl animate-in fade-in-0 duration-200">
@@ -1956,15 +1965,15 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
         </div>
       )}
 
-      {/* Top Navbar */}
+      {/* Top Navbar matching media_1790961373082.jpg */}
       <div className={`flex items-center justify-between px-3 sm:px-6 py-2.5 border-b backdrop-blur-md shrink-0 ${
-        isDark ? "bg-[#0c0c0e]/95 border-zinc-850" : "bg-white/95 border-zinc-200"
+        isDark ? "bg-[#0b0f19] border-slate-800/80" : "bg-white border-slate-200"
       }`}>
-        {/* Left: Back & Project Title */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/* Left: Brand + Breadcrumb */}
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => setActiveProjectId(null)}
-            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"}`}
+            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
             title="Daftar Project"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1972,62 +1981,124 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             </svg>
           </button>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-bold tracking-tight truncate">{activeProject.title}</h2>
-              <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                progress === 100
-                  ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
-                  : isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
-              }`}>
-                {progress}% Complete
-              </span>
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f95721] text-white shadow-xs">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
             </div>
+            <span className={`font-bold text-sm tracking-tight hidden sm:inline ${isDark ? "text-white" : "text-slate-900"}`}>
+              ngodingpakai
+            </span>
+          </div>
+
+          <span className="text-slate-600 dark:text-slate-500">/</span>
+
+          <div className="flex items-center gap-1.5 min-w-0 text-xs">
+            <span className="text-slate-400">📁</span>
+            <span className={`font-semibold truncate max-w-[140px] sm:max-w-[180px] ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+              {activeProject.title}
+            </span>
+            <span className="text-slate-600 dark:text-slate-500 hidden sm:inline">/</span>
+            <span className={`font-semibold truncate max-w-[140px] sm:max-w-[180px] hidden sm:inline ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+              {activeProject.title}
+            </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-[#f95721] border border-slate-700/80">#1</span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                showCopyToast("Link proyek disalin!");
+              }}
+              className="text-slate-400 hover:text-white p-1 rounded transition"
+              title="Salin link"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Tombol Generate Blueprint Otomatis */}
-          <button
-            onClick={() => {
-              const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
-              handleSendChatMessage(`Tolong langsung buatkan blueprint lengkap (PRD mendalam, daftar fitur detail, skema PostgreSQL DDL lengkap, user flow langkah-demi-langkah, dan actionable task development) yang 100% spesifik untuk ${domain.topicName} sekarang tanpa mengajukan pertanyaan lagi!`);
-            }}
-            disabled={isChatLoading}
-            className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition border ${
-              isDark
-                ? "border-zinc-750 bg-zinc-850 hover:bg-zinc-800 text-zinc-200"
-                : "border-zinc-250 bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
-            }`}
-            title="Generate otomatis PRD, Features, dan Task Board"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span className="hidden sm:inline">Generate Blueprint</span>
-          </button>
+        {/* Center / Right: View Navigation & Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* Navigation Pills */}
+          <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? "bg-[#111625] border border-slate-800/80" : "bg-slate-100 border border-slate-200"}`}>
+            <button
+              onClick={() => setActiveTab("mindmap")}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === "mindmap"
+                  ? "bg-[#f95721] text-white shadow-xs"
+                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+              }`}
+              title="Peta Rencana (Visual Mindmap)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              <span className="hidden sm:inline">Peta Rencana</span>
+            </button>
 
-          {/* Copy Everything */}
+            <button
+              onClick={() => setActiveTab("prd")}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === "prd"
+                  ? "bg-[#f95721] text-white shadow-xs"
+                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+              }`}
+              title="Wiki Dokumen PRD"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Wiki</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === "chat"
+                  ? "bg-[#f95721] text-white shadow-xs"
+                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+              }`}
+              title="Diskusi & Tanya AI"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              <span className="hidden md:inline">Tanya AI</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("tasks")}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === "tasks"
+                  ? "bg-[#f95721] text-white shadow-xs"
+                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+              }`}
+              title="Task Board"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span className="hidden md:inline">Tasks</span>
+            </button>
+          </div>
+
+          {/* Primary CTA: Lanjutkan Proyek (Orange Pill Button) */}
           <button
             onClick={copyEverythingText}
-            className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition shadow-xs cursor-pointer ${
-              isDark
-                ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
-                : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
-            }`}
-            title="Salin semua spesifikasi untuk dipaste ke AI coding tool (Vibecode, Antigravity, Cursor, Bolt)"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[#f95721] hover:bg-[#ea4815] transition shadow-md shadow-[#f95721]/20 cursor-pointer active:scale-95"
+            title="Salin Master Context & Prompt untuk implementasi proyek di AI coding tool"
           >
+            <span>Lanjutkan proyek</span>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-            <span className="hidden sm:inline">Copy Everything</span>
-            <span className="sm:hidden">Copy</span>
           </button>
 
           <button
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"}`}
+            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
             title="Tutup Workspace"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2037,74 +2108,401 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
         </div>
       </div>
 
-      {/* Sub Tabs Navigation */}
-      <div className={`flex items-center gap-1 px-3 sm:px-6 py-2 border-b overflow-x-auto no-scrollbar shrink-0 text-xs font-medium ${
-        isDark ? "border-zinc-850 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50/60"
-      }`}>
-        <button
-          onClick={() => setActiveTab("chat")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition whitespace-nowrap cursor-pointer ${
-            activeTab === "chat"
-              ? isDark ? "bg-zinc-800 text-white font-semibold" : "bg-white text-black font-semibold shadow-xs"
-              : isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-          <span>AI Planner (Chat)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("prd")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition whitespace-nowrap cursor-pointer ${
-            activeTab === "prd"
-              ? isDark ? "bg-zinc-800 text-white font-semibold" : "bg-white text-black font-semibold shadow-xs"
-              : isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          <span>PRD</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("features")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition whitespace-nowrap cursor-pointer ${
-            activeTab === "features"
-              ? isDark ? "bg-zinc-800 text-white font-semibold" : "bg-white text-black font-semibold shadow-xs"
-              : isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-          <span>Features {activeProject.features ? `(${activeProject.features.length})` : ""}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("flow_arch")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition whitespace-nowrap cursor-pointer ${
-            activeTab === "flow_arch"
-              ? isDark ? "bg-zinc-800 text-white font-semibold" : "bg-white text-black font-semibold shadow-xs"
-              : isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-          <span>Flow &amp; Architecture</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("tasks")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition whitespace-nowrap cursor-pointer ${
-            activeTab === "tasks"
-              ? isDark ? "bg-zinc-800 text-white font-semibold" : "bg-white text-black font-semibold shadow-xs"
-              : isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-          <span>Task Board ({activeProject.tasks.length})</span>
-        </button>
-      </div>
-
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* TAB 1: AI PLANNER CHAT */}
+      {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
+      {activeTab === "mindmap" && (
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Left Panel: Perencanaan Drawer */}
+          {isPerencanaanOpen && (
+            <div
+              className={`border-r flex flex-col shrink-0 z-10 transition-all duration-300 ${
+                isPerencanaanExpanded ? "w-full sm:w-2/3" : "w-[360px] sm:w-[420px]"
+              } ${
+                isDark ? "border-slate-800/80 bg-[#0c101d] text-slate-200" : "border-slate-200 bg-white text-slate-800"
+              }`}
+            >
+              {/* Drawer Header */}
+              <div className={`h-12 border-b px-4 flex items-center justify-between shrink-0 ${
+                isDark ? "border-slate-800/80 bg-[#0b0e1a]" : "border-slate-200 bg-slate-50"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm">Perencanaan</span>
+                </div>
+
+                {/* Control Icons */}
+                <div className="flex items-center gap-1">
+                  {/* Eye Icon (PRD Preview) */}
+                  <button
+                    onClick={() => setPerencanaanMode("prd")}
+                    className={`p-1.5 rounded-lg transition ${
+                      perencanaanMode === "prd"
+                        ? "bg-[#f95721] text-white shadow-xs"
+                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                    }`}
+                    title="Pratinjau PRD"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+
+                  {/* Code Icon (Schema & Arsitektur) */}
+                  <button
+                    onClick={() => setPerencanaanMode("code")}
+                    className={`p-1.5 rounded-lg transition ${
+                      perencanaanMode === "code"
+                        ? "bg-[#f95721] text-white shadow-xs"
+                        : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                    }`}
+                    title="Lihat Arsitektur & Skema SQL"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </button>
+
+                  {/* Copy PRD */}
+                  <button
+                    onClick={copyPRDText}
+                    className={`p-1.5 rounded-lg transition ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-600 hover:text-black hover:bg-slate-100"}`}
+                    title="Salin Dokumen PRD"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+
+                  {/* Expand / Shrink */}
+                  <button
+                    onClick={() => setIsPerencanaanExpanded(!isPerencanaanExpanded)}
+                    className={`p-1.5 rounded-lg transition ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-600 hover:text-black hover:bg-slate-100"}`}
+                    title={isPerencanaanExpanded ? "Perkecil Panel" : "Perlebar Panel"}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  </button>
+
+                  {/* Close Drawer */}
+                  <button
+                    onClick={() => setIsPerencanaanOpen(false)}
+                    className={`p-1.5 rounded-lg transition ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-600 hover:text-black hover:bg-slate-100"}`}
+                    title="Tutup Panel Perencanaan"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-header: Count indicator */}
+              <div className={`px-4 py-2 border-b text-[11px] flex items-center gap-1.5 shrink-0 ${
+                isDark ? "border-slate-800/60 bg-slate-900/40 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-600"
+              }`}>
+                <span className="text-emerald-500 font-bold">✓</span>
+                <span>{displayFeatures.length} fitur dari rencana ini.</span>
+              </div>
+
+              {/* Drawer Body: Formatted PRD Document */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs leading-relaxed select-text">
+                {perencanaanMode === "prd" ? (
+                  <>
+                    <div>
+                      <h3 className="text-base font-bold tracking-tight mb-3">
+                        PRD — Project Requirements Document
+                      </h3>
+                      <h4 className="text-xs font-semibold text-[#f95721] uppercase tracking-wider mb-1.5">
+                        1. Overview
+                      </h4>
+                      <p className={isDark ? "text-slate-300" : "text-slate-700"}>
+                        {displayPrd?.overview || activeProject.description}
+                      </p>
+                    </div>
+
+                    {displayPrd?.problemStatement && (
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-slate-400">
+                          Problem Statement:
+                        </h4>
+                        <p className={isDark ? "text-slate-300" : "text-slate-700"}>
+                          {displayPrd.problemStatement}
+                        </p>
+                      </div>
+                    )}
+
+                    {displayPrd?.goals && displayPrd.goals.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-slate-400">
+                          Target &amp; Goals:
+                        </h4>
+                        <ul className="space-y-1.5 pl-3 border-l-2 border-[#f95721]">
+                          {displayPrd.goals.map((g, i) => (
+                            <li key={i} className={isDark ? "text-slate-300" : "text-slate-700"}>
+                              {g}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {displayPrd?.targetUsers && displayPrd.targetUsers.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-slate-400">
+                          Target Users:
+                        </h4>
+                        <ul className="space-y-1 pl-3 border-l-2 border-slate-700">
+                          {displayPrd.targetUsers.map((u, i) => (
+                            <li key={i} className={isDark ? "text-slate-300" : "text-slate-700"}>
+                              • {u}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {displayPrd?.functionalRequirements && displayPrd.functionalRequirements.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-slate-400">
+                          Functional Requirements:
+                        </h4>
+                        <div className="space-y-1.5">
+                          {displayPrd.functionalRequirements.map((fr, i) => (
+                            <div key={i} className={`p-2 rounded-lg border text-[11px] ${
+                              isDark ? "bg-[#111625] border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
+                            }`}>
+                              {fr}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setActiveTab("prd")}
+                        className="w-full py-2.5 rounded-xl text-center font-semibold bg-[#f95721]/10 hover:bg-[#f95721]/20 text-[#f95721] border border-[#f95721]/30 transition cursor-pointer"
+                      >
+                        Buka Dokumen PRD Penuh (Wiki) ➔
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <h3 className="text-sm font-bold tracking-tight mb-2">Arsitektur &amp; Database Schema</h3>
+                    <div className="space-y-3">
+                      <div className={`p-3 rounded-xl border ${isDark ? "bg-[#111625] border-slate-800" : "bg-slate-50 border-slate-200"}`}>
+                        <span className="text-[10px] font-bold text-[#f95721] uppercase tracking-wider block mb-1">Tech Stack</span>
+                        <div className="space-y-1 text-[11px]">
+                          <div><strong>Frontend:</strong> {displayArch?.frontend}</div>
+                          <div><strong>Backend:</strong> {displayArch?.backend}</div>
+                          <div><strong>Database:</strong> {displayArch?.database}</div>
+                          <div><strong>Auth:</strong> {displayArch?.auth}</div>
+                          <div><strong>Deployment:</strong> {displayArch?.deployment}</div>
+                        </div>
+                      </div>
+
+                      {displayArch?.dataSchema && (
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Skema SQL DDL</span>
+                          <pre className={`p-3 rounded-xl font-mono text-[10px] overflow-x-auto border ${
+                            isDark ? "bg-black/60 border-slate-800 text-emerald-400" : "bg-slate-900 border-slate-800 text-emerald-400"
+                          }`}>
+                            {displayArch.dataSchema}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reopen Drawer Button (if closed) */}
+          {!isPerencanaanOpen && (
+            <button
+              onClick={() => setIsPerencanaanOpen(true)}
+              className={`absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-xl transition cursor-pointer ${
+                isDark
+                  ? "border-slate-800 bg-[#111625] text-white hover:bg-slate-800"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
+              }`}
+            >
+              <span>Buka Perencanaan</span>
+              <span className="text-[#f95721]">➔</span>
+            </button>
+          )}
+
+          {/* Right Area: Interactive Visual Mindmap Tree Canvas */}
+          <div className={`flex-1 overflow-auto p-8 sm:p-12 relative flex items-center ${
+            isDark ? "bg-[#070a12]" : "bg-[#f8fafc]"
+          }`}>
+            <div
+              className="flex items-center gap-0 transition-transform duration-200 origin-left select-none"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              {/* 1. Root Node (Project Name) */}
+              <div className="flex flex-col items-center shrink-0 w-[200px]">
+                <div className={`w-full p-4 rounded-2xl border-2 text-center shadow-xl ${
+                  isDark
+                    ? "border-[#f95721] bg-[#111625] text-white shadow-[#f95721]/15"
+                    : "border-[#f95721] bg-white text-slate-900 shadow-slate-200"
+                }`}>
+                  <span className="text-[10px] font-bold text-[#f95721] uppercase tracking-wider block mb-1">
+                    Project Root
+                  </span>
+                  <h3 className="font-bold text-xs sm:text-sm leading-snug line-clamp-2">
+                    {activeProject.title}
+                  </h3>
+                  <div className={`mt-2 text-[10px] font-semibold rounded-full px-2 py-0.5 inline-block ${
+                    isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-700"
+                  }`}>
+                    {displayTasks.length} total tasks
+                  </div>
+                </div>
+              </div>
+
+              {/* Connecting SVG Fan Lines between Root and Features */}
+              <div className="shrink-0" style={{ width: "90px", height: `${displayFeatures.length * 140}px` }}>
+                <svg className="w-full h-full overflow-visible">
+                  {displayFeatures.map((_, i) => {
+                    const totalH = displayFeatures.length * 140;
+                    const rootY = totalH / 2;
+                    const featY = i * 140 + 70;
+                    return (
+                      <path
+                        key={i}
+                        d={`M 0 ${rootY} C 45 ${rootY}, 45 ${featY}, 90 ${featY}`}
+                        stroke={isDark ? "#334155" : "#cbd5e1"}
+                        strokeWidth="1.5"
+                        fill="none"
+                      />
+                    );
+                  })}
+                </svg>
+              </div>
+
+              {/* Features, Sub-features & Tasks Column Rows */}
+              <div className="flex flex-col shrink-0">
+                {displayFeatures.map((feat, i) => {
+                  const featureTasks = displayTasks.filter(
+                    (t) => t.feature?.toLowerCase().includes(feat.name.toLowerCase()) || t.title.toLowerCase().includes(feat.name.toLowerCase())
+                  );
+                  const taskCount = featureTasks.length || Math.min(6, Math.max(2, i + 2));
+
+                  return (
+                    <div key={feat.id || i} className="h-[140px] flex items-center gap-0">
+                      {/* 1. Feature Card */}
+                      <div className={`w-[220px] p-3.5 rounded-xl border transition shadow-md hover:border-[#f95721] ${
+                        isDark ? "bg-[#151c2e] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-400">TAHAP {i + 1}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            <span>Direncanakan</span>
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-xs leading-snug line-clamp-1">{feat.name}</h4>
+                        <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-700/50">
+                          <span>Progress task</span>
+                          <span className="font-bold text-white">⟳ {taskCount}/{taskCount}</span>
+                        </div>
+                      </div>
+
+                      {/* Small Connecting SVG between Feature & Sub-fitur */}
+                      <div className="w-[50px] h-[20px] shrink-0">
+                        <svg className="w-full h-full">
+                          <path d="M 0 10 L 50 10" stroke={isDark ? "#334155" : "#cbd5e1"} strokeWidth="1.5" fill="none" />
+                        </svg>
+                      </div>
+
+                      {/* 2. Sub-Fitur Card */}
+                      <div className={`w-[220px] p-3 rounded-xl border shadow-md space-y-1.5 ${
+                        isDark ? "bg-[#121827] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                      }`}>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          SUB-FITUR
+                        </span>
+                        {feat.subFeatures && feat.subFeatures.length > 0 ? (
+                          feat.subFeatures.slice(0, 3).map((sub, si) => (
+                            <div key={si} className="text-[11px] text-slate-300 truncate flex items-center gap-1.5">
+                              <span className="text-slate-500">•</span>
+                              <span className="truncate">{sub}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-[11px] text-slate-400">Modul sub-fitur terintegrasi</div>
+                        )}
+                        <span className="text-[10px] text-slate-400 block pt-1 border-t border-slate-800">
+                          Lihat rincian ({feat.subFeatures?.length || 3})
+                        </span>
+                      </div>
+
+                      {/* Small Connecting SVG between Sub-fitur & Tasks */}
+                      <div className="w-[50px] h-[20px] shrink-0">
+                        <svg className="w-full h-full">
+                          <path d="M 0 10 L 50 10" stroke={isDark ? "#334155" : "#cbd5e1"} strokeWidth="1.5" fill="none" />
+                        </svg>
+                      </div>
+
+                      {/* 3. Tasks Card */}
+                      <div className={`w-[230px] p-3 rounded-xl border shadow-md space-y-1.5 ${
+                        isDark ? "bg-[#0f1422] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                      }`}>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          TASKS
+                        </span>
+                        <div className="space-y-1">
+                          {(featureTasks.length > 0 ? featureTasks.slice(0, 3) : displayTasks.slice(i * 2, i * 2 + 3)).map((t, ti) => (
+                            <div key={ti} className="text-[11px] text-slate-300 flex items-center gap-1.5 truncate">
+                              <span className="text-emerald-400 font-bold">✓</span>
+                              <span className="truncate">{t.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-slate-400 block pt-1 border-t border-slate-800">
+                          Lihat semua
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Floating Zoom Controls (Bottom Left, matching screenshot) */}
+            <div className={`absolute bottom-6 left-6 z-20 flex flex-col items-center rounded-xl p-1 border shadow-2xl backdrop-blur-md ${
+              isDark ? "bg-slate-900/90 border-slate-700/80 text-white" : "bg-white/90 border-slate-200 text-slate-800"
+            }`}>
+              <button
+                onClick={() => setZoomLevel((z) => Math.min(1.5, z + 0.1))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition font-bold text-sm cursor-pointer"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button
+                onClick={() => setZoomLevel((z) => Math.max(0.6, z - 0.1))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition font-bold text-sm cursor-pointer"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <button
+                onClick={() => setZoomLevel(1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition text-xs cursor-pointer"
+                title="Reset Zoom"
+              >
+                ⤢
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {activeTab === "chat" && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Messages list */}
