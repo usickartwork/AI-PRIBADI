@@ -203,9 +203,9 @@ function getSystemPrompt(m?: ModelEntry): string {
   const isUsick = m && getModelCategory(m) === "Usick";
   const isR1 = m && (m.id.toLowerCase().includes("deepseek-r1") || m.label.toLowerCase().includes("deepseek r1"));
 
-  // DeepSeek R1 bekerja optimal tanpa system prompt eksternal agar tidak memicu over-thinking CoT dan kehabisan token
+  // DeepSeek R1 bekerja optimal dengan instruksi bahasa Indonesia yang ringkas dan padat
   if (isR1) {
-    return "";
+    return "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.";
   }
 
   if (isUsick) {

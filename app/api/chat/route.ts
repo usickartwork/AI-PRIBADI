@@ -440,7 +440,16 @@ export async function POST(request: Request) {
 
     let messagesToSend = formattedMessages;
     if (isDeepSeekR1) {
-      messagesToSend = formattedMessages.filter((m) => m.role !== "system");
+      // Pastikan system prompt untuk DeepSeek R1 ringkas agar tidak memicu overthinking tapi tetap berbahasa Indonesia
+      messagesToSend = formattedMessages.map((m) => {
+        if (m.role === "system") {
+          return {
+            ...m,
+            content: "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.",
+          };
+        }
+        return m;
+      });
     }
 
     if (providerName === "openrouter") {
