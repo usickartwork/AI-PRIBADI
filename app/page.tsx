@@ -201,6 +201,12 @@ function getModelCategory(m: ModelEntry): string {
 
 function getSystemPrompt(m?: ModelEntry): string {
   const isUsick = m && getModelCategory(m) === "Usick";
+  const isR1 = m && (m.id.toLowerCase().includes("deepseek-r1") || m.label.toLowerCase().includes("deepseek r1"));
+
+  // DeepSeek R1 bekerja optimal tanpa system prompt eksternal agar tidak memicu over-thinking CoT dan kehabisan token
+  if (isR1) {
+    return "";
+  }
 
   if (isUsick) {
     return (
@@ -1037,7 +1043,7 @@ export default function Home() {
       const systemPrompt = getSystemPrompt(currentModelObj);
 
       const apiMessages = [
-        { role: "system", content: systemPrompt },
+        ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
         ...updatedMessages
           .filter((m) => m.id !== assistantId)
           .map((m) => {

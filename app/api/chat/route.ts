@@ -433,6 +433,15 @@ export async function POST(request: Request) {
       };
     });
 
+    const isDeepSeekR1 =
+      modelName.toLowerCase().includes("deepseek-r1") ||
+      modelId.toLowerCase().includes("deepseek-r1");
+
+    let messagesToSend = formattedMessages;
+    if (isDeepSeekR1) {
+      messagesToSend = formattedMessages.filter((m) => m.role !== "system");
+    }
+
     if (providerName === "openrouter") {
       const isNemotron = modelName.toLowerCase().includes("nemotron");
       const openRouterModels = isNemotron
@@ -446,14 +455,14 @@ export async function POST(request: Request) {
       reqBody = JSON.stringify({
         model: modelName,
         models: openRouterModels,
-        messages: formattedMessages,
+        messages: messagesToSend,
         stream: true,
         max_tokens: 4096,
       });
     } else {
       reqBody = JSON.stringify({
         model: modelName,
-        messages: formattedMessages,
+        messages: messagesToSend,
         stream: true,
         max_tokens: 4096,
       });
@@ -461,11 +470,16 @@ export async function POST(request: Request) {
   }
 
   try {
+    const isDeepSeekR1 =
+      modelName.toLowerCase().includes("deepseek-r1") ||
+      modelId.toLowerCase().includes("deepseek-r1");
+    const timeoutMs = isDeepSeekR1 ? 60000 : 35000;
+
     let upstream = await fetch(provider.endpoint, {
       method: "POST",
       headers: reqHeaders,
       body: reqBody,
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
