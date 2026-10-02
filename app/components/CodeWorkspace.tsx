@@ -737,36 +737,166 @@ PENTING:
   };
 
   // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
+  // Generator fallback cerdas untuk fitur detail jika terjadi kendala parsing LLM
+  const generateRichFeaturesFallback = (title: string, desc?: string): ProjectFeature[] => {
+    return [
+      {
+        id: "feat-1",
+        name: "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
+        description: `Autentikasi multi-peran aman dengan proteksi session cookie dan route guard untuk ${title}.`,
+        priority: "High",
+        subFeatures: [
+          "Registrasi & Login dengan email atau Google OAuth",
+          "Role-based Access Control (Admin, Mitra, Customer)",
+          "Reset sandi aman dan update profil pengguna",
+          "Middleware proteksi rute halaman privat"
+        ],
+        dependencies: ["Database Setup", "Session Cookie Provider"]
+      },
+      {
+        id: "feat-2",
+        name: "Katalog Interaktif & Penelusuran Real-Time",
+        description: "Menampilkan daftar item, layanan, dan status ketersediaan secara dinamis dengan filter instan.",
+        priority: "High",
+        subFeatures: [
+          "Pencarian cerdas dengan debounce search",
+          "Filter multi-kategori, rentang harga, dan sorting popularitas",
+          "Indikator status live ketersediaan stok atau slot waktu",
+          "Pagination dan lazy loading aset gambar"
+        ],
+        dependencies: ["Skema Database Items"]
+      },
+      {
+        id: "feat-3",
+        name: "Manajemen Transaksi & Booking Engine",
+        description: "Mesin pemesanan transaksi dengan validasi integritas data dan pencegahan jadwal bentrok.",
+        priority: "High",
+        subFeatures: [
+          "Formulir data transaksi dengan validasi ketat Zod",
+          "Mekanisme reservasi slot sementara 10 menit saat checkout",
+          "Kalkulasi rincian biaya, diskon promo, dan kode unik",
+          "Pencegahan konkurensi (double-booking protection)"
+        ],
+        dependencies: ["Katalog Interaktif", "Autentikasi Pengguna"]
+      },
+      {
+        id: "feat-4",
+        name: "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
+        description: "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
+        priority: "High",
+        subFeatures: [
+          "Dukungan QRIS dinamis dan Virtual Account bank utama",
+          "Webhook endpoint aman dengan verifikasi signature payload",
+          "Update otomatis status order menjadi sukses",
+          "Penerbitan kuitansi & invoice digital terenkripsi"
+        ],
+        dependencies: ["Manajemen Transaksi"]
+      },
+      {
+        id: "feat-5",
+        name: "Dashboard Pengelola, Analitik & Pelaporan",
+        description: "Panel kendali pusat untuk memantau performa bisnis, omzet, dan manajemen operasional harian.",
+        priority: "Medium",
+        subFeatures: [
+          "Visualisasi grafik omzet harian, mingguan, dan bulanan",
+          "Tabel manajemen data master (tambah, edit, nonaktifkan item)",
+          "Fitur ekspor rekap laporan transaksi ke format CSV / PDF",
+          "Log aktivitas audit untuk pelacakan perubahan data"
+        ],
+        dependencies: ["Autentikasi RBAC Admin", "Skema Payments"]
+      },
+      {
+        id: "feat-6",
+        name: "Pusat Notifikasi Real-Time & Riwayat Transaksi",
+        description: "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
+        priority: "Medium",
+        subFeatures: [
+          "Notifikasi bukti bayar via WhatsApp API / Email",
+          "Halaman riwayat transaksi pengguna dengan tombol unduh PDF",
+          "Modul ulasan, rating kepuasan, dan feedback pelanggan"
+        ],
+        dependencies: ["Payment Gateway"]
+      }
+    ];
+  };
+
+  // Parser Blueprint JSON yang sangat tangguh terhadap variasi output LLM
+  const extractBlueprintFromText = (text: string): any => {
+    const startTag = "<<<BLUEPRINT_JSON>>>";
+    const endTag = "<<<END_BLUEPRINT_JSON>>>";
+    let jsonStr = "";
+
+    const sIdx = text.indexOf(startTag);
+    if (sIdx !== -1) {
+      const eIdx = text.indexOf(endTag, sIdx + startTag.length);
+      if (eIdx !== -1) {
+        jsonStr = text.slice(sIdx + startTag.length, eIdx).trim();
+      } else {
+        const rest = text.slice(sIdx + startTag.length);
+        const lastBrace = rest.lastIndexOf("}");
+        if (lastBrace !== -1) {
+          jsonStr = rest.slice(0, lastBrace + 1).trim();
+        }
+      }
+    }
+
+    if (!jsonStr) {
+      const matchFence = text.match(/```(?:json)?\s*(\{[\s\S]*?"(?:prd|features|tasks)"[\s\S]*?\})\s*```/);
+      if (matchFence) {
+        jsonStr = matchFence[1].trim();
+      }
+    }
+
+    if (!jsonStr) {
+      const matchObj = text.match(/(\{[\s\S]*?"(?:prd|features|tasks)"[\s\S]*\})/);
+      if (matchObj) {
+        const cand = matchObj[1].trim();
+        const lastBrace = cand.lastIndexOf("}");
+        if (lastBrace !== -1) {
+          jsonStr = cand.slice(0, lastBrace + 1).trim();
+        }
+      }
+    }
+
+    if (jsonStr) {
+      try {
+        return JSON.parse(jsonStr);
+      } catch {
+        let cleaned = jsonStr.replace(/,\s*([\]}])/g, "$1");
+        try {
+          return JSON.parse(cleaned);
+        } catch {
+          if (!cleaned.endsWith("}")) {
+            cleaned = cleaned + "\n}";
+          }
+          try {
+            return JSON.parse(cleaned);
+          } catch (err) {
+            console.warn("Gagal parse blueprint JSON:", err);
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+  // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
   const cleanChatDisplay = (text: string): string => {
-    const jsonStart = text.indexOf("<<<BLUEPRINT_JSON>>>");
+    let result = text;
+    const jsonStart = result.indexOf("<<<BLUEPRINT_JSON>>>");
     if (jsonStart !== -1) {
-      const before = text.slice(0, jsonStart).trim();
-      return (
+      const before = result.slice(0, jsonStart).trim();
+      result = (
         before +
         "\n\n> **Blueprint Proyek Telah Dibuat:** PRD, daftar fitur, arsitektur teknis, dan papan task board telah otomatis diperbarui pada tab di atas!"
       );
     }
-    return text;
+    return result;
   };
 
   // Parser Blueprint JSON untuk mengisi otomatis tab PRD, Features, Flow, Architecture, dan Tasks
   const parseAndApplyBlueprint = (projId: string, fullText: string, assistantMsgId: string) => {
-    let blueprintData: any = null;
-
-    const startTag = "<<<BLUEPRINT_JSON>>>";
-    const endTag = "<<<END_BLUEPRINT_JSON>>>";
-
-    const sIdx = fullText.indexOf(startTag);
-    const eIdx = fullText.indexOf(endTag);
-
-    if (sIdx !== -1 && eIdx !== -1) {
-      const jsonStr = fullText.slice(sIdx + startTag.length, eIdx).trim();
-      try {
-        blueprintData = JSON.parse(jsonStr);
-      } catch (e) {
-        console.warn("Failed to parse blueprint JSON:", e);
-      }
-    }
+    const blueprintData = extractBlueprintFromText(fullText);
 
     setProjects((prev) =>
       prev.map((p) => {
@@ -819,25 +949,56 @@ PENTING:
               feature: t.feature || "Core",
             }));
           }
-        } else {
-          // Fallback parsing jika AI tidak membungkus dengan tag JSON sempurna
-          if (!updated.prd) {
-            updated.prd = {
-              overview: `Rancangan spesifikasi proyek untuk ${p.title}. Disusun otomatis oleh AI Project Planner.`,
-              goals: ["Membangun MVP fungsional sesuai requirement", "Arsitektur modular dan scalable", "User experience responsif"],
-              targetUsers: ["End-user", "Administrator"],
-              functionalRequirements: ["Autentikasi akun", "Manajemen data utama", "Dashboard pelaporan"],
-            };
-          }
+        }
 
-          if (updated.tasks.length === 0) {
-            updated.tasks = [
-              { id: "t-1", title: "Setup Project & Database Schema", description: "Inisialisasi Next.js, Tailwind, dan PostgreSQL schema.", status: "todo", phase: "Phase 1 - Setup" },
-              { id: "t-2", title: "Implementasi Autentikasi Pengguna", description: "Fitur login, registrasi, dan session management.", status: "todo", phase: "Phase 1 - Setup" },
-              { id: "t-3", title: "Pembangunan Fitur Inti & UI", description: "Antarmuka utama dan logika bisnis aplikasi.", status: "todo", phase: "Phase 2 - Core" },
-              { id: "t-4", title: "Testing & Production Deployment", description: "Pengujian menyeluruh dan rilis ke hosting.", status: "todo", phase: "Phase 3 - Release" },
-            ];
-          }
+        // Jamin bahwa seluruh tab selalu terisi dengan data komprehensif, tidak boleh ada yang kosong
+        if (!updated.features || updated.features.length === 0) {
+          updated.features = generateRichFeaturesFallback(p.title, p.description);
+        }
+
+        if (!updated.prd || !updated.prd.overview) {
+          updated.prd = {
+            overview: `Perencanaan arsitektur dan sistem komprehensif untuk ${p.title}. Didesain untuk memberikan efisiensi tinggi, keandalan performa, dan skalabilitas jangka panjang sesuai kebutuhan pengguna.`,
+            problemStatement: "Mengeliminasi proses manual yang lambat dan rawan kesalahan dengan menyediakan platform otomatisasi digital terintegrasi.",
+            goals: [
+              "Mengotomatisasi 100% alur kerja inti dan manajemen data",
+              "Menjamin kecepatan respons sistem di bawah 1 detik",
+              "Meningkatkan konversi dan kepuasan pengguna dengan UI intuitif",
+              "Menyediakan visibilitas pelaporan bisnis secara transparan"
+            ],
+            targetUsers: [
+              "Pengguna Utama / Customer (Mencari, memilih, dan bertransaksi)",
+              "Staff Operasional (Memproses order dan memvalidasi ketersediaan)",
+              "Administrator Bisnis (Mengawasi performa omzet dan laporan analitik)"
+            ],
+            functionalRequirements: [
+              "Autentikasi multi-role (Admin, Staff, Customer) dengan session cookie",
+              "Modul penelusuran katalog data dengan filter instan dan sorting",
+              "Mesin transaksi pemesanan dengan validasi data ketat",
+              "Integrasi gateway pembayaran otomatis dengan webhook rekonsiliasi",
+              "Dashboard analitik dan pelaporan riwayat transaksi terpadu"
+            ],
+            nonFunctionalRequirements: [
+              "Waktu muat halaman < 1.2s dan query latency < 200ms",
+              "Enkripsi data transit TLS 1.3 dan hashing password standar industri",
+              "Desain responsif mobile-first memenuhi standar aksesibilitas WCAG 2.1 AA",
+              "Arsitektur stateless siap horizontal scaling"
+            ],
+          };
+        }
+
+        if (updated.tasks.length === 0) {
+          updated.tasks = [
+            { id: "t-1", title: "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", description: "Inisialisasi Next.js 15 App Router, Tailwind CSS, TypeScript, dan env variables.", status: "todo", phase: "Phase 1 - Inisialisasi" },
+            { id: "t-2", title: "Desain Skema Database & Migrasi Relasional", description: "Membuat tabel users, items, transactions, payments, dan foreign keys.", status: "todo", phase: "Phase 1 - Inisialisasi" },
+            { id: "t-3", title: "Implementasi Autentikasi & Session Middleware", description: "Membangun login, register, session cookie, dan middleware proteksi rute.", status: "todo", phase: "Phase 2 - Autentikasi" },
+            { id: "t-4", title: "Pembuatan Master Layout & Navigasi Responsif", description: "Membangun App Shell, Navbar, Sidebar, modal wrapper, dan tema.", status: "todo", phase: "Phase 3 - Frontend Core" },
+            { id: "t-5", title: "Katalog Interaktif & Penelusuran Real-Time", description: "Menampilkan kartu data, filter multi-kategori, dan instant search bar.", status: "todo", phase: "Phase 3 - Frontend Core" },
+            { id: "t-6", title: "Alur Formulir Transaksi & Validasi Schema", description: "Validasi data input menggunakan Zod dan penyiapan payload pesanan.", status: "todo", phase: "Phase 4 - Modul Transaksi" },
+            { id: "t-7", title: "Integrasi Payment Gateway & Webhook Listener", description: "Menghubungkan API payment gateway dan endpoint webhook verifikasi.", status: "todo", phase: "Phase 5 - Integrasi" },
+            { id: "t-8", title: "Dashboard Admin: Manajemen Data & Laporan", description: "Tabel CRUD master data dan visualisasi grafik penjualan.", status: "todo", phase: "Phase 6 - Dashboard Admin" },
+            { id: "t-9", title: "Testing Menyeluruh, Optimasi Performa & Rilis", description: "Uji end-to-end, audit keamanan header, dan deployment ke production.", status: "todo", phase: "Phase 7 - QA & Deployment" }
+          ];
         }
 
         updated.updatedAt = Date.now();
@@ -1273,7 +1434,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
     <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0c0c0e] text-white" : "bg-[#fafafc] text-black"}`}>
       {/* Toast Feedback */}
       {copyFeedback && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-emerald-600 text-white shadow-xl animate-in fade-in-0 duration-200">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-black border border-zinc-700 dark:border-zinc-300 shadow-xl animate-in fade-in-0 duration-200">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
@@ -1302,7 +1463,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               <h2 className="text-sm sm:text-base font-bold tracking-tight truncate">{activeProject.title}</h2>
               <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                 progress === 100
-                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
                   : isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
               }`}>
                 {progress}% Complete
@@ -1469,10 +1630,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       {!m.content ? (
                         /* Animasi Generate: Skeleton & Pulse Shimmer saat menunggu respons awal */
                         <div className="py-1">
-                          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-zinc-200/80 dark:border-zinc-800/80 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-zinc-200/80 dark:border-zinc-800/80 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                             <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-600 dark:bg-zinc-200"></span>
                             </span>
                             <span className="animate-pulse">Sedang menganalisis kebutuhan &amp; merumuskan blueprint proyek...</span>
                           </div>
@@ -1485,10 +1646,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       ) : (
                         <>
                           {isChatLoading && (
-                            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-200/60 dark:border-zinc-800/60 text-[11px] font-semibold text-emerald-500 dark:text-emerald-400">
+                            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-200/60 dark:border-zinc-800/60 text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
                               <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-600 dark:bg-zinc-200"></span>
                               </span>
                               <span className="animate-pulse">AI sedang merancang spesifikasi &amp; blueprint proyek...</span>
                             </div>
@@ -1497,7 +1658,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                           <MarkdownMessage content={cleanText} isDark={isDark} />
 
                           {isChatLoading && (
-                            <span className="inline-block w-2 h-3.5 ml-1 align-middle bg-blue-500 dark:bg-blue-400 animate-pulse rounded-2xs" />
+                            <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-zinc-700 dark:bg-zinc-300 animate-pulse rounded-2xs" />
                           )}
 
                           {/* Pertanyaan Discovery Interaktif: Pilih Semua Baru Kirim Sekaligus */}
@@ -1507,7 +1668,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                             }`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-                                  <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                   <span>Klarifikasi Kebutuhan Proyek:</span>
@@ -1710,7 +1871,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                   isDark ? "border-white/[0.08]" : "border-black/[0.06]"
                 }`}>
                   <div className="text-[11px] text-zinc-400 font-medium px-1 flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-300 animate-pulse" />
                     <span>AI Project Planner &amp; Architect</span>
                   </div>
 
@@ -1826,53 +1987,86 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(activeProject.features || []).map((feat, idx) => (
-              <div
-                key={feat.id || idx}
-                className={`p-4 rounded-2xl border flex flex-col justify-between ${
-                  isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+          {(!activeProject.features || activeProject.features.length === 0) ? (
+            <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+              isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+            }`}>
+              <div className="w-10 h-10 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800/80 dark:bg-zinc-800 text-zinc-300">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm">Daftar Fitur Belum Dirumuskan</h4>
+                <p className="text-xs text-zinc-400 mt-1 max-w-md mx-auto">
+                  AI Planner dapat memecah kebutuhan proyek Anda menjadi modul-modul fitur hierarkis lengkap dengan sub-fitur dan prioritas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("chat");
+                  handleSendChatMessage("Tolong buatkan daftar fitur hierarkis yang sangat detail dan mendalam (6-8 fitur utama dengan 4-6 sub-fitur per modul) untuk proyek ini sekarang.");
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
               >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="font-bold text-sm">{feat.name}</h4>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                      feat.priority === "High"
-                        ? "bg-red-500/15 text-red-400 border border-red-500/20"
-                        : feat.priority === "Medium"
-                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
-                        : "bg-blue-500/15 text-blue-400 border border-blue-500/20"
-                    }`}>
-                      {feat.priority || "Medium"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{feat.description}</p>
+                <span>Generate Fitur Lengkap Sekarang</span>
+                <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeProject.features.map((feat, idx) => (
+                <div
+                  key={feat.id || idx}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between ${
+                    isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="font-bold text-sm">{feat.name}</h4>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                        feat.priority === "High"
+                          ? isDark ? "bg-white text-black border-white font-bold" : "bg-black text-white border-black font-bold"
+                          : feat.priority === "Medium"
+                          ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
+                          : isDark ? "bg-zinc-850 text-zinc-400 border-zinc-800" : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                      }`}>
+                        {feat.priority || "Medium"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{feat.description}</p>
 
-                  {feat.subFeatures && feat.subFeatures.length > 0 && (
-                    <div className="mt-3 pt-2.5 border-t border-zinc-200 dark:border-zinc-800/80">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Sub-Fitur:</span>
-                      <ul className="space-y-0.5 text-xs text-zinc-300 dark:text-zinc-300 light:text-zinc-700">
-                        {feat.subFeatures.map((s, si) => (
-                          <li key={si} className="flex items-center gap-1.5">
-                            <span className="text-zinc-500 font-mono">├──</span>
-                            <span>{s}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    {feat.subFeatures && feat.subFeatures.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-zinc-200 dark:border-zinc-800/80">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1">Sub-Fitur:</span>
+                        <ul className="space-y-0.5 text-xs text-zinc-300 dark:text-zinc-300 light:text-zinc-700">
+                          {feat.subFeatures.map((s, si) => (
+                            <li key={si} className="flex items-center gap-1.5">
+                              <span className="text-zinc-500 font-mono">├──</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {feat.dependencies && feat.dependencies.length > 0 && (
+                    <div className="mt-3 pt-2 text-[11px] text-zinc-400 flex items-center gap-1">
+                      <span className="font-semibold text-zinc-500">Dep:</span>
+                      <span>{feat.dependencies.join(", ")}</span>
                     </div>
                   )}
                 </div>
-
-                {feat.dependencies && feat.dependencies.length > 0 && (
-                  <div className="mt-3 pt-2 text-[11px] text-zinc-400 flex items-center gap-1">
-                    <span className="font-semibold text-zinc-500">Dep:</span>
-                    <span>{feat.dependencies.join(", ")}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1905,7 +2099,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
           <div className={`p-5 rounded-2xl border space-y-2 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
             <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">User Flow Map</h4>
             <div className={`p-4 rounded-xl font-mono text-xs leading-relaxed overflow-x-auto ${
-              isDark ? "bg-black/50 text-emerald-400 border border-zinc-800/80" : "bg-zinc-50 text-emerald-700 border border-zinc-200"
+              isDark ? "bg-black/50 text-zinc-200 border border-zinc-800/80" : "bg-zinc-50 text-zinc-900 border border-zinc-200"
             }`}>
               {activeProject.userFlow || "Landing Page -> Login -> Dashboard -> Fitur Utama -> Selesai"}
             </div>
@@ -2021,8 +2215,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Dikerjakan</span>
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">Dikerjakan</span>
+                  <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
+                    isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-200 text-zinc-900 border-zinc-400"
+                  }`}>
                     {activeProject.tasks.filter((t) => t.status === "in_progress").length}
                   </span>
                 </div>
@@ -2047,8 +2243,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Selesai</span>
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">Selesai</span>
+                  <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
+                    isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+                  }`}>
                     {activeProject.tasks.filter((t) => t.status === "done").length}
                   </span>
                 </div>
@@ -2073,8 +2271,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-red-400">Gagal / Kendala</span>
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Gagal / Kendala</span>
+                  <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
+                    isDark ? "bg-zinc-900 text-zinc-400 border-zinc-800" : "bg-zinc-200 text-zinc-700 border-zinc-350"
+                  }`}>
                     {activeProject.tasks.filter((t) => t.status === "failed").length}
                   </span>
                 </div>
@@ -2248,12 +2448,12 @@ function TaskCard({
           onChange={(e) => onUpdateStatus(task.id, e.target.value as TaskStatus)}
           className={`rounded-lg px-2 py-0.5 font-semibold text-[10px] border outline-none cursor-pointer ${
             task.status === "done"
-              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+              ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
               : task.status === "in_progress"
-              ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+              ? isDark ? "bg-zinc-800 text-white border-zinc-600" : "bg-zinc-200 text-black border-zinc-400"
               : task.status === "failed"
-              ? "bg-red-500/15 text-red-400 border-red-500/30"
-              : isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-300"
+              ? isDark ? "bg-zinc-850 text-zinc-400 border-zinc-700" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+              : isDark ? "bg-zinc-900 text-zinc-300 border-zinc-800" : "bg-zinc-50 text-zinc-700 border-zinc-300"
           }`}
         >
           <option value="todo">Belum Mulai</option>
