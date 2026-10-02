@@ -397,6 +397,35 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     } catch {}
   }, [projects]);
 
+  // Pastikan proyek yang belum memiliki PRD memiliki kartu pertanyaan klarifikasi interaktif
+  useEffect(() => {
+    setProjects((prev) => {
+      let changed = false;
+      const updated = prev.map((p) => {
+        if (
+          (!p.prd || !p.prd.overview) &&
+          p.messages.length <= 1 &&
+          p.messages[0]?.role === "assistant" &&
+          !p.messages[0]?.content?.includes("<<<QUESTIONS_JSON>>>")
+        ) {
+          changed = true;
+          const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(p.title, p.description);
+          return {
+            ...p,
+            messages: [
+              {
+                ...p.messages[0],
+                content: `${welcomeText}${questionsJson}`,
+              },
+            ],
+          };
+        }
+        return p;
+      });
+      return changed ? updated : prev;
+    });
+  }, []);
+
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
   // Auto scroll chat
@@ -415,49 +444,6 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     if (!project.tasks || project.tasks.length === 0) return 0;
     const completed = project.tasks.filter((t) => t.status === "done").length;
     return Math.round((completed / project.tasks.length) * 100);
-  };
-
-  // ── Project Creation ──────────────────────────────────────────────────────────
-  const handleCreateProject = () => {
-    if (!newTitle.trim()) return;
-    const newProj: ProjectItem = {
-      id: "proj-" + Date.now(),
-      title: newTitle.trim(),
-      description: newDesc.trim() || "Proyek perencanaan aplikasi dengan AI.",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      messages: [
-        {
-          id: "m-welcome",
-          role: "assistant",
-          content: `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${newTitle.trim()}**.
-
-Tugas saya adalah membantu Anda merumuskan perencanaan lengkap:
-- **PRD Lengkap** (Requirements, User Stories, Scope)
-- **Daftar Fitur & Prioritas**
-- **User Flow & Arsitektur Teknis** (Frontend, Backend, Database)
-- **Task Board (Kanban)** yang siap dijalankan
-
-Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Blueprint** di bawah untuk langsung merancang PRD dan Task Board otomatis.`,
-          createdAt: Date.now(),
-        },
-      ],
-      tasks: [],
-    };
-
-    setProjects((prev) => [newProj, ...prev]);
-    setActiveProjectId(newProj.id);
-    setActiveTab("chat");
-    setShowNewModal(false);
-    setNewTitle("");
-    setNewDesc("");
-  };
-
-  const handleDeleteProject = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Hapus proyek ini?")) return;
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-    if (activeProjectId === id) setActiveProjectId(null);
   };
 
   // ── Domain Detection & High-Fidelity Domain Blueprint Generators ──────────────────
@@ -493,6 +479,206 @@ Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Bl
       isPhotography: false,
       topicName: title.toLowerCase().includes("coba") ? "Platform Web & Aplikasi Digital" : title
     };
+  };
+
+  const generateInitialDiscoveryQuestions = (title: string, desc?: string): { welcomeText: string; questionsJson: string } => {
+    const domain = detectProjectDomain([], title, desc);
+    let questions: { id: string; question: string; options: string[] }[] = [];
+
+    if (domain.isPhotography) {
+      questions = [
+        {
+          id: "q1",
+          question: "Siapa target klien utama dan genre fotografi yang difokuskan?",
+          options: [
+            "Wedding, Prewedding & Pasangan",
+            "Personal Portrait, Wisuda & Model",
+            "Commercial, Brand Fashion & Produk",
+            "Event, Konser & Corporate Gathering",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana sistem booking dan pemilihan paket photoshoot?",
+          options: [
+            "Kalender reservasi interaktif real-time dengan pilihan studio/outdoor",
+            "Pilihan paket berjenjang (Bronze, Silver, Gold) beserta opsi add-ons",
+            "Formulir brief konsep foto dengan konsultasi via WhatsApp",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Apakah memerlukan fitur Client Proofing Portal untuk seleksi foto ber-watermark?",
+          options: [
+            "Ya, wajib ada portal privat seleksi foto ber-watermark untuk klien",
+            "Cukup galeri hasil foto final yang siap diunduh batch (ZIP)",
+            "Hanya showcase portofolio publik tanpa portal klien privat",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Bagaimana alur pembayaran yang Anda rencanakan?",
+          options: [
+            "Pembayaran bertahap (DP 50% di awal + Pelunasan sebelum unduh file final)",
+            "Pembayaran penuh 100% di awal via QRIS / Virtual Account",
+            "Manual transfer bank dengan konfirmasi kasir",
+          ],
+        },
+      ];
+    } else if (/futsal|lapangan|badminton|booking|reservasi|jadwal/.test((title + " " + (desc || "")).toLowerCase())) {
+      questions = [
+        {
+          id: "q1",
+          question: "Siapa target pengguna dan operator utama aplikasi?",
+          options: [
+            "Penyewa umum (Customer) & Pengelola lapangan (Admin)",
+            "Member komunitas olahraga dengan sistem langganan",
+            "Multi-venue (Banyak pemilik lapangan bergabung dalam satu platform)",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana mekanisme pemilihan jadwal & slot ketersediaan lapangan?",
+          options: [
+            "Kalender slot per jam real-time dengan penguncian slot otomatis (15 menit)",
+            "Jadwal fleksibel dengan sistem request dan persetujuan admin",
+            "Pemesanan sesi berulang (membership mingguan/bulanan)",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Metode pembayaran apa saja yang ingin didukung?",
+          options: [
+            "Otomatis via QRIS & Virtual Account (Midtrans / Xendit)",
+            "Pembayaran DP di awal, sisa bayar di lokasi (Cash on Spot)",
+            "Manual transfer bank dengan upload bukti bayar",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Apakah memerlukan notifikasi pengingat otomatis?",
+          options: [
+            "Ya, kirim WhatsApp / Email pengingat jadwal H-1 dan bukti invoice",
+            "Cukup riwayat booking di dashboard pengguna",
+          ],
+        },
+      ];
+    } else if (/toko|olshop|ecommerce|belanja|produk|store/.test((title + " " + (desc || "")).toLowerCase())) {
+      questions = [
+        {
+          id: "q1",
+          question: "Jenis produk apa yang dijual dan bagaimana model bisnisnya?",
+          options: [
+            "Produk fisik dengan pengiriman ekspedisi (JNE/J&T/SiCepat)",
+            "Produk digital (file, template, lisensi unduh instan)",
+            "Multi-vendor marketplace (banyak seller)",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana alur checkout dan perhitungan ongkir?",
+          options: [
+            "Kalkulasi ongkir otomatis via API RajaOngkir / Biteship + Payment Gateway",
+            "Checkout langsung diarahkan ke chat WhatsApp admin",
+            "Sistem keranjang belanja & bayar di tempat (COD)",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Apakah pengguna wajib mendaftar akun untuk berbelanja?",
+          options: [
+            "Bisa guest checkout (tanpa akun) dan opsi login Google",
+            "Wajib login akun member untuk mengumpulkan poin reward",
+          ],
+        },
+      ];
+    } else {
+      questions = [
+        {
+          id: "q1",
+          question: `Siapa target pengguna utama untuk proyek ${title}?`,
+          options: [
+            "Pengguna umum / Konsumen akhir (B2C)",
+            "Pelaku bisnis, UMKM, atau perusahaan (B2B)",
+            "Internal tim operasional & staf perusahaan",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana sistem autentikasi dan hak akses pengguna?",
+          options: [
+            "Multi-role (Administrator, Staff Operasional, Customer)",
+            "Login cepat via Google OAuth & Email Magic Link",
+            "Dapat diakses publik tanpa perlu login",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Apa fungsi dan modul paling krusial yang wajib ada di versi awal (MVP)?",
+          options: [
+            "Katalog data interaktif, pencarian cepat & modul transaksi otomatis",
+            "Formulir pengisian data terstruktur dengan validasi ketat & ekspor laporan",
+            "Dashboard analitik, grafik visualisasi performa, dan manajemen data CRUD",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Bagaimana model arsitektur teknis yang Anda harapkan?",
+          options: [
+            "Next.js 15 App Router + PostgreSQL Supabase (Modern, Cepat & Skalabel)",
+            "REST API Route Handlers terpadu dengan autentikasi session cookie",
+            "Integrasi payment gateway (QRIS/VA) dan notifikasi pesan instan",
+          ],
+        },
+      ];
+    }
+
+    const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
+
+Sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silakan pilih preferensi kebutuhan di bawah ini agar perencanaannya 100% presisi dan siap diimplementasikan:`;
+
+    const questionsJson = `\n\n<<<QUESTIONS_JSON>>>\n${JSON.stringify(questions, null, 2)}\n<<<END_QUESTIONS_JSON>>>`;
+
+    return { welcomeText, questionsJson };
+  };
+
+  // ── Project Creation ──────────────────────────────────────────────────────────
+  const handleCreateProject = () => {
+    if (!newTitle.trim()) return;
+    const title = newTitle.trim();
+    const desc = newDesc.trim() || "Proyek perencanaan aplikasi dengan AI.";
+    const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(title, desc);
+
+    const newProj: ProjectItem = {
+      id: "proj-" + Date.now(),
+      title,
+      description: desc,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [
+        {
+          id: "m-welcome",
+          role: "assistant",
+          content: `${welcomeText}${questionsJson}`,
+          createdAt: Date.now(),
+        },
+      ],
+      tasks: [],
+    };
+
+    setProjects((prev) => [newProj, ...prev]);
+    setActiveProjectId(newProj.id);
+    setActiveTab("chat");
+    setShowNewModal(false);
+    setNewTitle("");
+    setNewDesc("");
+  };
+
+  const handleDeleteProject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Hapus proyek ini?")) return;
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    if (activeProjectId === id) setActiveProjectId(null);
   };
 
   const getDomainBlueprint = (domain: DetectedDomain, title: string) => {
