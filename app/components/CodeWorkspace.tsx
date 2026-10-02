@@ -70,7 +70,7 @@ export type ProjectItem = {
   tasks: ProjectTask[];
 };
 
-const STORAGE_KEY = "usick_code_projects_v1";
+const STORAGE_KEY = "usick_code_projects_v2";
 
 const DEFAULT_PROJECTS: ProjectItem[] = [
   {
@@ -89,13 +89,14 @@ const DEFAULT_PROJECTS: ProjectItem[] = [
       {
         id: "m-2",
         role: "assistant",
-        content: `Halo! Saya siap membantu merancang arsitektur dan spesifikasi project **Mini Soccer Booking System** Anda.
+        content: `Halo! Saya telah menganalisis ide proyek **Mini Soccer Booking System** Anda dan telah menyusun blueprint lengkap:
 
-Berikut adalah gambaran perencanaan awal yang telah saya siapkan:
-1. **Target Pengguna**: Pemain/tim yang ingin reservasi lapangan & Pengelola/Owner lapangan.
-2. **Kebutuhan Kunci**: Pengecekan jadwal real-time, sistem booking dengan DP/lunas, integrasi payment gateway, dan dashboard admin lapangan.
+- **PRD**: Kebutuhan sistem, target pengguna, dan kriteria sukses.
+- **Features**: Autentikasi, slot jadwal real-time, integrasi QRIS, dan dashboard admin.
+- **Architecture**: Next.js 15, Supabase PostgreSQL, dan REST API.
+- **Task Board**: Daftar 6 task pengembangan yang siap dikerjakan.
 
-Silakan periksa tab **PRD**, **Features**, **Flow & Arch**, dan **Task Board** di atas untuk melihat detail lengkap yang siap Anda salin ke AI coding tool (Antigravity/Cursor/Vibecode)!`,
+Silakan periksa tab **PRD**, **Features**, **Flow & Arch**, dan **Task Board** di atas untuk melihat detail lengkap yang siap Anda salin ke AI coding tool (Antigravity/Cursor/Vibecode).`,
         createdAt: Date.now() - 86400000 * 3 + 2000,
       },
     ],
@@ -174,7 +175,7 @@ Silakan periksa tab **PRD**, **Features**, **Flow & Arch**, dan **Task Board** d
     ],
     userFlow: `1. Landing Page → 2. Pilih Lapangan & Tanggal → 3. Pilih Slot Jam yang Kosong → 4. Login / Isi Kontak → 5. Bayar via QRIS/VA → 6. Konfirmasi Tiket & Notifikasi WA → 7. Check-in di Lapangan`,
     architecture: {
-      frontend: "Next.js 15 (App Router), Tailwind CSS, Lucide Icons, Shadcn UI",
+      frontend: "Next.js 15 (App Router), Tailwind CSS, Lucide Icons",
       backend: "Next.js Server Actions & API Routes, Node.js",
       database: "PostgreSQL (Supabase) dengan Row Level Security (RLS)",
       auth: "Supabase Auth (Google OAuth & Magic Link / Phone OTP)",
@@ -280,7 +281,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // Task Management Modal / Add task state
+  // Task Management Modal State
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
@@ -329,14 +330,13 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
           role: "assistant",
           content: `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${newTitle.trim()}**.
 
-Tugas saya adalah membantu Anda merumuskan:
+Tugas saya adalah membantu Anda merumuskan perencanaan lengkap:
 - **PRD Lengkap** (Requirements, User Stories, Scope)
 - **Daftar Fitur & Prioritas**
 - **User Flow & Arsitektur Teknis** (Frontend, Backend, Database)
 - **Task Board (Kanban)** yang siap dijalankan
 
-Silakan ceritakan ide proyek Anda:
-*Siapa target pengguna? Masalah apa yang ingin diselesaikan? Apakah ada fitur spesifik atau preferensi teknologi (misal: Next.js, Supabase, Tailwind)?*`,
+Silakan ceritakan ide proyek Anda secara singkat, atau klik tombol **Generate Blueprint** di bawah untuk langsung merancang PRD dan Task Board otomatis.`,
           createdAt: Date.now(),
         },
       ],
@@ -358,7 +358,7 @@ Silakan ceritakan ide proyek Anda:
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
-  // ── Chat & AI Planner Generation ──────────────────────────────────────────────
+  // ── Chat & Automatic Blueprint Generation ──────────────────────────────────────
   const handleSendChatMessage = async (presetText?: string) => {
     const textToSend = (presetText || chatInput).trim();
     if (!textToSend || !activeProject || isChatLoading) return;
@@ -384,18 +384,60 @@ Silakan ceritakan ide proyek Anda:
     setIsChatLoading(true);
 
     const systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
-Tugas utamamu adalah membantu pengguna merancang project pengembangan aplikasi/website mulai dari ide mentah hingga perencanaan terstruktur yang siap diberikan ke AI coding tool (seperti Vibecode, Antigravity, Cursor, Bolt, v0).
+Pengguna sedang mengembangkan ide project: "${activeProject.title}". Deskripsi awal: "${activeProject.description || "N/A"}".
 
-ATURAN PENTING:
-1. Analisis kebutuhan project pengguna. Jika requirement masih samar atau belum cukup detail, ajukan 2-4 pertanyaan terarah (Target pengguna, alur utama, autentikasi, pembayaran, dll.).
-2. Jangan membuat asumsi liar sebagai fakta.
-3. Jika requirement sudah cukup atau jika pengguna meminta "Generate PRD / Buat perencanaan", berikan perencanaan terstruktur dan LENGKAP dengan format Markdown yang rapi:
-   - PRD (Overview, Problem, Goals, Target Users, User Stories, Requirements)
-   - Features (Daftar fitur hierarkis)
-   - User Flow & Architecture (Tech Stack, Database, Services)
-   - Development Tasks (Fase & action item)
-4. Fitur ini BUKAN untuk menulis kode implementasi penuh (jangan tulis puluhan baris code backend/frontend), melainkan merancang arsitektur & task actionable.
-5. Gunakan bahasa Indonesia yang profesional, jelas, ramah, dan terstruktur rapi.`;
+TUGAS UTAMA:
+Setiap kali pengguna memberikan brief project, berdiskusi, meminta fitur, atau meminta PRD/task, kamu harus:
+1. Memberikan respon ramah, ringkas, dan jelas dalam bahasa Indonesia (maksimal 2-3 paragraf singkat menjelaskan konsep dan highlight project).
+2. MENYERTAKAN BLOK BLUEPRINT LENGKAP di akhir respon menggunakan format khusus berikut agar sistem web langsung mengisi tab PRD, Features, Architecture, dan Kanban Tasks secara otomatis tanpa terpotong:
+
+<<<BLUEPRINT_JSON>>>
+{
+  "prd": {
+    "overview": "Ringkasan jelas project...",
+    "problemStatement": "Masalah nyata yang diselesaikan...",
+    "goals": ["Goal 1", "Goal 2", "Goal 3"],
+    "targetUsers": ["Target user 1", "Target user 2"],
+    "functionalRequirements": ["Requirement 1", "Requirement 2", "Requirement 3", "Requirement 4"],
+    "nonFunctionalRequirements": ["Kecepatan < 1s", "Keamanan enkripsi", "Desain mobile-first"]
+  },
+  "features": [
+    {
+      "name": "Nama Fitur 1",
+      "description": "Deskripsi fitur...",
+      "priority": "High",
+      "subFeatures": ["Sub fitur A", "Sub fitur B"]
+    },
+    {
+      "name": "Nama Fitur 2",
+      "description": "Deskripsi fitur...",
+      "priority": "Medium",
+      "subFeatures": ["Sub fitur A", "Sub fitur B"]
+    }
+  ],
+  "userFlow": "1. Halaman Depan -> 2. Autentikasi -> 3. Dashboard -> 4. Aksi Utama -> 5. Selesai",
+  "architecture": {
+    "frontend": "Next.js (App Router), Tailwind CSS",
+    "backend": "Next.js Server Actions / API Routes",
+    "database": "PostgreSQL (Supabase)",
+    "auth": "Supabase Auth",
+    "storage": "Supabase Storage",
+    "deployment": "Vercel",
+    "dataSchema": "Table: users (id, name, email)\\nTable: items (id, user_id, title)"
+  },
+  "tasks": [
+    { "title": "Setup repository & database schema", "description": "Inisialisasi arsitektur dan tabel database.", "status": "todo", "phase": "Phase 1 - Setup" },
+    { "title": "Implementasi Autentikasi & Akun Pengguna", "description": "Login, register, dan middleware proteksi.", "status": "todo", "phase": "Phase 1 - Setup" },
+    { "title": "Pembangunan Fitur Inti Aplikasi", "description": "Halaman antarmuka dan logika bisnis utama.", "status": "todo", "phase": "Phase 2 - Core" },
+    { "title": "Integrasi Database & API Query", "description": "Menghubungkan antarmuka dengan database backend.", "status": "todo", "phase": "Phase 2 - Core" },
+    { "title": "Testing, UI Polish & Deployment", "description": "Pemeriksaan fungsi dan deploy ke production.", "status": "todo", "phase": "Phase 3 - Release" }
+  ]
+}
+<<<END_BLUEPRINT_JSON>>>
+
+PENTING:
+- Pastikan JSON di dalam tag <<<BLUEPRINT_JSON>>> valid dan terisi lengkap sesuai brief spesifik pengguna.
+- Jangan menuliskan puluhan paragraf panjang di luar JSON agar respon tidak terpotong (token limit). Cukup penjelasan ringkas 2 paragraf di awal lalu langsung sertakan tag JSON blueprint tersebut.`;
 
     try {
       const res = await fetch("/api/chat", {
@@ -406,7 +448,7 @@ ATURAN PENTING:
             { role: "system", content: systemPrompt },
             ...updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           ],
-          model: "novita:qwen/qwen3.8-flash", // Menggunakan engine flagship Usick yang cepat dan stabil
+          model: "novita:qwen/qwen3.8-flash",
         }),
       });
 
@@ -418,10 +460,10 @@ ATURAN PENTING:
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let assistantReply = "";
+      let rawStream = "";
       const assistantMsgId = "ai-" + Date.now();
 
-      // Buat placeholder pesan asisten
+      // Placeholder pesan asisten
       setProjects((prev) =>
         prev.map((p) =>
           p.id === projId
@@ -454,14 +496,16 @@ ATURAN PENTING:
             const parsed = JSON.parse(dataStr);
             const chunk = parsed.choices?.[0]?.delta?.content || "";
             if (chunk) {
-              assistantReply += chunk;
+              rawStream += chunk;
+              // Bersihkan JSON tag dari tampilan chat bubble saat sedang streaming
+              const displayContent = cleanChatDisplay(rawStream);
               setProjects((prev) =>
                 prev.map((p) =>
                   p.id === projId
                     ? {
                         ...p,
                         messages: p.messages.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: assistantReply } : m
+                          m.id === assistantMsgId ? { ...m, content: displayContent } : m
                         ),
                       }
                     : p
@@ -472,8 +516,8 @@ ATURAN PENTING:
         }
       }
 
-      // Auto-extract atau sinkronkan data perencanaan jika AI menghasilkan breakdown lengkap
-      parseAndSyncProjectData(projId, assistantReply);
+      // Selesai streaming: ekstrak blueprint JSON dan sinkronkan ke state project
+      parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
     } catch (err: unknown) {
       console.error("Code AI error:", err);
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan saat memproses.";
@@ -500,58 +544,111 @@ ATURAN PENTING:
     }
   };
 
-  // Parser sederhana untuk mengupdate tab PRD & Tasks bila AI menghasilkan poin terstruktur
-  const parseAndSyncProjectData = (projId: string, aiText: string) => {
+  // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
+  const cleanChatDisplay = (text: string): string => {
+    const jsonStart = text.indexOf("<<<BLUEPRINT_JSON>>>");
+    if (jsonStart !== -1) {
+      const before = text.slice(0, jsonStart).trim();
+      return (
+        before +
+        "\n\n> **Blueprint Proyek Telah Dibuat:** PRD, daftar fitur, arsitektur teknis, dan papan task board telah otomatis diperbarui pada tab di atas!"
+      );
+    }
+    return text;
+  };
+
+  // Parser Blueprint JSON untuk mengisi otomatis tab PRD, Features, Flow, Architecture, dan Tasks
+  const parseAndApplyBlueprint = (projId: string, fullText: string, assistantMsgId: string) => {
+    let blueprintData: any = null;
+
+    const startTag = "<<<BLUEPRINT_JSON>>>";
+    const endTag = "<<<END_BLUEPRINT_JSON>>>";
+
+    const sIdx = fullText.indexOf(startTag);
+    const eIdx = fullText.indexOf(endTag);
+
+    if (sIdx !== -1 && eIdx !== -1) {
+      const jsonStr = fullText.slice(sIdx + startTag.length, eIdx).trim();
+      try {
+        blueprintData = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn("Failed to parse blueprint JSON:", e);
+      }
+    }
+
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== projId) return p;
 
         const updated = { ...p };
 
-        // Jika belum ada PRD overview dan teks mengandung ringkasan
-        if (!updated.prd) {
-          updated.prd = {
-            overview: `Perencanaan project untuk ${p.title}. Dihasilkan otomatis oleh AI Project Planner.`,
-            goals: ["Menyelesaikan MVP sesuai requirement", "Struktur arsitektur yang scalable", "Pengalaman pengguna yang optimal"],
-            targetUsers: ["Pengguna umum / End-user", "Administrator sistem"],
-            functionalRequirements: ["Autentikasi akun", "Fitur inti aplikasi", "Penyimpanan data"],
-          };
+        // Pastikan chat bubble menampilkan teks bersih
+        updated.messages = updated.messages.map((m) =>
+          m.id === assistantMsgId ? { ...m, content: cleanChatDisplay(fullText) } : m
+        );
+
+        if (blueprintData) {
+          if (blueprintData.prd) {
+            updated.prd = {
+              ...updated.prd,
+              ...blueprintData.prd,
+            };
+          }
+
+          if (Array.isArray(blueprintData.features) && blueprintData.features.length > 0) {
+            updated.features = blueprintData.features.map((f: any, idx: number) => ({
+              id: "feat-" + (idx + 1),
+              name: f.name || "Feature " + (idx + 1),
+              description: f.description || "",
+              priority: f.priority || "Medium",
+              subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
+              dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
+            }));
+          }
+
+          if (blueprintData.userFlow) {
+            updated.userFlow = String(blueprintData.userFlow);
+          }
+
+          if (blueprintData.architecture) {
+            updated.architecture = {
+              ...updated.architecture,
+              ...blueprintData.architecture,
+            };
+          }
+
+          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length > 0) {
+            updated.tasks = blueprintData.tasks.map((t: any, idx: number) => ({
+              id: "task-" + (idx + 1) + "-" + Date.now(),
+              title: t.title || "Task " + (idx + 1),
+              description: t.description || "",
+              status: (t.status === "done" || t.status === "in_progress" || t.status === "failed") ? t.status : "todo",
+              phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1),
+              feature: t.feature || "Core",
+            }));
+          }
+        } else {
+          // Fallback parsing jika AI tidak membungkus dengan tag JSON sempurna
+          if (!updated.prd) {
+            updated.prd = {
+              overview: `Rancangan spesifikasi proyek untuk ${p.title}. Disusun otomatis oleh AI Project Planner.`,
+              goals: ["Membangun MVP fungsional sesuai requirement", "Arsitektur modular dan scalable", "User experience responsif"],
+              targetUsers: ["End-user", "Administrator"],
+              functionalRequirements: ["Autentikasi akun", "Manajemen data utama", "Dashboard pelaporan"],
+            };
+          }
+
+          if (updated.tasks.length === 0) {
+            updated.tasks = [
+              { id: "t-1", title: "Setup Project & Database Schema", description: "Inisialisasi Next.js, Tailwind, dan PostgreSQL schema.", status: "todo", phase: "Phase 1 - Setup" },
+              { id: "t-2", title: "Implementasi Autentikasi Pengguna", description: "Fitur login, registrasi, dan session management.", status: "todo", phase: "Phase 1 - Setup" },
+              { id: "t-3", title: "Pembangunan Fitur Inti & UI", description: "Antarmuka utama dan logika bisnis aplikasi.", status: "todo", phase: "Phase 2 - Core" },
+              { id: "t-4", title: "Testing & Production Deployment", description: "Pengujian menyeluruh dan rilis ke hosting.", status: "todo", phase: "Phase 3 - Release" },
+            ];
+          }
         }
 
-        // Jika belum ada task dan AI menyebutkan task/fitur
-        if (updated.tasks.length === 0) {
-          updated.tasks = [
-            {
-              id: "t-init-1",
-              title: "Setup Arsitektur & Inisialisasi Proyek",
-              description: "Setup repository, framework frontend/backend, dan styling.",
-              status: "todo",
-              phase: "Fase 1 - Inisialisasi",
-            },
-            {
-              id: "t-init-2",
-              title: "Perancangan Skema Database & Auth",
-              description: "Buat tabel database, relasi entitas, dan sistem login.",
-              status: "todo",
-              phase: "Fase 1 - Inisialisasi",
-            },
-            {
-              id: "t-init-3",
-              title: "Pembangunan Fitur Inti (Core Features)",
-              description: "Implementasi logika bisnis utama dan interaksi pengguna.",
-              status: "todo",
-              phase: "Fase 2 - Core Development",
-            },
-            {
-              id: "t-init-4",
-              title: "Testing, Polish UI & Deployment",
-              description: "Pengujian fungsionalitas, integrasi API, dan rilis ke production.",
-              status: "todo",
-              phase: "Fase 3 - Rilis",
-            },
-          ];
-        }
-
+        updated.updatedAt = Date.now();
         return updated;
       })
     );
@@ -617,7 +714,7 @@ ATURAN PENTING:
     );
   };
 
-  // ── Context Copy / Export Helpers (Feature 11 PRD) ─────────────────────────────
+  // ── Context Copy / Export Helpers (Bebas Emote) ────────────────────────────────
   const copyPRDText = () => {
     if (!activeProject) return;
     const prd = activeProject.prd;
@@ -680,26 +777,26 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
     text += `## Total: ${tasks.length} Tasks (${calculateProgress(activeProject)}% Selesai)\n\n`;
 
     if (inProg.length > 0) {
-      text += `### ⏳ SEDANG DIKERJAKAN (${inProg.length})\n`;
+      text += `### [IN PROGRESS] Sedang Dikerjakan (${inProg.length})\n`;
       inProg.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
       text += "\n";
     }
 
     if (todo.length > 0) {
-      text += `### 📋 BELUM MULAI (${todo.length})\n`;
+      text += `### [TODO] Belum Mulai (${todo.length})\n`;
       todo.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
       text += "\n";
     }
 
     if (done.length > 0) {
-      text += `### ✅ SELESAI (${done.length})\n`;
+      text += `### [DONE] Selesai (${done.length})\n`;
       done.forEach((t) => (text += `- [x] **${t.title}**: ${t.description}\n`));
       text += "\n";
     }
 
     if (failed.length > 0) {
-      text += `### ⚠️ KENDALA / GAGAL (${failed.length})\n`;
-      failed.forEach((t) => (text += `- [ ] ❌ **${t.title}**: ${t.description}\n`));
+      text += `### [BLOCKED] Kendala / Gagal (${failed.length})\n`;
+      failed.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
       text += "\n";
     }
 
@@ -748,7 +845,7 @@ ${arch?.dataSchema || "-- Skema tabel inti\n-- users, items, transactions"}
 
 ---
 ## 4. USER FLOW
-${activeProject.userFlow || "Landing Page → Login/Register → Dashboard → Core Actions → Summary / Results"}
+${activeProject.userFlow || "Landing Page -> Login/Register -> Dashboard -> Core Actions -> Summary / Results"}
 
 ---
 ## 5. FEATURE BREAKDOWN
@@ -762,11 +859,11 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
 > **Instruksi untuk AI Coding Assistant**: Gunakan spesifikasi dan konteks lengkap di atas untuk membangun kode proyek ini langkah demi langkah, mengikuti task yang belum selesai dan mematuhi arsitektur yang telah ditentukan.`;
 
     navigator.clipboard.writeText(masterPrompt);
-    showCopyToast("Master Prompt Context lengkap berhasil disalin!");
+    showCopyToast("Master Context lengkap berhasil disalin!");
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: Project List (Saat belum ada project yang dipilih)
+  // RENDER: Project List
   // ─────────────────────────────────────────────────────────────────────────────
   if (!activeProject) {
     return (
@@ -976,7 +1073,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: Project Detail Workspace (Saat project sedang dibuka)
+  // RENDER: Project Detail Workspace
   // ─────────────────────────────────────────────────────────────────────────────
   const progress = calculateProgress(activeProject);
 
@@ -1022,8 +1119,26 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
           </div>
         </div>
 
-        {/* Right: Export & Copy Everything Buttons */}
+        {/* Right: Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Tombol Generate Blueprint Otomatis */}
+          <button
+            onClick={() => handleSendChatMessage("Tolong buatkan blueprint lengkap (PRD, fitur, arsitektur, dan task development) untuk project ini sekarang.")}
+            disabled={isChatLoading}
+            className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition border ${
+              isDark
+                ? "border-zinc-750 bg-zinc-850 hover:bg-zinc-800 text-zinc-200"
+                : "border-zinc-250 bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
+            }`}
+            title="Generate otomatis PRD, Features, dan Task Board"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="hidden sm:inline">Generate Blueprint</span>
+          </button>
+
+          {/* Copy Everything */}
           <button
             onClick={copyEverythingText}
             className={`flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition shadow-xs cursor-pointer ${
@@ -1089,7 +1204,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
           }`}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-          <span>Features</span>
+          <span>Features {activeProject.features ? `(${activeProject.features.length})` : ""}</span>
         </button>
 
         <button
@@ -1158,41 +1273,50 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                   <div className="h-2 w-2 rounded-full bg-zinc-400" />
                   <div className="h-2 w-2 rounded-full bg-zinc-400" />
                   <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                  <span className="ml-1 text-[11px]">AI sedang menganalisis &amp; merancang project...</span>
+                  <span className="ml-1 text-[11px]">AI sedang menganalisis &amp; merumuskan blueprint proyek...</span>
                 </div>
               </div>
             )}
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Quick Action Prompt Chips */}
+          {/* Quick Action Prompt Chips (Bebas Emote, Menggunakan SVG Icons Murni) */}
           <div className={`px-4 sm:px-8 py-2 border-t flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-[11px] ${
             isDark ? "border-zinc-850 bg-zinc-950/30" : "border-zinc-200 bg-white"
           }`}>
-            <span className="text-zinc-400 shrink-0 font-medium">Quick Prompt:</span>
+            <span className="text-zinc-400 shrink-0 font-medium">Aksi Cepat:</span>
             <button
-              onClick={() => handleSendChatMessage("Tolong buatkan PRD dan breakdown fitur lengkap untuk project ini.")}
-              className={`rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
+              onClick={() => handleSendChatMessage("Tolong buatkan blueprint lengkap (PRD, fitur, arsitektur, dan task development) untuk project ini.")}
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              📋 Generate PRD &amp; Features
+              <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Generate PRD &amp; Tasks</span>
             </button>
             <button
               onClick={() => handleSendChatMessage("Rancang rekomendasi tech stack, arsitektur backend, dan skema database untuk project ini.")}
-              className={`rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              🏗️ Tech Stack &amp; Schema
+              <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>Tech Stack &amp; Schema</span>
             </button>
             <button
               onClick={() => handleSendChatMessage("Pecah fitur-fitur ini menjadi daftar development task (Kanban board) dengan prioritas dan fase pengembangan.")}
-              className={`rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
+              className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition whitespace-nowrap border shrink-0 ${
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              📌 Generate Task Board
+              <svg className="w-3 h-3 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span>Generate Task Board</span>
             </button>
           </div>
 
@@ -1249,7 +1373,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
               <span>Copy PRD</span>
             </button>
           </div>
@@ -1264,7 +1388,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
 
             <div>
               <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">2. Problem Statement</h4>
-              <p>{activeProject.prd?.problemStatement || "Menyediakan otomasi dan efisiensi melalui solusi web modern."}</p>
+              <p>{activeProject.prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}</p>
             </div>
 
             <div>
@@ -1314,7 +1438,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
               <span>Copy Features</span>
             </button>
           </div>
@@ -1389,7 +1513,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
               }`}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
               <span>Copy Architecture</span>
             </button>
           </div>
@@ -1400,7 +1524,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             <div className={`p-4 rounded-xl font-mono text-xs leading-relaxed overflow-x-auto ${
               isDark ? "bg-black/50 text-emerald-400 border border-zinc-800/80" : "bg-zinc-50 text-emerald-700 border border-zinc-200"
             }`}>
-              {activeProject.userFlow || "Landing Page → Login → Dashboard → Fitur Utama → Selesai"}
+              {activeProject.userFlow || "Landing Page -> Login -> Dashboard -> Fitur Utama -> Selesai"}
             </div>
           </div>
 
@@ -1464,7 +1588,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                   isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
                 }`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                 <span>Copy Tasks</span>
               </button>
 
