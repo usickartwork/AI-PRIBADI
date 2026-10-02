@@ -971,10 +971,16 @@ export default function Home() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    // Timeout failsafe 35 detik jika backend atau upstream provider macet/tidak merespons
-    const timeoutId = setTimeout(() => {
-      controller.abort("TIMEOUT");
-    }, 35000);
+    // Timeout berbasis aktivitas (heartbeat): hanya abort jika server macet/tidak mengirim data sama sekali
+    let timeoutId: NodeJS.Timeout | null = null;
+    const resetActivityTimer = (ms = 45000) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        controller.abort("TIMEOUT");
+      }, ms);
+    };
+
+    resetActivityTimer(45000);
 
     let assistantId = "";
     let userMsgId = "";
@@ -985,7 +991,7 @@ export default function Home() {
 
     // Jika user mengirim foto atau dokumen binary dengan model yang tidak mendukung vision/multimodal
     if (hasMultimodalAttachment && !isVisionSupported(currentModelObj.id)) {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       setError(null);
       userMsgId = generateUUID();
       const userMsg: ChatMessage = {
@@ -1222,6 +1228,9 @@ export default function Home() {
         const { done, value } = await reader.read();
         if (done || controller.signal.aborted) break;
 
+        // Reset timer heartbeat: selama token/data masih mengalir dari AI, jangan pernah abort!
+        resetActivityTimer(35000);
+
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
@@ -1365,7 +1374,7 @@ export default function Home() {
           prev.map((m) => (m.id === userMsgId ? { ...m, image: undefined } : m))
         );
       }
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       setIsStreaming(false);
       setStatusMessage(null);
       abortRef.current = null;
