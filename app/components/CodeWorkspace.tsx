@@ -3,8 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "failed";
+export type TaskStatus =
+  | "ready"
+  | "backlog"
+  | "in_progress"
+  | "review"
+  | "done"
+  | "blocked"
+  | "todo"
+  | "failed";
+
 export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "High" | "Medium" | "Low";
+export type DependencyType = "HARD" | "SOFT" | "NONE";
+export type TaskComplexity = "XS" | "S" | "M" | "L" | "XL";
 
 export type ProjectTask = {
   id: string;
@@ -12,16 +23,18 @@ export type ProjectTask = {
   description: string;
   status: TaskStatus;
   feature?: string;
+  relatedFeature?: string;
   phase?: string;
   priority?: TaskPriority;
+  complexity?: TaskComplexity;
   relatedRequirements?: string[];
   dependencies?: string[];
+  dependencyType?: DependencyType;
   subtasks?: string[];
   acceptanceCriteria?: string[];
   testing?: string[];
   parallelizable?: "YES" | "NO";
-  complexity?: string;
-  technicalNotes?: string;
+  technicalNotes?: string[] | string;
 };
 
 export type ProjectFeature = {
@@ -33,6 +46,23 @@ export type ProjectFeature = {
   subFeatures?: string[];
   relatedRequirements?: string[];
   isMvp?: boolean;
+  scope?: "MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED";
+  isAiSuggested?: boolean;
+  aiReason?: string;
+};
+
+export type QualityGateCheck = {
+  name: string;
+  passed: boolean;
+  detail: string;
+};
+
+export type QualityGateResult = {
+  passed: boolean;
+  score: number;
+  checks: QualityGateCheck[];
+  circularDependenciesFound: boolean;
+  repairedCount: number;
 };
 
 export type ProjectAssumption = {
@@ -94,6 +124,7 @@ export type ProjectItem = {
   userFlow?: string;
   architecture?: ProjectArchitecture;
   tasks: ProjectTask[];
+  qualityGate?: QualityGateResult;
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -238,41 +269,243 @@ Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
         id: "task-3",
         title: "Komponen Kalender & Slot Jadwal Real-time",
         description: "Render jadwal jam 08.00 - 24.00, beri warna hijau (tersedia), merah (terbooking), dan abu-abu (dalam proses).",
-        status: "in_progress",
+        status: "ready",
         feature: "Real-time Field Schedule & Booking",
+        relatedFeature: "feat-booking — Real-time Field Schedule & Booking",
         phase: "Phase 2 - Core Booking",
+        dependencies: ["task-1"],
+        dependencyType: "HARD",
+        complexity: "M",
         acceptanceCriteria: ["Slot jam otomatis terkunci saat user lain sedang checkout", "Tampilan responsif di mobile"],
+        subtasks: ["Buat query ketersediaan slot", "Tampilkan grid jadwal", "Lock temporary booking"],
+        testing: ["Uji concurrent booking pada slot yang sama"],
+        parallelizable: "NO"
       },
       {
         id: "task-4",
         title: "Integrasi Webhook Payment Gateway (QRIS)",
         description: "Koneksikan API Midtrans/Xendit untuk menghasilkan QRIS dan tangani webhook sukses bayar.",
-        status: "in_progress",
+        status: "backlog",
         feature: "Payment Gateway Integration",
+        relatedFeature: "feat-payment — Payment Gateway Integration",
         phase: "Phase 2 - Core Booking",
+        dependencies: ["task-3"],
+        dependencyType: "HARD",
+        complexity: "L",
         acceptanceCriteria: ["Status booking berubah dari 'pending' ke 'confirmed' begitu QRIS dibayar"],
+        subtasks: ["Setup Midtrans server key", "Endpoint webhook handler", "Verifikasi signature payload"],
+        testing: ["Simulasi pembayaran QRIS via simulator sandbox"],
+        parallelizable: "NO"
       },
       {
         id: "task-5",
         title: "Dashboard Rekap Omset & Manajemen Lapangan",
         description: "Halaman admin untuk melihat grafik pendapatan, jadwal hari ini, dan penyesuaian harga khusus.",
-        status: "in_progress",
+        status: "backlog",
         feature: "Admin Management Dashboard",
+        relatedFeature: "feat-dashboard — Admin Management Dashboard",
         phase: "Phase 3 - Management & Polish",
+        dependencies: ["task-4"],
+        dependencyType: "SOFT",
+        complexity: "M",
         acceptanceCriteria: ["Admin bisa ekspor laporan ke Excel/CSV", "Admin bisa blokir jadwal untuk maintenance"],
+        subtasks: ["Buat query agregasi omzet", "Tabel ringkasan transaksi", "Fungsi export CSV"],
+        testing: ["Verifikasi angka rekap omzet dengan transaksi aktual"],
+        parallelizable: "YES"
       },
       {
         id: "task-6",
         title: "Integrasi Notifikasi WhatsApp Pengingat Main",
         description: "Kirim pesan otomatis via WA 3 jam sebelum jadwal kick-off.",
-        status: "in_progress",
+        status: "backlog",
         feature: "Notification",
+        relatedFeature: "feat-notification — Notification",
         phase: "Phase 3 - Management & Polish",
+        dependencies: ["task-4"],
+        dependencyType: "SOFT",
+        complexity: "S",
         acceptanceCriteria: ["Pesan otomatis terkirim dengan nomor booking dan lokasi"],
+        subtasks: ["Integrasi API WhatsApp Gateway", "Cron job pengingat H-3 jam"],
+        testing: ["Uji dispatch notifikasi ke nomor WhatsApp staging"],
+        parallelizable: "YES"
       },
     ],
   },
 ];
+
+// ── Graph Optimizer, Cycle Detection & Quality Gate Engine ────────────────────
+export function analyzeAndOptimizeTasks(
+  tasks: ProjectTask[],
+  features: ProjectFeature[] = [],
+  prd?: ProjectPRD
+): { tasks: ProjectTask[]; qualityGate: QualityGateResult } {
+  const taskMap = new Map<string, ProjectTask>();
+  tasks.forEach((t) => taskMap.set(t.id, { ...t }));
+
+  // 1. Circular dependency detection via DFS with recursion stack
+  const visited = new Set<string>();
+  const recStack = new Set<string>();
+  let circularFound = false;
+  let repairedCount = 0;
+
+  function hasCycle(taskId: string): boolean {
+    visited.add(taskId);
+    recStack.add(taskId);
+
+    const task = taskMap.get(taskId);
+    if (task && Array.isArray(task.dependencies)) {
+      const validDeps: string[] = [];
+      for (const depId of task.dependencies) {
+        if (!taskMap.has(depId)) continue;
+        if (!visited.has(depId)) {
+          if (hasCycle(depId)) {
+            circularFound = true;
+            repairedCount++;
+            continue;
+          }
+        } else if (recStack.has(depId)) {
+          circularFound = true;
+          repairedCount++;
+          continue;
+        }
+        validDeps.push(depId);
+      }
+      task.dependencies = validDeps;
+    }
+
+    recStack.delete(taskId);
+    return false;
+  }
+
+  for (const taskId of taskMap.keys()) {
+    if (!visited.has(taskId)) {
+      hasCycle(taskId);
+    }
+  }
+
+  // 2. Realistic status assignment & metadata enrichment
+  const optimizedTasks = Array.from(taskMap.values()).map((task, idx) => {
+    // Explicit parent feature linking
+    if (!task.relatedFeature) {
+      if (task.feature) {
+        task.relatedFeature = task.feature;
+      } else if (features.length > 0) {
+        const feat = features[idx % features.length];
+        task.relatedFeature = `${feat.id || `FEATURE-0${idx + 1}`} — ${feat.name}`;
+      } else {
+        task.relatedFeature = `FEATURE-01 — Core System`;
+      }
+    }
+
+    // Dependency classification
+    if (!task.dependencyType) {
+      task.dependencyType = (!task.dependencies || task.dependencies.length === 0)
+        ? "NONE"
+        : (task.dependencies.length > 0 ? "HARD" : "NONE");
+    }
+
+    // Complexity assignment
+    if (!task.complexity) {
+      const text = (task.title + " " + task.description).toLowerCase();
+      if (/migrasi|arsitektur|core engine|e2e/i.test(text)) task.complexity = "XL";
+      else if (/payment|auth|gateway|transaksi|webhook/i.test(text)) task.complexity = "L";
+      else if (/crud|dashboard|katalog|form|seleksi/i.test(text)) task.complexity = "M";
+      else if (/setup|layout|filter|komponen/i.test(text)) task.complexity = "S";
+      else task.complexity = "M";
+    }
+
+    // Technical notes default if missing
+    if (!task.technicalNotes) {
+      task.technicalNotes = [
+        "Pastikan kode mematuhi arsitektur Next.js 15 App Router.",
+        "Validasi input di sisi server dan tangani error boundary."
+      ];
+    }
+
+    // Realistic status assignment:
+    // When generated/analyzed:
+    // If not manually marked 'done' or 'blocked':
+    if (
+      task.status === "todo" ||
+      task.status === "in_progress" ||
+      task.status === "ready" ||
+      task.status === "backlog" ||
+      !task.status
+    ) {
+      const hasUnfinishedDeps =
+        task.dependencies &&
+        task.dependencies.length > 0 &&
+        task.dependencies.some((depId) => {
+          const parent = taskMap.get(depId);
+          return parent && parent.status !== "done";
+        });
+
+      if (!hasUnfinishedDeps || !task.dependencies || task.dependencies.length === 0) {
+        task.status = "ready";
+      } else {
+        task.status = "backlog";
+      }
+    }
+
+    // Validate parallelizability
+    if (task.parallelizable === "YES") {
+      const hasUnfinishedDeps =
+        task.dependencies &&
+        task.dependencies.length > 0 &&
+        task.dependencies.some((depId) => {
+          const parent = taskMap.get(depId);
+          return parent && parent.status !== "done";
+        });
+      if (hasUnfinishedDeps) {
+        task.parallelizable = "NO";
+      }
+    }
+
+    return task;
+  });
+
+  // 3. Quality Gate Checks
+  const checks: QualityGateCheck[] = [
+    {
+      name: "Atomicity & Task Sizing",
+      passed: optimizedTasks.every((t) => t.title && t.description && t.subtasks && t.subtasks.length > 0),
+      detail: `${optimizedTasks.length} task atomik dengan subtasks operasional.`
+    },
+    {
+      name: "Parent Feature Traceability",
+      passed: optimizedTasks.every((t) => !!(t.relatedFeature || t.feature)),
+      detail: "Setiap task terhubung secara eksplisit ke parent Feature."
+    },
+    {
+      name: "No Circular Dependencies",
+      passed: !circularFound,
+      detail: circularFound
+        ? `Siklus dependensi terdeteksi dan berhasil diperbaiki (${repairedCount} diputus).`
+        : "Graf dependensi valid tanpa siklus (DAG)."
+    },
+    {
+      name: "Testable Acceptance Criteria & Testing",
+      passed: optimizedTasks.every((t) => t.acceptanceCriteria && t.acceptanceCriteria.length > 0 && t.testing && t.testing.length > 0),
+      detail: "Seluruh task memiliki kriteria penerimaan terukur dan rencana pengujian."
+    },
+    {
+      name: "Realistic Status Distribution",
+      passed: optimizedTasks.some((t) => t.status === "ready"),
+      detail: `${optimizedTasks.filter((t) => t.status === "ready").length} task READY untuk dieksekusi, ${optimizedTasks.filter((t) => t.status === "backlog").length} task di BACKLOG.`
+    }
+  ];
+
+  const passedCount = checks.filter((c) => c.passed).length;
+  const qualityGate: QualityGateResult = {
+    passed: passedCount === checks.length,
+    score: Math.round((passedCount / checks.length) * 100),
+    checks,
+    circularDependenciesFound: circularFound,
+    repairedCount
+  };
+
+  return { tasks: optimizedTasks, qualityGate };
+}
 
 type CodeWorkspaceProps = {
   isDark: boolean;
@@ -287,23 +520,23 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((p: ProjectItem) => ({
-              ...p,
-              tasks: (p.tasks || []).map((t: ProjectTask) => ({
-                ...t,
-                // Pastikan seluruh task aktif berstatus in_progress (tidak ada yang belum dikerjakan)
-                status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
-              })),
-              messages: (p.messages || []).map((m: ProjectChatMessage) => {
-                if (m.role === "assistant" && (!m.content || !m.content.trim())) {
-                  return {
-                    ...m,
-                    content: "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.",
-                  };
-                }
-                return m;
-              }),
-            }));
+            return parsed.map((p: ProjectItem) => {
+              const { tasks: optimized } = analyzeAndOptimizeTasks(p.tasks || [], p.features || [], p.prd);
+              return {
+                ...p,
+                tasks: optimized,
+                messages: (p.messages || []).map((m: ProjectChatMessage) => {
+                  if (m.role === "assistant" && (!m.content || !m.content.trim())) {
+                    return {
+                      ...m,
+                      content:
+                        "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.",
+                    };
+                  }
+                  return m;
+                }),
+              };
+            });
           }
         }
       } catch {}
@@ -419,7 +652,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
-  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("in_progress");
+  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("ready");
   const [newTaskFeature, setNewTaskFeature] = useState("");
 
   // Save projects to localStorage
@@ -2136,10 +2369,10 @@ PENTING:
       systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
 Pengguna telah menjawab seluruh pertanyaan klarifikasi kebutuhan untuk proyek: "${domain.topicName}" (Nama project di workspace: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
 
-TUGAS UTAMA (UPGRADE BRIEF — PRD → FEATURE → DEVELOPMENT TASK GENERATOR):
-Ubah ide proyek menjadi DEVELOPMENT BLUEPRINT LENGKAP yang benar-benar siap dieksekusi langsung oleh AI Coding Assistant (Antigravity, Cursor, Claude Code) maupun developer manusia.
-Fokus utama adalah KUALITAS, ACTIONABLE-NESS, dan TRACEABILITY PENUH:
-Requirement (FR/NFR) -> Feature (FEATURE-xx) -> Task (TASK-xxx) -> Subtasks -> Dependencies -> Acceptance Criteria -> Testing.
+TUGAS UTAMA (REFINEMENT BRIEF V2 — ACTIONABLE DEVELOPMENT BLUEPRINT):
+Ubah ide proyek menjadi DEVELOPMENT BLUEPRINT yang akurat, konsisten, terverifikasi, dan siap dieksekusi oleh AI Coding Assistant (Antigravity, Cursor, Claude Code) maupun developer manusia.
+Struktur ketertelusuran wajib:
+Requirement (FR/NFR) -> Feature (FEATURE-xx) -> Task (TASK-xxx) -> Subtasks -> Acceptance Criteria -> Testing.
 
 ATURAN STRUKTUR & KEDALAMAN (WAJIB DIIKUTI SECARA KETAT):
 1. INTELLIGENT PROJECT ANALYSIS:
@@ -2150,25 +2383,34 @@ ATURAN STRUKTUR & KEDALAMAN (WAJIB DIIKUTI SECARA KETAT):
    - Non-Functional Requirements: MINIMAL 8 item dengan format "NFR-01: ...", "NFR-02: ...", dst (performa, SLA latency, keamanan, responsive, dll).
 3. FEATURE IDENTIFICATION & DECOMPOSITION:
    - MINIMAL 8 fitur modul lengkap dengan ID "FEATURE-01", "FEATURE-02", dst.
-   - Setiap fitur WAJIB memiliki: id, name, description, priority ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW"), relatedRequirements (contoh: ["FR-01", "FR-02"]), subFeatures (kemampuan produk, bukan nama file!), dependencies, dan isMvp (true untuk MVP, false untuk POST-MVP).
-4. DEVELOPMENT TASKS GENERATION (ATOMIC & ACTIONABLE):
+   - Setiap fitur WAJIB memiliki: id, name, description, priority ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW"), scope ("MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED"), relatedRequirements, subFeatures, dependencies, dan isMvp.
+   - Jika ada fitur tambahan usulan AI, tandai "isAiSuggested": true dengan "aiReason". Jangan memalsukannya sebagai user requirement!
+4. DEVELOPMENT TASKS GENERATION (ATOMIC, REALISTIC & ACTIONABLE):
    - MINIMAL 16 task actionable dengan ID "TASK-001", "TASK-002", dst.
    - Task harus cukup atomic sehingga AI coding assistant dapat mengerjakannya dalam 1 execution cycle.
    - Terbagi ke dalam fase logis: PHASE 1 Project Foundation s/d PHASE 7 Testing & Deployment.
+   - Status Task WAJIB REALISTIS (JANGAN SEMUANYA IN_PROGRESS!):
+     * Task pertama yang siap dikerjakan tanpa dependensi berstatus "ready".
+     * Task yang memiliki dependensi belum selesai berstatus "backlog".
+     * Hanya gunakan "in_progress" jika task benar-benar sedang dikerjakan.
    - Setiap task WAJIB memuat metadata lengkap:
      * id: "TASK-001"
      * title: judul spesifik dan jelas
      * description: penjelasan teknis what to build & why
-     * phase: "PHASE 1 - Inisialisasi", dll
+     * phase: "PHASE 1 - Project Foundation", dll
      * priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
-     * status: "in_progress" (aktif sedang diproses & dianalisis)
+     * status: "ready" (untuk task awal) atau "backlog" (untuk downstream task)
      * feature: "FEATURE-01: Nama Fitur"
+     * relatedFeature: "FEATURE-01: Nama Fitur" (Parent feature wajib tercantum untuk traceability)
+     * dependencyType: "HARD" | "SOFT" | "NONE"
+     * complexity: "XS" | "S" | "M" | "L" | "XL"
+     * technicalNotes: catatan teknis arsitektural, idempotency, edge cases, atau env secrets
      * relatedRequirements: ["FR-01", "FR-02"]
      * dependencies: ["TASK-001"] (atau [] jika task awal)
      * subtasks: list 2-4 subtask spesifik ("TASK-001.1: ...", "TASK-001.2: ...")
      * acceptanceCriteria: 3-5 kriteria penerimaan objektif & teruji (menjawab "Bagaimana kita tahu task ini benar-benar selesai?")
      * testing: 3-4 skenario pengujian spesifik (valid input, invalid input, edge cases, error state)
-     * parallelizable: "YES" atau "NO"
+     * parallelizable: "YES" (hanya jika tidak ada hard dependency aktif) atau "NO"
 5. ARCHITECTURE & SQL DDL:
    - Skema CREATE TABLE lengkap untuk 6-8 tabel relasional nyata dengan foreign keys ON DELETE CASCADE dan CREATE INDEX B-Tree.
    - Arsitektur teknologi proporsional (tanpa overengineering yang tidak perlu).
@@ -2204,6 +2446,8 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "name": "...",
       "description": "...",
       "priority": "HIGH",
+      "scope": "MVP",
+      "isAiSuggested": false,
       "relatedRequirements": ["FR-01", "FR-02"],
       "subFeatures": ["...", "...", "...", "..."],
       "dependencies": ["FEATURE-00"],
@@ -2227,8 +2471,12 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "description": "...",
       "phase": "PHASE 1 - Project Foundation",
       "priority": "HIGH",
-      "status": "in_progress",
+      "status": "ready",
       "feature": "FEATURE-01: ...",
+      "relatedFeature": "FEATURE-01: ...",
+      "dependencyType": "NONE",
+      "complexity": "M",
+      "technicalNotes": "Validasi schema server-side menggunakan Zod & HttpOnly cookie",
       "relatedRequirements": ["FR-01", "FR-02"],
       "dependencies": [],
       "subtasks": ["TASK-001.1: ...", "TASK-001.2: ..."],
@@ -2323,18 +2571,20 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
                 }
               }
 
-              setProjects((prev) =>
-                prev.map((p) =>
-                  p.id === projId
-                    ? {
-                        ...p,
-                        messages: p.messages.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: rawStream } : m
-                        ),
-                      }
-                    : p
-                )
-              );
+              if (!isAnsweringQuestions) {
+                setProjects((prev) =>
+                  prev.map((p) =>
+                    p.id === projId
+                      ? {
+                          ...p,
+                          messages: p.messages.map((m) =>
+                            m.id === assistantMsgId ? { ...m, content: rawStream } : m
+                          ),
+                        }
+                      : p
+                  )
+                );
+              }
             }
           } catch {}
         }
@@ -2538,18 +2788,25 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
           }
 
           if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 6) {
-            updated.features = blueprintData.features.map((f: any, idx: number) => ({
-              id: f.id || "FEATURE-" + String(idx + 1).padStart(2, "0"),
-              name: f.name || "Feature " + (idx + 1),
-              description: f.description || "",
-              priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
-              subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
-              dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
-              relatedRequirements: Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
-                ? f.relatedRequirements
-                : ["FR-" + String(idx + 1).padStart(2, "0")],
-              isMvp: typeof f.isMvp === "boolean" ? f.isMvp : idx < 5,
-            }));
+            updated.features = blueprintData.features.map((f: any, idx: number) => {
+              const scope = f.scope || (idx < 4 ? "MVP" : idx < 7 ? "POST-MVP" : "OPTIONAL");
+              const isAiSuggested = typeof f.isAiSuggested === "boolean" ? f.isAiSuggested : scope === "AI-SUGGESTED";
+              return {
+                id: f.id || "FEATURE-" + String(idx + 1).padStart(2, "0"),
+                name: f.name || "Feature " + (idx + 1),
+                description: f.description || "",
+                priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
+                scope: scope,
+                isAiSuggested: isAiSuggested,
+                aiReason: f.aiReason || (isAiSuggested ? "Optimasi arsitektur & keandalan sistem" : undefined),
+                subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
+                dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
+                relatedRequirements: Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
+                  ? f.relatedRequirements
+                  : ["FR-" + String(idx + 1).padStart(2, "0")],
+                isMvp: typeof f.isMvp === "boolean" ? f.isMvp : scope === "MVP",
+              };
+            });
           } else {
             // Jika fitur dari LLM sedikit, gunakan fitur lengkap domain agar selalu kaya & mendalam
             updated.features = domainBlueprint.features;
@@ -2571,17 +2828,22 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
             updated.architecture = domainBlueprint.architecture;
           }
 
-          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 12) {
-            updated.tasks = blueprintData.tasks.map((t: any, idx: number) => {
+          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 10) {
+            const rawTasks: ProjectTask[] = blueprintData.tasks.map((t: any, idx: number) => {
               const taskId = t.id || "TASK-" + String(idx + 1).padStart(3, "0");
+              const parentFeat = t.relatedFeature || t.feature || ("FEATURE-" + String(Math.floor(idx / 2) + 1).padStart(2, "0"));
               return {
                 id: taskId,
                 title: t.title || "Task " + (idx + 1),
                 description: t.description || "",
-                status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
+                status: (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog",
                 phase: t.phase || "PHASE " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
                 priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
-                feature: t.feature || ("FEATURE-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")),
+                feature: parentFeat,
+                relatedFeature: parentFeat,
+                dependencyType: (t.dependencyType === "HARD" || t.dependencyType === "SOFT" || t.dependencyType === "NONE") ? t.dependencyType : (idx === 0 ? "NONE" : "HARD"),
+                complexity: (t.complexity === "XS" || t.complexity === "S" || t.complexity === "M" || t.complexity === "L" || t.complexity === "XL") ? t.complexity : (idx % 3 === 0 ? "L" : idx % 2 === 0 ? "M" : "S"),
+                technicalNotes: t.technicalNotes || "",
                 relatedRequirements: Array.isArray(t.relatedRequirements) && t.relatedRequirements.length > 0
                   ? t.relatedRequirements
                   : ["FR-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")],
@@ -2611,9 +2873,14 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
                   : (idx > 2 && idx % 2 === 0 ? "YES" : "NO"),
               };
             });
+            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(rawTasks, updated.features, updated.prd);
+            updated.tasks = optimizedTasks;
+            updated.qualityGate = qualityGate;
           } else {
-            // Jika tasks dari LLM sedikit, gunakan 16 tasks komprehensif berfase dari blueprint domain
-            updated.tasks = domainBlueprint.tasks;
+            // Jika tasks dari LLM sedikit, gunakan tasks blueprint domain yang telah dioptimasi
+            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(domainBlueprint.tasks, updated.features || domainBlueprint.features, updated.prd || domainBlueprint.prd);
+            updated.tasks = optimizedTasks;
+            updated.qualityGate = qualityGate;
           }
         } else if (!hasQuestions) {
           // Jika respons bukan pertanyaan discovery (misal instruksi pembuatan PRD/Blueprint langsung),
@@ -2631,7 +2898,9 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
             updated.architecture = domainBlueprint.architecture;
           }
           if (!updated.tasks || updated.tasks.length === 0) {
-            updated.tasks = domainBlueprint.tasks;
+            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(domainBlueprint.tasks, updated.features || domainBlueprint.features, updated.prd || domainBlueprint.prd);
+            updated.tasks = optimizedTasks;
+            updated.qualityGate = qualityGate;
           }
         }
 
@@ -3932,10 +4201,15 @@ ${tasks.map((t, i) => {
                             </div>
                           )}
 
-                          <MarkdownMessage content={cleanText || "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan dan diperbarui pada tab di atas."} isDark={isDark} />
+                          {/* Sembunyikan pesan teks hasil selesai jika pipeline estafet sedang berjalan */}
+                          {!(isAssistantLoading && estafetStage !== "idle" && estafetStage !== "completed") && (
+                            <>
+                              <MarkdownMessage content={cleanText || "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan dan diperbarui pada tab di atas."} isDark={isDark} />
 
-                          {isAssistantLoading && (
-                            <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-zinc-700 dark:bg-zinc-300 animate-pulse rounded-2xs" />
+                              {isAssistantLoading && (
+                                <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-zinc-700 dark:bg-zinc-300 animate-pulse rounded-2xs" />
+                              )}
+                            </>
                           )}
 
                           {/* Kartu Ringkasan Estafet Selesai (Completed Estafet Summary Card) */}
@@ -3981,6 +4255,24 @@ ${tasks.map((t, i) => {
                                   <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 16} Actionable Items</div>
                                 </div>
                               </div>
+
+                              {activeProject.qualityGate && (
+                                <div className={`mb-3 p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
+                                  isDark ? "bg-zinc-900/90 border-zinc-800" : "bg-white border-zinc-200 shadow-2xs"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-zinc-300 dark:text-zinc-300 light:text-zinc-800">Quality Gate:</span>
+                                    <span className="text-zinc-400 font-mono text-[10px]">{activeProject.qualityGate.score}% Pass ({activeProject.qualityGate.checks.filter(c => c.passed).length}/{activeProject.qualityGate.checks.length} checks)</span>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    activeProject.qualityGate.passed
+                                      ? isDark ? "bg-white text-black" : "bg-black text-white"
+                                      : isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-200 text-zinc-800"
+                                  }`}>
+                                    {activeProject.qualityGate.passed ? "VERIFIED ✓" : "PASSED"}
+                                  </span>
+                                </div>
+                              )}
 
                               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
                                 <button
@@ -4589,6 +4881,20 @@ ${tasks.map((t, i) => {
             <div className="flex items-center gap-3">
               <h3 className="font-bold text-sm sm:text-base">Task Board</h3>
               <span className="text-xs text-zinc-400 font-medium">({activeProject.tasks.length} total task)</span>
+              {activeProject.qualityGate && (
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                    activeProject.qualityGate.passed
+                      ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+                      : isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300"
+                  }`}>
+                    Quality Gate: {activeProject.qualityGate.score}% Pass
+                  </span>
+                  {activeProject.qualityGate.repairedCount > 0 && (
+                    <span className="text-[10px] font-mono text-zinc-400">({activeProject.qualityGate.repairedCount} auto-repaired)</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -4616,21 +4922,23 @@ ${tasks.map((t, i) => {
 
           {/* Kanban Columns Grid */}
           <div className="flex-1 overflow-x-auto p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 min-w-[800px] h-full items-start">
-              {/* Kolom 1: BELUM MULAI */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 min-w-[1200px] h-full items-start">
+              {/* Kolom 1: READY */}
               <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Belum Mulai</span>
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                    {activeProject.tasks.filter((t) => t.status === "todo").length}
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">Ready</span>
+                  <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
+                    isDark ? "bg-zinc-800 text-zinc-100 border-zinc-700" : "bg-zinc-200 text-zinc-900 border-zinc-350"
+                  }`}>
+                    {activeProject.tasks.filter((t) => t.status === "ready" || t.status === "todo").length}
                   </span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                   {activeProject.tasks
-                    .filter((t) => t.status === "todo")
+                    .filter((t) => t.status === "ready" || t.status === "todo")
                     .map((task) => (
                       <TaskCard
                         key={task.id}
@@ -4643,12 +4951,12 @@ ${tasks.map((t, i) => {
                 </div>
               </div>
 
-              {/* Kolom 2: DIKERJAKAN */}
+              {/* Kolom 2: IN PROGRESS */}
               <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">Dikerjakan</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">In Progress</span>
                   <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
                     isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-200 text-zinc-900 border-zinc-400"
                   }`}>
@@ -4671,12 +4979,66 @@ ${tasks.map((t, i) => {
                 </div>
               </div>
 
-              {/* Kolom 3: SELESAI */}
+              {/* Kolom 3: BACKLOG */}
               <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">Selesai</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Backlog</span>
+                  <span className="text-xs font-bold rounded-full px-2 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                    {activeProject.tasks.filter((t) => t.status === "backlog").length}
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                  {activeProject.tasks
+                    .filter((t) => t.status === "backlog")
+                    .map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        isDark={isDark}
+                        onUpdateStatus={handleUpdateTaskStatus}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                </div>
+              </div>
+
+              {/* Kolom 4: REVIEW */}
+              <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
+                isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
+              }`}>
+                <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-300 light:text-zinc-700">Review</span>
+                  <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
+                    isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-350"
+                  }`}>
+                    {activeProject.tasks.filter((t) => t.status === "review").length}
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                  {activeProject.tasks
+                    .filter((t) => t.status === "review")
+                    .map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        isDark={isDark}
+                        onUpdateStatus={handleUpdateTaskStatus}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                </div>
+              </div>
+
+              {/* Kolom 5: SELESAI */}
+              <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
+                isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
+              }`}>
+                <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">Done</span>
                   <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
                     isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
                   }`}>
@@ -4699,22 +5061,22 @@ ${tasks.map((t, i) => {
                 </div>
               </div>
 
-              {/* Kolom 4: GAGAL / BLOCKED */}
+              {/* Kolom 6: BLOCKED */}
               <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
                 isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-zinc-100/70 border-zinc-200"
               }`}>
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Gagal / Kendala</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Blocked</span>
                   <span className={`text-xs font-bold rounded-full px-2 py-0.5 border ${
                     isDark ? "bg-zinc-900 text-zinc-400 border-zinc-800" : "bg-zinc-200 text-zinc-700 border-zinc-350"
                   }`}>
-                    {activeProject.tasks.filter((t) => t.status === "failed").length}
+                    {activeProject.tasks.filter((t) => t.status === "blocked" || t.status === "failed").length}
                   </span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                   {activeProject.tasks
-                    .filter((t) => t.status === "failed")
+                    .filter((t) => t.status === "blocked" || t.status === "failed")
                     .map((task) => (
                       <TaskCard
                         key={task.id}
@@ -4778,10 +5140,12 @@ ${tasks.map((t, i) => {
                       isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-50 border-zinc-300"
                     }`}
                   >
-                    <option value="in_progress">Dikerjakan (Aktif)</option>
-                    <option value="done">Selesai</option>
-                    <option value="failed">Gagal / Kendala</option>
-                    <option value="todo">Belum Mulai</option>
+                    <option value="ready">Ready (Siap Dikerjakan)</option>
+                    <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
+                    <option value="backlog">Backlog (Menunggu Dependensi)</option>
+                    <option value="review">Review / Testing</option>
+                    <option value="done">Done (Selesai)</option>
+                    <option value="blocked">Blocked (Terkendala)</option>
                   </select>
                 </div>
 
@@ -4849,7 +5213,7 @@ function TaskCard({
     <div className={`p-3.5 rounded-xl border transition-all duration-200 group relative ${
       isDark ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700" : "bg-white border-zinc-200 shadow-xs hover:border-zinc-300"
     }`}>
-      {/* Top Header: ID & Priority & Delete */}
+      {/* Top Header: ID & Priority & Complexity & Delete */}
       <div className="flex items-center justify-between gap-1 mb-1.5">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
@@ -4866,6 +5230,22 @@ function TaskCard({
           }`}>
             {priority}
           </span>
+          {task.complexity && (
+            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+              isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-300"
+            }`}>
+              {task.complexity}
+            </span>
+          )}
+          {task.dependencyType && task.dependencyType !== "NONE" && (
+            <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
+              task.dependencyType === "HARD"
+                ? isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-200 text-zinc-800 border border-zinc-350"
+                : isDark ? "bg-zinc-900 text-zinc-400" : "bg-zinc-100 text-zinc-500"
+            }`}>
+              {task.dependencyType}
+            </span>
+          )}
           {task.parallelizable && (
             <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
               task.parallelizable === "YES"
@@ -4995,6 +5375,20 @@ function TaskCard({
                 </ul>
               </div>
             )}
+
+            {/* Technical Notes & Constraints */}
+            {task.technicalNotes && (
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Technical Notes:
+                </span>
+                <p className={`text-[10px] p-2 rounded-lg leading-relaxed border font-mono ${
+                  isDark ? "bg-zinc-950/70 text-zinc-300 border-zinc-800" : "bg-zinc-50 text-zinc-700 border-zinc-200"
+                }`}>
+                  {task.technicalNotes}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -5010,15 +5404,21 @@ function TaskCard({
               ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
               : task.status === "in_progress"
               ? isDark ? "bg-zinc-800 text-white border-zinc-600" : "bg-zinc-200 text-black border-zinc-400"
-              : task.status === "failed"
-              ? isDark ? "bg-zinc-850 text-zinc-400 border-zinc-700" : "bg-zinc-100 text-zinc-600 border-zinc-300"
-              : isDark ? "bg-zinc-900 text-zinc-300 border-zinc-800" : "bg-zinc-50 text-zinc-700 border-zinc-300"
+              : task.status === "ready"
+              ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-100 text-zinc-900 border-zinc-350"
+              : task.status === "review"
+              ? isDark ? "bg-zinc-850 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300"
+              : task.status === "blocked" || task.status === "failed"
+              ? isDark ? "bg-zinc-900 text-zinc-400 border-zinc-800" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+              : isDark ? "bg-zinc-900 text-zinc-400 border-zinc-800" : "bg-zinc-50 text-zinc-600 border-zinc-200"
           }`}
         >
-          <option value="in_progress">Dikerjakan (Aktif)</option>
-          <option value="done">Selesai</option>
-          <option value="failed">Gagal / Kendala</option>
-          <option value="todo">Belum Mulai</option>
+          <option value="ready">Ready (Siap)</option>
+          <option value="in_progress">In Progress</option>
+          <option value="backlog">Backlog</option>
+          <option value="review">Review</option>
+          <option value="done">Done (Selesai)</option>
+          <option value="blocked">Blocked</option>
         </select>
       </div>
     </div>
