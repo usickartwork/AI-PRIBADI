@@ -3288,7 +3288,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   });
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "preview">("mindmap");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -6247,15 +6247,15 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     showCopyToast("Tasks lengkap dengan Subtasks & Verifikasi berhasil disalin!");
   };
 
-  const copyEverythingText = () => {
-    if (!activeProject) return;
+  const buildMasterBlueprintText = (): string | null => {
+    if (!activeProject) return null;
     if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
       showCopyToast("Blueprint proyek belum selesai dirumuskan. Selesaikan sesi AI Planner di tab Chat terlebih dahulu.");
-      return;
+      return null;
     }
     if (!isSourceExportAllowed(activeProject.qualityGate)) {
       showCopyToast("Export BLOCKED: masih ada unresolved Source Integrity violation. Lihat detail di Task Board.");
-      return;
+      return null;
     }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
 
@@ -6566,8 +6566,33 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
   > AI DEFINES HOW.
   > AI MUST NEVER CHANGE WHAT.`;
 
-    navigator.clipboard.writeText(masterPrompt);
+    return masterPrompt;
+  };
+
+  const copyEverythingText = () => {
+    const text = buildMasterBlueprintText();
+    if (!text) return;
+    navigator.clipboard.writeText(text);
     showCopyToast("Master Context Blueprint lengkap (V4 Traceability) berhasil disalin!");
+  };
+
+  const downloadProjectTxt = () => {
+    const text = buildMasterBlueprintText();
+    if (!text) return;
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = (activeProject?.title || "blueprint")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    link.download = `${slug || "project"}-blueprint.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File Blueprint (.txt) berhasil didownload!");
   };
 
   const downloadProjectPdf = () => {
@@ -6980,11 +7005,20 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     estafetStage !== "architecture" &&
     estafetStage !== "tasks"
   );
+  const hasPendingDiscoveryQuestions = Boolean(
+    activeProject.messages?.length &&
+    activeProject.messages[activeProject.messages.length - 1]?.content?.includes("<<<QUESTIONS_JSON>>>")
+  );
+  const isPlannerFinished = Boolean(
+    isBlueprintReady &&
+    !hasPendingDiscoveryQuestions
+  );
+  const currentTab = !isPlannerFinished ? "chat" : activeTab;
   const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
-  const displayFeatures = isBlueprintReady ? (activeProject.features || []) : [];
-  const displayTasks = isBlueprintReady ? (activeProject.tasks || []) : [];
-  const displayPrd = isBlueprintReady ? activeProject.prd : undefined;
-  const displayArch = isBlueprintReady ? activeProject.architecture : undefined;
+  const displayFeatures = isPlannerFinished ? (activeProject.features || []) : [];
+  const displayTasks = isPlannerFinished ? (activeProject.tasks || []) : [];
+  const displayPrd = isPlannerFinished ? activeProject.prd : undefined;
+  const displayArch = isPlannerFinished ? activeProject.architecture : undefined;
 
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0b0f19] text-white" : "bg-[#f8fafc] text-slate-900"}`}>
@@ -7056,40 +7090,44 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         <div className="flex items-center gap-2">
           {/* Navigation Pills */}
           <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? "bg-[#111625] border border-slate-800/80" : "bg-slate-100 border border-slate-200"}`}>
-            <button
-              onClick={() => setActiveTab("mindmap")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === "mindmap"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-              }`}
-              title="Peta Rencana (Visual Mindmap)"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              <span className="hidden sm:inline">Peta Rencana</span>
-            </button>
+            {isPlannerFinished && (
+              <>
+                <button
+                  onClick={() => setActiveTab("mindmap")}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    currentTab === "mindmap"
+                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                  }`}
+                  title="Peta Rencana (Visual Mindmap)"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Peta Rencana</span>
+                </button>
 
-            <button
-              onClick={() => setActiveTab("prd")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === "prd"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-              }`}
-              title="Wiki Dokumen PRD"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Wiki</span>
-            </button>
+                <button
+                  onClick={() => setActiveTab("prd")}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    currentTab === "prd"
+                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                  }`}
+                  title="Wiki Dokumen PRD"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Wiki</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => setActiveTab("chat")}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === "chat"
+                currentTab === "chat"
                   ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                   : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
               }`}
@@ -7101,104 +7139,109 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               <span className="hidden md:inline">Tanya AI</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab("tasks")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === "tasks"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-              }`}
-              title="Task Board"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <span className="hidden md:inline">Tasks</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("preview")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                activeTab === "preview"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-              }`}
-              title="Quick HTML Preview"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span>Preview</span>
-            </button>
-          </div>
-
-          {/* Primary CTA: Export Dropdown (Replaces Lanjutkan Proyek) */}
-          <div className="relative" ref={exportMenuRef}>
-            <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md active:scale-95 ${
-                !isSourceExportAllowed(activeProject?.qualityGate)
-                  ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
-                  : isDark
-                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/10 cursor-pointer"
-                  : "bg-black hover:bg-zinc-800 text-white shadow-black/10 cursor-pointer"
-              }`}
-              title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek (Salin Text atau Download PDF)" : "Export BLOCKED — masih ada Source Integrity violation (lihat Task Board)"}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span>Export</span>
-              <svg className={`w-3 h-3 transition-transform duration-200 ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {showExportMenu && (
-              <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
-                isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
-              }`}>
-                <button
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    copyEverythingText();
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                    isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                  }`}
-                >
-                  <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <div className="font-semibold">Salin Text Project</div>
-                    <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    downloadProjectPdf();
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                    isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                  }`}
-                >
-                  <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <div>
-                    <div className="font-semibold">Download PDF</div>
-                    <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
-                  </div>
-                </button>
-              </div>
+            {isPlannerFinished && (
+              <button
+                onClick={() => setActiveTab("tasks")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "tasks"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                }`}
+                title="Task Board"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span className="hidden md:inline">Tasks</span>
+              </button>
             )}
           </div>
 
+          {/* Primary CTA: Export Dropdown (Only appears once planner finished) */}
+          {isPlannerFinished && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md active:scale-95 ${
+                  !isSourceExportAllowed(activeProject?.qualityGate)
+                    ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
+                    : isDark
+                    ? "bg-white hover:bg-zinc-200 text-black shadow-white/10 cursor-pointer"
+                    : "bg-black hover:bg-zinc-800 text-white shadow-black/10 cursor-pointer"
+                }`}
+                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek (Salin Text, Download TXT, atau Download PDF)" : "Export BLOCKED — masih ada Source Integrity violation (lihat Task Board)"}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Export</span>
+                <svg className={`w-3 h-3 transition-transform duration-200 ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showExportMenu && (
+                <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
+                  isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
+                }`}>
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      copyEverythingText();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Salin Text Project</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadProjectTxt();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Export File (.txt)</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Download blueprint format text</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadProjectPdf();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Download PDF</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button
             onClick={onClose}
             className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
@@ -7214,7 +7257,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "mindmap" && (
+      {currentTab === "mindmap" && (
         <div className="flex-1 flex overflow-hidden relative">
           {/* Left Panel: Perencanaan Drawer */}
           {isPerencanaanOpen && (
@@ -7700,7 +7743,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           </div>
         </div>
       )}
-      {activeTab === "chat" && (
+      {currentTab === "chat" && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Messages list */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-5">
@@ -8294,7 +8337,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 2: PRD VIEWER */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "prd" && (
+      {currentTab === "prd" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -8663,7 +8706,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 3: FEATURES GENERATOR & LIST */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "features" && (
+      {currentTab === "features" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -8796,7 +8839,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 4: USER FLOW & ARCHITECTURE */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "flow_arch" && (
+      {currentTab === "flow_arch" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -8974,7 +9017,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 5: KANBAN TASK BOARD */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "tasks" && (
+      {currentTab === "tasks" && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Board Header Bar */}
           <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
@@ -9267,27 +9310,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         )}
       </div>
     )}
-
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* TAB 6: QUICK HTML PREVIEW (PRD — Quick HTML Preview)                       */}
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "preview" && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {activeProject ? (
-            <QuickHtmlPreview
-              key={activeProject.id}
-              project={activeProject}
-              isDark={isDark}
-              onUpdateHtml={handleUpdateProjectHtml}
-              onSwitchToChat={() => setActiveTab("chat")}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-8 text-zinc-400 text-sm">
-              Pilih proyek terlebih dahulu untuk melihat preview.
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Modal: Tambah Task Manual */}
       {showAddTaskModal && (
