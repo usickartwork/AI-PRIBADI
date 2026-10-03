@@ -36,6 +36,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
 
 // Helper pengiriman email via Resend
 async function sendViaResend(apiKey: string, toEmail: string, subject: string, html: string) {
+  const sender = process.env.RESEND_FROM_EMAIL?.trim() || "Usick AI Schedule <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -43,7 +44,7 @@ async function sendViaResend(apiKey: string, toEmail: string, subject: string, h
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Usick AI Schedule <onboarding@resend.dev>",
+      from: sender,
       to: [toEmail],
       subject,
       html,

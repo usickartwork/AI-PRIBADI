@@ -34,6 +34,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, otp: st
 
 // Helper pengiriman email via Resend jika RESEND_API_KEY diset
 async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
+  const sender = process.env.RESEND_FROM_EMAIL?.trim() || "Usick AI <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -41,7 +42,7 @@ async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Usick AI <onboarding@resend.dev>",
+      from: sender,
       to: [toEmail],
       subject: `Kode Verifikasi OTP: ${otp} - Usick AI`,
       html: `
