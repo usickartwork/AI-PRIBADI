@@ -105,6 +105,32 @@ export type ProjectPRD = {
   successCriteria?: string[];
   assumptions?: ProjectAssumption[];
   risks?: string[];
+  traceabilityMatrix?: TraceabilityRow[];
+};
+
+export type StackMode =
+  | "USER_SPECIFIED"
+  | "PARTIALLY_SPECIFIED"
+  | "AI_RECOMMENDED"
+  | "UNDECIDED"
+  | "EXISTING_PROJECT";
+
+export type StackRecommendation = {
+  component?: string;
+  recommendation?: string;
+  technology?: string;
+  classification: "AI_SUGGESTED" | "TECHNICAL_DECISION";
+  reason: string;
+  alternatives?: string[];
+  requiredForImplementation?: boolean;
+  required?: boolean;
+};
+
+export type TraceabilityRow = {
+  requirementId: string;
+  featureId: string;
+  taskIds: string[];
+  classification: RequirementSource;
 };
 
 export type ProjectArchitecture = {
@@ -121,6 +147,11 @@ export type ProjectArchitecture = {
   isAiSuggestedStack?: boolean;
   userConstraints?: string[];
   complexityLevel?: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
+  stackMode?: StackMode;
+  stackRecommendations?: StackRecommendation[];
+  realtime?: string;
+  backgroundJobs?: string;
+  caching?: string;
 };
 
 export type DiscoveryQuestion = {
@@ -149,6 +180,7 @@ export type ProjectItem = {
   architecture?: ProjectArchitecture;
   tasks: ProjectTask[];
   qualityGate?: QualityGateResult;
+  traceabilityMatrix?: TraceabilityRow[];
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -497,10 +529,21 @@ export function analyzeAndOptimizeTasks(
       }
     }
 
+    // Sanitize unrealistic guarantees (Final V4 Addition Section 15)
+    if (task.acceptanceCriteria) {
+      task.acceptanceCriteria = task.acceptanceCriteria.map((ac) =>
+        ac
+          .replace(/100%\s*(aman|secure|akurat|accurate)/gi, "Tervalidasi sesuai spesifikasi dan penanganan error tuntas")
+          .replace(/A\+\s*security/gi, "Header keamanan standar web dan validasi input aktif")
+          .replace(/never fails|tidak pernah gagal/gi, "Error boundary dan fallback UI aktif saat kegagalan")
+          .replace(/impossible to hack/gi, "Enkripsi dan validasi otorisasi terproteksi")
+      );
+    }
+
     return task;
   });
 
-  // 3. V4 Master Brief 16-point Quality Gate Validation (Section 40)
+  // 3. V4 Master Brief & Final V4 Addition Quality Gate Validation
   const checks: QualityGateCheck[] = [
     {
       name: "Requirement Coverage",
@@ -573,6 +616,11 @@ export function analyzeAndOptimizeTasks(
       name: "Acceptance Criteria Validation",
       passed: optimizedTasks.every((t) => t.acceptanceCriteria && t.acceptanceCriteria.length > 0),
       detail: "Semua task memiliki kriteria penerimaan terukur, spesifik, dan testable."
+    },
+    {
+      name: "No Unrealistic Guarantees",
+      passed: optimizedTasks.every((t) => !t.acceptanceCriteria || t.acceptanceCriteria.every((ac) => !/100%\s*(secure|aman|accurate|akurat)|impossible to hack|never fails/i.test(ac))),
+      detail: "Kriteria penerimaan terukur dan objektif tanpa klaim absolut (100% secure / impossible to hack)."
     },
     {
       name: "Testing Coverage",
@@ -825,12 +873,19 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     isPhotography: boolean;
     topicName: string;
     categories: ProjectCategory[];
+    primaryType: string;
+    secondaryTypes: string[];
+    isHybrid: boolean;
     complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
+    stackMode: StackMode;
     needsAuth: boolean;
     needsDatabase: boolean;
     needsPayment: boolean;
     needsStorage: boolean;
     needsAi: boolean;
+    needsRealtime: boolean;
+    needsBackgroundJobs: boolean;
+    needsCaching: boolean;
     constraints: string[];
     userSpecifiedStack: {
       specified: boolean;
@@ -1030,6 +1085,41 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       /ai feature|chatbot|generatif|rekomendasi ai|llm/i.test(combined)
     );
 
+    // Conditional Realtime (Final V4 Addition Section 5)
+    // Only if live state updates needed (live chat, collaborative editing, live tracking, multiplayer, live order status)
+    const needsRealtime = Boolean(
+      /realtime|real-time|live chat|chat langsung|kolaborasi langsung|live tracking|multiplayer|status pesanan langsung/i.test(combined)
+    );
+
+    // Conditional Background Jobs / Queues (Final V4 Addition Section 5)
+    // Only if async processing is actually necessary
+    const needsBackgroundJobs = Boolean(
+      /cron job|background job|antrean tugas|queue worker|pemrosesan latar|asinkron/i.test(combined)
+    );
+
+    // Conditional Caching / Redis (Final V4 Addition Section 5)
+    // Only if demonstrated performance need or user request
+    const needsCaching = Boolean(
+      /caching|redis|memcached|cache layer|penyimpanan cache/i.test(combined)
+    );
+
+    // Stack Mode Intelligence (Final V4 Addition Section 6)
+    let stackMode: StackMode = "UNDECIDED";
+    if (/repo ini|proyek ini sudah ada|lanjutkan kode|existing code|codebase lama|kode yang sudah ada/i.test(combined)) {
+      stackMode = "EXISTING_PROJECT";
+    } else if (userSpecifiedStack.frontend && userSpecifiedStack.database) {
+      stackMode = "USER_SPECIFIED";
+    } else if (userSpecifiedStack.frontend || userSpecifiedStack.database) {
+      stackMode = "PARTIALLY_SPECIFIED";
+    } else {
+      stackMode = "AI_RECOMMENDED";
+    }
+
+    // Universal Project Classification (Final V4 Addition Section 3)
+    const primaryType = categories[0] || "Custom Web Application";
+    const secondaryTypes = categories.slice(1);
+    const isHybrid = secondaryTypes.length > 0;
+
     // User Constraints Awareness (V4 Section 8)
     const constraints: string[] = [];
     if (/tanpa supabase|no supabase|bukan supabase/i.test(combined)) constraints.push("No Supabase");
@@ -1045,12 +1135,19 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       isPhotography,
       topicName: title.toLowerCase().includes("coba") ? "Platform Web & Aplikasi Digital" : title,
       categories,
+      primaryType,
+      secondaryTypes,
+      isHybrid,
       complexity,
+      stackMode,
       needsAuth,
       needsDatabase,
       needsPayment,
       needsStorage,
       needsAi,
+      needsRealtime,
+      needsBackgroundJobs,
+      needsCaching,
       constraints,
       userSpecifiedStack
     };
@@ -2738,43 +2835,50 @@ PENTING:
 - DILARANG membuat blueprint PRD atau Task Board sekarang!
 - Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
     } else {
-      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi sesuai V4 MASTER BRIEF (Universal, Domain-Agnostic, Adaptive Development Blueprint Engine).
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi sesuai FINAL V4 ADDITION (Universal Scope, Architecture & Planning Intelligence).
 Pengguna telah memberikan brief dan preferensi untuk proyek: "${domain.topicName}" (Nama project: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
-Karakteristik Terdeteksi:
-- Kategori Project (28 Types): [${domain.categories.join(", ")}]
-- Tingkat Kompleksitas (Adaptive): ${domain.complexity} (SIMPLE | MODERATE | COMPLEX | ENTERPRISE)
-- Scope Guard Flags: Auth: ${domain.needsAuth ? "REQUIRED" : "NOT REQUIRED"}, Database: ${domain.needsDatabase ? "REQUIRED" : "NOT REQUIRED (Static/JSON)"}, Payment: ${domain.needsPayment ? "REQUIRED" : "NOT REQUIRED"}, Storage: ${domain.needsStorage ? "REQUIRED" : "NOT REQUIRED"}, AI Features: ${domain.needsAi ? "REQUIRED" : "NOT REQUIRED"}.
-- User Constraints: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Standar best-practice modern"}.
+Karakteristik & Deteksi Proyek:
+- Primary Type: ${domain.primaryType} | Secondary Types: [${domain.secondaryTypes.join(", ") || "None"}] | Klasifikasi: ${domain.isHybrid ? "Hybrid" : "Single Domain"}
+- Tingkat Kompleksitas: ${domain.complexity} (SIMPLE | MODERATE | COMPLEX | ENTERPRISE)
+- Stack Mode Intelligence: ${domain.stackMode}
+- Scope Guard Flags: Auth: ${domain.needsAuth ? "REQUIRED" : "NOT REQUIRED"}, Database: ${domain.needsDatabase ? "REQUIRED" : "NOT REQUIRED (Static/JSON)"}, Payment: ${domain.needsPayment ? "REQUIRED" : "NOT REQUIRED"}, Storage: ${domain.needsStorage ? "REQUIRED" : "NOT REQUIRED"}, AI: ${domain.needsAi ? "REQUIRED" : "NOT REQUIRED"}, Realtime: ${domain.needsRealtime ? "REQUIRED" : "NOT REQUIRED"}, Background Jobs: ${domain.needsBackgroundJobs ? "REQUIRED" : "NOT REQUIRED"}, Caching: ${domain.needsCaching ? "REQUIRED" : "NOT REQUIRED"}.
+- User Constraints: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Tidak ada batasan khusus"}.
 - User Specified Stack: ${domain.userSpecifiedStack.specified ? `User explicitly specified: ${domain.userSpecifiedStack.frontend || ""} ${domain.userSpecifiedStack.backend || ""} ${domain.userSpecifiedStack.database || ""}` : "User did NOT specify a technology stack - provide TBD or clearly labeled AI-SUGGESTED STACK"}.
 
-ATURAN UTAMA V4 MASTER BRIEF:
-1. CORE PRINCIPLE: The generator must adapt to the project, not force the project to adapt to the generator. Domain-agnostic untuk seluruh kategori web (Landing Page, Portfolio, SaaS, E-Commerce, Booking, AI App, dll).
-2. REQUIREMENT SOURCE CLASSIFICATION:
-   Setiap requirement HARUS memiliki sumber yang jelas:
+FINAL V4 ADDITION DIRECTIVES (WAJIB DIPATUHI PENUH):
+1. REQUIREMENT SOURCE OF TRUTH (SECTION 1):
+   Setiap requirement, feature, task, dan technical decision HARUS dapat ditelusuri ke salah satu kategori ini:
    - USER_REQUIREMENT: Diminta eksplisit oleh pengguna.
-   - USER_CONSTRAINT: Batasan eksplisit dari pengguna (misal free only, no supabase, mobile-first).
-   - AI_SUGGESTED: Saran AI (JANGAN diam-diam dijadikan requirement wajib).
-   - TECHNICAL_DECISION: Keputusan teknis yang diturunkan dari requirement/stack.
-   - ASSUMPTION: Asumsi yang dibutuhkan namun butuh konfirmasi.
-   - TBD: Hal yang belum dapat diputuskan secara aman.
-3. STRICT SCOPE GUARD:
-   JANGAN PERNAH otomatis menambahkan: Authentication, Authorization, Payment, Shopping Cart, Database, Admin Panel, AI, Chatbot, WhatsApp, File Storage, Webhooks, Redis, Queue, Microservices jika tidak diminta atau tidak dibutuhkan secara teknis!
-4. TECHNOLOGY NEUTRALITY:
-   JANGAN memaksakan Next.js, Supabase, Tailwind, Stripe jika pengguna menentukan stack lain atau tidak meminta. Jika stack tidak ditentukan, berikan opsi TBD atau beri label AI-SUGGESTED STACK.
-5. PROPORTIONAL ARCHITECTURE:
-   - SIMPLE (Landing page, Portfolio, Static site): 5-10 tasks atomik. Minimal architecture, static / JSON data.
-   - MODERATE (Booking, E-commerce, Content platform): 10-20 tasks sesuai arsitektur.
-   - COMPLEX / ENTERPRISE (SaaS, Marketplace, FinTech, AI SaaS): 20-30+ tasks berskala penuh.
-6. ATOMIC TASK RULE & REALISTIC STATUS:
-   - Status realistis: Task pertama yang dapat langsung dieksekusi = "ready", task yang menunggu dependensi = "backlog".
-   - Setiap task memiliki: id, title, description, phase, priority, status ("ready" | "backlog"), feature, relatedFeature, source ("USER_REQUIREMENT" | "AI_SUGGESTED" | "TECHNICAL_DECISION"), deliverable, complexity ("XS" | "S" | "M" | "L" | "XL"), dependencyType ("HARD" | "SOFT" | "NONE"), dependencies, parallelizable ("YES" | "NO"), parallelGroup, subtasks, acceptanceCriteria (terukur & observable, bukan subjektif), testing (kategori pengujian), technicalNotes.
-7. TRACEABILITY CHAIN:
-   Requirement -> Feature -> Task -> Acceptance Criteria -> Testing.
-8. AI CODING ASSISTANT INSTRUCTIONS:
-   Sertakan panduan 15 poin untuk AI Coding Assistant di akhir teks penjelas.
+   - USER_CONSTRAINT: Batasan eksplisit dari pengguna.
+   - AI_SUGGESTED: Saran AI yang berguna namun tidak diminta langsung (JANGAN diam-diam dijadikan requirement wajib!).
+   - TECHNICAL_DECISION: Keputusan implementasi teknis untuk memenuhi requirement yang dikonfirmasi.
+   - ASSUMPTION: Asumsi informasi yang disimpulkan karena data belum lengkap.
+   - TBD: Informasi yang belum dapat diputuskan dengan aman. Jika mempengaruhi implementasi secara krusial -> Tandai task sebagai BLOCKED.
+2. NO SILENT SCOPE EXPANSION (SECTION 2):
+   "Common does not mean required." JANGAN PERNAH otomatis menambahkan: Auth, Google OAuth, Payment, Kupon, Wishlist, Reviews, Chat, Notifikasi, Analytics, Admin Dashboard, CMS, Realtime, AI, Search, Rekomendasi, Loyalty, Redis, Background jobs, Email, WhatsApp kecuali diminta eksplisit, dibutuhkan secara teknis, atau diberi label AI_SUGGESTED.
+3. CONDITIONAL ARCHITECTURE ENGINE (SECTION 5):
+   - Database: Hanya jika butuh data persisten terstruktur. Static site / landing page = NOT REQUIRED.
+   - Auth: Hanya jika butuh user account / private data / roles.
+   - Payment: Hanya jika ada transaksi moneter di confirmed scope. Jangan otomatis pilih provider kecuali diminta.
+   - File Storage: Hanya jika butuh upload media / berkas.
+   - Realtime: Hanya untuk live chat / kolaborasi live / multiplayer. Normal CRUD = BUKAN realtime.
+   - Background Jobs & Caching: Hanya jika asinkron / caching memang terbukti dibutuhkan.
+4. STACK INTELLIGENCE & RECOMMENDATIONS (SECTION 6 & 7):
+   Mode stack: ${domain.stackMode}. Jika merekomendasikan teknologi yang belum ditentukan pengguna, sertakan:
+   Classification: AI_SUGGESTED, Reason, Alternatives, Required for implementation: YES / NO.
+5. ACCEPTANCE CRITERIA & AVOID UNREALISTIC GUARANTEES (SECTION 14 & 15):
+   Kriteria penerimaan harus terukur, spesifik, observable, dan testable.
+   DILARANG KERAS menggunakan klaim absolut seperti: "100% secure", "A+ security", "100% accurate", "impossible to hack", "never fails", "perfect performance". Gunakan kriteria teknis objektif (contoh: "Input tervalidasi dan penanganan error boundary aktif").
+6. ADAPTIVE NFR & SECURITY INTELLIGENCE (SECTION 16 & 17):
+   NFR dan keamanan harus proporsional terhadap kompleksitas (jangan buat arsitektur keamanan enterprise untuk landing page statis).
+7. COMPACT TRACEABILITY MATRIX (SECTION 23):
+   Sertakan tabel markdown Traceability Matrix di teks respon dan blok JSON:
+   | Requirement | Feature | Tasks | Classification |
+8. 15-POINT AI CODING ASSISTANT INSTRUCTIONS (SECTION 26):
+   Sertakan instruksi AI Coding Assistant di akhir teks respon.
 
 FORMAT OUTPUT WAJIB:
-Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprint lengkap di akhir respon:
+Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu sertakan blok blueprint lengkap di akhir respon:
 
 <<<BLUEPRINT_JSON>>>
 {
@@ -2819,11 +2923,15 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
   ],
   "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ...",
   "architecture": {
+    "stackMode": "${domain.stackMode}",
     "frontend": "${domain.userSpecifiedStack.frontend || "Next.js 15 (App Router), Tailwind CSS (AI-SUGGESTED)"}",
     "backend": "${domain.userSpecifiedStack.backend || "Next.js Route Handlers / Server Actions (AI-SUGGESTED)"}",
     "database": "${domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL / Supabase (AI-SUGGESTED)") : "None (Static Website / Client-side rendering)"}",
     "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website - No Auth Required)"}",
     "storage": "${domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"}",
+    "realtime": "${domain.needsRealtime ? "WebSockets / Realtime Subscriptions" : "NOT REQUIRED"}",
+    "backgroundJobs": "${domain.needsBackgroundJobs ? "Queue Worker / Scheduled Cron" : "NOT REQUIRED"}",
+    "caching": "${domain.needsCaching ? "Redis Cache Layer" : "NOT REQUIRED"}",
     "deployment": "Vercel / Cloudflare Pages",
     "dataSchema": "${domain.needsDatabase ? "CREATE TABLE ..." : "-- Tidak memerlukan skema database relasional"}"
   },
@@ -2849,6 +2957,14 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "subtasks": ["TASK-001.1: ..."],
       "acceptanceCriteria": ["..."],
       "testing": ["..."]
+    }
+  ],
+  "traceabilityMatrix": [
+    {
+      "requirementId": "FR-01",
+      "featureId": "FEATURE-01",
+      "taskIds": ["TASK-001"],
+      "classification": "USER_REQUIREMENT"
     }
   ]
 }
@@ -3203,9 +3319,14 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
               database: blueprintData.architecture.database || (domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL") : "None (Static Website / Client-side rendering)"),
               auth: blueprintData.architecture.auth || (domain.needsAuth ? "NextAuth / Session Cookie" : "None (Public Website - No Auth Required)"),
               storage: blueprintData.architecture.storage || (domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"),
+              realtime: blueprintData.architecture.realtime || (domain.needsRealtime ? "WebSockets / SSE / Supabase Realtime" : "None (Not Required - Standard Request/Response)"),
+              backgroundJobs: blueprintData.architecture.backgroundJobs || (domain.needsBackgroundJobs ? "Inngest / BullMQ / Cron" : "None (Not Required - Synchronous Operations)"),
+              caching: blueprintData.architecture.caching || (domain.needsCaching ? "Redis / Next.js Data Cache" : "None (Not Required - Direct Data Flow)"),
               deployment: blueprintData.architecture.deployment || "Vercel / Cloudflare Pages",
               dataSchema: blueprintData.architecture.dataSchema || (domain.needsDatabase ? (domainBlueprint.architecture.dataSchema || "") : "-- Tidak memerlukan skema database relasional (Static site / JSON content)"),
               isAiSuggestedStack: !domain.userSpecifiedStack.specified,
+              stackMode: blueprintData.architecture.stackMode || domain.stackMode,
+              stackRecommendations: Array.isArray(blueprintData.architecture.stackRecommendations) ? blueprintData.architecture.stackRecommendations : [],
               userConstraints: domain.constraints,
               complexityLevel: domain.complexity,
             };
@@ -3272,6 +3393,58 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
             updated.tasks = optimizedTasks;
             updated.qualityGate = qualityGate;
           }
+
+          // Compute or extract Compact Traceability Matrix (Requirement -> Feature -> Tasks -> Classification)
+          let traceMatrix: TraceabilityRow[] = [];
+          if (Array.isArray(blueprintData.traceabilityMatrix) && blueprintData.traceabilityMatrix.length > 0) {
+            traceMatrix = blueprintData.traceabilityMatrix.map((row: any) => ({
+              requirementId: row.requirementId || row.requirement || "",
+              featureId: row.featureId || row.feature || "",
+              taskIds: Array.isArray(row.taskIds) ? row.taskIds : (row.tasks ? (Array.isArray(row.tasks) ? row.tasks : [String(row.tasks)]) : []),
+              classification: (row.classification === "USER_REQUIREMENT" || row.classification === "USER_CONSTRAINT" || row.classification === "AI_SUGGESTED" || row.classification === "TECHNICAL_DECISION" || row.classification === "ASSUMPTION" || row.classification === "TBD") ? row.classification : "USER_REQUIREMENT",
+            }));
+          } else if (updated.tasks && updated.tasks.length > 0) {
+            const mapReqToRow = new Map<string, { featureId: string; taskIds: Set<string>; classification: RequirementSource }>();
+            if (updated.prd?.classifiedRequirements) {
+              updated.prd.classifiedRequirements.forEach(cr => {
+                mapReqToRow.set(cr.id, {
+                  featureId: "",
+                  taskIds: new Set(),
+                  classification: cr.source || "USER_REQUIREMENT",
+                });
+              });
+            }
+            updated.tasks.forEach(t => {
+              const reqs = t.relatedRequirements || [];
+              const feat = t.relatedFeature || t.feature || "";
+              reqs.forEach(reqId => {
+                const existing = mapReqToRow.get(reqId);
+                if (existing) {
+                  if (!existing.featureId && feat) existing.featureId = feat;
+                  existing.taskIds.add(t.id);
+                } else {
+                  mapReqToRow.set(reqId, {
+                    featureId: feat,
+                    taskIds: new Set([t.id]),
+                    classification: t.source || "USER_REQUIREMENT",
+                  });
+                }
+              });
+            });
+            traceMatrix = Array.from(mapReqToRow.entries()).map(([reqId, val]) => ({
+              requirementId: reqId,
+              featureId: val.featureId || "General",
+              taskIds: Array.from(val.taskIds),
+              classification: val.classification,
+            }));
+          }
+
+          if (traceMatrix.length > 0) {
+            updated.traceabilityMatrix = traceMatrix;
+            if (updated.prd) {
+              updated.prd.traceabilityMatrix = traceMatrix;
+            }
+          }
         } else if (!hasQuestions) {
           // Jika respons bukan pertanyaan discovery (misal instruksi pembuatan PRD/Blueprint langsung),
           // gunakan data spesifik domain agar pengguna selalu mendapatkan hasil 100% relevan & detail
@@ -3291,6 +3464,45 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
             const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(domainBlueprint.tasks, updated.features || domainBlueprint.features, updated.prd || domainBlueprint.prd);
             updated.tasks = optimizedTasks;
             updated.qualityGate = qualityGate;
+          }
+          if (!updated.traceabilityMatrix && updated.tasks && updated.tasks.length > 0) {
+            const mapReqToRow = new Map<string, { featureId: string; taskIds: Set<string>; classification: RequirementSource }>();
+            if (updated.prd?.classifiedRequirements) {
+              updated.prd.classifiedRequirements.forEach(cr => {
+                mapReqToRow.set(cr.id, {
+                  featureId: "",
+                  taskIds: new Set(),
+                  classification: cr.source || "USER_REQUIREMENT",
+                });
+              });
+            }
+            updated.tasks.forEach(t => {
+              const reqs = t.relatedRequirements || [];
+              const feat = t.relatedFeature || t.feature || "";
+              reqs.forEach(reqId => {
+                const existing = mapReqToRow.get(reqId);
+                if (existing) {
+                  if (!existing.featureId && feat) existing.featureId = feat;
+                  existing.taskIds.add(t.id);
+                } else {
+                  mapReqToRow.set(reqId, {
+                    featureId: feat,
+                    taskIds: new Set([t.id]),
+                    classification: t.source || "USER_REQUIREMENT",
+                  });
+                }
+              });
+            });
+            const fallbackMatrix: TraceabilityRow[] = Array.from(mapReqToRow.entries()).map(([reqId, val]) => ({
+              requirementId: reqId,
+              featureId: val.featureId || "General",
+              taskIds: Array.from(val.taskIds),
+              classification: val.classification,
+            }));
+            updated.traceabilityMatrix = fallbackMatrix;
+            if (updated.prd) {
+              updated.prd.traceabilityMatrix = fallbackMatrix;
+            }
           }
         }
 
@@ -3590,7 +3802,21 @@ ${tasks.map((t, i) => {
 }).join("\n\n")}
 
 ---
-## 7. AI CODING ASSISTANT INSTRUCTIONS
+## 7. COMPACT TRACEABILITY MATRIX
+${(() => {
+  const matrix = activeProject.traceabilityMatrix || activeProject.prd?.traceabilityMatrix || [];
+  if (matrix.length > 0) {
+    let md = "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n";
+    matrix.forEach((row: TraceabilityRow) => {
+      md += `| ${row.requirementId} | ${row.featureId} | ${row.taskIds.join(", ") || "-"} | ${row.classification} |\n`;
+    });
+    return md.trim();
+  }
+  return "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n| FR-01 | feat-01 | TASK-001, TASK-002 | USER_REQUIREMENT |";
+})()}
+
+---
+## 8. AI CODING ASSISTANT INSTRUCTIONS
 1. Read the complete project context before modifying code.
 2. Follow confirmed USER_REQUIREMENTS and USER_CONSTRAINTS as the highest-priority source of truth.
 3. Do not implement AI-SUGGESTED functionality unless explicitly approved.
@@ -5215,6 +5441,42 @@ ${tasks.map((t, i) => {
                   </ul>
                 </div>
               )}
+
+              {((activeProject.traceabilityMatrix && activeProject.traceabilityMatrix.length > 0) || (activeProject.prd.traceabilityMatrix && activeProject.prd.traceabilityMatrix.length > 0)) && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-2">9. Compact Traceability Matrix</h4>
+                  <div className={`overflow-x-auto rounded-xl border ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
+                    <table className="w-full text-left text-xs">
+                      <thead className={`border-b ${isDark ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-600"}`}>
+                        <tr>
+                          <th className="py-2 px-3 font-semibold">Requirement</th>
+                          <th className="py-2 px-3 font-semibold">Feature</th>
+                          <th className="py-2 px-3 font-semibold">Tasks</th>
+                          <th className="py-2 px-3 font-semibold">Classification</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 font-mono text-[11px]">
+                        {(activeProject.traceabilityMatrix || activeProject.prd?.traceabilityMatrix || []).map((row: TraceabilityRow, idx: number) => (
+                          <tr key={idx} className={isDark ? "hover:bg-zinc-900/40" : "hover:bg-zinc-50"}>
+                            <td className="py-2 px-3 font-semibold">{row.requirementId}</td>
+                            <td className="py-2 px-3 text-zinc-400">{row.featureId}</td>
+                            <td className="py-2 px-3 text-zinc-300">{row.taskIds.join(", ") || "-"}</td>
+                            <td className="py-2 px-3">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                                row.classification === "USER_REQUIREMENT" || row.classification === "USER_CONSTRAINT"
+                                  ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-600" : "bg-zinc-200 text-zinc-900 border-zinc-400"
+                                  : isDark ? "bg-zinc-900 text-zinc-500 border-zinc-800" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+                              }`}>
+                                {row.classification}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -5422,9 +5684,20 @@ ${tasks.map((t, i) => {
 
               {/* Tech Stack Cards */}
               <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">Tech Stack &amp; Infrastructure</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">Tech Stack &amp; Infrastructure</h4>
+                  {activeProject.architecture?.stackMode && (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      activeProject.architecture.stackMode === "USER_SPECIFIED"
+                        ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+                        : isDark ? "bg-zinc-850 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                    }`}>
+                      Stack Mode: {activeProject.architecture.stackMode}
+                    </span>
+                  )}
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                   <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Frontend</span>
                     <span className="font-semibold">{activeProject.architecture?.frontend || "Standard Web Stack"}</span>
@@ -5444,7 +5717,64 @@ ${tasks.map((t, i) => {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Authentication</span>
                     <span className="font-semibold">{activeProject.architecture?.auth || "None (Public Access)"}</span>
                   </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Storage</span>
+                    <span className="font-semibold">{activeProject.architecture?.storage || "None (Static Assets)"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Realtime</span>
+                    <span className="font-semibold">{activeProject.architecture?.realtime || "None (Standard Request/Response)"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Background Jobs</span>
+                    <span className="font-semibold">{activeProject.architecture?.backgroundJobs || "None (Synchronous Operations)"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Caching</span>
+                    <span className="font-semibold">{activeProject.architecture?.caching || "None (Direct Data Flow)"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Deployment</span>
+                    <span className="font-semibold">{activeProject.architecture?.deployment || "Vercel / Cloudflare Pages"}</span>
+                  </div>
                 </div>
+
+                {/* Stack Recommendations (Final V4 Addition Section 6) */}
+                {activeProject.architecture?.stackRecommendations && activeProject.architecture.stackRecommendations.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-2">Technology Recommendations (AI Suggested)</span>
+                    <div className="space-y-2">
+                      {activeProject.architecture.stackRecommendations.map((rec: StackRecommendation, rIdx: number) => {
+                        const techName = rec.technology || rec.component || rec.recommendation || "Component";
+                        const isReq = Boolean(rec.required ?? rec.requiredForImplementation);
+                        return (
+                          <div key={rIdx} className={`p-3 rounded-xl border text-xs ${isDark ? "border-zinc-800 bg-zinc-950/30" : "border-zinc-200 bg-zinc-50"}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold">{techName}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono border ${isDark ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-300"}`}>
+                                  {rec.classification}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${isReq ? (isDark ? "bg-white text-black border-white" : "bg-black text-white border-black") : (isDark ? "text-zinc-400 border-zinc-700" : "text-zinc-600 border-zinc-300")}`}>
+                                  Required: {isReq ? "YES" : "NO"}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-zinc-400 mb-1">{rec.reason}</p>
+                            {rec.alternatives && rec.alternatives.length > 0 && (
+                              <p className="text-[10px] text-zinc-500"><strong className="text-zinc-400">Alternatif:</strong> {rec.alternatives.join(", ")}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Schema View (Only if database is needed and dataSchema is present) */}
                 {activeProject.architecture?.dataSchema && activeProject.architecture.dataSchema.trim() !== "" && activeProject.architecture.database?.toLowerCase() !== "none" && !activeProject.architecture.database?.toLowerCase().includes("static") && (
