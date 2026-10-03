@@ -3799,12 +3799,32 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
     if (!presetText) setChatInput("");
     setIsChatLoading(true);
 
+    const hasExistingPlanning = Boolean(
+      (currentProject.prd && (currentProject.prd.overview || (currentProject.prd.goals && currentProject.prd.goals.length > 0) || (currentProject.prd.functionalRequirements && currentProject.prd.functionalRequirements.length > 0))) ||
+      (currentProject.features && currentProject.features.length > 0) ||
+      (currentProject.tasks && currentProject.tasks.length > 0)
+    );
+
     const isAnsweringQuestions =
       textToSend.includes("klarifikasi kebutuhan proyek") ||
       textToSend.includes("Berikut klarifikasi kebutuhan") ||
       /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend);
 
-    if (isAnsweringQuestions) {
+    const isExplicitRevision =
+      /revisi|ubah|ganti|edit|tambah|kurang|hapus|update|sesuaikan|perbarui|modifikasi|delete|remove|add|replace|adjust|perbaiki/i.test(textToSend);
+
+    const mentionsPlanningArtifacts =
+      /fitur|task|tugas|prd|arsitektur|flow|halaman|database|kebutuhan|requirement|spesifikasi|scope|cakupan|backend|frontend/i.test(textToSend);
+
+    const isRevision = hasExistingPlanning && (
+      isExplicitRevision ||
+      mentionsPlanningArtifacts ||
+      /tolong|mohon|bisa gak|bisa tidak|mau|coba/i.test(textToSend)
+    );
+
+    const isPlanningAction = isAnsweringQuestions || isRevision;
+
+    if (isPlanningAction) {
       setEstafetStage("prd");
     } else {
       setEstafetStage("idle");
@@ -3813,8 +3833,132 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
     const domain = detectProjectDomain(updatedMessages, currentProject.title, currentProject.description);
 
     let systemPrompt = "";
-    if (!isAnsweringQuestions) {
-      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+    if (isRevision) {
+      // ── MODE REVISI PERENCANAAN AKTIF ─────────────────────────────────────
+      const currentPrdOverview = currentProject.prd?.overview || "Belum ada overview";
+      const currentReqs = currentProject.prd?.classifiedRequirements?.map((r) => `- [${r.id}] (${r.source}): ${r.text}`).join("\n") ||
+        currentProject.prd?.functionalRequirements?.map((fr, i) => `- [FR-${String(i + 1).padStart(2, "0")}]: ${fr}`).join("\n") || "Belum ada requirement terdaftar";
+      const currentFeaturesList = currentProject.features?.map((f, i) => `- [${f.id}] ${f.name} (Scope: ${f.scope || "MVP"}, Priority: ${f.priority || "HIGH"}): ${f.description || ""}`).join("\n") || "Belum ada fitur terdaftar";
+      const currentTasksList = currentProject.tasks?.map((t, i) => `- [${t.id}] ${t.title} (Fase: ${t.phase || "Phase 1"}, Status: ${t.status || "backlog"}): ${t.description || ""}`).join("\n") || "Belum ada task terdaftar";
+      const currentArchSummary = currentProject.architecture ? `Frontend: ${currentProject.architecture.frontend}, Backend: ${currentProject.architecture.backend}, Database: ${currentProject.architecture.database}, Auth: ${currentProject.architecture.auth}` : "Default Next.js stack";
+
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi dalam MODE REVISI PERENCANAAN (Universal V4 Planning Reviser).
+Pengguna ingin melakukan REVISI / PERUBAHAN pada perencanaan proyek "${domain.topicName}" (Nama project: "${currentProject.title}").
+
+PERMINTAAN PERUBAHAN DARI PENGGUNA:
+"${textToSend}"
+
+SNAPSHOT PERENCANAAN PROYEK SAAT INI:
+---
+[PRD OVERVIEW]
+${currentPrdOverview}
+
+[FUNCTIONAL REQUIREMENTS AKTIF]
+${currentReqs}
+
+[FITUR AKTIF]
+${currentFeaturesList}
+
+[DEVELOPMENT TASKS AKTIF]
+${currentTasksList}
+
+[ARSITEKTUR & TEKNOLOGI AKTIF]
+${currentArchSummary}
+---
+
+ATURAN REVISI KETAT (UNIVERSAL V4 PRINCIPLES):
+1. USER menentukan WHAT, AI menentukan HOW.
+2. PERTAHANKAN PERENCANAAN YANG ADA: Jangan menghapus atau mereset hal yang tidak diminta oleh pengguna. Pertahankan ID item yang ada (REQ-XX, FEATURE-XX, TASK-XX).
+3. JIKA PERMINTAAN MENAMBAH FITUR / TASK:
+   - Tambahkan requirement baru ke daftar functionalRequirements / classifiedRequirements (beri ID lanjutan).
+   - Buatkan fitur baru yang relevan pada array "features", sertakan "sourceRequirementIds" yang sesuai.
+   - Buatkan development task spesifik pada array "tasks" dan letakkan pada fase yang tepat.
+4. JIKA PERMINTAAN MENGUBAH / MENGEDIT:
+   - Perbarui deskripsi, judul, scope, atau kriteria dari requirement, feature, atau task terkait.
+5. JIKA PERMINTAAN MENGHAPUS:
+   - Hapus requirement, fitur, atau task yang diminta secara bersih.
+6. SCOPE PROTECTION:
+   - DILARANG menambahkan fitur bisnis yang tidak diminta (kupon, voucher, wishlist, faq, chat cs, poin loyalty) jika tidak diminta oleh pengguna.
+7. FORMAT OUTPUT:
+   A. Berikan respon ramah dalam bahasa Indonesia yang merinci poin-poin perubahan apa saja yang telah disesuaikan (gunakan format Markdown yang rapi dan mudah dibaca).
+   B. Di BAGIAN AKHIR respon, SERTAKAN blok JSON lengkap hasil revisi menggunakan format persis berikut:
+
+<<<REVISION_JSON>>>
+{
+  "prd": {
+    "overview": "...",
+    "problemStatement": "...",
+    "goals": ["G-01...", "G-02..."],
+    "targetUsers": ["...", "..."],
+    "functionalRequirements": ["REQ-001: ...", "REQ-002: ..."],
+    "nonFunctionalRequirements": ["NFR-01: ..."],
+    "constraints": ["..."],
+    "classifiedRequirements": [
+      { "id": "REQ-001", "text": "...", "source": "USER_REQUIREMENT" }
+    ],
+    "userDerived": {
+      "goals": ["..."],
+      "functionalRequirements": ["..."],
+      "userConstraints": ["..."],
+      "explicitNFR": ["..."]
+    },
+    "aiDerived": {
+      "technicalRecommendations": ["..."],
+      "architectureSuggestions": ["..."],
+      "assumptions": ["..."],
+      "optionalFeatures": ["..."],
+      "aiSuggestions": ["..."]
+    },
+    "assumptions": [],
+    "risks": []
+  },
+  "features": [
+    {
+      "id": "FEATURE-01",
+      "name": "...",
+      "description": "...",
+      "priority": "CRITICAL",
+      "scope": "MVP",
+      "sourceRequirementIds": ["REQ-001"],
+      "subFeatures": ["..."],
+      "acceptanceCriteria": ["AC-01: ..."]
+    }
+  ],
+  "userFlow": "flowchart TD\n...",
+  "architecture": {
+    "frontend": "...",
+    "backend": "...",
+    "database": "...",
+    "auth": "...",
+    "storage": "...",
+    "realtime": "...",
+    "dataSchema": "..."
+  },
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "...",
+      "description": "...",
+      "phase": "Phase 1 - Inisiasi & Setup",
+      "priority": "CRITICAL",
+      "feature": "FEATURE-01",
+      "sourceRequirementIds": ["REQ-001"],
+      "status": "backlog",
+      "dependencyType": "NONE",
+      "complexity": "M"
+    }
+  ]
+}
+<<<END_REVISION_JSON>>>`;
+    } else if (!isPlanningAction) {
+      if (hasExistingPlanning) {
+        systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+Pengguna sedang berkonsultasi mengenai proyek "${domain.topicName}" (Nama proyek: "${currentProject.title}").
+Proyek ini sudah memiliki PRD, spesifikasi fitur, dan task board.
+
+Berikan jawaban atau panduan profesional sesuai pertanyaan pengguna. Jika pengguna ingin mengubah atau merevisi fitur/PRD/task, beri tahu bahwa mereka cukup mengetik permintaan revisinya di sini dan kamu akan langsung memperbarui perencanaannya.`;
+      } else {
+        systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
 Pengguna sedang mendiskusikan brief dan ide website untuk proyek: "${domain.topicName}" (Nama proyek: "${currentProject.title}").
 
 TUGAS UTAMA:
@@ -3840,6 +3984,7 @@ TUGAS UTAMA:
 PENTING:
 - DILARANG membuat blueprint PRD atau Task Board sekarang!
 - Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
+      }
     } else {
       systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi sesuai FINAL V4 ADDITION (Universal Scope, Architecture & Planning Intelligence).
 Pengguna telah memberikan brief dan preferensi untuk proyek: "${domain.topicName}" (Nama project: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
@@ -3949,65 +4094,41 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       "id": "FEATURE-01",
       "name": "...",
       "description": "...",
-      "priority": "HIGH",
+      "priority": "CRITICAL",
       "scope": "MVP",
-      "sourceType": "USER_REQUIREMENT",
-      "origin": "USER_REQUIREMENT",
       "sourceRequirementIds": ["REQ-001"],
-      "sourceRequirements": ["REQ-001"],
-      "isAiSuggested": false,
-      "relatedRequirements": ["REQ-001"],
-      "subFeatures": ["...", "..."],
+      "subFeatures": ["..."],
       "dependencies": [],
-      "isMvp": true
+      "acceptanceCriteria": ["AC-01: ..."]
     }
   ],
-  "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ...",
+  "userFlow": "flowchart TD\n...",
   "architecture": {
-    "stackMode": "${domain.stackMode}",
-    "frontend": "${domain.userSpecifiedStack.frontend || "Next.js 15 (App Router), Tailwind CSS (AI-SUGGESTED)"}",
-    "backend": "${domain.userSpecifiedStack.backend || "Next.js Route Handlers / Server Actions (AI-SUGGESTED)"}",
-    "database": "${domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL / Supabase (AI-SUGGESTED)") : "None (Static Website / Client-side rendering)"}",
-    "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website - No Auth Required)"}",
-    "storage": "${domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"}",
-    "realtime": "${domain.needsRealtime ? "WebSockets / Realtime Subscriptions" : "NOT REQUIRED"}",
-    "backgroundJobs": "${domain.needsBackgroundJobs ? "Queue Worker / Scheduled Cron" : "NOT REQUIRED"}",
-    "caching": "${domain.needsCaching ? "Redis Cache Layer" : "NOT REQUIRED"}",
-    "deployment": "Vercel / Cloudflare Pages",
-    "dataSchema": "${domain.needsDatabase ? "CREATE TABLE ..." : "-- Tidak memerlukan skema database relasional"}"
+    "frontend": "Next.js 15 (App Router), Tailwind CSS",
+    "backend": "Next.js Route Handlers",
+    "database": "PostgreSQL",
+    "auth": "NextAuth",
+    "storage": "Supabase Storage",
+    "realtime": "None",
+    "backgroundJobs": "None",
+    "caching": "Next.js Data Cache",
+    "deployment": "Vercel",
+    "dataSchema": "-- Skema SQL tabel utama...",
+    "stackMode": "AI_RECOMMENDED"
   },
   "tasks": [
     {
       "id": "TASK-001",
-      "title": "...",
-      "description": "...",
-      "phase": "Phase 1 - Project Foundation",
-      "priority": "HIGH",
-      "status": "ready",
-      "feature": "FEATURE-01: ...",
-      "relatedFeature": "FEATURE-01: ...",
-      "source": "USER_REQUIREMENT",
-      "origin": "USER_REQUIREMENT",
+      "title": "Setup Repository & Foundational Infrastructure",
+      "description": "Inisialisasi codebase Next.js, konfigurasi TypeScript, linting, dan styling dasar.",
+      "phase": "Phase 1 - Inisiasi & Setup",
+      "priority": "CRITICAL",
+      "feature": "FEATURE-01",
       "sourceRequirementIds": ["REQ-001"],
-      "deliverable": "...",
+      "status": "backlog",
+      "deliverable": "Codebase siap pakai",
       "dependencyType": "NONE",
-      "complexity": "M",
-      "technicalNotes": "...",
-      "relatedRequirements": ["FR-01"],
-      "dependencies": [],
-      "parallelizable": "YES",
-      "parallelGroup": "PG-01",
-      "subtasks": ["TASK-001.1: ..."],
-      "acceptanceCriteria": ["..."],
-      "testing": ["..."]
-    }
-  ],
-  "traceabilityMatrix": [
-    {
-      "requirementId": "REQ-001",
-      "featureId": "FEATURE-01",
-      "taskIds": ["TASK-001"],
-      "classification": "USER_REQUIREMENT"
+      "complexity": "M"
     }
   ]
 }
@@ -4077,7 +4198,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               rawStream += chunk;
 
               // Deteksi progres estafet berbasis bagian nyata yang sedang digenerate AI:
-              if (isAnsweringQuestions) {
+              if (isPlanningAction) {
                 if (rawStream.includes('"tasks"') || rawStream.includes('tasks":') || rawStream.includes('"Actionable') || rawStream.length > 3800) {
                   if (currentTrackedStage !== "tasks") {
                     currentTrackedStage = "tasks";
@@ -4096,26 +4217,26 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 }
               }
 
-              if (!isAnsweringQuestions) {
-                setProjects((prev) =>
-                  prev.map((p) =>
-                    p.id === projId
-                      ? {
-                          ...p,
-                          messages: p.messages.map((m) =>
-                            m.id === assistantMsgId ? { ...m, content: rawStream } : m
-                          ),
-                        }
-                      : p
-                  )
-                );
-              }
+              // Real-time update bubble percakapan (bersih dari JSON internal saat streaming)
+              const streamDisplay = cleanChatDisplay(rawStream);
+              setProjects((prev) =>
+                prev.map((p) =>
+                  p.id === projId
+                    ? {
+                        ...p,
+                        messages: p.messages.map((m) =>
+                          m.id === assistantMsgId ? { ...m, content: streamDisplay } : m
+                        ),
+                      }
+                    : p
+                )
+              );
             }
           } catch {}
         }
       }
 
-      if (isAnsweringQuestions) {
+      if (isPlanningAction) {
         // Transisi halus berurutan agar pengguna benar-benar melihat setiap tahap dari awal hingga akhir terupdate:
         const stageSequence: Array<"prd" | "features" | "architecture" | "tasks" | "completed"> = [
           "prd",
@@ -4127,18 +4248,20 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         const startIdx = stageSequence.indexOf(currentTrackedStage);
         const actualStart = startIdx >= 0 ? startIdx : 0;
         for (let s = actualStart + 1; s < stageSequence.length; s++) {
-          await new Promise((resolve) => setTimeout(resolve, 750));
+          await new Promise((resolve) => setTimeout(resolve, 500));
           setEstafetStage(stageSequence[s]);
         }
 
         if (!rawStream.trim()) {
-          rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
+          rawStream = isRevision
+            ? "Perencanaan proyek telah berhasil disesuaikan. Anda dapat meninjau tab PRD, Features, Flow & Architecture, dan Tasks di atas."
+            : "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
         parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
       } else {
         setEstafetStage("idle");
-        // Jika sedang fase diskusi brief, pastikan pertanyaan discovery ada di akhir respons
-        if (!rawStream.includes("<<<QUESTIONS_JSON>>>")) {
+        // Hanya tambahkan pertanyaan discovery jika proyek belum memiliki perencanaan dan pertanyaan belum ada
+        if (!hasExistingPlanning && !rawStream.includes("<<<QUESTIONS_JSON>>>")) {
           const { questionsJson } = generateInitialDiscoveryQuestions(currentProject.title, textToSend || currentProject.description);
           rawStream = rawStream.trim() + questionsJson;
           setProjects((prev) =>
@@ -4188,13 +4311,26 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     return getDomainBlueprint(domain, title).features;
   };
 
-  // Parser Blueprint JSON yang sangat tangguh terhadap variasi output LLM
+  // Parser Blueprint / Revision JSON yang sangat tangguh terhadap variasi output LLM
   const extractBlueprintFromText = (text: string): any => {
-    const startTag = "<<<BLUEPRINT_JSON>>>";
-    const endTag = "<<<END_BLUEPRINT_JSON>>>";
     let jsonStr = "";
 
-    const sIdx = text.indexOf(startTag);
+    // 1. Check for REVISION or BLUEPRINT tags
+    const revStart = "<<<REVISION_JSON>>>";
+    const revEnd = "<<<END_REVISION_JSON>>>";
+    const bpStart = "<<<BLUEPRINT_JSON>>>";
+    const bpEnd = "<<<END_BLUEPRINT_JSON>>>";
+
+    let sIdx = text.indexOf(revStart);
+    let startTag = revStart;
+    let endTag = revEnd;
+
+    if (sIdx === -1) {
+      sIdx = text.indexOf(bpStart);
+      startTag = bpStart;
+      endTag = bpEnd;
+    }
+
     if (sIdx !== -1) {
       const eIdx = text.indexOf(endTag, sIdx + startTag.length);
       if (eIdx !== -1) {
@@ -4240,7 +4376,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
           try {
             return JSON.parse(cleaned);
           } catch (err) {
-            console.warn("Gagal parse blueprint JSON:", err);
+            console.warn("Gagal parse blueprint/revision JSON:", err);
           }
         }
       }
@@ -4251,12 +4387,14 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
   // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
   const cleanChatDisplay = (text: string): string => {
     let result = text;
-    const jsonStart = result.indexOf("<<<BLUEPRINT_JSON>>>");
-    if (jsonStart !== -1) {
-      const before = result.slice(0, jsonStart).trim();
-      result = before
-        ? `${before}\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`
-        : `Spesifikasi teknis dan blueprint proyek telah selesai dirumuskan secara estafet sesuai brief dan jawaban klarifikasi Anda.\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`;
+    const tagMatch = result.match(/<<<(?:BLUEPRINT|REVISION)_JSON>>>/);
+    if (tagMatch && tagMatch.index !== undefined) {
+      const before = result.slice(0, tagMatch.index).trim();
+      const isRev = /revisi|perubahan|disesuaikan|ditambahkan|dihapus|diperbarui|update|menambahkan|memperbarui/i.test(before) || text.includes("<<<REVISION_JSON>>>");
+      const callout = isRev
+        ? "\n\n> ✏️ **Perencanaan Berhasil Direvisi:** PRD, spesifikasi fitur, dan task board telah otomatis diperbarui pada tab di atas!"
+        : "\n\n> ✨ **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!";
+      result = before ? `${before}${callout}` : callout.trim();
     }
     return result;
   };
@@ -4369,7 +4507,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               aiDerived: blueprintData.prd.aiDerived,
             };
           } else {
-            updated.prd = domainBlueprint.prd;
+            updated.prd = p.prd || domainBlueprint.prd;
           }
 
           if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 3) {
@@ -4398,13 +4536,13 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               };
             });
           } else {
-            updated.features = domainBlueprint.features;
+            updated.features = (p.features && p.features.length > 0) ? p.features : domainBlueprint.features;
           }
 
           if (blueprintData.userFlow && String(blueprintData.userFlow).length > 20) {
             updated.userFlow = String(blueprintData.userFlow);
           } else {
-            updated.userFlow = domainBlueprint.userFlow;
+            updated.userFlow = p.userFlow || domainBlueprint.userFlow;
           }
 
           if (blueprintData.architecture) {
@@ -4426,7 +4564,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               complexityLevel: domain.complexity,
             };
           } else {
-            updated.architecture = domainBlueprint.architecture;
+            updated.architecture = p.architecture || domainBlueprint.architecture;
           }
 
           if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 4) {
@@ -4437,7 +4575,13 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 id: taskId,
                 title: t.title || "Task " + (idx + 1),
                 description: t.description || "",
-                status: (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog",
+                status: (() => {
+                const existingTask = p.tasks.find((et) => et.id === taskId);
+                if (existingTask && (existingTask.status === "done" || existingTask.status === "in_progress" || existingTask.status === "review")) {
+                  return existingTask.status;
+                }
+                return (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog";
+              })(),
                 phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
                 priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
                 feature: parentFeat,
@@ -6517,6 +6661,74 @@ ${(() => {
               : "bg-gradient-to-t from-[#fafafc]/95 via-[#fafafc]/60 to-transparent"
           }`}>
             <div className="mx-auto max-w-3xl w-full">
+              {/* Quick Revision Chips */}
+              {Boolean(activeProject?.prd || (activeProject?.tasks && activeProject.tasks.length > 0) || (activeProject?.features && activeProject.features.length > 0)) && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs select-none">
+                  <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                    <span>✏️</span> Revisi Cepat:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatInput("Tolong tambahkan fitur: ");
+                      chatTextareaRef.current?.focus();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
+                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+                    }`}
+                  >
+                    <span>➕</span> Tambah Fitur
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatInput("Tolong ubah PRD pada bagian: ");
+                      chatTextareaRef.current?.focus();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
+                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+                    }`}
+                  >
+                    <span>📝</span> Ubah PRD
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatInput("Tolong tambahkan task implementasi: ");
+                      chatTextareaRef.current?.focus();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
+                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+                    }`}
+                  >
+                    <span>📋</span> Tambah Task
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatInput("Tolong sesuaikan arsitektur & teknologi: ");
+                      chatTextareaRef.current?.focus();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
+                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+                    }`}
+                  >
+                    <span>⚡</span> Sesuaikan Stack
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatInput("Tolong hapus fitur: ");
+                      chatTextareaRef.current?.focus();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
+                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+                    }`}
+                  >
+                    <span>🗑️</span> Hapus Fitur
+                  </button>
+                </div>
+              )}
               <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
                 isDark
                   ? "shadow-2xl shadow-black/80"
