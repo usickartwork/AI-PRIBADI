@@ -5452,6 +5452,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     const blueprintData = extractBlueprintFromText(fullText);
     const hasQuestions = fullText.includes("<<<QUESTIONS_JSON>>>");
 
+    let newlyPlannedProject: ProjectItem | null = null;
+
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== projId) return p;
@@ -5729,9 +5731,36 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         }
 
         updated.updatedAt = Date.now();
+        newlyPlannedProject = updated;
         return updated;
       })
     );
+
+    // Otomatis buat preview HTML nyata via AI setelah planner merumuskan PRD, Features, dan Tasks
+    if (!hasQuestions && newlyPlannedProject) {
+      const projToPreview: ProjectItem = newlyPlannedProject;
+      setTimeout(() => {
+        generateProjectPreviewHtmlWithAI(projToPreview)
+          .then((aiHtml) => {
+            if (aiHtml && aiHtml.length > 200) {
+              setProjects((curr) =>
+                curr.map((p) =>
+                  p.id === projToPreview.id
+                    ? {
+                        ...p,
+                        generatedHtml: aiHtml,
+                        updatedAt: Date.now(),
+                      }
+                    : p
+                )
+              );
+            }
+          })
+          .catch((err) => {
+            console.warn("Background AI preview generation error:", err);
+          });
+      }, 300);
+    }
   };
 
   // ── Task Management Actions ───────────────────────────────────────────────────
@@ -9335,6 +9364,7 @@ export function escapeHtml(str?: string): string {
 
 export function isLegacyTemplateOrStale(html: string, project: ProjectItem): boolean {
   if (!html || !html.trim()) return false;
+  if (html.includes("AI_GENERATED_PROTOTYPE") || html.includes("<!-- AI_GENERATED_PREVIEW -->")) return false;
 
   // Section 14: Strict detection of legacy template strings
   const legacyMarkers = [
@@ -10918,6 +10948,148 @@ export const DEVICE_PRESETS: Record<PreviewDevice, DevicePreset> = {
 
 export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
 
+export async function generateProjectPreviewHtmlWithAI(
+  project: ProjectItem,
+  onChunk?: (streamedText: string) => void
+): Promise<string> {
+  const prdText = project.prd?.overview || project.description || "";
+  const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
+  const targetUsersText = (project.prd?.targetUsers || []).map((u) => `- ${u}`).join("\n");
+  const featuresText = (project.features || [])
+    .map((f, i) => `${i + 1}. ${f.name}: ${f.description}`)
+    .join("\n");
+  const tasksText = (project.tasks || [])
+    .slice(0, 8)
+    .map((t, i) => `${i + 1}. ${t.title}: ${t.description}`)
+    .join("\n");
+  const flowText = project.userFlow || "Standard Primary User Journey";
+
+  const systemPrompt = `You are an elite Principal Frontend Engineer and Award-Winning UI/UX Designer.
+Your sole mission is to generate the COMPLETE, single-file HTML/CSS/JS frontend application prototype representing the ACTUAL digital product described by the user's PRD, Features, and Tasks.
+
+CRITICAL PRODUCT PROTOTYPE RULES:
+1. RENDER THE ACTUAL PRODUCT ITSELF:
+   - Build the REAL website or application interface (e.g. real store, real booking app, real SaaS, real portfolio, real news portal, real service business, etc.).
+   - NEVER render planning documentation, PRD text, task management boards, acceptance criteria, requirement IDs (e.g. "FR-01", "TASK-001"), or quality gate reports.
+   - Do NOT render a project management tool unless the product itself IS a project management tool.
+
+2. AESTHETICS & VISUAL DESIGN:
+   - Include Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+   - Include Google Fonts (<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">) with body font styled font-sans.
+   - Use clean, modern SVG icons or Lucide icons.
+   - Design with premium visual polish: generous whitespace, elegant cards, subtle borders, backdrop blurs, clean shadows, and domain-appropriate color palettes.
+   - Use high-fidelity realistic mock data (realistic prices, realistic names, realistic photography via Unsplash URLs e.g. https://images.unsplash.com/...).
+
+3. RICH INTERACTIVITY (VANILLA JAVASCRIPT):
+   - Provide working, responsive JavaScript for all key user interactions in a <script> tag at the bottom of <body>:
+     * Interactive tabs or filter toggles (active states)
+     * Working booking / cart / inquiry selection with live summary updates
+     * Functional modals (e.g., detail modal, booking modal, checkout modal) that open and close smoothly
+     * Interactive form submission with validation and a beautiful confirmation toast / alert
+     * Smooth scrolling navigation
+
+4. OUTPUT FORMAT:
+   - Output ONLY the complete, valid <!DOCTYPE html> ... </html> code inside a single \`\`\`html ... \`\`\` block.
+   - Include the marker <!-- AI_GENERATED_PROTOTYPE --> inside the <head>.
+   - Do NOT include conversational explanations outside the code block.`;
+
+  const userPrompt = `Buatkan prototype website/aplikasi interaktif lengkap (Single-File HTML + Tailwind CSS + Vanilla JS) untuk produk berikut:
+
+NAMA PRODUK: ${project.title}
+DESKRIPSI PRODUK:
+${prdText}
+
+GOALS:
+${goalsText || "- Memenuhi kebutuhan pengguna dengan pengalaman intuitif"}
+
+TARGET PENGGUNA:
+${targetUsersText || "- Pengguna umum & profesional"}
+
+FITUR-FITUR UTAMA:
+${featuresText || "- Fitur inti sesuai deskripsi produk"}
+
+ALUR PENGGUNA (USER FLOW):
+${flowText}
+
+FOKUS IMPLEMENTASI MODUL (DARI TASK):
+${tasksText || "- Implementasi antarmuka dan interaksi utama"}
+
+PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tugas teknis. Pastikan antarmuka memiliki alur interaksi yang dapat dicoba langsung di browser!`;
+
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      model: "novita:qwen/qwen3.8-flash",
+      max_tokens: 8192,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Gagal menghubungi server AI prototype generator.");
+  }
+
+  if (!res.body) throw new Error("Respons stream tidak tersedia.");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let rawStream = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const dataStr = trimmed.slice(5).trim();
+      if (dataStr === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(dataStr);
+        const chunk = parsed.choices?.[0]?.delta?.content || "";
+        if (chunk) {
+          rawStream += chunk;
+          if (onChunk) onChunk(rawStream);
+        }
+      } catch (err) {}
+    }
+  }
+
+  let finalHtml = "";
+  const htmlBlockMatch = rawStream.match(/```html\s*([\s\S]*?)```/i);
+  if (htmlBlockMatch && htmlBlockMatch[1]?.trim()) {
+    finalHtml = htmlBlockMatch[1].trim();
+  } else if (rawStream.includes("<!DOCTYPE html>") || rawStream.includes("<html")) {
+    const docMatch = rawStream.match(/<!DOCTYPE html>[\s\S]*?<\/html>/i) || rawStream.match(/<html[\s\S]*?<\/html>/i);
+    if (docMatch && docMatch[0]) {
+      finalHtml = docMatch[0].trim();
+    } else {
+      finalHtml = rawStream.trim();
+    }
+  } else {
+    finalHtml = rawStream.trim();
+  }
+
+  if (finalHtml && !finalHtml.includes("AI_GENERATED_PROTOTYPE")) {
+    if (finalHtml.includes("<head>")) {
+      finalHtml = finalHtml.replace("<head>", "<head>\n  <!-- AI_GENERATED_PROTOTYPE -->");
+    } else {
+      finalHtml = "<!-- AI_GENERATED_PROTOTYPE -->\n" + finalHtml;
+    }
+  }
+
+  return finalHtml;
+}
+
 export function QuickHtmlPreview({
   project,
   isDark,
@@ -10938,6 +11110,7 @@ export function QuickHtmlPreview({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showSpecModal, setShowSpecModal] = useState<boolean>(false);
+  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Planning-aware specification & integrity
@@ -10945,16 +11118,32 @@ export function QuickHtmlPreview({
     return buildPlanningAwarePreview(project);
   }, [project.id, project.updatedAt, project.prd, project.features, project.tasks, project.title]);
 
+  const handleGenerateWithAI = async () => {
+    if (isGeneratingWithAI) return;
+    setIsGeneratingWithAI(true);
+    setPreviewError(null);
+    try {
+      const aiHtml = await generateProjectPreviewHtmlWithAI(project);
+      if (aiHtml && aiHtml.length > 100) {
+        setRawHtml(aiHtml);
+        setDebouncedHtml(aiHtml);
+        onUpdateHtml(aiHtml);
+        setRefreshKey((k) => k + 1);
+      }
+    } catch (err: any) {
+      setPreviewError("Gagal generate preview dengan AI: " + (err.message || String(err)));
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
+  };
+
   // Sinkronisasi dengan proyek
   // Auto-purge legacy template or stale content
   useEffect(() => {
     if (rawHtml && isLegacyTemplateOrStale(rawHtml, project)) {
-      const freshHtml = planningResult.html;
-      setRawHtml(freshHtml);
-      setDebouncedHtml(freshHtml);
-      onUpdateHtml(freshHtml);
+      handleGenerateWithAI();
     }
-  }, [project.id, rawHtml, planningResult.html]);
+  }, [project.id, rawHtml]);
 
   useEffect(() => {
     const extracted = extractHtmlFromProject(project);
@@ -10993,13 +11182,7 @@ export function QuickHtmlPreview({
   const currentPreset = DEVICE_PRESETS[device];
   const hasHtml = Boolean(debouncedHtml.trim());
 
-  const handleApplyPlanningAwareHtml = () => {
-    const newHtml = planningResult.html;
-    setRawHtml(newHtml);
-    setDebouncedHtml(newHtml);
-    onUpdateHtml(newHtml);
-    setRefreshKey((k) => k + 1);
-  };
+  const handleApplyPlanningAwareHtml = handleGenerateWithAI;
 
   return (
     <div
@@ -11175,16 +11358,33 @@ export function QuickHtmlPreview({
             <span>Spec &amp; Matrix</span>
           </button>
           <button
-            onClick={handleApplyPlanningAwareHtml}
+            onClick={handleGenerateWithAI}
+            disabled={isGeneratingWithAI}
             className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
-              isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+              isGeneratingWithAI
+                ? "opacity-75 cursor-not-allowed bg-indigo-600 text-white"
+                : isDark
+                ? "bg-white text-black hover:bg-zinc-200"
+                : "bg-black text-white hover:bg-zinc-800"
             }`}
-            title="Generate web HTML prototype langsung dari PRD & Fitur aktif"
+            title="Generate web HTML prototype sesungguhnya menggunakan AI dari PRD & Fitur aktif"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Generate Web by PRD</span>
+            {isGeneratingWithAI ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>Generating Prototype AI...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>{hasHtml ? "✨ Regenerate by AI" : "✨ Generate Web by AI"}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -11229,12 +11429,28 @@ export function QuickHtmlPreview({
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={handleApplyPlanningAwareHtml}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm ${
-                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                onClick={handleGenerateWithAI}
+                disabled={isGeneratingWithAI}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center gap-2 ${
+                  isGeneratingWithAI
+                    ? "opacity-75 cursor-not-allowed bg-indigo-600 text-white"
+                    : isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
               >
-                ✨ Generate Web by PRD
+                {isGeneratingWithAI ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Sedang Merancang Antarmuka...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    <span>Generate Prototype Web dengan AI</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setViewMode("code")}
@@ -11306,6 +11522,24 @@ export function QuickHtmlPreview({
 
               {/* Sandboxed Iframe */}
               <div className="flex-1 w-full h-full relative bg-white">
+                {isGeneratingWithAI && (
+                  <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center mb-3 animate-pulse">
+                      <svg className="w-6 h-6 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold">AI Sedang Merancang Prototype Produk...</h3>
+                    <p className="text-xs text-zinc-300 max-w-sm mt-1 leading-relaxed">
+                      Mengubah PRD, fitur, dan skenario interaksi menjadi website HTML5, Tailwind CSS, &amp; JavaScript yang sesungguhnya.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-indigo-300 bg-indigo-950/70 px-3 py-1 rounded-full border border-indigo-800/60">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                      <span>Generating live prototype...</span>
+                    </div>
+                  </div>
+                )}
                 <iframe
                   key={refreshKey}
                   srcDoc={securedHtml}
