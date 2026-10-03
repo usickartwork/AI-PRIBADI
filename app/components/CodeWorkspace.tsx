@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
 
 export type TaskStatus = "todo" | "in_progress" | "done" | "failed";
+export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "High" | "Medium" | "Low";
 
 export type ProjectTask = {
   id: string;
@@ -12,16 +13,33 @@ export type ProjectTask = {
   status: TaskStatus;
   feature?: string;
   phase?: string;
+  priority?: TaskPriority;
+  relatedRequirements?: string[];
+  dependencies?: string[];
+  subtasks?: string[];
   acceptanceCriteria?: string[];
+  testing?: string[];
+  parallelizable?: "YES" | "NO";
+  complexity?: string;
+  technicalNotes?: string;
 };
 
 export type ProjectFeature = {
   id: string;
   name: string;
   description: string;
-  priority?: "High" | "Medium" | "Low";
+  priority?: TaskPriority;
   dependencies?: string[];
   subFeatures?: string[];
+  relatedRequirements?: string[];
+  isMvp?: boolean;
+};
+
+export type ProjectAssumption = {
+  id: string;
+  assumption: string;
+  reason: string;
+  impact: string;
 };
 
 export type ProjectPRD = {
@@ -34,6 +52,8 @@ export type ProjectPRD = {
   nonFunctionalRequirements?: string[];
   constraints?: string[];
   successCriteria?: string[];
+  assumptions?: ProjectAssumption[];
+  risks?: string[];
 };
 
 export type ProjectArchitecture = {
@@ -676,7 +696,7 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
     if (activeProjectId === id) setActiveProjectId(null);
   };
 
-  const getDomainBlueprint = (domain: DetectedDomain, title: string) => {
+  const getDomainBlueprint = (domain: DetectedDomain, title: string): { prd: ProjectPRD; features: ProjectFeature[]; architecture: ProjectArchitecture; userFlow: string; tasks: ProjectTask[] } => {
     if (domain.isPhotography) {
       return {
         prd: {
@@ -716,6 +736,15 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
             "Integritas Data: Mekanisme locking slot jam sesi pemotretan selama 15 menit saat proses checkout pembayaran DP untuk mencegah double-booking",
             "Kapasitas Penyimpanan: Integrasi cloud storage object berkas besar (Supabase Storage / Cloudflare R2 / AWS S3) dengan CDN global presigned URL",
             "Aksesibilitas & UI: Desain monokrom estetis, bersih, mobile-first, dan bebas clutter agar fokus pada keindahan karya fotografi"
+          ],
+          assumptions: [
+            { id: "ASSUMPTION-01", assumption: "Klien menggunakan smartphone modern dengan browser berkemampuan WebP/AVIF", reason: "Performa visual cepat", impact: "Desain galeri full WebP" },
+            { id: "ASSUMPTION-02", assumption: "Kapasitas cloud storage object mencukupi untuk file mentah & resolusi 300 DPI", reason: "Retensi 60 hari", impact: "Biaya penyimpanan cloud" }
+          ],
+          risks: [
+            "Penyalahgunaan link proofing tanpa otorisasi (Mitigasi: Token kriptografis 64-karakter dengan expiry)",
+            "Klien download screenshot foto mentah (Mitigasi: Watermark dinamis di atas gambar)",
+            "Bentrok jadwal pemotretan multi-client (Mitigasi: Holding lock transaksi 15 menit)"
           ]
         },
         features: [
@@ -906,22 +935,428 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
         },
         userFlow: `1. Landing Page Portofolio Fotografi -> 2. Filter Kategori Karya & Pilih Paket Foto -> 3. Cek Ketersediaan Kalender & Pilih Jam Sesi Pemotretan -> 4. Isi Form Konsep Pemotretan & Data Kontak -> 5. Bayar DP 50% Otomatis (QRIS / VA) -> 6. Konfirmasi Jadwal & Reminder Otomatis via WhatsApp -> 7. Sesi Pemotretan Berlangsung (Studio / Outdoor) -> 8. Tim Unggah Foto Mentah Ber-watermark ke Client Proofing Portal -> 9. Klien Akses Private Link & Menandai Foto Pilihan untuk Retouching -> 10. Tim Retouch Foto & Terbitkan Invoice Pelunasan -> 11. Klien Melunasi Sisa Tagihan -> 12. Klien Mengunduh Foto High-Resolution Final (ZIP / Cloud Storage)`,
         tasks: [
-          { id: "task-photo-1", title: "Setup Next.js 15 App Router & Database PostgreSQL Supabase", description: "Inisialisasi project, pasang Tailwind CSS, TypeScript, Lucide Icons, dan setup koneksi Supabase client.", status: "in_progress" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
-          { id: "task-photo-2", title: "Migrasi Skema Database: Fotografer, Paket, Bookings, Proofing Gallery & Payments", description: "Menjalankan migrasi DDL SQL lengkap dengan tabel relasional, foreign keys, dan index.", status: "in_progress" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
-          { id: "task-photo-3", title: "Implementasi Landing Page & Masonry Portfolio Grid dengan Lightbox EXIF", description: "Membangun tampilan galeri foto responsif dengan modal lightbox dan pembacaan EXIF data kamera.", status: "in_progress" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
-          { id: "task-photo-4", title: "Sistem Filter Kategori Portofolio & Showcase Testimoni Klien", description: "Filter interaktif (Wedding, Prewedding, Portrait, Commercial) dan ulasan klien terverifikasi.", status: "in_progress" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
-          { id: "task-photo-5", title: "Komponen Kalender Interaktif & Pemilihan Slot Jadwal Sesi Pemotretan", description: "Kalender visual ketersediaan fotografer & studio dengan proteksi pencegahan bentrok jadwal.", status: "in_progress" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
-          { id: "task-photo-6", title: "Formulir Reservasi Paket Foto, Add-ons (MUA/Ekstra Jam) & Validasi Zod", description: "Form multi-step pengisian data klien, pilihan paket, add-ons, dan validasi schema Zod.", status: "in_progress" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
-          { id: "task-photo-7", title: "Integrasi Payment Gateway QRIS & VA untuk Pembayaran DP 50%", description: "Koneksi ke API payment gateway untuk generate QRIS instan dan Virtual Account pembayaran DP.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
-          { id: "task-photo-8", title: "Webhook Handler Pembayaran DP & Notifikasi WhatsApp Konfirmasi Jadwal", description: "Endpoint /api/webhook untuk verifikasi pelunasan DP dan trigger pesan WA konfirmasi jadwal.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
-          { id: "task-photo-9", title: "Portal Client Proofing: Private Access Link & Watermark Photo Viewer", description: "Halaman privat klien dengan token unik untuk melihat foto mentah dengan overlay watermark.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-10", title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch", description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-11", title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res", description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.", status: "in_progress" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
-          { id: "task-photo-12", title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)", description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.", status: "in_progress" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
-          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "in_progress" as const, feature: "Studio Management", phase: "Phase 6 - Dashboard Admin" },
-          { id: "task-photo-14", title: "Automasi Watermarking dengan Sharp & Cloud Presigned URL", description: "Worker background untuk meng-apply watermark dinamis pada foto yang diunggah dan generate presigned URL download.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-15", title: "Audit Keamanan Token Proofing & Rate Limiting Endpoint", description: "Proteksi brute force link proofing, sanitasi akses unduhan, dan pengujian otorisasi session.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
-          { id: "task-photo-16", title: "Testing Menyeluruh, Optimasi Core Web Vitals & Production Deployment", description: "Audit performa galeri foto WebP/AVIF, stress test kalender booking, dan rilis ke production Vercel.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
+          {
+            id: "task-photo-1",
+            title: "Setup Next.js 15 App Router & Database PostgreSQL Supabase",
+            description: "Inisialisasi project Next.js 15 App Router, pasang Tailwind CSS, TypeScript, Lucide Icons, dan setup koneksi Supabase client.",
+            status: "in_progress" as const,
+            feature: "Setup & Fondasi",
+            phase: "Phase 1 - Inisialisasi",
+            priority: "CRITICAL",
+            relatedRequirements: ["NFR-01", "NFR-04"],
+            dependencies: [],
+            subtasks: [
+              "Inisialisasi repo Next.js 15 dengan App Router & TypeScript",
+              "Konfigurasi Tailwind CSS dan plugin typography",
+              "Setup Supabase client SDK dengan environment variables",
+              "Konfigurasi linting ESLint dan Prettier"
+            ],
+            acceptanceCriteria: [
+              "Aplikasi Next.js berjalan tanpa error di port 3000",
+              "Koneksi Supabase client berhasil melakukan query ping test",
+              "Variabel lingkungan (.env) tervalidasi saat build time"
+            ],
+            testing: [
+              "Verifikasi server startup: npm run dev",
+              "Test koneksi query Supabase client dengan simple SELECT 1"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-2",
+            title: "Migrasi Skema Database: Fotografer, Paket, Bookings, Proofing Gallery & Payments",
+            description: "Menjalankan migrasi DDL SQL lengkap dengan tabel relasional, foreign keys, constraints, dan indexes performa.",
+            status: "in_progress" as const,
+            feature: "Setup & Fondasi",
+            phase: "Phase 1 - Inisialisasi",
+            priority: "CRITICAL",
+            relatedRequirements: ["NFR-02", "NFR-07"],
+            dependencies: ["task-photo-1"],
+            subtasks: [
+              "Buat tabel photographers, photo_packages, dan shoot_bookings",
+              "Buat tabel client_galleries, gallery_photos, dan invoices_payments",
+              "Pasang foreign key constraints, cascade rules, dan B-Tree indexes",
+              "Konfigurasi Row Level Security (RLS) policies untuk akses publik dan privat"
+            ],
+            acceptanceCriteria: [
+              "Semua 6 tabel utama terbuat di PostgreSQL dengan tipe data yang presisi",
+              "B-Tree index terpasang pada shoot_date, access_token, dan booking_id",
+              "Foreign key constraints aktif dan mencegah orphan records"
+            ],
+            testing: [
+              "Jalankan skrip migrasi SQL pada database Supabase",
+              "Uji insert dummy data dan verifikasi constraint foreign key"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-3",
+            title: "Implementasi Landing Page & Masonry Portfolio Grid dengan Lightbox EXIF",
+            description: "Membangun tampilan galeri foto responsif dengan modal lightbox dan pembacaan EXIF data kamera.",
+            status: "in_progress" as const,
+            feature: "Showcase Portofolio",
+            phase: "Phase 2 - Showcase",
+            priority: "HIGH",
+            relatedRequirements: ["FR-01", "NFR-01"],
+            dependencies: ["task-photo-1"],
+            subtasks: [
+              "Membangun layout grid masonry responsif untuk galeri foto",
+              "Integrasi Next.js Image component dengan lazy loading dan WebP",
+              "Implementasi modal Lightbox dengan navigasi keyboard",
+              "Komponen inspeksi metadata EXIF (Kamera, Lensa, Aperture, Shutter, ISO)"
+            ],
+            acceptanceCriteria: [
+              "Galeri tersusun rapi dalam masonry grid tanpa layout shift (CLS < 0.1)",
+              "Klik pada foto membuka Lightbox fullscreen dengan zoom 100%",
+              "Data EXIF ditampilkan jelas dan responsif di layar mobile dan desktop"
+            ],
+            testing: [
+              "Uji responsive breakpoint pada ukuran 375px, 768px, 1280px",
+              "Verifikasi audit Lighthouse performa galeri > 90"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-4",
+            title: "Sistem Filter Kategori Portofolio & Showcase Testimoni Klien",
+            description: "Filter interaktif (Wedding, Prewedding, Portrait, Commercial) dan ulasan klien terverifikasi.",
+            status: "in_progress" as const,
+            feature: "Showcase Portofolio",
+            phase: "Phase 2 - Showcase",
+            priority: "MEDIUM",
+            relatedRequirements: ["FR-02"],
+            dependencies: ["task-photo-3"],
+            subtasks: [
+              "Komponen tombol filter kategori dengan state aktif",
+              "Animasi transisi pergantian kategori gambar dengan Framer Motion",
+              "Komponen carousel / grid testimoni klien dengan bintang rating"
+            ],
+            acceptanceCriteria: [
+              "Filter kategori mengubah daftar gambar seketika tanpa refresh halaman",
+              "URL query parameter ter-update saat kategori dipilih untuk bookmarking",
+              "Testimoni klien tampil rapi dan dapat di-scroll responsif"
+            ],
+            testing: [
+              "Uji klik setiap tab filter dan verifikasi daftar foto yang muncul sesuai",
+              "Test navigasi back/forward browser mempertahankan filter"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-5",
+            title: "Komponen Kalender Interaktif & Pemilihan Slot Jadwal Sesi Pemotretan",
+            description: "Kalender visual ketersediaan fotografer & studio dengan proteksi pencegahan bentrok jadwal.",
+            status: "in_progress" as const,
+            feature: "Booking Engine",
+            phase: "Phase 3 - Booking Engine",
+            priority: "HIGH",
+            relatedRequirements: ["FR-04", "NFR-07"],
+            dependencies: ["task-photo-2"],
+            subtasks: [
+              "Membangun komponen visual kalender pemilihan tanggal",
+              "Fetch slot jam ketersediaan fotografer dari database",
+              "Indikator status slot (Tersedia, Terisi, Terkunci sementara)",
+              "Logika disable slot tanggal lampau dan tanggal yang sudah penuh"
+            ],
+            acceptanceCriteria: [
+              "Slot jam yang sudah dibooking terkunci dan tidak dapat dipilih pengguna lain",
+              "Pemilihan tanggal menampilkan slot jam yang valid secara instan",
+              "Pilihan lokasi (Studio vs Outdoor) mengubah daftar ketersediaan jika relevan"
+            ],
+            testing: [
+              "Uji pemilihan slot jam yang sama secara bersamaan (simulasi race condition)",
+              "Verifikasi slot tanggal lampau terblokir"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-6",
+            title: "Formulir Reservasi Paket Foto, Add-ons (MUA/Ekstra Jam) & Validasi Zod",
+            description: "Form multi-step pengisian data klien, pilihan paket, add-ons, dan validasi schema Zod.",
+            status: "in_progress" as const,
+            feature: "Booking Engine",
+            phase: "Phase 3 - Booking Engine",
+            priority: "HIGH",
+            relatedRequirements: ["FR-03", "FR-05"],
+            dependencies: ["task-photo-5"],
+            subtasks: [
+              "Definisi skema Zod untuk validasi kontak klien, pilihan paket, dan add-ons",
+              "Formulir brief pemotretan (konsep busana, catatan lokasi, jumlah peserta)",
+              "Kalkulator rekapitulasi biaya otomatis (Total, DP 50%, Pelunasan)"
+            ],
+            acceptanceCriteria: [
+              "Validasi Zod menolak format email/nomor WA yang salah dengan pesan error jelas",
+              "Kalkulator total biaya dan DP 50% akurat tanpa kesalahan floating point",
+              "Ringkasan pesanan tampil sebelum melangkah ke pembayaran"
+            ],
+            testing: [
+              "Uji submit form dengan payload kosong dan periksa pesan validasi",
+              "Test kalkulasi harga dengan berbagai kombinasi add-ons"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-7",
+            title: "Integrasi Payment Gateway QRIS & VA untuk Pembayaran DP 50%",
+            description: "Koneksi ke API payment gateway untuk generate QRIS instan dan Virtual Account pembayaran DP.",
+            status: "in_progress" as const,
+            feature: "Pembayaran",
+            phase: "Phase 4 - Pembayaran",
+            priority: "CRITICAL",
+            relatedRequirements: ["FR-06"],
+            dependencies: ["task-photo-6"],
+            subtasks: [
+              "Integrasi SDK / REST API Payment Gateway (Midtrans/Xendit)",
+              "Endpoint Server Action createPaymentTransaction untuk generate QRIS & VA",
+              "Komponen modal checkout dengan countdown batas waktu pembayaran (15 menit)"
+            ],
+            acceptanceCriteria: [
+              "Pengguna menerima barcode QRIS atau nomor VA bank saat checkout",
+              "Holding lock pada slot booking aktif selama 15 menit hitung mundur",
+              "Invoice DP tercatat di tabel payments dengan status 'pending'"
+            ],
+            testing: [
+              "Uji pemanggilan API gateway pada sandbox environment",
+              "Verifikasi token transaksi dan waktu expired terhitung tepat"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-8",
+            title: "Webhook Handler Pembayaran DP & Notifikasi WhatsApp Konfirmasi Jadwal",
+            description: "Endpoint /api/webhook untuk verifikasi pelunasan DP dan trigger pesan WA konfirmasi jadwal.",
+            status: "in_progress" as const,
+            feature: "Pembayaran",
+            phase: "Phase 4 - Pembayaran",
+            priority: "HIGH",
+            relatedRequirements: ["FR-07"],
+            dependencies: ["task-photo-7"],
+            subtasks: [
+              "Endpoint /api/webhook/payment dengan validasi cryptographic signature",
+              "Update status shoot_bookings menjadi 'confirmed' dan payments menjadi 'paid'",
+              "Trigger notifikasi konfirmasi booking via WhatsApp API (Fonnte) ke klien dan fotografer"
+            ],
+            acceptanceCriteria: [
+              "Webhook memverifikasi signature dan menolak request tidak valid (401)",
+              "Status transaksi ter-update otomatis dalam < 2 detik setelah pembayaran berhasil",
+              "Klien dan fotografer menerima notifikasi WhatsApp rincian jadwal dan invoice"
+            ],
+            testing: [
+              "Simulasi webhook callback settlement dengan Midtrans simulator",
+              "Uji payload webhook palsu untuk memastikan signature check bekerja"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-9",
+            title: "Portal Client Proofing: Private Access Link & Watermark Photo Viewer",
+            description: "Halaman privat klien dengan token unik untuk melihat foto mentah dengan overlay watermark.",
+            status: "in_progress" as const,
+            feature: "Proofing Portal",
+            phase: "Phase 5 - Proofing Portal",
+            priority: "HIGH",
+            relatedRequirements: ["FR-08", "FR-09", "NFR-02"],
+            dependencies: ["task-photo-8"],
+            subtasks: [
+              "Pembuatan rute dinamis /proofing/[token] dengan verifikasi token akses",
+              "Proteksi klik-kanan dan penonaktifan download pada foto mentah",
+              "Watermark overlay dinamis dengan nama klien dan logo studio"
+            ],
+            acceptanceCriteria: [
+              "Akses ke halaman proofing membutuhkan token unik yang valid",
+              "Foto mentah memiliki overlay watermark yang tidak dapat dihapus dengan inspeksi DOM",
+              "Halaman responsif dan cepat dimuat untuk puluhan foto mentah"
+            ],
+            testing: [
+              "Uji akses halaman dengan token acak/tidak valid (harus 404 / Unauthorized)",
+              "Verifikasi watermark muncul di semua resolusi viewport"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-10",
+            title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch",
+            description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.",
+            status: "in_progress" as const,
+            feature: "Proofing Portal",
+            phase: "Phase 5 - Proofing Portal",
+            priority: "HIGH",
+            relatedRequirements: ["FR-10"],
+            dependencies: ["task-photo-9"],
+            subtasks: [
+              "Tombol toggle favorite/select pada setiap foto dengan animasi visual",
+              "Counter kuota foto yang dipilih (misal: 15 / 20 Foto)",
+              "Modal input catatan retouch / revisi spesifik untuk setiap foto yang dipilih",
+              "Tombol submit final seleksi foto dengan konfirmasi dialog"
+            ],
+            acceptanceCriteria: [
+              "Counter kuota bertambah/berkurang secara real-time saat foto dipilih",
+              "Pengguna tidak dapat submit jika kuota foto yang dipilih melebihi batas paket",
+              "Catatan retouch tersimpan ke database di tabel gallery_photos"
+            ],
+            testing: [
+              "Uji toggle foto dan verifikasi persistensi seleksi saat reload",
+              "Test batasan kuota seleksi maksimum"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-11",
+            title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res",
+            description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.",
+            status: "in_progress" as const,
+            feature: "Delivery",
+            phase: "Phase 6 - Delivery",
+            priority: "MEDIUM",
+            relatedRequirements: ["FR-13"],
+            dependencies: ["task-photo-10"],
+            subtasks: [
+              "Dashboard pipeline pengerjaan berbasis status kanban/list",
+              "Form batch upload foto hasil editan resolusi penuh ke Cloud Storage",
+              "Tombol tandai pengerjaan selesai dan terbitkan invoice pelunasan"
+            ],
+            acceptanceCriteria: [
+              "Admin dapat memfilter proyek berdasarkan status (Editing, Ready, Delivered)",
+              "Upload foto resolusi tinggi berhasil tersimpan ke storage bucket privat",
+              "Menandai editing selesai mengubah status booking menjadi 'proofing_completed'"
+            ],
+            testing: [
+              "Uji upload batch 20 foto resolusi tinggi (300 DPI)",
+              "Verifikasi perubahan status di database"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-12",
+            title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)",
+            description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.",
+            status: "in_progress" as const,
+            feature: "Delivery",
+            phase: "Phase 6 - Delivery",
+            priority: "CRITICAL",
+            relatedRequirements: ["FR-11", "FR-12"],
+            dependencies: ["task-photo-11"],
+            subtasks: [
+              "Generator invoice pelunasan sisa 50% tagihan dan link pembayaran",
+              "Webhook listener konfirmasi pelunasan final",
+              "Endpoint pembuatan arsip ZIP foto resolusi penuh dengan presigned URL berbatas waktu"
+            ],
+            acceptanceCriteria: [
+              "Tombol unduh file High-Res terkunci sampai status pembayaran bernilai 'fully_paid'",
+              "Presigned URL download kedaluwarsa setelah 24 jam untuk keamanan link",
+              "Arsip ZIP berisi seluruh foto editan beresolusi penuh tanpa watermark"
+            ],
+            testing: [
+              "Coba unduh file sebelum pelunasan (harus ditolak/terkunci)",
+              "Uji download ZIP setelah pelunasan diverifikasi"
+            ],
+            parallelizable: "NO"
+          },
+          {
+            id: "task-photo-13",
+            title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan",
+            description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.",
+            status: "in_progress" as const,
+            feature: "Studio Management",
+            phase: "Phase 6 - Dashboard Admin",
+            priority: "MEDIUM",
+            relatedRequirements: ["FR-14"],
+            dependencies: ["task-photo-8"],
+            subtasks: [
+              "Kalender jadwal penugasan kru fotografer harian/mingguan",
+              "Visualisasi KPI: Omzet bulan ini, booking aktif, dan piutang pelunasan",
+              "Fitur ekspor rekapitulasi data pesanan dan pembayaran ke CSV"
+            ],
+            acceptanceCriteria: [
+              "Kalender menampilkan jadwal sesi photoshoot secara akurat",
+              "Metrik keuangan menampilkan nominal DP dan Pelunasan secara terpisah",
+              "Ekspor CSV berhasil terunduh dengan format data rapi"
+            ],
+            testing: [
+              "Verifikasi kalkulasi total omzet sesuai penjumlahan riil di tabel payments",
+              "Uji unduh file CSV dan buka di spreadsheet"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-14",
+            title: "Automasi Watermarking dengan Sharp & Cloud Presigned URL",
+            description: "Worker backend untuk meng-apply watermark dinamis pada foto yang diunggah dan generate presigned URL download.",
+            status: "in_progress" as const,
+            feature: "Proofing Portal",
+            phase: "Phase 5 - Proofing Portal",
+            priority: "HIGH",
+            relatedRequirements: ["FR-09", "NFR-04"],
+            dependencies: ["task-photo-9"],
+            subtasks: [
+              "Integrasi pustaka manipulasi citra Sharp di sisi Server Action",
+              "Kompresi otomatis foto display web (WebP 80% quality) untuk kecepatan loading",
+              "Pemberian watermark semi-transparan di tengah dan sudut gambar secara otomatis"
+            ],
+            acceptanceCriteria: [
+              "Foto mentah terkonversi dan ter-watermark otomatis saat diunggah",
+              "Ukuran file web display berkurang minimal 60% tanpa penurunan ketajaman visual",
+              "Proses watermarking per foto selesai di bawah 500ms"
+            ],
+            testing: [
+              "Uji upload foto JPEG ukuran 15MB dan periksa hasil watermark & kompresi",
+              "Verifikasi orientasi EXIF (rotasi) tetap terjaga dengan benar"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-15",
+            title: "Audit Keamanan Token Proofing & Rate Limiting Endpoint",
+            description: "Proteksi brute force link proofing, sanitasi akses unduhan, dan pengujian otorisasi session.",
+            status: "in_progress" as const,
+            feature: "QA & Hardening",
+            phase: "Phase 7 - QA & Deployment",
+            priority: "HIGH",
+            relatedRequirements: ["NFR-02", "NFR-03"],
+            dependencies: ["task-photo-12", "task-photo-14"],
+            subtasks: [
+              "Pasang Upstash Redis / in-memory rate limiting pada endpoint publik dan webhook",
+              "Sanitasi seluruh parameter input token dengan Zod",
+              "Enkripsi link download dan validasi authorization header"
+            ],
+            acceptanceCriteria: [
+              "Endpoint memblokir request berulang yang mencurigakan (> 30 req/menit)",
+              "Token proofing memiliki entropi 64-karakter kriptografis aman",
+              "Tidak ada celah IDOR (Insecure Direct Object Reference) pada foto galeri"
+            ],
+            testing: [
+              "Jalankan stress test simulasi 50 request berturut-turut ke endpoint token",
+              "Audit celah bypass URL storage langsung tanpa presigned token"
+            ],
+            parallelizable: "YES"
+          },
+          {
+            id: "task-photo-16",
+            title: "Testing Menyeluruh, Optimasi Core Web Vitals & Production Deployment",
+            description: "Audit performa galeri foto WebP/AVIF, stress test kalender booking, dan rilis ke production Vercel.",
+            status: "in_progress" as const,
+            feature: "QA & Hardening",
+            phase: "Phase 7 - QA & Deployment",
+            priority: "CRITICAL",
+            relatedRequirements: ["NFR-01", "NFR-05", "NFR-06"],
+            dependencies: ["task-photo-15"],
+            subtasks: [
+              "Audit performa Lighthouse (Target score > 90 untuk Performance & SEO)",
+              "End-to-End smoke test: Booking -> Bayar DP -> Proofing Foto -> Pelunasan -> Download ZIP",
+              "Setup environment variables production di dashboard Vercel",
+              "Deploy ke domain production dengan custom SSL certificate"
+            ],
+            acceptanceCriteria: [
+              "Seluruh alur bisnis dari hulu ke hilir berhasil dieksekusi tanpa error di production",
+              "Nilai LCP < 1.5 detik dan CLS < 0.1 pada galeri portofolio",
+              "Build production Next.js berhasil tanpa error TypeScript atau warning fatal"
+            ],
+            testing: [
+              "Jalankan npx tsc --noEmit && npm run build secara lokal",
+              "Lakukan test transaksi riil dengan nominal Rp 1.000 di production"
+            ],
+            parallelizable: "NO"
+          }
         ]
       };
     }
@@ -973,6 +1408,14 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           "NFR-06 (Reliabilitas): Target uptime sistem 99.9% didukung strategi graceful fallback error boundary saat terjadi gangguan layanan pihak ketiga",
           "NFR-07 (Integritas Data): Menggunakan transaksi database ACID dengan isolation level READ COMMITTED untuk mencegah anomali data keuangan",
           "NFR-08 (Responsivitas UI): Desain adaptif fluid-layout untuk layar mobile smartphone (360px+), tablet, hingga layar desktop ultrawide"
+        ],
+        assumptions: [
+          { id: "ASSUMPTION-01", assumption: "Sistem di-deploy pada platform cloud serverless (Vercel Edge & Supabase)", reason: "Skalabilitas otomatis", impact: "Arsitektur stateless" },
+          { id: "ASSUMPTION-02", assumption: "Integrasi Payment Gateway mendukung webhook callback server-to-server", reason: "Rekonsiliasi otomatis", impact: "Keandalan verifikasi saldo" }
+        ],
+        risks: [
+          "Beban puncak transaksi checkout bersamaan (Mitigasi: Concurrency lock ACID pada database)",
+          "Kegagalan pengiriman webhook pihak ketiga (Mitigasi: Idempotent handler dengan retry log)"
         ]
       },
       features: [
@@ -1188,22 +1631,435 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
       },
       userFlow: `1. Landing Page -> 2. Penelusuran Katalog & Filter Layanan -> 3. Halaman Detail Item & Pengecekan Ketersediaan -> 4. Formulir Data Transaksi (Validasi Zod) -> 5. Penguncian Slot Sementara (Hold 15 Menit) -> 6. Checkout & Pembayaran Otomatis (QRIS / VA) -> 7. Verifikasi Webhook Server-to-Server -> 8. Penerbitan Faktur PDF & Notifikasi WhatsApp -> 9. Eksekusi Layanan oleh Staff -> 10. Dashboard Riwayat Pengguna & Ulasan Bintang`,
       tasks: [
-        { id: "t-01", title: "Setup Inisialisasi Proyek, Konfigurasi Lingkungan & Tooling", description: "Inisialisasi Next.js 15 App Router, TypeScript, Tailwind CSS, ESLint, Prettier, dan file konfigurasi environment variables (.env.example).", status: "in_progress" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-02", title: "Desain Skema Database Relasional PostgreSQL, DDL & Indexes", description: "Menulis skrip DDL SQL untuk tabel users, categories, items_services, orders_bookings, payments, reviews, dan audit logs beserta foreign keys dan B-Tree indexes.", status: "in_progress" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-03", title: "Implementasi Sistem Autentikasi Pengguna & Session Middleware", description: "Membangun endpoint login, register, hash password Argon2/Bcrypt, session cookie HttpOnly aman, dan middleware route guard Next.js untuk proteksi rute.", status: "in_progress" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
-        { id: "t-04", title: "Modul Manajemen Profil Pengguna, Reset Password & Role Guard", description: "Halaman edit profil pengguna, avatar upload, alur lupa password via email token terenkripsi, dan pembagian hak akses (Customer, Staff, Admin).", status: "in_progress" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
-        { id: "t-05", title: "Pembuatan Master Layout, Design System & App Shell Responsif", description: "Membangun komponen Navbar, Sidebar navigasi, modal wrapper, alert toast, dan layout adaptif responsif dark/light mode yang konsisten.", status: "in_progress" as const, feature: "Frontend Core", phase: "Phase 3 - Frontend Core" },
-        { id: "t-06", title: "Halaman Penelusuran Katalog, Instant Debounce Search & Filter", description: "Menampilkan kartu data dinamis dengan instant search bar (debounce 250ms), multi-filter kategori, urutan harga, dan pagination/infinite scroll.", status: "in_progress" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
-        { id: "t-07", title: "Halaman Detail Entitas/Layanan dengan Visual Showcase", description: "Membangun tampilan detail item dengan galeri gambar responsif, deskripsi mendalam, accordion spesifikasi teknis, dan indikator status ketersediaan live.", status: "in_progress" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
-        { id: "t-08", title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking", description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.", status: "in_progress" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
-        { id: "t-09", title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan", description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.", status: "in_progress" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
-        { id: "t-10", title: "Integrasi Gateway Pembayaran Digital (QRIS Dinamis & Virtual Account)", description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
-        { id: "t-11", title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order", description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
-        { id: "t-12", title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp", description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).", status: "in_progress" as const, feature: "Notifikasi", phase: "Phase 5 - Integrasi" },
-        { id: "t-13", title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis", description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.", status: "in_progress" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
-        { id: "t-14", title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel", description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.", status: "in_progress" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
-        { id: "t-15", title: "Testing Menyeluruh End-to-End, Error Boundary & Logging", description: "Pengujian skenario alur dari registrasi, penelusuran, checkout holding lock, pembayaran webhook sampai invoice, serta pengujian error boundary.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
-        { id: "t-16", title: "Security Hardening, Optimasi Core Web Vitals & Deploy ke Production", description: "Audit header keamanan (CSP, X-Frame-Options), optimasi kompresi gambar Next.js Image, audit performa Lighthouse, dan rilis production ke Vercel.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
+        {
+          id: "TASK-001",
+          title: "Setup Inisialisasi Proyek, Konfigurasi Lingkungan & Tooling",
+          description: "Inisialisasi Next.js 15 App Router, TypeScript, Tailwind CSS, ESLint, Prettier, dan file konfigurasi environment variables (.env.example).",
+          status: "in_progress" as const,
+          feature: "Fondasi",
+          phase: "Phase 1 - Inisialisasi",
+          priority: "CRITICAL",
+          relatedRequirements: ["NFR-01", "NFR-04"],
+          dependencies: [],
+          subtasks: [
+            "Inisialisasi Next.js 15 App Router dengan TypeScript",
+            "Konfigurasi Tailwind CSS dan Tailwind Typography plugin",
+            "Buat file .env.example dengan dokumentasi variabel environment",
+            "Setup alias path (@/*) pada tsconfig.json"
+          ],
+          acceptanceCriteria: [
+            "Project berhasil di-build tanpa error (next build)",
+            "Server development running di localhost:3000 dengan Hot Reloading aktif",
+            "Semua konfigurasi linter dan TypeScript strict mode lolos validasi"
+          ],
+          testing: [
+            "Jalankan npm run dev dan buka localhost:3000",
+            "Jalankan npx tsc --noEmit untuk validasi tipe"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-002",
+          title: "Desain Skema Database Relasional PostgreSQL, DDL & Indexes",
+          description: "Menulis skrip DDL SQL untuk tabel users, categories, items_services, orders_bookings, payments, reviews, dan audit logs beserta foreign keys dan B-Tree indexes.",
+          status: "in_progress" as const,
+          feature: "Fondasi",
+          phase: "Phase 1 - Inisialisasi",
+          priority: "CRITICAL",
+          relatedRequirements: ["NFR-02", "NFR-07"],
+          dependencies: ["TASK-001"],
+          subtasks: [
+            "Tulis DDL tabel users, categories, dan items_services",
+            "Tulis DDL tabel orders_bookings, payments, dan reviews",
+            "Buat B-Tree index pada kolom pencarian dan foreign key",
+            "Setup Row Level Security (RLS) policies pada PostgreSQL"
+          ],
+          acceptanceCriteria: [
+            "Seluruh skrip migrasi SQL berhasil dieksekusi tanpa error syntax",
+            "Relasi foreign key dengan ON DELETE CASCADE/RESTRICT berfungsi sesuai rancangan",
+            "Index terpasang pada user_id, order_id, status, dan category_id"
+          ],
+          testing: [
+            "Eksekusi skrip SQL di database PostgreSQL/Supabase",
+            "Uji constraint foreign key dengan mencoba insert data invalid"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-003",
+          title: "Implementasi Sistem Autentikasi Pengguna & Session Middleware",
+          description: "Membangun endpoint login, register, hash password Argon2/Bcrypt, session cookie HttpOnly aman, dan middleware route guard Next.js untuk proteksi rute.",
+          status: "in_progress" as const,
+          feature: "Autentikasi",
+          phase: "Phase 2 - Autentikasi",
+          priority: "CRITICAL",
+          relatedRequirements: ["FR-01", "FR-02", "NFR-03"],
+          dependencies: ["TASK-002"],
+          subtasks: [
+            "Buat Server Action untuk register dengan validasi Zod dan hash password",
+            "Buat Server Action login dengan penerbitan token JWT / session cookie",
+            "Implementasi middleware.ts untuk validasi session dan proteksi rute /dashboard",
+            "Buat fungsi logout untuk revocating session cookie"
+          ],
+          acceptanceCriteria: [
+            "Cookie session bersifat HttpOnly, Secure, dan SameSite=Lax",
+            "Pengguna unauthenticated yang mengakses /dashboard diarahkan otomatis ke /login",
+            "Password ter-hash dengan salt dan tidak tersimpan dalam bentuk plain text"
+          ],
+          testing: [
+            "Uji login dengan kredensial valid dan verifikasi redirect ke dashboard",
+            "Uji akses rute privat tanpa cookie session dan pastikan redirect ke login"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-004",
+          title: "Modul Manajemen Profil Pengguna, Reset Password & Role Guard",
+          description: "Halaman edit profil pengguna, avatar upload, alur lupa password via email token terenkripsi, dan pembagian hak akses (Customer, Staff, Admin).",
+          status: "in_progress" as const,
+          feature: "Autentikasi",
+          phase: "Phase 2 - Autentikasi",
+          priority: "HIGH",
+          relatedRequirements: ["FR-01"],
+          dependencies: ["TASK-003"],
+          subtasks: [
+            "Komponen halaman profil pengguna dengan form ubah nama dan foto avatar",
+            "Alur reset password: kirim email token, verifikasi token, ganti password baru",
+            "Penerapan role-based access guard untuk rute khusus /admin"
+          ],
+          acceptanceCriteria: [
+            "Pengguna non-admin diblokir (403 Forbidden) saat mencoba mengakses /admin",
+            "Token reset password kedaluwarsa setelah 30 menit",
+            "Perubahan profil tersimpan seketika di database"
+          ],
+          testing: [
+            "Uji login dengan akun customer dan coba buka halaman admin",
+            "Test pengiriman token reset password dan verifikasi pergantian kata sandi"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-005",
+          title: "Pembuatan Master Layout, Design System & App Shell Responsif",
+          description: "Membangun komponen Navbar, Sidebar navigasi, modal wrapper, alert toast, dan layout adaptif responsif dark/light mode yang konsisten.",
+          status: "in_progress" as const,
+          feature: "Frontend Core",
+          phase: "Phase 3 - Frontend Core",
+          priority: "HIGH",
+          relatedRequirements: ["NFR-05", "NFR-08"],
+          dependencies: ["TASK-001"],
+          subtasks: [
+            "Komponen Navbar dengan logo, menu navigasi, dan user dropdown profile",
+            "Komponen Sidebar responsif yang dapat di-collapse di mobile",
+            "Komponen Modal dan Toast notification provider",
+            "Sinkronisasi tema monokrom dark/light mode dengan Tailwind"
+          ],
+          acceptanceCriteria: [
+            "Layout responsif sempurna di viewport mobile (360px) hingga desktop (1920px)",
+            "Tidak terjadi hydration mismatch antara server render dan client render",
+            "Konsistensi tema monokrom pada seluruh komponen shell"
+          ],
+          testing: [
+            "Uji navigasi menu pada ukuran layar smartphone dan tablet",
+            "Verifikasi toggle dark mode tidak menyebabkan flicker"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-006",
+          title: "Halaman Penelusuran Katalog, Instant Debounce Search & Filter",
+          description: "Menampilkan kartu data dinamis dengan instant search bar (debounce 250ms), multi-filter kategori, urutan harga, dan pagination/infinite scroll.",
+          status: "in_progress" as const,
+          feature: "Katalog",
+          phase: "Phase 3 - Frontend Core",
+          priority: "HIGH",
+          relatedRequirements: ["FR-03", "NFR-01"],
+          dependencies: ["TASK-002", "TASK-005"],
+          subtasks: [
+            "Input pencarian dengan custom hook useDebounce (250ms)",
+            "Komponen filter kategori dan sorting (Harga termurah, termahal, terpopuler)",
+            "Card item responsif dengan image optimization Next.js Image",
+            "Skeleton loader saat proses fetch data katalog"
+          ],
+          acceptanceCriteria: [
+            "Pencarian tidak menembak request ke backend pada setiap ketikan huruf",
+            "Filter dan query string tersinkronisasi dengan URL browser",
+            "Kecepatan muat katalog < 1 detik dengan pagination efisien"
+          ],
+          testing: [
+            "Uji ketik di search box dan amati network tab untuk memastikan debounce aktif",
+            "Test kombinasi filter kategori dan pengurutan harga"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-007",
+          title: "Halaman Detail Entitas/Layanan dengan Visual Showcase",
+          description: "Membangun tampilan detail item dengan galeri gambar responsif, deskripsi mendalam, accordion spesifikasi teknis, dan indikator status ketersediaan live.",
+          status: "in_progress" as const,
+          feature: "Katalog",
+          phase: "Phase 3 - Frontend Core",
+          priority: "MEDIUM",
+          relatedRequirements: ["FR-04"],
+          dependencies: ["TASK-006"],
+          subtasks: [
+            "Halaman detail dinamis /catalog/[slug] berbasis Server Component",
+            "Galeri gambar dengan thumbnail selector",
+            "Accordion rincian fitur dan spesifikasi",
+            "Badge ketersediaan real-time (Tersedia / Terbatas / Habis)"
+          ],
+          acceptanceCriteria: [
+            "Server Component mengembalikan data detail item dengan SEO tags dinamis",
+            "Thumbnail galeri merespons klik dan mengganti gambar utama tanpa lag",
+            "Tombol booking/pesan ter-disable otomatis jika status 'Habis'"
+          ],
+          testing: [
+            "Akses URL slug yang valid dan verifikasi data tampil lengkap",
+            "Akses slug yang tidak ada dan pastikan muncul halaman 404 Not Found"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-008",
+          title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking",
+          description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.",
+          status: "in_progress" as const,
+          feature: "Transaksi",
+          phase: "Phase 4 - Modul Transaksi",
+          priority: "CRITICAL",
+          relatedRequirements: ["FR-05", "FR-06", "NFR-07"],
+          dependencies: ["TASK-007", "TASK-003"],
+          subtasks: [
+            "Skema Zod komprehensif untuk payload data transaksi",
+            "Server Action createBookingWithLock dengan database transaction (ACID)",
+            "Logika holding lock kuota selama 15 menit dengan kolom hold_expires_at",
+            "Background cron / trigger untuk melepaskan lock yang kedaluwarsa"
+          ],
+          acceptanceCriteria: [
+            "Dua pengguna tidak dapat mengunci slot ketersediaan yang sama pada detik yang bersamaan",
+            "Lock otomatis gugur setelah 15 menit jika pembayaran tidak diselesaikan",
+            "Data transaksi tersimpan dengan status 'pending'"
+          ],
+          testing: [
+            "Jalankan uji konkurensi (simultaneous checkout requests)",
+            "Verifikasi lock kadaluwarsa ter-release kembali ke pool ketersediaan"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-009",
+          title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan",
+          description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.",
+          status: "in_progress" as const,
+          feature: "Transaksi",
+          phase: "Phase 4 - Modul Transaksi",
+          priority: "HIGH",
+          relatedRequirements: ["FR-05"],
+          dependencies: ["TASK-008"],
+          subtasks: [
+            "Fungsi kalkulasi subtotal, pajak, diskon, dan total akhir di server",
+            "Validasi kode voucher diskon (kuota pemakaian, minimum transaksi, masa berlaku)",
+            "Komponen UI ringkasan tagihan transparan di layar checkout"
+          ],
+          acceptanceCriteria: [
+            "Kalkulasi di client selalu dicocokkan dan divalidasi ulang di backend",
+            "Voucher diskon yang tidak valid menampilkan pesan error deskriptif",
+            "Nominal total tagihan tidak pernah bernilai negatif"
+          ],
+          testing: [
+            "Uji penerapan kupon diskon persentase dan nominal flat",
+            "Coba manipulasi nominal di client side dan verifikasi backend menolaknya"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-010",
+          title: "Integrasi Gateway Pembayaran Digital (QRIS Dinamis & Virtual Account)",
+          description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.",
+          status: "in_progress" as const,
+          feature: "Pembayaran",
+          phase: "Phase 5 - Integrasi",
+          priority: "CRITICAL",
+          relatedRequirements: ["FR-07"],
+          dependencies: ["TASK-009"],
+          subtasks: [
+            "Setup koneksi SDK API Payment Gateway dengan server key aman",
+            "Server Action generatePaymentToken untuk charge QRIS dan Virtual Account",
+            "Komponen modal transaksi dengan QR code responsif dan tombol salin nomor VA"
+          ],
+          acceptanceCriteria: [
+            "QRIS dinamis ter-generate seketika dan dapat dipindai aplikasi pembayaran",
+            "Nomor Virtual Account bank (BCA, Mandiri, BRI) muncul lengkap dengan instruksi",
+            "Status pembayaran awal tercatat 'unpaid' dengan timestamp expired 15 menit"
+          ],
+          testing: [
+            "Eksekusi charge API di sandbox mode payment gateway",
+            "Verifikasi respon payment gateway ter-mapping akurat ke tabel payments"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-011",
+          title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order",
+          description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.",
+          status: "in_progress" as const,
+          feature: "Pembayaran",
+          phase: "Phase 5 - Integrasi",
+          priority: "CRITICAL",
+          relatedRequirements: ["FR-08"],
+          dependencies: ["TASK-010"],
+          subtasks: [
+            "Endpoint Route Handler POST /api/webhook/payment",
+            "Verifikasi HMAC SHA512 signature dari payload gateway",
+            "Update atomic status payments menjadi 'paid' dan orders menjadi 'confirmed'",
+            "Penanganan status transaksi gagal (expire / cancel / deny)"
+          ],
+          acceptanceCriteria: [
+            "Request dengan signature palsu langsung ditolak dengan HTTP 401 Unauthorized",
+            "Idempotensi: request webhook ganda tidak menduplikasi mutasi saldo atau status",
+            "Status order berubah secara real-time"
+          ],
+          testing: [
+            "Simulasi kirim payload webhook settlement resmi",
+            "Uji kirim payload dengan signature sengaja dirusak"
+          ],
+          parallelizable: "NO"
+        },
+        {
+          id: "TASK-012",
+          title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp",
+          description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).",
+          status: "in_progress" as const,
+          feature: "Notifikasi",
+          phase: "Phase 5 - Integrasi",
+          priority: "HIGH",
+          relatedRequirements: ["FR-09", "FR-10"],
+          dependencies: ["TASK-011"],
+          subtasks: [
+            "Template invoice PDF dengan styling profesional dan QR verifikasi",
+            "Endpoint download invoice /api/invoices/[orderNumber]",
+            "Integrasi API WhatsApp Gateway untuk dispatch notifikasi bukti bayar",
+            "Fallback email transaksional dengan lampiran invoice"
+          ],
+          acceptanceCriteria: [
+            "PDF invoice berukuran ringkas (< 500KB) dan terformat rapi",
+            "Pesan WhatsApp terkirim dalam waktu < 5 detik setelah pembayaran sukses",
+            "Invoice memuat rincian item, nomor transaksi unik, dan breakdown harga"
+          ],
+          testing: [
+            "Uji generate invoice PDF dan inspeksi kejelasan layout",
+            "Test pengiriman pesan WhatsApp ke nomor penguji di staging"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-013",
+          title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis",
+          description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.",
+          status: "in_progress" as const,
+          feature: "Dashboard Admin",
+          phase: "Phase 6 - Dashboard Admin",
+          priority: "HIGH",
+          relatedRequirements: ["FR-13"],
+          dependencies: ["TASK-011", "TASK-004"],
+          subtasks: [
+            "Query agregasi SQL untuk total omzet harian, mingguan, dan bulanan",
+            "Komponen kartu metrik KPI (Revenue, Orders, Conversion Rate, Average Order Value)",
+            "Visualisasi grafik chart performa penjualan",
+            "Filter rentang tanggal analitik (Hari ini, 7 hari terakhir, 30 hari terakhir)"
+          ],
+          acceptanceCriteria: [
+            "Perhitungan angka omzet akurat 100% dengan total transaksi settlement di database",
+            "Grafik chart responsif dan interaktif dengan tooltip detail",
+            "Query agregasi dioptimalkan sehingga dashboard dimuat < 800ms"
+          ],
+          testing: [
+            "Validasi hasil kalkulasi query agregasi terhadap data transaksi riil",
+            "Uji filter rentang tanggal analitik"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-014",
+          title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel",
+          description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.",
+          status: "in_progress" as const,
+          feature: "Dashboard Admin",
+          phase: "Phase 6 - Dashboard Admin",
+          priority: "MEDIUM",
+          relatedRequirements: ["FR-12", "FR-14"],
+          dependencies: ["TASK-013"],
+          subtasks: [
+            "Tabel data master dengan pagination, sorting kolom, dan filter status",
+            "Modal dialog formulir tambah & edit item dengan upload media gambar",
+            "Fungsi export data tabel ke file CSV dan Microsoft Excel (.xlsx)",
+            "Konfirmasi dialog proteksi saat aksi hapus data"
+          ],
+          acceptanceCriteria: [
+            "Admin dapat menambah, mengedit, dan menonaktifkan item secara instan",
+            "Berkas CSV/Excel ter-generate dengan header kolom rapi dan encoding UTF-8",
+            "Aksi hapus data memvalidasi relasi dependensi untuk mencegah error foreign key"
+          ],
+          testing: [
+            "Lakukan operasi CRUD lengkap pada item katalog",
+            "Unduh berkas CSV dan verifikasi kecocokan seluruh baris data"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-015",
+          title: "Testing Menyeluruh End-to-End, Error Boundary & Logging",
+          description: "Pengujian skenario alur dari registrasi, penelusuran, checkout holding lock, pembayaran webhook sampai invoice, serta pengujian error boundary.",
+          status: "in_progress" as const,
+          feature: "QA & Hardening",
+          phase: "Phase 7 - QA & Deployment",
+          priority: "HIGH",
+          relatedRequirements: ["NFR-06"],
+          dependencies: ["TASK-012", "TASK-014"],
+          subtasks: [
+            "Skenario E2E testing alur utama (Happy path: Register -> Checkout -> Bayar -> Sukses)",
+            "Uji skenario kendala (Edge cases: Pembayaran expired, stok habis saat checkout)",
+            "Komponen Error Boundary global untuk menangkap runtime exception",
+            "Setup logging aktivitas krusial ke tabel activity_audit_logs"
+          ],
+          acceptanceCriteria: [
+            "Seluruh skenario pengujian utama berhasil lolos 100%",
+            "Aplikasi tidak pernah mengalami crash / blank page putih jika terjadi error",
+            "Log error mencatat stack trace dan context detail untuk debugging"
+          ],
+          testing: [
+            "Jalankan skenario pengujian otomatis / manual dari awal hingga akhir",
+            "Simulasikan kegagalan network/API pihak ketiga dan periksa respon fallback UI"
+          ],
+          parallelizable: "YES"
+        },
+        {
+          id: "TASK-016",
+          title: "Security Hardening, Optimasi Core Web Vitals & Deploy ke Production",
+          description: "Audit header keamanan (CSP, X-Frame-Options), optimasi kompresi gambar Next.js Image, audit performa Lighthouse, dan rilis production ke Vercel.",
+          status: "in_progress" as const,
+          feature: "QA & Hardening",
+          phase: "Phase 7 - QA & Deployment",
+          priority: "CRITICAL",
+          relatedRequirements: ["NFR-01", "NFR-03", "NFR-05"],
+          dependencies: ["TASK-015"],
+          subtasks: [
+            "Konfigurasi security headers di next.config.mjs (CSP, HSTS, X-Content-Type-Options)",
+            "Audit performa dengan Google Lighthouse (Skor target > 90)",
+            "Setup CI/CD pipeline otomatis dengan GitHub Actions / Vercel",
+            "Verifikasi domain production, SSL certificate, dan monitoring uptime"
+          ],
+          acceptanceCriteria: [
+            "Grade keamanan A+ pada security audit headers",
+            "Skor performa Lighthouse > 90 untuk kategori Performance, Accessibility, Best Practices, SEO",
+            "Aplikasi live di domain production dengan sertifikat HTTPS aktif"
+          ],
+          testing: [
+            "Jalankan npx tsc --noEmit && npm run build lokal untuk verifikasi build",
+            "Lakukan audit performa menggunakan Google PageSpeed Insights"
+          ],
+          parallelizable: "NO"
+        }
       ]
     };
   };
@@ -1280,31 +2136,42 @@ PENTING:
       systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
 Pengguna telah menjawab seluruh pertanyaan klarifikasi kebutuhan untuk proyek: "${domain.topicName}" (Nama project di workspace: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
 
-PERHATIAN KRUSIAL TENTANG TOPIK:
-- Pengguna mendiskusikan topik: "${domain.topicName}".
-- Kamu WAJIB menyusun seluruh analisis secara 100% spesifik dan mendalam sesuai domain "${domain.topicName}".
-- DILARANG KERAS menggunakan istilah umum atau contoh template seperti "items", "venues", atau "COba"!
-${domain.isPhotography ? `- KHUSUS PROYEK FOTOGRAFI: Wajib mencakup Showcase Portofolio Masonry dengan EXIF data kamera/lensa, Kalender Booking Sesi Photoshoot (Studio & Outdoor), Pilihan Paket Foto (Wedding, Prewedding, Portrait, Event) & Add-ons (MUA, extra hours, album cetak), Client Proofing Portal ber-watermark untuk seleksi foto klien, High-Res Digital Delivery / Cloud ZIP Download, Pembayaran Bertahap (DP 50% & Pelunasan), dan Skema DDL SQL nyata dengan tabel photographers, photo_packages, shoot_bookings, client_galleries, gallery_photos, retouch_requests, invoices.` : ""}
+TUGAS UTAMA (UPGRADE BRIEF — PRD → FEATURE → DEVELOPMENT TASK GENERATOR):
+Ubah ide proyek menjadi DEVELOPMENT BLUEPRINT LENGKAP yang benar-benar siap dieksekusi langsung oleh AI Coding Assistant (Antigravity, Cursor, Claude Code) maupun developer manusia.
+Fokus utama adalah KUALITAS, ACTIONABLE-NESS, dan TRACEABILITY PENUH:
+Requirement (FR/NFR) -> Feature (FEATURE-xx) -> Task (TASK-xxx) -> Subtasks -> Dependencies -> Acceptance Criteria -> Testing.
 
-ATURAN KEDALAMAN & KELENGKAPAN OUTPUT (WAJIB DIIKUTI SECARA KETAT):
-1. PRD HARUS SANGAT PANJANG, LENGKAP & MENDALAM:
-   - overview: 2-3 paragraf kaya konteks dan berbobot.
-   - problemStatement: uraian detail pain points nyata yang diselesaikan.
-   - goals: MINIMAL 8 target terukur (G-01 s/d G-08).
-   - targetUsers: MINIMAL 4 persona lengkap dengan tanggung jawab dan kebutuhan.
-   - functionalRequirements: MINIMAL 16 requirement fungsional detail (FR-01 s/d FR-16).
-   - nonFunctionalRequirements: MINIMAL 8 requirement performa & keamanan (NFR-01 s/d NFR-08).
-2. FITUR WAJIB MINIMAL 8 SAMPAI 10 MODUL LENGKAP:
-   - Setiap fitur harus memiliki nama profesional, deskripsi mendalam, priority, 4-5 subFeatures detail, dan dependencies.
-3. USER FLOW WAJIB LENGKAP:
-   - 10-12 tahapan alur pengguna berkesinambungan dari awal hingga purna-jual.
-4. ARSITEKTUR & SQL DDL:
-   - Skema CREATE TABLE lengkap untuk 6-8 tabel relasional dengan tipe data, primary key gen_random_uuid(), foreign keys ON DELETE, dan CREATE INDEX.
-5. TASKS WAJIB MINIMAL 16 SAMPAI 20 ACTIONABLE DEVELOPMENT TASKS:
-   - Terbagi rapi ke dalam Phase 1 sampai Phase 7.
-   - Setiap task harus jelas apa yang dibangun dan bagaimana eksekusinya.
-   - Status setiap task WAJIB "in_progress" (aktif sedang diproses dan dianalisis kelayakan pengerjaannya). DILARANG KERAS menggunakan status "todo" atau belum dikerjakan!
-DILARANG KERAS menghasilkan output ringkas atau minimalis! Pengguna menuntut arsitektur yang sangat kaya, komprehensif, dan siap produksi.
+ATURAN STRUKTUR & KEDALAMAN (WAJIB DIIKUTI SECARA KETAT):
+1. INTELLIGENT PROJECT ANALYSIS:
+   - Pahami core & secondary functionality, target user personas, platform, integrasi pihak ketiga, dan risiko teknis.
+   - Jika ada hal yang belum ditentukan pengguna, catat sebagai ASUMSI TEKNIS eksplisit (id: "ASSUMPTION-01", assumption, reason, impact). Jangan diam-diam mengarang tanpa tanda!
+2. REQUIREMENT EXTRACTION:
+   - Functional Requirements: MINIMAL 16 item dengan format "FR-01: ...", "FR-02: ...", dst.
+   - Non-Functional Requirements: MINIMAL 8 item dengan format "NFR-01: ...", "NFR-02: ...", dst (performa, SLA latency, keamanan, responsive, dll).
+3. FEATURE IDENTIFICATION & DECOMPOSITION:
+   - MINIMAL 8 fitur modul lengkap dengan ID "FEATURE-01", "FEATURE-02", dst.
+   - Setiap fitur WAJIB memiliki: id, name, description, priority ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW"), relatedRequirements (contoh: ["FR-01", "FR-02"]), subFeatures (kemampuan produk, bukan nama file!), dependencies, dan isMvp (true untuk MVP, false untuk POST-MVP).
+4. DEVELOPMENT TASKS GENERATION (ATOMIC & ACTIONABLE):
+   - MINIMAL 16 task actionable dengan ID "TASK-001", "TASK-002", dst.
+   - Task harus cukup atomic sehingga AI coding assistant dapat mengerjakannya dalam 1 execution cycle.
+   - Terbagi ke dalam fase logis: PHASE 1 Project Foundation s/d PHASE 7 Testing & Deployment.
+   - Setiap task WAJIB memuat metadata lengkap:
+     * id: "TASK-001"
+     * title: judul spesifik dan jelas
+     * description: penjelasan teknis what to build & why
+     * phase: "PHASE 1 - Inisialisasi", dll
+     * priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+     * status: "in_progress" (aktif sedang diproses & dianalisis)
+     * feature: "FEATURE-01: Nama Fitur"
+     * relatedRequirements: ["FR-01", "FR-02"]
+     * dependencies: ["TASK-001"] (atau [] jika task awal)
+     * subtasks: list 2-4 subtask spesifik ("TASK-001.1: ...", "TASK-001.2: ...")
+     * acceptanceCriteria: 3-5 kriteria penerimaan objektif & teruji (menjawab "Bagaimana kita tahu task ini benar-benar selesai?")
+     * testing: 3-4 skenario pengujian spesifik (valid input, invalid input, edge cases, error state)
+     * parallelizable: "YES" atau "NO"
+5. ARCHITECTURE & SQL DDL:
+   - Skema CREATE TABLE lengkap untuk 6-8 tabel relasional nyata dengan foreign keys ON DELETE CASCADE dan CREATE INDEX B-Tree.
+   - Arsitektur teknologi proporsional (tanpa overengineering yang tidak perlu).
 
 FORMAT OUTPUT WAJIB:
 Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprint lengkap di akhir respon:
@@ -1317,15 +2184,30 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
     "goals": ["G-01...", "G-02...", "G-03...", "G-04...", "G-05...", "G-06...", "G-07...", "G-08..."],
     "targetUsers": ["...", "...", "...", "..."],
     "functionalRequirements": ["FR-01...", "FR-02...", "FR-03...", "FR-04...", "FR-05...", "FR-06...", "FR-07...", "FR-08...", "FR-09...", "FR-10...", "FR-11...", "FR-12...", "FR-13...", "FR-14...", "FR-15...", "FR-16..."],
-    "nonFunctionalRequirements": ["NFR-01...", "NFR-02...", "NFR-03...", "NFR-04...", "NFR-05...", "NFR-06...", "NFR-07...", "NFR-08..."]
+    "nonFunctionalRequirements": ["NFR-01...", "NFR-02...", "NFR-03...", "NFR-04...", "NFR-05...", "NFR-06...", "NFR-07...", "NFR-08..."],
+    "assumptions": [
+      {
+        "id": "ASSUMPTION-01",
+        "assumption": "Autentikasi menggunakan Supabase Auth berbasis HttpOnly session cookie",
+        "reason": "Pengguna membutuhkan autentikasi web yang aman dan stateless",
+        "impact": "Arsitektur login terintegrasi langsung dengan database PostgreSQL"
+      }
+    ],
+    "risks": [
+      "Risiko race-condition saat transaksi konkuren (dicegah dengan atomic locking)",
+      "Latensi webhook pihak ketiga (dicegah dengan idempotent listener)"
+    ]
   },
   "features": [
     {
+      "id": "FEATURE-01",
       "name": "...",
       "description": "...",
-      "priority": "High",
+      "priority": "HIGH",
+      "relatedRequirements": ["FR-01", "FR-02"],
       "subFeatures": ["...", "...", "...", "..."],
-      "dependencies": ["..."]
+      "dependencies": ["FEATURE-00"],
+      "isMvp": true
     }
   ],
   "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ... -> 5. ... -> 6. ... -> 7. ... -> 8. ... -> 9. ... -> 10. ...",
@@ -1339,7 +2221,21 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
     "dataSchema": "CREATE TABLE ..."
   },
   "tasks": [
-    { "title": "...", "description": "...", "status": "in_progress", "phase": "Phase 1 - Inisialisasi", "feature": "Core" }
+    {
+      "id": "TASK-001",
+      "title": "...",
+      "description": "...",
+      "phase": "PHASE 1 - Project Foundation",
+      "priority": "HIGH",
+      "status": "in_progress",
+      "feature": "FEATURE-01: ...",
+      "relatedRequirements": ["FR-01", "FR-02"],
+      "dependencies": [],
+      "subtasks": ["TASK-001.1: ...", "TASK-001.2: ..."],
+      "acceptanceCriteria": ["User dapat...", "Sistem memvalidasi..."],
+      "testing": ["Uji login sukses", "Uji password salah", "Uji session expire"],
+      "parallelizable": "YES"
+    }
   ]
 }
 <<<END_BLUEPRINT_JSON>>>`;
@@ -1630,6 +2526,12 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
               targetUsers: (Array.isArray(blueprintData.prd.targetUsers) && blueprintData.prd.targetUsers.length >= 3)
                 ? blueprintData.prd.targetUsers
                 : domainBlueprint.prd.targetUsers,
+              assumptions: Array.isArray(blueprintData.prd.assumptions) && blueprintData.prd.assumptions.length > 0
+                ? blueprintData.prd.assumptions
+                : domainBlueprint.prd.assumptions,
+              risks: Array.isArray(blueprintData.prd.risks) && blueprintData.prd.risks.length > 0
+                ? blueprintData.prd.risks
+                : domainBlueprint.prd.risks,
             };
           } else {
             updated.prd = domainBlueprint.prd;
@@ -1637,12 +2539,16 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
           if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 6) {
             updated.features = blueprintData.features.map((f: any, idx: number) => ({
-              id: "feat-" + (idx + 1),
+              id: f.id || "FEATURE-" + String(idx + 1).padStart(2, "0"),
               name: f.name || "Feature " + (idx + 1),
               description: f.description || "",
-              priority: f.priority || "Medium",
+              priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
               subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
               dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
+              relatedRequirements: Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
+                ? f.relatedRequirements
+                : ["FR-" + String(idx + 1).padStart(2, "0")],
+              isMvp: typeof f.isMvp === "boolean" ? f.isMvp : idx < 5,
             }));
           } else {
             // Jika fitur dari LLM sedikit, gunakan fitur lengkap domain agar selalu kaya & mendalam
@@ -1666,14 +2572,45 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
           }
 
           if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 12) {
-            updated.tasks = blueprintData.tasks.map((t: any, idx: number) => ({
-              id: "task-" + (idx + 1) + "-" + Date.now(),
-              title: t.title || "Task " + (idx + 1),
-              description: t.description || "",
-              status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
-              phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1),
-              feature: t.feature || "Core",
-            }));
+            updated.tasks = blueprintData.tasks.map((t: any, idx: number) => {
+              const taskId = t.id || "TASK-" + String(idx + 1).padStart(3, "0");
+              return {
+                id: taskId,
+                title: t.title || "Task " + (idx + 1),
+                description: t.description || "",
+                status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
+                phase: t.phase || "PHASE " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
+                priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
+                feature: t.feature || ("FEATURE-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")),
+                relatedRequirements: Array.isArray(t.relatedRequirements) && t.relatedRequirements.length > 0
+                  ? t.relatedRequirements
+                  : ["FR-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")],
+                dependencies: Array.isArray(t.dependencies) ? t.dependencies : (idx === 0 ? [] : ["TASK-" + String(idx).padStart(3, "0")]),
+                subtasks: Array.isArray(t.subtasks) && t.subtasks.length > 0
+                  ? t.subtasks
+                  : [
+                      `${taskId}.1: Implementasi logic & skema ${t.title || ""}`,
+                      `${taskId}.2: Integrasi UI & validasi input Zod`,
+                    ],
+                acceptanceCriteria: Array.isArray(t.acceptanceCriteria) && t.acceptanceCriteria.length > 0
+                  ? t.acceptanceCriteria
+                  : [
+                      `Modul ${t.title || ""} berhasil dieksekusi tanpa throw error`,
+                      `Data input tervalidasi dan tersimpan di database`,
+                      `Error state ditampilkan saat request gagal / invalid`,
+                    ],
+                testing: Array.isArray(t.testing) && t.testing.length > 0
+                  ? t.testing
+                  : [
+                      `Pengujian skenario sukses (Happy Path)`,
+                      `Pengujian input tidak valid & validasi Zod error handling`,
+                      `Pengujian responsivitas dan loading state antarmuka`,
+                    ],
+                parallelizable: (t.parallelizable === "YES" || t.parallelizable === "NO")
+                  ? t.parallelizable
+                  : (idx > 2 && idx % 2 === 0 ? "YES" : "NO"),
+              };
+            });
           } else {
             // Jika tasks dari LLM sedikit, gunakan 16 tasks komprehensif berfase dari blueprint domain
             updated.tasks = domainBlueprint.tasks;
@@ -1768,26 +2705,32 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
   const copyPRDText = () => {
     if (!activeProject) return;
     const prd = activeProject.prd;
-    const text = `# PRD (Product Requirements Document) — ${activeProject.title}
+    let text = `# PRD (Product Requirements Document) — ${activeProject.title}\n\n`;
+    text += `## 1. Overview\n${prd?.overview || activeProject.description || "Perencanaan sistem project."}\n\n`;
+    text += `## 2. Problem Statement\n${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}\n\n`;
+    text += `## 3. Goals & Objectives\n${prd?.goals?.map((g, i) => `${i + 1}. ${g}`).join("\n") || "- Membangun sistem yang handal"}\n\n`;
+    text += `## 4. Target Users\n${prd?.targetUsers?.map((u) => `- ${u}`).join("\n") || "- Pengguna akhir"}\n\n`;
+    text += `## 5. Functional Requirements\n${prd?.functionalRequirements?.map((f, i) => `${i + 1}. ${f}`).join("\n") || "- Fitur utama aplikasi"}\n\n`;
+    text += `## 6. Non-Functional Requirements\n${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") || "- Cepat, aman, dan responsif"}\n\n`;
 
-## 1. Overview
-${prd?.overview || activeProject.description || "Perencanaan sistem project."}
+    if (prd?.assumptions && prd.assumptions.length > 0) {
+      text += `## 7. Technical & Product Assumptions\n`;
+      prd.assumptions.forEach((ass, i) => {
+        text += `- **${ass.id || `ASSUMPTION-${String(i + 1).padStart(2, "0")}`}**: ${ass.assumption}\n`;
+        if (ass.reason) text += `  * Alasan: ${ass.reason}\n`;
+        if (ass.impact) text += `  * Dampak: ${ass.impact}\n`;
+      });
+      text += "\n";
+    }
 
-## 2. Problem Statement
-${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}
+    if (prd?.risks && prd.risks.length > 0) {
+      text += `## 8. Technical Risks & Mitigations\n`;
+      prd.risks.forEach((r, i) => {
+        text += `${i + 1}. ${r}\n`;
+      });
+      text += "\n";
+    }
 
-## 3. Goals & Objectives
-${prd?.goals?.map((g, i) => `${i + 1}. ${g}`).join("\n") || "- Membangun sistem yang handal"}
-
-## 4. Target Users
-${prd?.targetUsers?.map((u) => `- ${u}`).join("\n") || "- Pengguna akhir"}
-
-## 5. Functional Requirements
-${prd?.functionalRequirements?.map((f, i) => `${i + 1}. ${f}`).join("\n") || "- Fitur utama aplikasi"}
-
-## 6. Non-Functional Requirements
-${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") || "- Cepat, aman, dan responsif"}
-`;
     navigator.clipboard.writeText(text);
     showCopyToast("PRD berhasil disalin ke Clipboard!");
   };
@@ -1795,13 +2738,18 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
   const copyFeaturesText = () => {
     if (!activeProject) return;
     const features = activeProject.features || [];
-    let text = `# Feature Specifications — ${activeProject.title}\n\n`;
+    let text = `# Feature Specifications & Hierarchy — ${activeProject.title}\n\n`;
     if (features.length === 0) {
       text += "Belum ada daftar fitur khusus yang tercatat.";
     } else {
       features.forEach((f, idx) => {
-        text += `### Feature ${idx + 1}: ${f.name} [Priority: ${f.priority || "Medium"}]\n`;
+        const featId = f.id || `FEATURE-${String(idx + 1).padStart(2, "0")}`;
+        const scope = f.isMvp !== false ? "MVP" : "POST-MVP";
+        text += `### ${featId}: ${f.name} [${scope}] [Priority: ${f.priority || "Medium"}]\n`;
         text += `${f.description}\n`;
+        if (f.relatedRequirements && f.relatedRequirements.length > 0) {
+          text += `Related Requirements: ${f.relatedRequirements.join(", ")}\n`;
+        }
         if (f.subFeatures && f.subFeatures.length > 0) {
           text += `Sub-features:\n` + f.subFeatures.map((s) => `  - ${s}`).join("\n") + "\n";
         }
@@ -1818,7 +2766,7 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
   const copyTasksText = () => {
     if (!activeProject) return;
     const tasks = activeProject.tasks;
-    let text = `# Development Tasks & Roadmap — ${activeProject.title}\n\n`;
+    let text = `# Actionable Development Tasks & Verification Blueprint — ${activeProject.title}\n\n`;
     const todo = tasks.filter((t) => t.status === "todo");
     const inProg = tasks.filter((t) => t.status === "in_progress");
     const done = tasks.filter((t) => t.status === "done");
@@ -1826,32 +2774,54 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
 
     text += `## Total: ${tasks.length} Tasks (${calculateProgress(activeProject)}% Selesai)\n\n`;
 
+    const formatTaskItem = (t: ProjectTask, idx: number, isDone: boolean) => {
+      const taskId = t.id || `TASK-${String(idx + 1).padStart(3, "0")}`;
+      let item = `- [${isDone ? "x" : " "}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}]\n`;
+      item += `  * Deskripsi: ${t.description}\n`;
+      if (t.relatedRequirements && t.relatedRequirements.length > 0) {
+        item += `  * Requirements: ${t.relatedRequirements.join(", ")}\n`;
+      }
+      if (t.dependencies && t.dependencies.length > 0) {
+        item += `  * Dependencies: ${t.dependencies.join(", ")}\n`;
+      }
+      if (t.subtasks && t.subtasks.length > 0) {
+        item += `  * Subtasks:\n` + t.subtasks.map((st) => `    - [ ] ${st}`).join("\n") + "\n";
+      }
+      if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
+        item += `  * Acceptance Criteria:\n` + t.acceptanceCriteria.map((ac) => `    - ${ac}`).join("\n") + "\n";
+      }
+      if (t.testing && t.testing.length > 0) {
+        item += `  * Testing:\n` + t.testing.map((test) => `    - ${test}`).join("\n") + "\n";
+      }
+      return item;
+    };
+
     if (inProg.length > 0) {
       text += `### [IN PROGRESS] Sedang Dikerjakan (${inProg.length})\n`;
-      inProg.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
+      inProg.forEach((t, i) => (text += formatTaskItem(t, i, false) + "\n"));
       text += "\n";
     }
 
     if (todo.length > 0) {
       text += `### [TODO] Belum Mulai (${todo.length})\n`;
-      todo.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
+      todo.forEach((t, i) => (text += formatTaskItem(t, i, false) + "\n"));
       text += "\n";
     }
 
     if (done.length > 0) {
       text += `### [DONE] Selesai (${done.length})\n`;
-      done.forEach((t) => (text += `- [x] **${t.title}**: ${t.description}\n`));
+      done.forEach((t, i) => (text += formatTaskItem(t, i, true) + "\n"));
       text += "\n";
     }
 
     if (failed.length > 0) {
       text += `### [BLOCKED] Kendala / Gagal (${failed.length})\n`;
-      failed.forEach((t) => (text += `- [ ] **${t.title}**: ${t.description}\n`));
+      failed.forEach((t, i) => (text += formatTaskItem(t, i, false) + "\n"));
       text += "\n";
     }
 
     navigator.clipboard.writeText(text);
-    showCopyToast("Tasks berhasil disalin ke Clipboard!");
+    showCopyToast("Tasks lengkap dengan Subtasks & Verifikasi berhasil disalin!");
   };
 
   const copyEverythingText = () => {
@@ -1866,9 +2836,10 @@ ${prd?.nonFunctionalRequirements?.map((nf, i) => `${i + 1}. ${nf}`).join("\n") |
     const userFlow = activeProject.userFlow || domainBlueprint.userFlow;
     const dataSchema = arch?.dataSchema || domainBlueprint.architecture.dataSchema;
 
-    const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Vibecode)
+    const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Claude Code)
 # Project: ${activeProject.title} ${domain.isPhotography ? `(${domain.topicName})` : ""}
 # Generated by: Usick One — Code Planner (Ngoding Pakai AI)
+# Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
@@ -1885,7 +2856,7 @@ ${prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar
 - **Non-Functional Requirements**:
 ${prd?.nonFunctionalRequirements?.map((nf) => `  * ${nf}`).join("\n") || "  * Performa cepat dan aman"}
 
----
+${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assumptions:\n${prd.assumptions.map((ass, i) => `- **${ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}**: ${ass.assumption}${ass.reason ? ` (Alasan: ${ass.reason})` : ""}${ass.impact ? ` (Dampak: ${ass.impact})` : ""}`).join("\n")}\n\n` : ""}${prd?.risks && prd.risks.length > 0 ? `### Technical Risks & Mitigations:\n${prd.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}\n\n` : ""}---
 ## 3. TECHNICAL ARCHITECTURE & STACK
 - **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
 - **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers, Zod Validation"}
@@ -1905,18 +2876,55 @@ ${dataSchema}
 ${userFlow}
 
 ---
-## 5. FEATURE BREAKDOWN
-${features.map((f, i) => `${i + 1}. **${f.name}** [${f.priority || "Medium"}]: ${f.description}${f.subFeatures && f.subFeatures.length > 0 ? `\n   * Sub-fitur: ${f.subFeatures.join(", ")}` : ""}`).join("\n")}
+## 5. FEATURE BREAKDOWN (Traceable to Requirements)
+${features.map((f, i) => {
+  const featId = f.id || `FEATURE-${String(i + 1).padStart(2, "0")}`;
+  const scope = f.isMvp !== false ? "MVP" : "POST-MVP";
+  let str = `${i + 1}. **${featId}: ${f.name}** [${scope}] [${f.priority || "Medium"}]: ${f.description}`;
+  if (f.relatedRequirements && f.relatedRequirements.length > 0) {
+    str += `\n   - Related Requirements: ${f.relatedRequirements.join(", ")}`;
+  }
+  if (f.subFeatures && f.subFeatures.length > 0) {
+    str += `\n   - Sub-fitur: ${f.subFeatures.join(", ")}`;
+  }
+  if (f.dependencies && f.dependencies.length > 0) {
+    str += `\n   - Dependencies: ${f.dependencies.join(", ")}`;
+  }
+  return str;
+}).join("\n\n")}
 
 ---
-## 6. ACTIONABLE DEVELOPMENT TASKS (${tasks.length} Tasks)
-${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t.phase || "Dev"}): ${t.description}`).join("\n")}
+## 6. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
+${tasks.map((t, i) => {
+  const taskId = t.id || `TASK-${String(i + 1).padStart(3, "0")}`;
+  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}]\n- **Deskripsi**: ${t.description}`;
+  if (t.relatedRequirements && t.relatedRequirements.length > 0) {
+    block += `\n- **Requirements**: ${t.relatedRequirements.join(", ")}`;
+  }
+  if (t.dependencies && t.dependencies.length > 0) {
+    block += `\n- **Dependencies**: ${t.dependencies.join(", ")}`;
+  }
+  if (t.subtasks && t.subtasks.length > 0) {
+    block += `\n- **Subtasks**:\n` + t.subtasks.map((st) => `  * [ ] ${st}`).join("\n");
+  }
+  if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
+    block += `\n- **Acceptance Criteria**:\n` + t.acceptanceCriteria.map((ac) => `  * ${ac}`).join("\n");
+  }
+  if (t.testing && t.testing.length > 0) {
+    block += `\n- **Testing Requirements**:\n` + t.testing.map((test) => `  * ${test}`).join("\n");
+  }
+  return block;
+}).join("\n\n")}
 
 ---
-> **Instruksi untuk AI Coding Assistant**: Gunakan spesifikasi dan konteks lengkap di atas untuk membangun kode proyek ini langkah demi langkah, mengikuti task yang belum selesai dan mematuhi arsitektur yang telah ditentukan.`;
+> **Instruksi untuk AI Coding Assistant**:
+> 1. Gunakan spesifikasi dan konteks lengkap di atas untuk membangun kode proyek ini secara atomik per task.
+> 2. Implementasikan setiap task dengan memverifikasi Subtasks dan Acceptance Criteria sebelum beralih ke task berikutnya.
+> 3. Jalankan pengujian sesuai Testing Requirements untuk memastikan tidak ada regresi.
+> 4. Prioritaskan task [CRITICAL] dan [HIGH] serta perhatikan Dependencies antar task.`;
 
     navigator.clipboard.writeText(masterPrompt);
-    showCopyToast("Master Context lengkap berhasil disalin!");
+    showCopyToast("Master Context Blueprint lengkap berhasil disalin!");
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -3328,6 +4336,35 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 {activeProject.prd?.nonFunctionalRequirements?.map((nf, i) => <li key={i}>{nf}</li>) || <li>Performa cepat, aman, dan mobile-friendly.</li>}
               </ul>
             </div>
+
+            {activeProject.prd?.assumptions && activeProject.prd.assumptions.length > 0 && (
+              <div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">7. Technical &amp; Product Assumptions</h4>
+                <div className="space-y-2 mt-2">
+                  {activeProject.prd.assumptions.map((ass, i) => (
+                    <div key={ass.id || i} className={`p-2.5 rounded-xl border text-xs ${
+                      isDark ? "bg-zinc-800/40 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-200">{ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}</span>
+                        <span className="font-medium text-xs">{ass.assumption}</span>
+                      </div>
+                      {ass.reason && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Alasan:</strong> {ass.reason}</p>}
+                      {ass.impact && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Dampak:</strong> {ass.impact}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeProject.prd?.risks && activeProject.prd.risks.length > 0 && (
+              <div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">8. Technical Risks &amp; Mitigations</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  {activeProject.prd.risks.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3395,18 +4432,48 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="font-bold text-sm">{feat.name}</h4>
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-                        feat.priority === "High"
-                          ? isDark ? "bg-white text-black border-white font-bold" : "bg-black text-white border-black font-bold"
-                          : feat.priority === "Medium"
-                          ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
-                          : isDark ? "bg-zinc-850 text-zinc-400 border-zinc-800" : "bg-zinc-50 text-zinc-500 border-zinc-200"
-                      }`}>
-                        {feat.priority || "Medium"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {feat.id && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                            isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                          }`}>
+                            {feat.id}
+                          </span>
+                        )}
+                        <h4 className="font-bold text-sm">{feat.name}</h4>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider border ${
+                          feat.isMvp !== false
+                            ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+                            : isDark ? "bg-zinc-800 text-zinc-400 border-zinc-700" : "bg-zinc-100 text-zinc-500 border-zinc-300"
+                        }`}>
+                          {feat.isMvp !== false ? "MVP" : "POST-MVP"}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                          feat.priority === "High" || feat.priority === "HIGH" || feat.priority === "CRITICAL"
+                            ? isDark ? "bg-zinc-800 text-zinc-100 border-zinc-600 font-bold" : "bg-zinc-800 text-zinc-100 border-zinc-900 font-bold"
+                            : feat.priority === "Medium" || feat.priority === "MEDIUM"
+                            ? isDark ? "bg-zinc-850 text-zinc-300 border-zinc-800" : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                            : isDark ? "bg-zinc-900 text-zinc-500 border-zinc-800" : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                        }`}>
+                          {feat.priority || "Medium"}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{feat.description}</p>
+
+                    <p className="text-xs text-zinc-400 mt-2 leading-relaxed">{feat.description}</p>
+
+                    {feat.relatedRequirements && feat.relatedRequirements.length > 0 && (
+                      <div className="mt-2 flex items-center gap-1 flex-wrap">
+                        <span className="text-[10px] text-zinc-500 font-medium">Reqs:</span>
+                        {feat.relatedRequirements.map((r, ri) => (
+                          <span key={ri} className="px-1 py-0.2 rounded text-[10px] font-mono bg-zinc-800/60 dark:bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {feat.subFeatures && feat.subFeatures.length > 0 && (
                       <div className="mt-3 pt-2.5 border-t border-zinc-200 dark:border-zinc-800/80">
@@ -3762,7 +4829,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT: Task Card di Kanban Board
+// COMPONENT: Task Card di Kanban Board (Traceable & AI Coding Ready)
 // ─────────────────────────────────────────────────────────────────────────────
 function TaskCard({
   task,
@@ -3775,12 +4842,41 @@ function TaskCard({
   onUpdateStatus: (id: string, status: TaskStatus) => void;
   onDelete: (id: string) => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const priority = (task.priority || "MEDIUM").toUpperCase();
+
   return (
-    <div className={`p-3 rounded-xl border transition-all duration-200 group relative ${
+    <div className={`p-3.5 rounded-xl border transition-all duration-200 group relative ${
       isDark ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700" : "bg-white border-zinc-200 shadow-xs hover:border-zinc-300"
     }`}>
-      <div className="flex items-start justify-between gap-1.5">
-        <h5 className="font-bold text-xs leading-snug line-clamp-2">{task.title}</h5>
+      {/* Top Header: ID & Priority & Delete */}
+      <div className="flex items-center justify-between gap-1 mb-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+            isDark ? "bg-zinc-800 border-zinc-700 text-zinc-300" : "bg-zinc-100 border-zinc-300 text-zinc-700"
+          }`}>
+            {task.id}
+          </span>
+          <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${
+            priority === "CRITICAL"
+              ? isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+              : priority === "HIGH"
+              ? isDark ? "bg-zinc-700 text-zinc-100 border-zinc-600" : "bg-zinc-800 text-zinc-100 border-zinc-900"
+              : isDark ? "bg-zinc-850 text-zinc-400 border-zinc-800" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+          }`}>
+            {priority}
+          </span>
+          {task.parallelizable && (
+            <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
+              task.parallelizable === "YES"
+                ? isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
+                : isDark ? "bg-zinc-900 text-zinc-500" : "bg-zinc-100 text-zinc-400"
+            }`}>
+              Parallel: {task.parallelizable}
+            </span>
+          )}
+        </div>
+
         <button
           onClick={() => onDelete(task.id)}
           className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition ${
@@ -3794,20 +4890,117 @@ function TaskCard({
         </button>
       </div>
 
+      {/* Task Title */}
+      <h5 className="font-bold text-xs leading-snug">{task.title}</h5>
+
+      {/* Task Description */}
       <p className="text-[11px] text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
         {task.description}
       </p>
 
-      {task.phase && (
-        <span className={`inline-block mt-2 px-1.5 py-0.5 rounded-md text-[9px] font-semibold ${
-          isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-100 text-zinc-600"
-        }`}>
-          {task.phase}
-        </span>
+      {/* Badges: Phase & Feature & Traceability */}
+      <div className="flex items-center gap-1 flex-wrap mt-2">
+        {task.phase && (
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+            isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-100 text-zinc-600"
+          }`}>
+            {task.phase}
+          </span>
+        )}
+        {task.feature && (
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border truncate max-w-[150px] ${
+            isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-300 text-zinc-600"
+          }`}>
+            {task.feature}
+          </span>
+        )}
+        {task.relatedRequirements && task.relatedRequirements.length > 0 && (
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono ${
+            isDark ? "bg-zinc-800/80 text-zinc-300" : "bg-zinc-100 text-zinc-700"
+          }`}>
+            {task.relatedRequirements.join(", ")}
+          </span>
+        )}
+      </div>
+
+      {/* Dependencies tag */}
+      {task.dependencies && task.dependencies.length > 0 && (
+        <div className="mt-1 text-[10px] text-zinc-400 flex items-center gap-1">
+          <span className="font-semibold text-zinc-500">Dep:</span>
+          <span className="font-mono text-[9px]">{task.dependencies.join(", ")}</span>
+        </div>
       )}
 
+      {/* Toggle Rincian Teknis & Verifikasi */}
+      <div className="mt-2.5 pt-2 border-t border-zinc-200 dark:border-zinc-800/80">
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className={`w-full py-1 px-2 rounded-lg text-[10px] font-semibold flex items-center justify-between transition cursor-pointer ${
+            isDark ? "bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300" : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
+          }`}
+        >
+          <span>Blueprint &amp; Verifikasi</span>
+          <span className="font-mono text-xs">{showDetails ? "▲" : "▼"}</span>
+        </button>
+
+        {showDetails && (
+          <div className="mt-2 space-y-2.5 text-[11px] pt-1">
+            {/* Subtasks */}
+            {task.subtasks && task.subtasks.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Subtasks:
+                </span>
+                <ul className="space-y-1 pl-1">
+                  {task.subtasks.map((st, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-zinc-300 dark:text-zinc-300 light:text-zinc-700">
+                      <span className="text-zinc-500">◻</span>
+                      <span>{st}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Acceptance Criteria */}
+            {task.acceptanceCriteria && task.acceptanceCriteria.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Acceptance Criteria:
+                </span>
+                <ul className="space-y-1 pl-1">
+                  {task.acceptanceCriteria.map((ac, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-zinc-300 dark:text-zinc-300 light:text-zinc-700">
+                      <span className="text-zinc-400 font-bold">✓</span>
+                      <span>{ac}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Testing Requirements */}
+            {task.testing && task.testing.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Testing Requirements:
+                </span>
+                <ul className="space-y-0.5 pl-1">
+                  {task.testing.map((tst, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-zinc-400 text-[10px]">
+                      <span className="text-zinc-500">•</span>
+                      <span>{tst}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Status Selector Dropdown */}
-      <div className="mt-3 pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between text-[10px]">
+      <div className="mt-2.5 pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between text-[10px]">
         <span className="text-zinc-500 font-medium">Status:</span>
         <select
           value={task.status}
