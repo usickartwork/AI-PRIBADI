@@ -7469,6 +7469,7 @@ ${(() => {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeProject ? (
             <QuickHtmlPreview
+              key={activeProject.id}
               project={activeProject}
               isDark={isDark}
               onUpdateHtml={handleUpdateProjectHtml}
@@ -7851,6 +7852,11 @@ export function escapeHtml(str?: string): string {
 
 export function extractHtmlFromProject(project: ProjectItem): string {
   if (project.generatedHtml && project.generatedHtml.trim().length > 0) {
+    const isActuallySoccer = /futsal|soccer|mini\s*soccer|lapangan\s*bola/i.test(`${project.title} ${project.description || ""}`);
+    const htmlHasSoccer = /mini soccer|rumput fifa|lapangan a/i.test(project.generatedHtml);
+    if (!isActuallySoccer && htmlHasSoccer) {
+      return generateStarterPrototypeHtml(project);
+    }
     return project.generatedHtml;
   }
   if (project.messages && project.messages.length > 0) {
@@ -7911,11 +7917,12 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   const secondaryTypes = project.prd?.secondaryTypes || [];
   const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")}`.toLowerCase();
 
-  const isBooking = /booking|reservasi|jadwal|futsal|soccer|lapangan|hotel|tiket|appointment|venue/i.test(domainStr);
+  const isSoccerOrFutsal = /futsal|soccer|mini\s*soccer|lapangan\s*bola|sepak\s*bola/i.test(domainStr);
+  const isDesignOrAgency = /desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor/i.test(domainStr);
   const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(domainStr);
   const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja|store/i.test(domainStr);
+  const isBooking = /booking|reservasi|jadwal|appointment|hotel|tiket|venue|salon|klinik|konsultasi/i.test(domainStr);
   const isDashboard = /dashboard|admin|manajemen|panel|monitoring|analytics|crm/i.test(domainStr);
-  const isPortfolio = /portfolio|showcase|karya|desain|fotografi|profil|agensi|agency/i.test(domainStr);
 
   const features = (project.features && project.features.length > 0)
     ? project.features.map((f) => ({
@@ -7923,9 +7930,24 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         description: f.description || "Layanan terintegrasi dengan performa tinggi.",
       }))
     : [
-        { name: "Katalog & Layanan Inti", description: "Akses mudah dan cepat ke seluruh katalog layanan." },
-        { name: "Sistem Pencarian & Filter Cepat", description: "Temukan informasi atau produk secara instan." },
-        { name: "Interaksi & Konfirmasi Cepat", description: "Pengalaman pengguna interaktif tanpa kendala." },
+        { name: "Desain Logo & Identitas Brand", description: "Perancangan logo ikonik, filosofi makna, dan panduan identitas visual komprehensif." },
+        { name: "UI/UX & Desain Website", description: "Antarmuka digital modern, prototipe interaktif, dan responsive mobile-first." },
+        { name: "Social Media & Marketing Collateral", description: "Template konten Instagram, banner promosi, dan materi promosi konsisten." },
+        { name: "Packaging & Kemasan Produk", description: "Tata letak kemasan estetik dengan mockup 3D siap cetak pabrik." },
+      ];
+
+  const tasks = (project.tasks && project.tasks.length > 0)
+    ? project.tasks.slice(0, 5).map((t, idx) => ({
+        title: t.title || `Tahap ${idx + 1}`,
+        description: t.description || "Proses eksekusi dan penjaminan kualitas hasil.",
+        phase: t.phase || `Fase ${idx + 1}`,
+      }))
+    : [
+        { title: "Discovery Brief & Riset", description: "Analisis visi bisnis, target audiens, dan benchmarking kompetitor.", phase: "Fase 1" },
+        { title: "Eksplorasi Konsep & Sketsa", description: "Perumusan 3 alternatif arah visual dan eksplorasi tipografi.", phase: "Fase 2" },
+        { title: "Eksekusi Digital & Polishing", description: "Penyempurnaan desain vektor dan elemen visual presisi tinggi.", phase: "Fase 3" },
+        { title: "Review Klien & Revisi", description: "Penyelarasan feedback klien hingga mencapai kepuasan 100%.", phase: "Fase 4" },
+        { title: "Final Handover & File Master", description: "Penyerahan seluruh aset siap pakai (.AI, .PSD, .FIGMA, .SVG, .PDF 300 DPI).", phase: "Fase 5" },
       ];
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -8333,9 +8355,601 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 2. TEMPLATE: MINI SOCCER / SPORT VENUE / BOOKING RESERVASI
+  // 2. TEMPLATE: JASA DESAIN / CREATIVE STUDIO / BRANDING & PORTFOLIO
   // ─────────────────────────────────────────────────────────────────────────────
-  if (isBooking) {
+  if (isDesignOrAgency) {
+    return `<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} · Creative Studio & Jasa Desain Grafis Profesional</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px); }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-purple-500 selection:text-white">
+
+  <!-- Promo / Notification Bar -->
+  <div class="bg-gradient-to-r from-purple-950 via-zinc-950 to-indigo-950 border-b border-purple-900/40 text-[11px] py-2 px-4 sm:px-8">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="px-2 py-0.5 rounded-full bg-purple-600 text-white font-bold font-mono text-[9px] animate-pulse">PROMO STUDIO</span>
+        <span class="text-zinc-300 truncate">Dapatkan Konsultasi Brief Gratis & Free 1x Mockup 3D untuk Pemesanan Paket Branding Minggu Ini!</span>
+      </div>
+      <div class="flex items-center gap-3 text-zinc-400 font-mono text-[10px] hidden sm:flex">
+        <span class="text-emerald-400 font-bold">● Slot Pengerjaan Tersedia</span>
+        <span>•</span>
+        <span>Revisi Cepat</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header & Navigation -->
+  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-black flex items-center justify-center text-base shadow-lg shadow-purple-500/20">
+          ${title.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
+          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Jasa Desain Grafis & Creative Studio</span>
+        </div>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
+        <a href="#portofolio" class="hover:text-purple-400 transition">Portofolio Karya</a>
+        <a href="#layanan" class="hover:text-purple-400 transition">Layanan & Fitur</a>
+        <a href="#kalkulator" class="hover:text-purple-400 transition">Kalkulator Harga</a>
+        <a href="#alur" class="hover:text-purple-400 transition">Alur Pengerjaan</a>
+        <a href="#kontak" class="hover:text-purple-400 transition">Kontak & FAQ</a>
+      </nav>
+
+      <a href="#kalkulator" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-purple-500/20">
+        Order Brief Desain
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1">
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-20 text-center relative overflow-hidden">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-[11px] font-mono text-purple-300 mb-6">
+        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+        100% Karya Orisinal · File Master Lengkap (.AI, .PSD, .FIGMA) · Revisi Terjamin
+      </div>
+      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+        Desain Grafis & Identitas Brand Berkualitas Tinggi untuk Bisnis Anda
+      </h1>
+      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-5 leading-relaxed">
+        ${desc} Wujudkan identitas visual yang memikat, tingkatkan kepercayaan pelanggan, dan tampil lebih menonjol dibanding kompetitor bersama studio desain kami.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <a href="#kalkulator" class="px-6 py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition shadow-xl">
+          🎨 Hitung Biaya & Pesan Brief
+        </a>
+        <a href="#portofolio" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
+          Lihat Galeri Portofolio
+        </a>
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="mt-12 pt-8 border-t border-zinc-900 flex flex-wrap justify-center items-center gap-6 text-zinc-400 text-xs font-mono">
+        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Hak Cipta Komersial Penuh</span></div>
+        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Resolusi Tinggi Siap Cetak (300 DPI)</span></div>
+        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Konsultasi Konsep Gratis</span></div>
+        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Garansi Kepuasan Klien</span></div>
+      </div>
+    </section>
+
+    <!-- Portofolio Showcase (Filterable Lightbox) -->
+    <section id="portofolio" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+          <div>
+            <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">KARYA PILIHAN KAMI</span>
+            <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Galeri Portofolio & Studi Kasus</h2>
+            <p class="text-xs text-zinc-400 mt-1">Eksplorasi hasil karya desain terbaik yang telah kami selesaikan untuk berbagai brand.</p>
+          </div>
+          <!-- Filter Buttons -->
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 select-none">
+            <button onclick="filterPortfolio('all', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua</button>
+            <button onclick="filterPortfolio('branding', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Logo & Brand</button>
+            <button onclick="filterPortfolio('uiux', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">UI/UX & Web</button>
+            <button onclick="filterPortfolio('packaging', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Packaging</button>
+            <button onclick="filterPortfolio('social', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Social Media</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="portfolio-grid">
+          <!-- Card 1 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="branding">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-purple-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">💠</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Studi Kasus Visual Brand Identity]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[9px] font-mono font-bold">LOGO & BRAND</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                Nirvana Coffee Roastery — Identitas Visual & Tipografi
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Penyusunan logo monogram modern dengan palet warna earthy hangat, guideline font, dan mockup kemasan biji kopi artisan.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('Nirvana Coffee Roastery', 'Logo & Identitas Visual', 'Menciptakan brand identity elegan untuk kedai kopi spesialti dengan 3 alternatif logo, palet warna hex, dan brand book 24 halaman.', '#8B5A2B, #D2B48C, #1C1917', '.AI, .EPS, .SVG, .PNG, PDF Guideline')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="uiux">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-indigo-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📱</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Desain UI/UX Mobile App & Dashboard]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold">UI/UX DESIGN</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                Finflow — Aplikasi Keuangan Pintar & Desain Dashboard
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Rancangan design system komponen Figma, prototipe interaktif mobile, dan dashboard analitik keuangan yang intuitif.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('Finflow Mobile & Web', 'UI/UX & Desain Website', 'Perancangan 40+ screen antarmuka pengguna responsif dengan micro-interactions, dark mode support, dan design token siap pakai.', '#6366F1, #10B981, #0F172A', 'Figma Source File, Design System Tokens, Interactive Prototype')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="packaging">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-emerald-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📦</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Packaging Box & Label Mockup 3D]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold">PACKAGING</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                Aura Botanica — Kemasan Skincare Organik & Die-Cut
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Pola die-cut presisi kotak kardus ramah lingkungan, foil emas estetis, dan label botol siap cetak industri kosmetik.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('Aura Botanica Skincare', 'Packaging & Kemasan Produk', 'Desain kemasan botol serum dan folding carton dengan finishing foil emas, barcode terstandar, dan file die-cut presisi.', '#059669, #D4AF37, #FFFFFF', 'Vektor .AI Die-Cut 300 DPI, Mockup Render 3D 4K')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="social">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-pink-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📢</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Campaign Social Media Template Kit]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 text-[9px] font-mono font-bold">SOCIAL MEDIA</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                Urban Fitwear — Carousel Campaign & Feed Instagram
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Paket 20 template konten promosi feed & reels dengan tipografi bold dinamis yang mendorong konversi penjualan.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('Urban Fitwear Campaign', 'Social Media & Marketing', 'Pembuatan 20 template feed/carousel Instagram dengan layout modular yang mudah diedit di Canva dan Photoshop.', '#EC4899, #1E1B4B, #F8FAFC', 'PSD Smart Object, Canva Editable Link, High-Res PNG')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+
+          <!-- Card 5 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="branding">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-amber-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">🏛️</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Corporate Rebranding & Identity]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[9px] font-mono font-bold">CORPORATE</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                Vanguard Logistics — Rebranding & Fleet Graphics
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Modernisasi logo perusahaan logistik nasional, livery truk armada, kartu nama, kop surat, dan brand identity manual.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('Vanguard Logistics Rebrand', 'Logo & Rebranding Korporat', 'Pembaruan logo 30 tahun perusahaan menjadi simbol aerodinamis modern dengan pedoman livery truk dan stationery lengkap.', '#D97706, #1E293B, #F1F5F9', 'Vektor .AI, Panduan Brand Book PDF 35 Halaman')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="uiux">
+            <div>
+              <div class="h-48 rounded-2xl bg-gradient-to-tr from-cyan-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
+                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">💻</span>
+                <span class="font-mono text-[11px] text-zinc-400">[Landing Page UI/UX & Responsive Web]</span>
+                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">WEB DESIGN</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
+                SaaSify Studio — Landing Page Konversi Tinggi
+              </h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                Desain landing page produk perangkat lunak B2B dengan struktur copywriting persuasif, ilustrasi vektor, dan mockup interaktif.
+              </p>
+            </div>
+            <button onclick="openPortfolioModal('SaaSify Landing Page', 'UI/UX & Desain Website', 'Landing page dengan storytelling konversi tinggi, micro-copywriting, dan komponen antarmuka modern yang siap dideploy.', '#06B6D4, #3B82F6, #090D16', 'Figma File, Export SVG Asset, Web Style Guide')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
+              Lihat Detail Karya →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Layanan & Fitur (Derived from PRD Features) -->
+    <section id="layanan" class="py-16 border-t border-zinc-800 bg-zinc-950">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-12">
+          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">KAPABILITAS SPESIALIS KAMI</span>
+          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Layanan Desain Grafis Unggulan</h2>
+          <p class="text-xs text-zinc-400 mt-1">Disesuaikan secara spesifik berdasarkan kebutuhan proyek dan identitas merek Anda.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          ${features.slice(0, 8).map((f, i) => `
+            <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/40 transition">
+              <div>
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center font-mono font-bold text-xs mb-4">
+                  0${i + 1}
+                </div>
+                <h3 class="text-base font-bold text-white mb-2 leading-snug">${escapeHtml(f.name)}</h3>
+                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Pricing Calculator & Brief Submission Engine -->
+    <section id="kalkulator" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-12">
+          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN & ESTIMASI BIAYA</span>
+          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Kalkulator Paket Desain & Kirim Brief</h2>
+          <p class="text-xs text-zinc-400 mt-1">Pilih paket, tentukan opsi tambahan, dan dapatkan perhitungan biaya instan transparan.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Left: Package Selection & Addons (2 Cols) -->
+          <div class="lg:col-span-2 space-y-6">
+            <!-- Step 1: Package -->
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Paket Desain Utama:</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button type="button" onclick="selectPackage('Paket Starter (Logo & Basic)', 750000, '2-3 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Starter Logo</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">3 Konsep Awal + 2x Revisi</div>
+                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 750.000</div>
+                </button>
+                <button type="button" onclick="selectPackage('Paket Bisnis Pro (Full Brand)', 1850000, '4-5 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-purple-500 bg-zinc-900 text-left transition cursor-pointer relative">
+                  <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-purple-500 text-black text-[9px] font-bold">FAVORIT</span>
+                  <div class="text-xs font-bold text-white">Bisnis Pro Branding</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">Brand Identity + Unlimited Revisi</div>
+                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 1.850.000</div>
+                </button>
+                <button type="button" onclick="selectPackage('Paket Enterprise (UI/UX & Packaging)', 3500000, '7-10 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Enterprise Visual</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">UI/UX + Packaging + Master Kit</div>
+                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 3.500.000</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Add-ons -->
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2">2. Layanan Tambahan (Opsional):</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('express', 300000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">⚡ Express Delivery (24-48 Jam)</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 300.000</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('masterfile', 200000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">📁 Master Source Files (.AI / .PSD / .FIGMA)</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 200.000</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('license', 250000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">📜 Lisensi Komersial & Hak Cipta Penuh</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 250.000</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('printkit', 400000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">🖨️ Desain Print Stationery (Kartu, Kop, Map)</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 400.000</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 3: Brief Details -->
+            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+              <label class="text-xs font-bold text-zinc-300 block">3. Detail Brief Desain Anda:</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <span class="text-[11px] text-zinc-400 block mb-1">Nama Brand / Usaha:</span>
+                  <input type="text" id="brand-name" placeholder="Contoh: Kopi Senja / PT Maju..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400">
+                </div>
+                <div>
+                  <span class="text-[11px] text-zinc-400 block mb-1">Sektor Industri:</span>
+                  <select id="brand-industry" class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400">
+                    <option value="Kuliner & F&B">Kuliner & F&B</option>
+                    <option value="Fashion & Retail">Fashion & Retail</option>
+                    <option value="Teknologi & Startup">Teknologi & Startup</option>
+                    <option value="Kesehatan & Skincare">Kesehatan & Skincare</option>
+                    <option value="Jasa Profesional">Jasa Profesional / Korporat</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <span class="text-[11px] text-zinc-400 block mb-1">Preferensi Konsep / Catatan Khusus:</span>
+                <textarea id="brand-notes" rows="2" placeholder="Jelaskan kesan yang ingin ditampilkan, preferensi warna, atau referensi desain..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Summary Box (1 Col) -->
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
+            <div>
+              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4 flex items-center justify-between">
+                <span>Ringkasan Order Desain</span>
+                <span class="text-[10px] font-mono text-emerald-400">Live Quote</span>
+              </h3>
+              <div class="space-y-3 text-xs">
+                <div class="flex justify-between text-zinc-400">
+                  <span>Paket:</span>
+                  <span id="summary-package" class="font-bold text-white text-right">Bisnis Pro Branding</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Estimasi Pengerjaan:</span>
+                  <span id="summary-duration" class="font-mono text-purple-400 font-bold">4-5 Hari Kerja</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Biaya Add-ons:</span>
+                  <span id="summary-addons" class="text-white font-mono">Rp 0</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Garansi Revisi:</span>
+                  <span class="text-emerald-400 font-bold">Tersedia</span>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-4 border-t border-zinc-800">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-zinc-400">Total Investasi:</span>
+                  <span id="summary-total" class="text-2xl font-black font-mono text-white">Rp 1.850.000</span>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1">Pembayaran aman dengan invoice digital resmi.</p>
+              </div>
+            </div>
+
+            <button type="button" onclick="submitDesignOrder()" class="mt-8 w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs transition shadow-lg shadow-purple-500/20 cursor-pointer">
+              Kirim Brief & Mulai Desain →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alur Kerja & Timeline Produksi (Derived from PRD Tasks) -->
+    <section id="alur" class="py-16 border-t border-zinc-800 bg-zinc-950">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-12">
+          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">PROSES TRANSPARAN & TERSTRUKTUR</span>
+          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Tahapan Pengerjaan Proyek</h2>
+          <p class="text-xs text-zinc-400 mt-1">Standar alur kerja profesional dari brief hingga serah terima berkas master.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          ${tasks.slice(0, 5).map((t, idx) => `
+            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+              <div>
+                <span class="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] block w-fit mb-3">
+                  ${escapeHtml(t.phase || `Tahap 0${idx + 1}`)}
+                </span>
+                <h4 class="text-xs font-bold text-white mb-2 leading-snug">${escapeHtml(t.title)}</h4>
+                <p class="text-[11px] text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimoni Klien -->
+    <section class="py-16 border-t border-zinc-800 bg-zinc-950/60">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-10">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Apa Kata Klien Kami</h2>
+          <p class="text-xs text-zinc-400 mt-1">Kepuasan hasil desain dan profesionalisme pengerjaan.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
+            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Desain logonya sangat filosofis dan langsung klop dengan citra coffee shop kami. Respon tim cepat dan komunikatif!"</p>
+            <div class="text-xs font-bold text-white">Rian Santoso</div>
+            <div class="text-[11px] text-zinc-500">Founder Nirvana Coffee</div>
+          </div>
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
+            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Packaging skincare yang didesain terlihat sangat mewah di display toko. Penjualan kami meningkat drastis di bulan pertama."</p>
+            <div class="text-xs font-bold text-white">dr. Amanda Putri</div>
+            <div class="text-[11px] text-zinc-500">CEO Aura Botanica</div>
+          </div>
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
+            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
+            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Desain UI/UX aplikasi kami selesai tepat waktu dengan file Figma yang sangat rapi. Developer kami sangat terbantu!"</p>
+            <div class="text-xs font-bold text-white">Kevin Wijaya</div>
+            <div class="text-[11px] text-zinc-500">Product Manager Finflow</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Portfolio Detail Modal -->
+  <div id="portfolio-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-lg rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl relative text-left">
+      <button onclick="closePortfolioModal()" class="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg font-bold p-1 cursor-pointer">✕</button>
+      <span id="modal-cat" class="px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold uppercase tracking-wider block w-fit mb-2"></span>
+      <h3 id="modal-title" class="text-xl font-bold text-white mb-3"></h3>
+      <p id="modal-desc" class="text-xs text-zinc-300 leading-relaxed mb-6"></p>
+
+      <div class="space-y-3 p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs mb-6">
+        <div>
+          <span class="text-zinc-500 block text-[10px] font-mono">PALET WARNA UTAMA:</span>
+          <span id="modal-palette" class="font-mono text-zinc-200 font-bold"></span>
+        </div>
+        <div>
+          <span class="text-zinc-500 block text-[10px] font-mono">FORMAT DELIVERABLES:</span>
+          <span id="modal-deliverables" class="font-mono text-purple-400 font-bold"></span>
+        </div>
+      </div>
+
+      <button onclick="closePortfolioModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+        Tutup Tinjauan Karya
+      </button>
+    </div>
+  </div>
+
+  <!-- Order Confirmation Modal -->
+  <div id="order-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl text-center">
+      <div class="w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-400 text-2xl flex items-center justify-center mx-auto mb-4">
+        ✓
+      </div>
+      <h3 class="text-lg font-bold text-white mb-1">Brief Desain Berhasil Terkirim!</h3>
+      <p class="text-xs text-zinc-400 mb-6">Tim desainer kreatif kami sedang meninjau brief Anda dan akan segera menghubungi Anda.</p>
+
+      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
+        <div class="flex justify-between"><span class="text-zinc-400">Kode Tiket Order:</span><span id="order-code" class="font-bold text-purple-400">#DSG-78219</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Paket:</span><span id="order-pkg-res" class="text-white font-bold">Bisnis Pro</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Total Biaya:</span><span id="order-total-res" class="text-white font-bold">Rp 1.850.000</span></div>
+      </div>
+
+      <button onclick="closeOrderModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+        Tutup & Simpan Tiket Order
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+        <span class="text-zinc-200 font-bold">${title}</span>
+        <span>·</span>
+        <span>Studio Desain Grafis & Creative Agency</span>
+      </div>
+      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
+    </div>
+  </footer>
+
+  <script>
+    let currentPkgName = 'Paket Bisnis Pro (Full Brand)';
+    let currentPkgPrice = 1850000;
+    let currentDuration = '4-5 Hari Kerja';
+    let addonsFee = 0;
+
+    function filterPortfolio(cat, btn) {
+      document.querySelectorAll('.port-btn').forEach(b => {
+        b.className = 'port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition';
+      });
+      btn.className = 'port-btn px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition';
+      const cards = document.querySelectorAll('.port-card');
+      cards.forEach(card => {
+        if (cat === 'all' || card.getAttribute('data-cat') === cat) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function openPortfolioModal(title, cat, desc, palette, deliverables) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-cat').textContent = cat;
+      document.getElementById('modal-desc').textContent = desc;
+      document.getElementById('modal-palette').textContent = palette;
+      document.getElementById('modal-deliverables').textContent = deliverables;
+      document.getElementById('portfolio-modal').classList.remove('hidden');
+    }
+
+    function closePortfolioModal() {
+      document.getElementById('portfolio-modal').classList.add('hidden');
+    }
+
+    function selectPackage(name, price, duration, btn) {
+      currentPkgName = name;
+      currentPkgPrice = price;
+      currentDuration = duration;
+      document.querySelectorAll('.pkg-choice').forEach(b => {
+        b.className = 'pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
+      });
+      btn.className = 'pkg-choice p-4 rounded-2xl border border-purple-500 bg-zinc-900 text-left transition cursor-pointer';
+      document.getElementById('summary-package').textContent = name;
+      document.getElementById('summary-duration').textContent = duration;
+      recalculateTotal();
+    }
+
+    function toggleAddon(type, fee, cb) {
+      if (cb.checked) {
+        addonsFee += fee;
+      } else {
+        addonsFee -= fee;
+      }
+      document.getElementById('summary-addons').textContent = 'Rp ' + addonsFee.toLocaleString('id-ID');
+      recalculateTotal();
+    }
+
+    function recalculateTotal() {
+      const grandTotal = currentPkgPrice + addonsFee;
+      document.getElementById('summary-total').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
+    }
+
+    function submitDesignOrder() {
+      const brandInp = document.getElementById('brand-name');
+      const bName = brandInp.value.trim() || 'Klien Desain';
+      const randomCode = '#DSG-' + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('order-code').textContent = randomCode;
+      document.getElementById('order-pkg-res').textContent = currentPkgName;
+      document.getElementById('order-total-res').textContent = document.getElementById('summary-total').textContent;
+      document.getElementById('order-modal').classList.remove('hidden');
+    }
+
+    function closeOrderModal() {
+      document.getElementById('order-modal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 3. TEMPLATE: MINI SOCCER / SPORT VENUE (KHUSUS SEPAK BOLA / FUTSAL)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (isSoccerOrFutsal) {
     return `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
@@ -8807,40 +9421,92 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
       </div>
     </section>
 
-    <!-- Interactive Live Simulator Section -->
-    <section id="demo" class="py-16 border-t border-zinc-800">
+    <!-- Alur Kerja & Timeline Proyek (Derived from Tasks) -->
+    <section class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-12">
+          <span class="text-zinc-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">ROADMAP EKSEKUSI</span>
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Tahapan Pengerjaan & Alur Proyek</h2>
+          <p class="text-xs text-zinc-400 mt-1">Disusun sistematis berdasarkan deliverable dan milestone pengembangan.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          ${tasks.slice(0, 5).map((t, idx) => `
+            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+              <div>
+                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold text-[10px] block w-fit mb-3">
+                  ${escapeHtml(t.phase || `Tahap 0${idx + 1}`)}
+                </span>
+                <h4 class="text-xs font-bold text-white mb-2 leading-snug">${escapeHtml(t.title)}</h4>
+                <p class="text-[11px] text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live Inquiry & Action Engine -->
+    <section id="demo" class="py-16 border-t border-zinc-800 bg-zinc-950">
       <div class="max-w-4xl mx-auto px-4 sm:px-8">
-        <div class="p-6 sm:p-8 rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl">
+        <div class="p-6 sm:p-8 rounded-3xl border border-zinc-800 bg-zinc-900/60 shadow-2xl">
           <div class="pb-4 mb-6 border-b border-zinc-800 flex items-center justify-between">
             <div>
-              <h3 class="text-base font-bold text-white">Simulasi Interaksi Langsung</h3>
-              <p class="text-xs text-zinc-400">Ketik pesan atau masukan data untuk menguji respon aplikasi.</p>
+              <h3 class="text-base font-bold text-white">Konsultasi Kebutuhan & Uji Interaksi Langsung</h3>
+              <p class="text-xs text-zinc-400">Ajukan spesifikasi atau pesan brief layanan langsung ke sistem kami.</p>
             </div>
-            <span class="px-2.5 py-1 rounded-md bg-zinc-800 text-[10px] font-mono text-zinc-300">Live State</span>
+            <span class="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono">Formulir Terhubung</span>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800">
-              <label class="text-xs font-bold text-zinc-300 block mb-2">Masukan / Interaksi:</label>
-              <input type="text" id="demo-input" placeholder="Ketik sesuatu..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
-              <button onclick="addDemoItem()" class="mt-3 w-full py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer">
-                Kirim & Tambahkan
-              </button>
-            </div>
-            <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-zinc-300">Daftar Hasil (<span id="demo-count">0</span>)</span>
-                <button onclick="clearDemoList()" class="text-[10px] text-zinc-400 hover:text-white transition cursor-pointer">Bersihkan</button>
+          <form onsubmit="submitInquiry(event)" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs font-bold text-zinc-300 block mb-1.5">Nama Lengkap / Instansi:</label>
+                <input type="text" id="inq-name" required placeholder="Nama Anda atau Perusahaan" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
               </div>
-              <ul id="demo-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
-                <li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-500 italic text-[11px]">Belum ada masukan ditambahkan.</li>
-              </ul>
+              <div>
+                <label class="text-xs font-bold text-zinc-300 block mb-1.5">Kontak WhatsApp / Email:</label>
+                <input type="text" id="inq-contact" required placeholder="08xxxxxxxxxx atau email@anda.com" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+              </div>
             </div>
-          </div>
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-1.5">Pilih Kebutuhan Layanan:</label>
+              <select id="inq-service" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+                ${features.slice(0, 5).map((f) => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)}</option>`).join("")}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-1.5">Catatan Spesifikasi / Kebutuhan Tambahan:</label>
+              <textarea id="inq-notes" rows="3" placeholder="Jelaskan kebutuhan, preferensi, atau pertanyaan detail Anda..." class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white"></textarea>
+            </div>
+            <button type="submit" class="w-full py-3.5 rounded-2xl bg-white text-black font-black text-xs hover:bg-zinc-200 transition cursor-pointer shadow-lg">
+              Kirim Kebutuhan & Dapatkan Respon Cepat →
+            </button>
+          </form>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- Inquiry Confirmation Modal -->
+  <div id="inquiry-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl text-center">
+      <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
+        ✓
+      </div>
+      <h3 class="text-lg font-bold text-white mb-1">Permintaan Berhasil Terkirim!</h3>
+      <p class="text-xs text-zinc-400 mb-6">Data kebutuhan Anda telah tercatat dan akan diproses secara prioritas.</p>
+
+      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
+        <div class="flex justify-between"><span class="text-zinc-400">Kode Tiket:</span><span id="res-inq-code" class="font-bold text-emerald-400">#INQ-55219</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Nama:</span><span id="res-inq-name" class="text-white font-bold"></span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Layanan:</span><span id="res-inq-service" class="text-white font-bold"></span></div>
+      </div>
+
+      <button type="button" onclick="closeInquiryModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+        Tutup & Simpan Tiket
+      </button>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
@@ -8857,31 +9523,20 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </footer>
 
   <script>
-    let demoItems = [];
-    function addDemoItem() {
-      const inp = document.getElementById('demo-input');
-      const val = inp.value.trim();
-      if (!val) return;
-      demoItems.push(val);
-      inp.value = '';
-      renderDemoItems();
+    function submitInquiry(e) {
+      e.preventDefault();
+      const name = document.getElementById('inq-name').value.trim() || 'Pengguna';
+      const service = document.getElementById('inq-service').value;
+      const code = '#INQ-' + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('res-inq-code').textContent = code;
+      document.getElementById('res-inq-name').textContent = name;
+      document.getElementById('res-inq-service').textContent = service;
+      document.getElementById('inquiry-modal').classList.remove('hidden');
     }
-    function clearDemoList() {
-      demoItems = [];
-      renderDemoItems();
+
+    function closeInquiryModal() {
+      document.getElementById('inquiry-modal').classList.add('hidden');
     }
-    function renderDemoItems() {
-      document.getElementById('demo-count').textContent = demoItems.length;
-      const list = document.getElementById('demo-list');
-      if (demoItems.length === 0) {
-        list.innerHTML = '<li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-500 italic text-[11px]">Belum ada masukan ditambahkan.</li>';
-        return;
-      }
-      list.innerHTML = demoItems.map((item, idx) => '<li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs"><span>' + item + '</span><span class="text-[10px] font-mono text-zinc-500">#' + (idx + 1) + '</span></li>').join('');
-    }
-    document.getElementById('demo-input').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') addDemoItem();
-    });
   </script>
 </body>
 </html>`;
@@ -8927,11 +9582,11 @@ export function QuickHtmlPreview({
   // Sinkronisasi dengan proyek
   useEffect(() => {
     const extracted = extractHtmlFromProject(project);
-    if (extracted && extracted !== rawHtml && !rawHtml.trim()) {
+    if (extracted && extracted !== rawHtml) {
       setRawHtml(extracted);
       setDebouncedHtml(extracted);
     }
-  }, [project.id, project.generatedHtml]);
+  }, [project.id, project.updatedAt, project.generatedHtml]);
 
   // Debounced live update (300ms)
   useEffect(() => {
