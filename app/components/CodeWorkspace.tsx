@@ -3292,13 +3292,16 @@ function SourceIntegrityPanel({ state, isDark }: { state: SourceIntegrityState; 
 type CodeWorkspaceProps = {
   isDark: boolean;
   onClose: () => void;
+  userId?: string;
 };
 
-export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
+export function CodeWorkspace({ isDark, onClose, userId }: CodeWorkspaceProps) {
+  const userStorageKey = userId ? `usick_code_projects_${userId}` : "usick_code_projects_guest";
+
   const [projects, setProjects] = useState<ProjectItem[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(userStorageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -3457,12 +3460,30 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("ready");
   const [newTaskFeature, setNewTaskFeature] = useState("");
 
-  // Save projects to localStorage
+  // Save projects to localStorage per user
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      localStorage.setItem(userStorageKey, JSON.stringify(projects));
     } catch {}
-  }, [projects]);
+  }, [projects, userStorageKey]);
+
+  // Reload projects when switching user
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(userStorageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProjects(parsed);
+            return;
+          }
+        }
+      } catch {}
+      setProjects(DEFAULT_PROJECTS);
+      setActiveProjectId(null);
+    }
+  }, [userStorageKey]);
 
   const rawActiveProject = projects.find((p) => p.id === activeProjectId);
   const activeProject = useMemo(() => {

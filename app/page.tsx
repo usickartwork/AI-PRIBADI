@@ -49,9 +49,22 @@ type StreamChunk = {
   }[];
 };
 
-const STORAGE_KEY = "filius-ai-history";
-const SESSIONS_STORAGE_KEY = "filius-ai-sessions";
-const ACTIVE_SESSION_STORAGE_KEY = "filius-ai-active-session";
+function getSessionsStorageKey(userId?: string | null): string {
+  return userId ? `usick-sessions-${userId}` : "usick-sessions-guest";
+}
+
+function getActiveSessionStorageKey(userId?: string | null): string {
+  return userId ? `usick-active-session-${userId}` : "usick-active-session-guest";
+}
+
+function createFreshSession(): ChatSession {
+  return {
+    id: generateUUID(),
+    title: "Obrolan Baru",
+    messages: [],
+    updatedAt: Date.now(),
+  };
+}
 
 // 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
@@ -126,30 +139,16 @@ function parseRawToSessions(data: unknown): ChatSession[] {
   return [];
 }
 
-function loadSessions(): ChatSession[] {
+function loadSessions(userId?: string | null): ChatSession[] {
   if (typeof window === "undefined") return [];
   try {
-    const rawSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
+    const rawSessions = localStorage.getItem(getSessionsStorageKey(userId));
     if (rawSessions) {
       const parsed = JSON.parse(rawSessions);
       const res = parseRawToSessions(parsed);
       if (res.length > 0) return res;
     }
-    const legacyRaw = localStorage.getItem(STORAGE_KEY);
-    if (legacyRaw) {
-      const parsed = JSON.parse(legacyRaw);
-      const res = parseRawToSessions(parsed);
-      if (res.length > 0) return res;
-    }
   } catch {}
-  return [];
-}
-
-function loadHistory(): ChatMessage[] {
-  const sessions = loadSessions();
-  if (sessions.length > 0) {
-    return sessions[0].messages;
-  }
   return [];
 }
 
@@ -387,24 +386,28 @@ function ModelCategoryIcon({ category }: { category: string }) {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    const initial = loadSessions(null);
+    return initial.length > 0 ? initial : [createFreshSession()];
+  });
   const [activeSessionId, setActiveSessionId] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+      const saved = localStorage.getItem(getActiveSessionStorageKey(null));
       if (saved) return saved;
     }
-    const initialSessions = loadSessions();
+    const initialSessions = loadSessions(null);
     if (initialSessions.length > 0) return initialSessions[0].id;
     return generateUUID();
   });
 
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
   const activeSessionIdRef = useRef(activeSessionId);
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
     try {
-      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, activeSessionId);
+      localStorage.setItem(getActiveSessionStorageKey(user?.id), activeSessionId);
     } catch {}
-  }, [activeSessionId]);
+  }, [activeSessionId, user?.id]);
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
   const messages = currentSession?.messages || [];
@@ -563,12 +566,38 @@ export default function Home() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    const guestSessions = loadSessions(null);
+    if (guestSessions.length > 0) {
+      setSessions(guestSessions);
+      setActiveSessionId(guestSessions[0].id);
+    } else {
+      const fresh = createFreshSession();
+      setSessions([fresh]);
+      setActiveSessionId(fresh.id);
+    }
     setShowAuthModal(true);
   };
 
-  // Sinkronisasi riwayat chat dari Supabase saat user login
+  // Sinkronisasi riwayat chat dari Supabase saat user login atau berganti akun
   useEffect(() => {
-    if (!user?.id) return;
+    const currentUserId = user?.id ?? null;
+
+    // Deteksi jika user berubah (login baru, logout, atau berganti akun)
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== currentUserId) {
+      // Segera bersihkan data memori dan muat hanya data milik akun ini
+      const cached = loadSessions(currentUserId);
+      if (cached.length > 0) {
+        setSessions(cached);
+        setActiveSessionId(cached[0].id);
+      } else {
+        const fresh = createFreshSession();
+        setSessions([fresh]);
+        setActiveSessionId(fresh.id);
+      }
+    }
+    prevUserIdRef.current = currentUserId;
+
+    if (!currentUserId) return;
     let isMounted = true;
 
     async function fetchUserChatHistory() {
@@ -576,7 +605,7 @@ export default function Home() {
         const { data, error } = await supabase
           .from("chat_history")
           .select("messages")
-          .eq("user_id", user?.id)
+          .eq("user_id", currentUserId)
           .maybeSingle();
 
         if (error) {
@@ -592,24 +621,12 @@ export default function Home() {
               setActiveSessionId(parsed[0].id);
             }
             try {
-              localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(parsed));
+              localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(parsed));
             } catch {}
           }
-        } else {
-          // Jika di cloud masih kosong tetapi ada riwayat lokal, cadangkan ke Supabase
-          const localSessions = loadSessions();
-          if (localSessions.length > 0) {
-            const cleaned = localSessions.map((sess) => ({
-              ...sess,
-              messages: sess.messages.map(({ image, ...rest }) => rest),
-            }));
-            await supabase.from("chat_history").upsert({
-              user_id: user?.id,
-              messages: cleaned,
-              updated_at: new Date().toISOString(),
-            });
-          }
         }
+        // Catatan: Jika di cloud belum ada riwayat (akun baru), JANGAN PERNAH menyalin data lokal akun lain.
+        // Akun baru tetap memiliki sesi bersih untuk akun tersebut.
       } catch (err) {
         console.warn("[supabase] sync error:", err);
       }
@@ -901,25 +918,30 @@ export default function Home() {
 
   useEffect(() => {
     try {
+      const currentUserId = user?.id ?? null;
+      const sessionsKey = getSessionsStorageKey(currentUserId);
+      const activeKey = getActiveSessionStorageKey(currentUserId);
+
       // Hapus data foto/file agar tidak pernah masuk ke database / localStorage (cuma sekali pakai)
       const sessionsToSave = sessions.map((sess) => ({
         ...sess,
         messages: sess.messages.map(({ image, ...rest }) => rest),
       }));
 
-      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessionsToSave));
+      localStorage.setItem(sessionsKey, JSON.stringify(sessionsToSave));
+      if (activeSessionId) {
+        localStorage.setItem(activeKey, activeSessionId);
+      }
 
-      // Simpan juga versi messages aktif ke legacy key untuk compatibility
-      const activeMsgs = currentSession?.messages.map(({ image, ...rest }) => rest) || [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(activeMsgs));
-
-      // Simpan dan sinkronkan ke database Supabase jika pengguna sedang login
-      if (user?.id) {
+      // Simpan dan sinkronkan ke database Supabase HANYA jika:
+      // 1. Pengguna sedang login (ada currentUserId)
+      // 2. Ada pesan riwayat di dalam sessions (mencegah menimpa riwayat dengan array kosong saat inisialisasi)
+      if (currentUserId && sessionsToSave.length > 0 && sessionsToSave.some((s) => s.messages && s.messages.length > 0)) {
         const timer = setTimeout(() => {
           supabase
             .from("chat_history")
             .upsert({
-              user_id: user?.id,
+              user_id: currentUserId,
               messages: sessionsToSave,
               updated_at: new Date().toISOString(),
             })
@@ -931,7 +953,7 @@ export default function Home() {
         return () => clearTimeout(timer);
       }
     } catch {}
-  }, [sessions, currentSession, user?.id]);
+  }, [sessions, activeSessionId, user?.id]);
 
   const closeSidebarOnMobile = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -1448,7 +1470,7 @@ export default function Home() {
     const newId = generateUUID();
     setActiveSessionId(newId);
     try {
-      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, newId);
+      localStorage.setItem(getActiveSessionStorageKey(user?.id), newId);
     } catch {}
   };
 
@@ -1479,7 +1501,7 @@ export default function Home() {
     }
     setActiveSessionId(sessionId);
     try {
-      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId);
+      localStorage.setItem(getActiveSessionStorageKey(user?.id), sessionId);
     } catch {}
   };
 
@@ -1522,14 +1544,14 @@ export default function Home() {
     const newId = generateUUID();
     setActiveSessionId(newId);
     try {
-      localStorage.removeItem(SESSIONS_STORAGE_KEY);
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
-      if (user?.id) {
+      const currentUserId = user?.id ?? null;
+      localStorage.removeItem(getSessionsStorageKey(currentUserId));
+      localStorage.removeItem(getActiveSessionStorageKey(currentUserId));
+      if (currentUserId) {
         supabase
           .from("chat_history")
           .upsert({
-            user_id: user.id,
+            user_id: currentUserId,
             messages: [],
             updated_at: new Date().toISOString(),
           })
@@ -1890,7 +1912,7 @@ export default function Home() {
           : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
       }`}>
         {activeView === "code" ? (
-          <CodeWorkspace isDark={isDark} onClose={() => setActiveView("chats")} />
+          <CodeWorkspace isDark={isDark} onClose={() => setActiveView("chats")} userId={user?.id} />
         ) : activeView === "schedule" ? (
           <ScheduleWorkspace
             isDark={isDark}

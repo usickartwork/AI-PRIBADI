@@ -110,6 +110,11 @@ export function ScheduleWorkspace({
   // ─── Fetch Schedules ────────────────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
+
+    // Reset list agenda dan obrolan AI seketika saat user berganti agar data akun lain tidak tertinggal
+    setSchedules([]);
+    setChatMessages([]);
+
     async function loadData() {
       setLoading(true);
       try {
@@ -117,7 +122,7 @@ export function ScheduleWorkspace({
           const res = await fetch(`/api/schedules?userId=${user.id}`);
           const json = await res.json();
           if (isMounted) {
-            if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            if (json.success && Array.isArray(json.data)) {
               setSchedules(json.data);
               saveLocalSchedules(user.id, json.data);
             } else {
