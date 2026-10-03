@@ -43,7 +43,7 @@ async function sendViaResend(apiKey: string, toEmail: string, subject: string, h
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Usick AI Schedule <reminders@resend.dev>",
+      from: "Usick AI Schedule <onboarding@resend.dev>",
       to: [toEmail],
       subject,
       html,
