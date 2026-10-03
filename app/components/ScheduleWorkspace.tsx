@@ -35,14 +35,6 @@ type ScheduleChatMessage = {
   timestamp: string;
 };
 
-const SUGGESTED_PROMPTS = [
-  "Besok jam 9 pagi meeting dengan tim selama 1 jam",
-  "Hari Senin jam 7 malam gym",
-  "Ingatkan aku bayar listrik tanggal 10 jam 8 malam",
-  "Besok jam 14:00 konsultasi dosen, ingatkan 30 menit sebelumnya",
-  "Setiap Senin jam 8 pagi meeting mingguan",
-];
-
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
   if (hour >= 4 && hour < 11) return "Good Morning";
@@ -715,24 +707,6 @@ export function ScheduleWorkspace({
                   <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                     What would you like to schedule today?
                   </p>
-
-                  <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-lg px-2">
-                    {SUGGESTED_PROMPTS.map((promptText, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={() => handleSendChatMessage(promptText)}
-                        className={`rounded-2xl px-3.5 py-2 text-xs border transition cursor-pointer text-left ${
-                          isDark
-                            ? "bg-[#141418] hover:bg-[#1a1a20] border-zinc-800 text-zinc-300 hover:text-white"
-                            : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-black"
-                        }`}
-                      >
-                        &ldquo;{promptText}&rdquo;
-                      </button>
-                    ))}
-                  </div>
                 </div>
               ) : (
                 chatMessages.map((msg) => {
@@ -938,29 +912,6 @@ export function ScheduleWorkspace({
             </div>
           </div>
 
-          {/* Quick Prompts Pills Carousel above Chat Input (hanya jika sudah ada chat) */}
-          {chatMessages.length > 0 && (
-            <div className="shrink-0 px-3.5 sm:px-6 pt-1">
-              <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
-                <span className="text-zinc-500 shrink-0 font-medium">Contoh:</span>
-                {SUGGESTED_PROMPTS.map((promptText, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={() => handleSendChatMessage(promptText)}
-                    className={`shrink-0 rounded-full px-2.5 py-1 border transition text-left cursor-pointer ${
-                      isDark
-                        ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                        : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200 hover:text-black"
-                    }`}
-                  >
-                    &ldquo;{promptText}&rdquo;
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ─── FLOATING CHAT BOX (Styled exactly like the main chat) ──────── */}
           <div
