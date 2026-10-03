@@ -17,6 +17,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
 
   // State untuk alur OTP
   const [otpCode, setOtpCode] = useState("");
+  const [otpToken, setOtpToken] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [sandboxNotice, setSandboxNotice] = useState<string | null>(null);
 
@@ -106,6 +107,9 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       if (!res.ok || !data.success) {
         setErrorMsg(data.error || "Gagal mengirimkan kode OTP ke email.");
       } else {
+        if (data.token) {
+          setOtpToken(data.token);
+        }
         if (data.devOtp) {
           setOtpCode(data.devOtp);
           setSandboxNotice(`Mode Sandbox: Kode verifikasi Anda adalah ${data.devOtp}`);
@@ -140,7 +144,12 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       const res = await fetch("/api/auth/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", email: email.trim(), code: otpCode.trim() }),
+        body: JSON.stringify({
+          action: "verify",
+          email: email.trim(),
+          code: otpCode.trim(),
+          token: otpToken,
+        }),
       });
       const data = await res.json();
 
@@ -173,6 +182,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
         setPassword("");
         setConfirmPassword("");
         setOtpCode("");
+        setOtpToken(null);
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan saat memverifikasi akun.");
@@ -194,6 +204,9 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.token) {
+          setOtpToken(data.token);
+        }
         if (data.devOtp) {
           setOtpCode(data.devOtp);
           setSandboxNotice(`Mode Sandbox: Kode verifikasi baru Anda adalah ${data.devOtp}`);

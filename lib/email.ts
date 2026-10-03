@@ -15,25 +15,56 @@ export type ScheduleEmailReminderParams = {
   reminderMinutes: number;
 };
 
-// Helper pengiriman email via Gmail SMTP
+// Helper pengiriman email via Gmail SMTP (Nodemailer)
 async function sendViaGmail(user: string, pass: string, toEmail: string, subject: string, html: string) {
-  const cleanPass = pass.replace(/\s+/g, "");
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user,
-      pass: cleanPass,
-    },
-  });
+  const cleanUser = user.replace(/^["']|["']$/g, "").trim();
+  const cleanPass = pass.replace(/^["']|["']$/g, "").replace(/\s+/g, "").trim();
 
-  return await transporter.sendMail({
-    from: `"Usick AI Schedule" <${user}>`,
-    to: toEmail,
-    subject,
-    html,
-  });
+  // Coba port 465 (SSL)
+  try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: cleanUser,
+        pass: cleanPass,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+
+    return await transporter.sendMail({
+      from: `"Usick AI" <${cleanUser}>`,
+      to: toEmail,
+      subject,
+      html,
+    });
+  } catch (err465: any) {
+    console.warn("[Email] Gmail port 465 gagal, mencoba fallback port 587 STARTTLS...", err465?.message || err465);
+
+    // Fallback port 587 (STARTTLS)
+    const transporter587 = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: cleanUser,
+        pass: cleanPass,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+
+    return await transporter587.sendMail({
+      from: `"Usick AI" <${cleanUser}>`,
+      to: toEmail,
+      subject,
+      html,
+    });
+  }
 }
 
 // Helper pengiriman email via Resend
