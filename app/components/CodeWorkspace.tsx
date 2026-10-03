@@ -3799,32 +3799,12 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
     if (!presetText) setChatInput("");
     setIsChatLoading(true);
 
-    const hasExistingPlanning = Boolean(
-      (currentProject.prd && (currentProject.prd.overview || (currentProject.prd.goals && currentProject.prd.goals.length > 0) || (currentProject.prd.functionalRequirements && currentProject.prd.functionalRequirements.length > 0))) ||
-      (currentProject.features && currentProject.features.length > 0) ||
-      (currentProject.tasks && currentProject.tasks.length > 0)
-    );
-
     const isAnsweringQuestions =
       textToSend.includes("klarifikasi kebutuhan proyek") ||
       textToSend.includes("Berikut klarifikasi kebutuhan") ||
       /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend);
 
-    const isExplicitRevision =
-      /revisi|ubah|ganti|edit|tambah|kurang|hapus|update|sesuaikan|perbarui|modifikasi|delete|remove|add|replace|adjust|perbaiki/i.test(textToSend);
-
-    const mentionsPlanningArtifacts =
-      /fitur|task|tugas|prd|arsitektur|flow|halaman|database|kebutuhan|requirement|spesifikasi|scope|cakupan|backend|frontend/i.test(textToSend);
-
-    const isRevision = hasExistingPlanning && (
-      isExplicitRevision ||
-      mentionsPlanningArtifacts ||
-      /tolong|mohon|bisa gak|bisa tidak|mau|coba/i.test(textToSend)
-    );
-
-    const isPlanningAction = isAnsweringQuestions || isRevision;
-
-    if (isPlanningAction) {
+    if (isAnsweringQuestions) {
       setEstafetStage("prd");
     } else {
       setEstafetStage("idle");
@@ -3833,132 +3813,8 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
     const domain = detectProjectDomain(updatedMessages, currentProject.title, currentProject.description);
 
     let systemPrompt = "";
-    if (isRevision) {
-      // ── MODE REVISI PERENCANAAN AKTIF ─────────────────────────────────────
-      const currentPrdOverview = currentProject.prd?.overview || "Belum ada overview";
-      const currentReqs = currentProject.prd?.classifiedRequirements?.map((r) => `- [${r.id}] (${r.source}): ${r.text}`).join("\n") ||
-        currentProject.prd?.functionalRequirements?.map((fr, i) => `- [FR-${String(i + 1).padStart(2, "0")}]: ${fr}`).join("\n") || "Belum ada requirement terdaftar";
-      const currentFeaturesList = currentProject.features?.map((f, i) => `- [${f.id}] ${f.name} (Scope: ${f.scope || "MVP"}, Priority: ${f.priority || "HIGH"}): ${f.description || ""}`).join("\n") || "Belum ada fitur terdaftar";
-      const currentTasksList = currentProject.tasks?.map((t, i) => `- [${t.id}] ${t.title} (Fase: ${t.phase || "Phase 1"}, Status: ${t.status || "backlog"}): ${t.description || ""}`).join("\n") || "Belum ada task terdaftar";
-      const currentArchSummary = currentProject.architecture ? `Frontend: ${currentProject.architecture.frontend}, Backend: ${currentProject.architecture.backend}, Database: ${currentProject.architecture.database}, Auth: ${currentProject.architecture.auth}` : "Default Next.js stack";
-
-      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi dalam MODE REVISI PERENCANAAN (Universal V4 Planning Reviser).
-Pengguna ingin melakukan REVISI / PERUBAHAN pada perencanaan proyek "${domain.topicName}" (Nama project: "${currentProject.title}").
-
-PERMINTAAN PERUBAHAN DARI PENGGUNA:
-"${textToSend}"
-
-SNAPSHOT PERENCANAAN PROYEK SAAT INI:
----
-[PRD OVERVIEW]
-${currentPrdOverview}
-
-[FUNCTIONAL REQUIREMENTS AKTIF]
-${currentReqs}
-
-[FITUR AKTIF]
-${currentFeaturesList}
-
-[DEVELOPMENT TASKS AKTIF]
-${currentTasksList}
-
-[ARSITEKTUR & TEKNOLOGI AKTIF]
-${currentArchSummary}
----
-
-ATURAN REVISI KETAT (UNIVERSAL V4 PRINCIPLES):
-1. USER menentukan WHAT, AI menentukan HOW.
-2. PERTAHANKAN PERENCANAAN YANG ADA: Jangan menghapus atau mereset hal yang tidak diminta oleh pengguna. Pertahankan ID item yang ada (REQ-XX, FEATURE-XX, TASK-XX).
-3. JIKA PERMINTAAN MENAMBAH FITUR / TASK:
-   - Tambahkan requirement baru ke daftar functionalRequirements / classifiedRequirements (beri ID lanjutan).
-   - Buatkan fitur baru yang relevan pada array "features", sertakan "sourceRequirementIds" yang sesuai.
-   - Buatkan development task spesifik pada array "tasks" dan letakkan pada fase yang tepat.
-4. JIKA PERMINTAAN MENGUBAH / MENGEDIT:
-   - Perbarui deskripsi, judul, scope, atau kriteria dari requirement, feature, atau task terkait.
-5. JIKA PERMINTAAN MENGHAPUS:
-   - Hapus requirement, fitur, atau task yang diminta secara bersih.
-6. SCOPE PROTECTION:
-   - DILARANG menambahkan fitur bisnis yang tidak diminta (kupon, voucher, wishlist, faq, chat cs, poin loyalty) jika tidak diminta oleh pengguna.
-7. FORMAT OUTPUT:
-   A. Berikan respon ramah dalam bahasa Indonesia yang merinci poin-poin perubahan apa saja yang telah disesuaikan (gunakan format Markdown yang rapi dan mudah dibaca).
-   B. Di BAGIAN AKHIR respon, SERTAKAN blok JSON lengkap hasil revisi menggunakan format persis berikut:
-
-<<<REVISION_JSON>>>
-{
-  "prd": {
-    "overview": "...",
-    "problemStatement": "...",
-    "goals": ["G-01...", "G-02..."],
-    "targetUsers": ["...", "..."],
-    "functionalRequirements": ["REQ-001: ...", "REQ-002: ..."],
-    "nonFunctionalRequirements": ["NFR-01: ..."],
-    "constraints": ["..."],
-    "classifiedRequirements": [
-      { "id": "REQ-001", "text": "...", "source": "USER_REQUIREMENT" }
-    ],
-    "userDerived": {
-      "goals": ["..."],
-      "functionalRequirements": ["..."],
-      "userConstraints": ["..."],
-      "explicitNFR": ["..."]
-    },
-    "aiDerived": {
-      "technicalRecommendations": ["..."],
-      "architectureSuggestions": ["..."],
-      "assumptions": ["..."],
-      "optionalFeatures": ["..."],
-      "aiSuggestions": ["..."]
-    },
-    "assumptions": [],
-    "risks": []
-  },
-  "features": [
-    {
-      "id": "FEATURE-01",
-      "name": "...",
-      "description": "...",
-      "priority": "CRITICAL",
-      "scope": "MVP",
-      "sourceRequirementIds": ["REQ-001"],
-      "subFeatures": ["..."],
-      "acceptanceCriteria": ["AC-01: ..."]
-    }
-  ],
-  "userFlow": "flowchart TD\n...",
-  "architecture": {
-    "frontend": "...",
-    "backend": "...",
-    "database": "...",
-    "auth": "...",
-    "storage": "...",
-    "realtime": "...",
-    "dataSchema": "..."
-  },
-  "tasks": [
-    {
-      "id": "TASK-001",
-      "title": "...",
-      "description": "...",
-      "phase": "Phase 1 - Inisiasi & Setup",
-      "priority": "CRITICAL",
-      "feature": "FEATURE-01",
-      "sourceRequirementIds": ["REQ-001"],
-      "status": "backlog",
-      "dependencyType": "NONE",
-      "complexity": "M"
-    }
-  ]
-}
-<<<END_REVISION_JSON>>>`;
-    } else if (!isPlanningAction) {
-      if (hasExistingPlanning) {
-        systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
-Pengguna sedang berkonsultasi mengenai proyek "${domain.topicName}" (Nama proyek: "${currentProject.title}").
-Proyek ini sudah memiliki PRD, spesifikasi fitur, dan task board.
-
-Berikan jawaban atau panduan profesional sesuai pertanyaan pengguna. Jika pengguna ingin mengubah atau merevisi fitur/PRD/task, beri tahu bahwa mereka cukup mengetik permintaan revisinya di sini dan kamu akan langsung memperbarui perencanaannya.`;
-      } else {
-        systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+    if (!isAnsweringQuestions) {
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
 Pengguna sedang mendiskusikan brief dan ide website untuk proyek: "${domain.topicName}" (Nama proyek: "${currentProject.title}").
 
 TUGAS UTAMA:
@@ -3984,7 +3840,6 @@ TUGAS UTAMA:
 PENTING:
 - DILARANG membuat blueprint PRD atau Task Board sekarang!
 - Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
-      }
     } else {
       systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi sesuai FINAL V4 ADDITION (Universal Scope, Architecture & Planning Intelligence).
 Pengguna telah memberikan brief dan preferensi untuk proyek: "${domain.topicName}" (Nama project: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
@@ -4094,41 +3949,65 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       "id": "FEATURE-01",
       "name": "...",
       "description": "...",
-      "priority": "CRITICAL",
+      "priority": "HIGH",
       "scope": "MVP",
+      "sourceType": "USER_REQUIREMENT",
+      "origin": "USER_REQUIREMENT",
       "sourceRequirementIds": ["REQ-001"],
-      "subFeatures": ["..."],
+      "sourceRequirements": ["REQ-001"],
+      "isAiSuggested": false,
+      "relatedRequirements": ["REQ-001"],
+      "subFeatures": ["...", "..."],
       "dependencies": [],
-      "acceptanceCriteria": ["AC-01: ..."]
+      "isMvp": true
     }
   ],
-  "userFlow": "flowchart TD\n...",
+  "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ...",
   "architecture": {
-    "frontend": "Next.js 15 (App Router), Tailwind CSS",
-    "backend": "Next.js Route Handlers",
-    "database": "PostgreSQL",
-    "auth": "NextAuth",
-    "storage": "Supabase Storage",
-    "realtime": "None",
-    "backgroundJobs": "None",
-    "caching": "Next.js Data Cache",
-    "deployment": "Vercel",
-    "dataSchema": "-- Skema SQL tabel utama...",
-    "stackMode": "AI_RECOMMENDED"
+    "stackMode": "${domain.stackMode}",
+    "frontend": "${domain.userSpecifiedStack.frontend || "Next.js 15 (App Router), Tailwind CSS (AI-SUGGESTED)"}",
+    "backend": "${domain.userSpecifiedStack.backend || "Next.js Route Handlers / Server Actions (AI-SUGGESTED)"}",
+    "database": "${domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL / Supabase (AI-SUGGESTED)") : "None (Static Website / Client-side rendering)"}",
+    "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website - No Auth Required)"}",
+    "storage": "${domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"}",
+    "realtime": "${domain.needsRealtime ? "WebSockets / Realtime Subscriptions" : "NOT REQUIRED"}",
+    "backgroundJobs": "${domain.needsBackgroundJobs ? "Queue Worker / Scheduled Cron" : "NOT REQUIRED"}",
+    "caching": "${domain.needsCaching ? "Redis Cache Layer" : "NOT REQUIRED"}",
+    "deployment": "Vercel / Cloudflare Pages",
+    "dataSchema": "${domain.needsDatabase ? "CREATE TABLE ..." : "-- Tidak memerlukan skema database relasional"}"
   },
   "tasks": [
     {
       "id": "TASK-001",
-      "title": "Setup Repository & Foundational Infrastructure",
-      "description": "Inisialisasi codebase Next.js, konfigurasi TypeScript, linting, dan styling dasar.",
-      "phase": "Phase 1 - Inisiasi & Setup",
-      "priority": "CRITICAL",
-      "feature": "FEATURE-01",
+      "title": "...",
+      "description": "...",
+      "phase": "Phase 1 - Project Foundation",
+      "priority": "HIGH",
+      "status": "ready",
+      "feature": "FEATURE-01: ...",
+      "relatedFeature": "FEATURE-01: ...",
+      "source": "USER_REQUIREMENT",
+      "origin": "USER_REQUIREMENT",
       "sourceRequirementIds": ["REQ-001"],
-      "status": "backlog",
-      "deliverable": "Codebase siap pakai",
+      "deliverable": "...",
       "dependencyType": "NONE",
-      "complexity": "M"
+      "complexity": "M",
+      "technicalNotes": "...",
+      "relatedRequirements": ["FR-01"],
+      "dependencies": [],
+      "parallelizable": "YES",
+      "parallelGroup": "PG-01",
+      "subtasks": ["TASK-001.1: ..."],
+      "acceptanceCriteria": ["..."],
+      "testing": ["..."]
+    }
+  ],
+  "traceabilityMatrix": [
+    {
+      "requirementId": "REQ-001",
+      "featureId": "FEATURE-01",
+      "taskIds": ["TASK-001"],
+      "classification": "USER_REQUIREMENT"
     }
   ]
 }
@@ -4198,7 +4077,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               rawStream += chunk;
 
               // Deteksi progres estafet berbasis bagian nyata yang sedang digenerate AI:
-              if (isPlanningAction) {
+              if (isAnsweringQuestions) {
                 if (rawStream.includes('"tasks"') || rawStream.includes('tasks":') || rawStream.includes('"Actionable') || rawStream.length > 3800) {
                   if (currentTrackedStage !== "tasks") {
                     currentTrackedStage = "tasks";
@@ -4217,26 +4096,26 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 }
               }
 
-              // Real-time update bubble percakapan (bersih dari JSON internal saat streaming)
-              const streamDisplay = cleanChatDisplay(rawStream);
-              setProjects((prev) =>
-                prev.map((p) =>
-                  p.id === projId
-                    ? {
-                        ...p,
-                        messages: p.messages.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: streamDisplay } : m
-                        ),
-                      }
-                    : p
-                )
-              );
+              if (!isAnsweringQuestions) {
+                setProjects((prev) =>
+                  prev.map((p) =>
+                    p.id === projId
+                      ? {
+                          ...p,
+                          messages: p.messages.map((m) =>
+                            m.id === assistantMsgId ? { ...m, content: rawStream } : m
+                          ),
+                        }
+                      : p
+                  )
+                );
+              }
             }
           } catch {}
         }
       }
 
-      if (isPlanningAction) {
+      if (isAnsweringQuestions) {
         // Transisi halus berurutan agar pengguna benar-benar melihat setiap tahap dari awal hingga akhir terupdate:
         const stageSequence: Array<"prd" | "features" | "architecture" | "tasks" | "completed"> = [
           "prd",
@@ -4248,20 +4127,18 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         const startIdx = stageSequence.indexOf(currentTrackedStage);
         const actualStart = startIdx >= 0 ? startIdx : 0;
         for (let s = actualStart + 1; s < stageSequence.length; s++) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 750));
           setEstafetStage(stageSequence[s]);
         }
 
         if (!rawStream.trim()) {
-          rawStream = isRevision
-            ? "Perencanaan proyek telah berhasil disesuaikan. Anda dapat meninjau tab PRD, Features, Flow & Architecture, dan Tasks di atas."
-            : "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
+          rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
         parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
       } else {
         setEstafetStage("idle");
-        // Hanya tambahkan pertanyaan discovery jika proyek belum memiliki perencanaan dan pertanyaan belum ada
-        if (!hasExistingPlanning && !rawStream.includes("<<<QUESTIONS_JSON>>>")) {
+        // Jika sedang fase diskusi brief, pastikan pertanyaan discovery ada di akhir respons
+        if (!rawStream.includes("<<<QUESTIONS_JSON>>>")) {
           const { questionsJson } = generateInitialDiscoveryQuestions(currentProject.title, textToSend || currentProject.description);
           rawStream = rawStream.trim() + questionsJson;
           setProjects((prev) =>
@@ -4311,26 +4188,13 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     return getDomainBlueprint(domain, title).features;
   };
 
-  // Parser Blueprint / Revision JSON yang sangat tangguh terhadap variasi output LLM
+  // Parser Blueprint JSON yang sangat tangguh terhadap variasi output LLM
   const extractBlueprintFromText = (text: string): any => {
+    const startTag = "<<<BLUEPRINT_JSON>>>";
+    const endTag = "<<<END_BLUEPRINT_JSON>>>";
     let jsonStr = "";
 
-    // 1. Check for REVISION or BLUEPRINT tags
-    const revStart = "<<<REVISION_JSON>>>";
-    const revEnd = "<<<END_REVISION_JSON>>>";
-    const bpStart = "<<<BLUEPRINT_JSON>>>";
-    const bpEnd = "<<<END_BLUEPRINT_JSON>>>";
-
-    let sIdx = text.indexOf(revStart);
-    let startTag = revStart;
-    let endTag = revEnd;
-
-    if (sIdx === -1) {
-      sIdx = text.indexOf(bpStart);
-      startTag = bpStart;
-      endTag = bpEnd;
-    }
-
+    const sIdx = text.indexOf(startTag);
     if (sIdx !== -1) {
       const eIdx = text.indexOf(endTag, sIdx + startTag.length);
       if (eIdx !== -1) {
@@ -4376,7 +4240,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
           try {
             return JSON.parse(cleaned);
           } catch (err) {
-            console.warn("Gagal parse blueprint/revision JSON:", err);
+            console.warn("Gagal parse blueprint JSON:", err);
           }
         }
       }
@@ -4387,14 +4251,12 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
   // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
   const cleanChatDisplay = (text: string): string => {
     let result = text;
-    const tagMatch = result.match(/<<<(?:BLUEPRINT|REVISION)_JSON>>>/);
-    if (tagMatch && tagMatch.index !== undefined) {
-      const before = result.slice(0, tagMatch.index).trim();
-      const isRev = /revisi|perubahan|disesuaikan|ditambahkan|dihapus|diperbarui|update|menambahkan|memperbarui/i.test(before) || text.includes("<<<REVISION_JSON>>>");
-      const callout = isRev
-        ? "\n\n> ✏️ **Perencanaan Berhasil Direvisi:** PRD, spesifikasi fitur, dan task board telah otomatis diperbarui pada tab di atas!"
-        : "\n\n> ✨ **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!";
-      result = before ? `${before}${callout}` : callout.trim();
+    const jsonStart = result.indexOf("<<<BLUEPRINT_JSON>>>");
+    if (jsonStart !== -1) {
+      const before = result.slice(0, jsonStart).trim();
+      result = before
+        ? `${before}\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`
+        : `Spesifikasi teknis dan blueprint proyek telah selesai dirumuskan secara estafet sesuai brief dan jawaban klarifikasi Anda.\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`;
     }
     return result;
   };
@@ -4507,7 +4369,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               aiDerived: blueprintData.prd.aiDerived,
             };
           } else {
-            updated.prd = p.prd || domainBlueprint.prd;
+            updated.prd = domainBlueprint.prd;
           }
 
           if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 3) {
@@ -4536,13 +4398,13 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               };
             });
           } else {
-            updated.features = (p.features && p.features.length > 0) ? p.features : domainBlueprint.features;
+            updated.features = domainBlueprint.features;
           }
 
           if (blueprintData.userFlow && String(blueprintData.userFlow).length > 20) {
             updated.userFlow = String(blueprintData.userFlow);
           } else {
-            updated.userFlow = p.userFlow || domainBlueprint.userFlow;
+            updated.userFlow = domainBlueprint.userFlow;
           }
 
           if (blueprintData.architecture) {
@@ -4564,7 +4426,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               complexityLevel: domain.complexity,
             };
           } else {
-            updated.architecture = p.architecture || domainBlueprint.architecture;
+            updated.architecture = domainBlueprint.architecture;
           }
 
           if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 4) {
@@ -4575,13 +4437,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 id: taskId,
                 title: t.title || "Task " + (idx + 1),
                 description: t.description || "",
-                status: (() => {
-                const existingTask = p.tasks.find((et) => et.id === taskId);
-                if (existingTask && (existingTask.status === "done" || existingTask.status === "in_progress" || existingTask.status === "review")) {
-                  return existingTask.status;
-                }
-                return (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog";
-              })(),
+                status: (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog",
                 phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
                 priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
                 feature: parentFeat,
@@ -6661,74 +6517,6 @@ ${(() => {
               : "bg-gradient-to-t from-[#fafafc]/95 via-[#fafafc]/60 to-transparent"
           }`}>
             <div className="mx-auto max-w-3xl w-full">
-              {/* Quick Revision Chips */}
-              {Boolean(activeProject?.prd || (activeProject?.tasks && activeProject.tasks.length > 0) || (activeProject?.features && activeProject.features.length > 0)) && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs select-none">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
-                    <span>✏️</span> Revisi Cepat:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChatInput("Tolong tambahkan fitur: ");
-                      chatTextareaRef.current?.focus();
-                    }}
-                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
-                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
-                    }`}
-                  >
-                    <span>➕</span> Tambah Fitur
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChatInput("Tolong ubah PRD pada bagian: ");
-                      chatTextareaRef.current?.focus();
-                    }}
-                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
-                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
-                    }`}
-                  >
-                    <span>📝</span> Ubah PRD
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChatInput("Tolong tambahkan task implementasi: ");
-                      chatTextareaRef.current?.focus();
-                    }}
-                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
-                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
-                    }`}
-                  >
-                    <span>📋</span> Tambah Task
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChatInput("Tolong sesuaikan arsitektur & teknologi: ");
-                      chatTextareaRef.current?.focus();
-                    }}
-                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
-                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
-                    }`}
-                  >
-                    <span>⚡</span> Sesuaikan Stack
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setChatInput("Tolong hapus fitur: ");
-                      chatTextareaRef.current?.focus();
-                    }}
-                    className={`px-2.5 py-1 rounded-xl font-medium shrink-0 border transition cursor-pointer flex items-center gap-1 ${
-                      isDark ? "bg-zinc-900/90 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-xs"
-                    }`}
-                  >
-                    <span>🗑️</span> Hapus Fitur
-                  </button>
-                </div>
-              )}
               <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
                 isDark
                   ? "shadow-2xl shadow-black/80"
@@ -8124,51 +7912,211 @@ window.addEventListener('error', function(event) {
   return `${cspMeta}\n${errorCatcher}\n${html}`;
 }
 
-export function generateStarterPrototypeHtml(project: ProjectItem): string {
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANNING-AWARE QUICK HTML PREVIEW — UNIVERSAL V4 INTEGRATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PreviewElementClassification = "USER_DERIVED" | "AI_DERIVED";
+
+export interface PreviewComponentSpec {
+  id: string;
+  name: string;
+  type: string;
+  purpose: string;
+  source_requirement_ids: string[];
+  source_feature_ids: string[];
+  classification: PreviewElementClassification;
+}
+
+export interface PreviewSectionSpec {
+  id: string;
+  title: string;
+  purpose: string;
+  source_requirement_ids: string[];
+  source_feature_ids: string[];
+  classification: PreviewElementClassification;
+  components: PreviewComponentSpec[];
+}
+
+export interface PreviewPageSpec {
+  id: string;
+  name: string;
+  route: string;
+  source_requirement_ids: string[];
+  sections: PreviewSectionSpec[];
+}
+
+export interface PreviewSpecification {
+  project_type: string;
+  secondary_types: string[];
+  pages: PreviewPageSpec[];
+  sections: PreviewSectionSpec[];
+  components: PreviewComponentSpec[];
+  interactions: string[];
+  states: string[];
+  responsive_behavior: string[];
+  source_requirement_ids: string[];
+}
+
+export interface PreviewSourceIntegrity {
+  totalUserRequirements: number;
+  coveredUserRequirements: number;
+  coveredRequirementIds: string[];
+  uncoveredUserRequirements: string[];
+  coveragePercent: number;
+  unsupportedUIElements: string[];
+  traceabilityErrors: string[];
+  traceabilityStatus: "PASS" | "FAIL";
+  status: "PASS" | "WARN" | "FAIL";
+  flags: {
+    PREVIEW_COVERAGE_MISSING: boolean;
+    UNSUPPORTED_PREVIEW_SCOPE: boolean;
+    PREVIEW_TRACEABILITY_MISMATCH: boolean;
+  };
+}
+
+export interface PlanningAwarePreviewResult {
+  html: string;
+  spec: PreviewSpecification;
+  integrity: PreviewSourceIntegrity;
+  hasPlanningContext: boolean;
+}
+
+export const FORBIDDEN_UNSUPPORTED_SCOPE = [
+  { keyword: "coupon", pattern: /\b(coupon|kupon)\b/i, label: "Coupon / Kupon" },
+  { keyword: "voucher", pattern: /\b(voucher|diskon khusus voucher)\b/i, label: "Voucher" },
+  { keyword: "wishlist", pattern: /\b(wishlist|daftar keinginan)\b/i, label: "Wishlist" },
+  { keyword: "faq", pattern: /\b(faq|tanya jawab|pertanyaan umum)\b/i, label: "FAQ" },
+  { keyword: "customer_support", pattern: /\b(customer support|layanan pelanggan|live chat|bantuan cs)\b/i, label: "Customer Support / Chat" },
+  { keyword: "blog", pattern: /\b(blog|artikel berita|kumpulan artikel)\b/i, label: "Blog" },
+  { keyword: "loyalty", pattern: /\b(loyalty|poin loyalitas|reward points)\b/i, label: "Loyalty / Rewards" },
+  { keyword: "referral", pattern: /\b(referral|kode referral|ajak teman)\b/i, label: "Referral" },
+  { keyword: "subscription", pattern: /\b(subscription|berlangganan berkala|paket langganan)\b/i, label: "Subscription" },
+  { keyword: "notification_center", pattern: /\b(notification center|pusat notifikasi)\b/i, label: "Notification Center" },
+  { keyword: "testimonials", pattern: /\b(testimoni|testimonials|ulasan klien)\b/i, label: "Testimonials" },
+  { keyword: "membership", pattern: /\b(membership|tier member|keanggotaan)\b/i, label: "Membership" },
+];
+
+export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePreviewResult {
+  const hasPlanningContext = Boolean(
+    (project.prd && (project.prd.overview || (project.prd.goals && project.prd.goals.length > 0) || (project.prd.functionalRequirements && project.prd.functionalRequirements.length > 0))) ||
+    (project.features && project.features.length > 0) ||
+    (project.tasks && project.tasks.length > 0)
+  );
+
   const title = escapeHtml(project.title || "Web Prototype");
   const desc = escapeHtml(project.description || project.prd?.overview || "Modern web application prototype.");
-  const primaryType = (project.prd?.primaryType || "WEB APPLICATION").toUpperCase();
-  const secondaryTypes = project.prd?.secondaryTypes || [];
-  const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")}`.toLowerCase();
+  const userMsgText = (project.messages || []).filter((m) => m.role === "user").map((m) => m.content).join(" ");
+  const combinedContextText = `${project.title || ""} ${project.description || ""} ${userMsgText}`.toLowerCase();
+
+  // STEP 1: Read immutable USER_REQUIREMENTS from registry
+  const registry = buildRequirementRegistry(project.prd, project.prd?.requirementRegistry);
+  const regMap = new Map<string, RequirementRegistryEntry>();
+  registry.forEach((r) => regMap.set(r.id, r));
+
+  const userRequirements: RequirementRegistryEntry[] = registry.filter((r) => isUserClass(r.classification));
+  if (userRequirements.length === 0 && project.prd?.functionalRequirements) {
+    project.prd.functionalRequirements.forEach((fr, i) => {
+      const id = `FR-${String(i + 1).padStart(2, "0")}`;
+      const entry: RequirementRegistryEntry = {
+        id,
+        text: fr,
+        source: "USER_INPUT",
+        classification: "USER_REQUIREMENT",
+        status: "ACTIVE",
+      };
+      userRequirements.push(entry);
+      regMap.set(id, entry);
+    });
+  }
+
+  // STEP 2: Identify relevant FEATURES
+  const features = (project.features && project.features.length > 0)
+    ? project.features.map((f, idx) => ({
+        id: f.id || `feat-${idx + 1}`,
+        name: f.name || "Fitur Layanan",
+        description: f.description || "Layanan terintegrasi dengan performa tinggi.",
+        sourceRequirements: f.sourceRequirements || f.relatedRequirements || [],
+        isAiSuggested: Boolean(f.isAiSuggested),
+      }))
+    : [
+        { id: "feat-1", name: "Katalog & Layanan Inti", description: "Akses mudah dan cepat ke seluruh katalog layanan.", sourceRequirements: [], isAiSuggested: false },
+        { id: "feat-2", name: "Sistem Pencarian & Filter Cepat", description: "Temukan informasi atau produk secara instan.", sourceRequirements: [], isAiSuggested: false },
+        { id: "feat-3", name: "Interaksi & Konfirmasi Cepat", description: "Pengalaman pengguna interaktif tanpa kendala.", sourceRequirements: [], isAiSuggested: false },
+      ];
+
+  // STEP 3: Read TASKS only as implementation context
+  const tasks = (project.tasks && project.tasks.length > 0)
+    ? project.tasks.slice(0, 5).map((t, idx) => ({
+        id: t.id || `task-${idx + 1}`,
+        title: t.title || `Tahap ${idx + 1}`,
+        description: t.description || "Proses eksekusi dan penjaminan kualitas hasil.",
+        phase: t.phase || `Fase ${idx + 1}`,
+        relatedRequirements: t.relatedRequirements || t.sourceRequirementIds || [],
+      }))
+    : [
+        { id: "task-1", title: "Discovery Brief & Riset", description: "Analisis visi bisnis, target audiens, dan benchmarking kompetitor.", phase: "Fase 1", relatedRequirements: [] },
+        { id: "task-2", title: "Eksplorasi Konsep & Sketsa", description: "Perumusan alternatif konsep visual dan arsitektur.", phase: "Fase 2", relatedRequirements: [] },
+        { id: "task-3", title: "Eksekusi Digital & Polishing", description: "Penyempurnaan modul presisi tinggi.", phase: "Fase 3", relatedRequirements: [] },
+        { id: "task-4", title: "Review Klien & Revisi", description: "Penyelarasan feedback klien hingga mencapai kepuasan 100%.", phase: "Fase 4", relatedRequirements: [] },
+        { id: "task-5", title: "Final Handover & File Master", description: "Penyerahan seluruh aset siap pakai resolusi tinggi.", phase: "Fase 5", relatedRequirements: [] },
+      ];
+
+  // Project Type Derivation (Section 10: USER_REQUIREMENTS > stale project type)
+  const derivedTypeObj = deriveProjectTypeFromRequirements(combinedContextText || project.title);
+  const primaryType = (project.prd?.primaryType && !/^\s*$/.test(project.prd.primaryType))
+    ? project.prd.primaryType.toUpperCase()
+    : derivedTypeObj.primaryType.toUpperCase();
+  const secondaryTypes = project.prd?.secondaryTypes || derivedTypeObj.secondaryTypes;
+  const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")} ${combinedContextText}`.toLowerCase();
 
   const isSoccerOrFutsal = /futsal|soccer|mini\s*soccer|lapangan\s*bola|sepak\s*bola/i.test(domainStr);
   const isDesignOrAgency = /desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor/i.test(domainStr);
   const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(domainStr);
-  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja|store/i.test(domainStr);
-  const isBooking = /booking|reservasi|jadwal|appointment|hotel|tiket|venue|salon|klinik|konsultasi/i.test(domainStr);
-  const isDashboard = /dashboard|admin|manajemen|panel|monitoring|analytics|crm/i.test(domainStr);
 
-  const features = (project.features && project.features.length > 0)
-    ? project.features.map((f) => ({
-        name: f.name || "Fitur Layanan",
-        description: f.description || "Layanan terintegrasi dengan performa tinggi.",
-      }))
-    : [
-        { name: "Desain Logo & Identitas Brand", description: "Perancangan logo ikonik, filosofi makna, dan panduan identitas visual komprehensif." },
-        { name: "UI/UX & Desain Website", description: "Antarmuka digital modern, prototipe interaktif, dan responsive mobile-first." },
-        { name: "Social Media & Marketing Collateral", description: "Template konten Instagram, banner promosi, dan materi promosi konsisten." },
-        { name: "Packaging & Kemasan Produk", description: "Tata letak kemasan estetik dengan mockup 3D siap cetak pabrik." },
-      ];
+  // Requirements Helper
+  const coveredRequirementIds = new Set<string>();
+  const linkReq = (predicate: (r: RequirementRegistryEntry) => boolean, fallbackId?: string): string[] => {
+    const found = userRequirements.filter(predicate).map((r) => r.id);
+    if (found.length > 0) {
+      found.forEach((id) => coveredRequirementIds.add(id));
+      return found;
+    }
+    if (fallbackId && regMap.has(fallbackId)) {
+      coveredRequirementIds.add(fallbackId);
+      return [fallbackId];
+    }
+    if (userRequirements.length > 0 && !fallbackId) {
+      const nextUnused = userRequirements.find((r) => !coveredRequirementIds.has(r.id));
+      if (nextUnused) {
+        coveredRequirementIds.add(nextUnused.id);
+        return [nextUnused.id];
+      }
+    }
+    return fallbackId ? [fallbackId] : [];
+  };
 
-  const tasks = (project.tasks && project.tasks.length > 0)
-    ? project.tasks.slice(0, 5).map((t, idx) => ({
-        title: t.title || `Tahap ${idx + 1}`,
-        description: t.description || "Proses eksekusi dan penjaminan kualitas hasil.",
-        phase: t.phase || `Fase ${idx + 1}`,
-      }))
-    : [
-        { title: "Discovery Brief & Riset", description: "Analisis visi bisnis, target audiens, dan benchmarking kompetitor.", phase: "Fase 1" },
-        { title: "Eksplorasi Konsep & Sketsa", description: "Perumusan 3 alternatif arah visual dan eksplorasi tipografi.", phase: "Fase 2" },
-        { title: "Eksekusi Digital & Polishing", description: "Penyempurnaan desain vektor dan elemen visual presisi tinggi.", phase: "Fase 3" },
-        { title: "Review Klien & Revisi", description: "Penyelarasan feedback klien hingga mencapai kepuasan 100%.", phase: "Fase 4" },
-        { title: "Final Handover & File Master", description: "Penyerahan seluruh aset siap pakai (.AI, .PSD, .FIGMA, .SVG, .PDF 300 DPI).", phase: "Fase 5" },
-      ];
+  const derivedSections: PreviewSectionSpec[] = [];
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 1. TEMPLATE: PORTAL BERITA / KULINER / MEDIA / BLOG
   // ─────────────────────────────────────────────────────────────────────────────
   if (isNews) {
-    return `<!DOCTYPE html>
+    const secTickerReqs = linkReq((r) => /breaking|update|ticker|berita|headline/i.test(r.text), userRequirements[0]?.id || "FR-01");
+    const secHeadlineReqs = linkReq((r) => /headline|utama|kisah|liputan|populer/i.test(r.text), userRequirements[1]?.id || "FR-02");
+    const secKategoriReqs = linkReq((r) => /kategori|filter|pencarian|search/i.test(r.text), userRequirements[2]?.id || "FR-03");
+    const secArticlesReqs = linkReq((r) => /artikel|katalog|daftar|ulasan|baca/i.test(r.text), userRequirements[3]?.id || "FR-04");
+    const secReaderReqs = linkReq((r) => /modal|komentar|reader|detail/i.test(r.text), userRequirements[4]?.id || "FR-05");
+
+    derivedSections.push(
+      { id: "ticker", title: "Top Bar & Breaking News Ticker", purpose: "Notifikasi berita terkini dan pembaruan berkala", source_requirement_ids: secTickerReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
+      { id: "headline", title: "Headline Utama & Berita Populer", purpose: "Penyajian cerita utama dan daftar berita terhangat", source_requirement_ids: secHeadlineReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
+      { id: "kategori", title: "Filter Kategori & Pencarian Real-Time", purpose: "Navigasi kategori berita dan kolom pencarian instan", source_requirement_ids: secKategoriReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
+      { id: "articles-grid", title: "Katalog Artikel Responsif", purpose: "Grid kartu artikel dengan metadata penulis dan estimasi baca", source_requirement_ids: secArticlesReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
+      { id: "article-reader-modal", title: "Modal Pembaca Artikel & Komentar", purpose: "Tampilan baca lengkap dengan formulir opini interaktif", source_requirement_ids: secReaderReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
+    );
+
+    const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -8183,11 +8131,11 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 <body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-black">
 
   <!-- Top Bar: Breaking News & Tanggal -->
-  <div class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
+  <div id="ticker" data-preview-source="${secTickerReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2 overflow-hidden">
         <span class="px-2 py-0.5 rounded-full bg-red-600 text-white font-bold font-mono text-[9px] animate-pulse">BREAKING</span>
-        <span class="text-zinc-300 truncate">Rekomendasi Terkini: Tren Baru, Resep Rahasia, dan Liputan Spesial Hari Ini Telah Dirilis!</span>
+        <span class="text-zinc-300 truncate">Rekomendasi Terkini: Tren Baru, Liputan Khusus, dan Analisis Eksklusif Telah Dirilis!</span>
       </div>
       <div class="flex items-center gap-4 text-zinc-400 font-mono text-[10px] hidden sm:flex">
         <span>${new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
@@ -8213,17 +8161,16 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
       <nav class="hidden lg:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
         <a href="#headline" class="hover:text-amber-400 transition">Beranda</a>
         <a href="#kategori" class="hover:text-amber-400 transition">Kategori</a>
-        <a href="#rekomendasi" class="hover:text-amber-400 transition">Ulasan Favorit</a>
-        <a href="#newsletter" class="hover:text-amber-400 transition">Komunitas</a>
+        <a href="#articles-grid" class="hover:text-amber-400 transition">Seluruh Artikel</a>
       </nav>
 
       <div class="flex items-center gap-3">
         <div class="relative hidden sm:block">
-          <input type="text" id="article-search" oninput="searchArticles(this.value)" placeholder="Cari artikel atau menu..." class="w-48 lg:w-60 pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
+          <input type="text" id="article-search" oninput="searchArticles(this.value)" placeholder="Cari artikel..." class="w-48 lg:w-60 pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
           <span class="absolute left-2.5 top-2 text-zinc-400 text-xs">🔍</span>
         </div>
-        <button onclick="openNewsletterModal()" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
-          Berlangganan
+        <button onclick="readStory('Edisi Khusus Hari Ini', 'Informasi terverifikasi oleh tim redaksi untuk pembaca setia.')" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
+          Baca Utama
         </button>
       </div>
     </div>
@@ -8231,9 +8178,8 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 
   <!-- Hero Headline Section -->
   <main class="flex-1">
-    <section id="headline" class="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
+    <section id="headline" data-preview-source="${secHeadlineReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Main Featured Story (Col 2) -->
         <div class="lg:col-span-2 rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col justify-between group relative shadow-2xl">
           <div class="p-6 sm:p-10 flex flex-col justify-end min-h-[380px] bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-900">
             <div class="flex items-center gap-2 mb-3">
@@ -8241,24 +8187,23 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               <span class="text-xs text-zinc-400 font-mono">5 Menit Membaca</span>
             </div>
             <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-4 group-hover:text-amber-400 transition">
-              Eksplorasi Kelezatan Autentik: Rahasia Bumbu Tradisional yang Memikat Lidah Nusantara
+              Eksplorasi Mendalam & Wawasan Komprehensif: Solusi Nyata Menjawab Kebutuhan Publik
             </h1>
             <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">
-              ${desc} Dari warisan racikan rempah kuno hingga penyajian modern, temukan kisah inspiratif di balik cita rasa yang tak lekang oleh waktu.
+              ${desc} Temukan liputan mendalam, fakta terpercaya, dan ulasan lengkap yang disusun secara profesional.
             </p>
             <div class="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
               <div class="flex items-center gap-2">
                 <div class="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center font-bold text-[10px] text-white">R</div>
                 <span class="font-semibold text-white">Redaksi ${title}</span>
               </div>
-              <button onclick="readStory('Eksplorasi Kelezatan Autentik', 'Ulasan komprehensif tentang rahasia bumbu tradisional dan metode memasak yang menghasilkan harmoni rasa sempurna.')" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-amber-400 transition cursor-pointer">
+              <button onclick="readStory('Eksplorasi Mendalam & Wawasan Komprehensif', 'Liputan lengkap mengenai fakta, data, dan analisa terverifikasi oleh para pakar di bidangnya.')" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-amber-400 transition cursor-pointer">
                 Baca Selengkapnya →
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Trending Sidebar (Col 1) -->
         <div class="rounded-3xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
@@ -8268,311 +8213,218 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               <span class="text-[10px] font-mono text-zinc-500">Live Update</span>
             </div>
             <div class="space-y-4">
-              <div class="group cursor-pointer" onclick="readStory('5 Tempat Kuliner Legendaris di Sudut Kota', 'Panduan lengkap berburu kuliner tersembunyi yang wajib dikunjungi akhir pekan ini.')">
+              <div class="group cursor-pointer" onclick="readStory('Transformasi Digital & Tren Terbaru', 'Analisis komprehensif perkembangan teknologi dan implikasinya.')">
                 <span class="text-amber-500 font-mono font-black text-xs">#01</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">5 Tempat Kuliner Legendaris di Sudut Kota yang Wajib Kamu Coba</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Ulasan antrean, jam buka, dan menu favorit pengunjung.</p>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Transformasi Digital & Inovasi Layanan Publik yang Signifikan</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Studi kasus efisiensi proses dan kepuasan pengguna.</p>
               </div>
-              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Resep Sambal Bakar Juara dengan Aroma Khas', 'Trik membakar cobek tanah liat agar aroma sambal keluar maksimal dan tahan lama.')">
+              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Panduan Strategis Menghadapi Perubahan Pasar', 'Langkah taktis yang dapat diterapkan pelaku usaha.')">
                 <span class="text-amber-500 font-mono font-black text-xs">#02</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Resep Sambal Bakar Juara dengan Aroma Khas Menggugah Selera</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Rahasia pemilihan cabai segar dan terasi bakar pilihan.</p>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Panduan Strategis Menghadapi Perubahan Pasar Modern</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Wawancara eksklusif bersama praktisi berpengalaman.</p>
               </div>
-              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Tren Minuman Herbal Modern: Sehat & Segar', 'Transformasi jamu tradisional menjadi mocktail kekinian ramah milenial.')">
+              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Inisiatif Keberlanjutan & Dampak Positif', 'Bagaimana program sosial berdampak jangka panjang bagi komunitas.')">
                 <span class="text-amber-500 font-mono font-black text-xs">#03</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Tren Minuman Herbal Modern: Segar dan Kaya Khasiat Alami</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Kombinasi rempah sereh, jahe merah, dan madu hutan murni.</p>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Inisiatif Keberlanjutan & Solusi Ramah Lingkungan</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Kolaborasi lintas sektor dalam menciptakan ekosistem berkelanjutan.</p>
               </div>
             </div>
-          </div>
-          <div class="mt-6 pt-4 border-t border-zinc-800 text-center">
-            <span class="text-[11px] text-zinc-400">Ingin mengirimkan rekomendasi liputan?</span>
-            <button onclick="openNewsletterModal()" class="text-xs text-amber-400 font-bold block mt-1 hover:underline mx-auto">Kirim Saran & Liputan</button>
           </div>
         </div>
       </div>
     </section>
 
     <!-- Category Filter Bar -->
-    <section id="kategori" class="border-y border-zinc-800/80 bg-zinc-950/40 py-4">
+    <section id="kategori" data-preview-source="${secKategoriReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="border-y border-zinc-800/80 bg-zinc-950/40 py-4">
       <div class="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4 overflow-x-auto select-none">
         <div class="flex items-center gap-2">
           <button onclick="filterCat('all', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua Artikel</button>
-          <button onclick="filterCat('nusantara', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Kuliner Nusantara</button>
-          <button onclick="filterCat('resep', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Resep & Tips Dapur</button>
-          <button onclick="filterCat('restoran', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Review Resto & Kafe</button>
-          <button onclick="filterCat('street', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Street Food</button>
+          <button onclick="filterCat('nasional', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Utama</button>
+          <button onclick="filterCat('tren', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Tren & Analisis</button>
+          <button onclick="filterCat('opini', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Opini & Wawasan</button>
         </div>
-        <span class="text-xs text-zinc-500 font-mono hidden md:inline" id="article-count-label">Menampilkan seluruh artikel</span>
+        <span class="text-xs text-zinc-500 font-mono hidden md:inline" id="article-count-label">Menampilkan seluruh artikel terverifikasi</span>
       </div>
     </section>
 
     <!-- Articles Grid Section -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+    <section id="articles-grid" data-preview-source="${secArticlesReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="articles-container">
-        <!-- Article Card 1 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nusantara">
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nasional">
           <div>
             <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">NUSANTARA</span>
-              <span class="text-zinc-500 font-mono text-[11px]">3 jam yang lalu</span>
+              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">UTAMA</span>
+              <span class="text-zinc-500 font-mono text-[11px]">Baru saja</span>
             </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Rahasia Kuah Soto Lamongan yang Kuning Gurih', 'Kuncian rasa soto khas terletak pada sangraian kemiri dan koya udang rebon istimewa.')">
-              Rahasia Kuah Soto Lamongan yang Kuning Gurih dan Koya Gurih Renyah
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Kajian Kebijakan Terbaru', 'Poin penting kebijakan dan implementasinya di lapangan.')">
+              Poin Penting Penerapan Regulasi Baru dan Dampaknya bagi Masyarakat
             </h3>
             <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Bagaimana perpaduan kaldu ayam kampung dengan racikan koya udang menghasilkan kehangatan rasa yang selalu dicari saat santap siang.
+              Ulasan mendalam mengenai implementasi standar operasional dan langkah penyesuaian yang perlu dipersiapkan.
             </p>
           </div>
           <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Oleh Chef Budi S.</span>
-            <button onclick="readStory('Rahasia Kuah Soto Lamongan', 'Kuncian rasa soto khas terletak pada sangraian kemiri dan koya udang rebon istimewa.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+            <span class="font-mono text-[11px]">Tim Liputan Riset</span>
+            <button onclick="readStory('Kajian Kebijakan Terbaru', 'Poin penting kebijakan dan implementasinya di lapangan.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
           </div>
         </article>
 
-        <!-- Article Card 2 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="resep">
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="tren">
           <div>
             <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">RESEP & TIPS</span>
+              <span class="px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] border border-purple-500/20">TREN</span>
+              <span class="text-zinc-500 font-mono text-[11px]">2 jam yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-purple-400 transition cursor-pointer" onclick="readStory('Perkembangan Teknologi Ramah Lingkungan', 'Solusi cerdas menyeimbangkan produktivitas dan kepedulian lingkungan.')">
+              Inovasi Teknologi Cerdas dalam Mengoptimalkan Efisiensi Energi
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Bagaimana penerapan metodologi modern mampu memangkas konsumsi sumber daya sekaligus meningkatkan performa.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Analisis Data</span>
+            <button onclick="readStory('Perkembangan Teknologi Ramah Lingkungan', 'Solusi cerdas menyeimbangkan produktivitas dan kepedulian lingkungan.')" class="text-purple-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="opini">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">OPINI</span>
               <span class="text-zinc-500 font-mono text-[11px]">5 jam yang lalu</span>
             </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Panduan Membuat Rendang Daging Empuk Meresap', 'Teknik api lilin dan kesabaran mengaduk santan kental hingga berubah menjadi dedak rendang legit.')">
-              Panduan Membuat Rendang Daging Empuk Meresap Sempurna Tanpa Presto
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-emerald-400 transition cursor-pointer" onclick="readStory('Membangun Fondasi Kolaborasi Berkelanjutan', 'Perspektif pakar mengenai sinergi antar sektor.')">
+              Pentingnya Kolaborasi Multipihak dalam Menjawab Tantangan Masa Depan
             </h3>
             <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Tahapan penting memasak mulai dari gulai, kalio, hingga rendang hitam pekat beraroma kelapa sangrai harum.
+              Opini pakar tentang integrasi data dan komunikasi terbuka sebagai kunci keberhasilan inisiatif jangka panjang.
             </p>
           </div>
           <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Oleh Dapur Bunda Rina</span>
-            <button onclick="readStory('Panduan Membuat Rendang', 'Teknik api lilin dan kesabaran mengaduk santan kental hingga berubah menjadi dedak rendang legit.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+            <span class="font-mono text-[11px]">Kolom Pakar</span>
+            <button onclick="readStory('Membangun Fondasi Kolaborasi Berkelanjutan', 'Perspektif pakar mengenai sinergi antar sektor.')" class="text-emerald-400 font-bold hover:underline">Baca Ulasan →</button>
           </div>
         </article>
-
-        <!-- Article Card 3 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="restoran">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] border border-purple-500/20">REVIEW RESTO</span>
-              <span class="text-zinc-500 font-mono text-[11px]">1 hari yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Ulasan Kafe Rooftop Bernuansa Tropis', 'Menikmati seduhan kopi arabika lokal ditemani pemandangan senja kota yang menenangkan.')">
-              Ulasan Kafe Rooftop Bernuansa Tropis: Tempat Nyaman Bersantai & Diskusi
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Ulasan mendalam mengenai harga menu, kestabilan koneksi internet, hingga fasilitas parkir yang ramah pengendara.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Rating: ★ 4.8 / 5</span>
-            <button onclick="readStory('Ulasan Kafe Rooftop Bernuansa Tropis', 'Menikmati seduhan kopi arabika lokal ditemani pemandangan senja kota yang menenangkan.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-
-        <!-- Article Card 4 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="street">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 font-mono font-bold text-[10px] border border-blue-500/20">STREET FOOD</span>
-              <span class="text-zinc-500 font-mono text-[11px]">2 hari yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Berburu Martabak Telur Bebek Super Renyah', 'Sensasi kulit martabak tipis renyah dengan isian daging cacah berbumbu rempah kari gurih.')">
-              Berburu Martabak Telur Bebek Super Renyah di Kawasan Pasar Malam
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Pedagang legendaris yang telah berjualan selama 3 dekade tanpa pernah menurunkan standar mutu bahan dasarnya.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Oleh Tim Keliling</span>
-            <button onclick="readStory('Berburu Martabak Telur Bebek', 'Sensasi kulit martabak tipis renyah dengan isian daging cacah berbumbu rempah kari gurih.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-
-        <!-- Article Card 5 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="resep">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">RESEP & TIPS</span>
-              <span class="text-zinc-500 font-mono text-[11px]">3 hari yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Tips Menyimpan Bumbu Dapur Agar Tahan Berbulan', 'Cara praktis membuat stok baceman bawang putih dan pasta cabai siap masak.')">
-              Tips Menyimpan Bumbu Dapur Halus Agar Awet Berbulan-bulan Tanpa Pengawet
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Solusi hemat waktu untuk kamu yang gemar memasak cepat setiap hari dengan hasil rasa masakan yang tetap segar.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Oleh Chef Aris</span>
-            <button onclick="readStory('Tips Menyimpan Bumbu Dapur', 'Cara praktis membuat stok baceman bawang putih dan pasta cabai siap masak.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-
-        <!-- Article Card 6 -->
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nusantara">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">NUSANTARA</span>
-              <span class="text-zinc-500 font-mono text-[11px]">4 hari yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Keunikan Racikan Kopi Kothok Tradisional', 'Cara unik merebus bubuk kopi bersama gula di atas tungku arang kayu jati.')">
-              Keunikan Racikan Kopi Kothok Tradisional di Warung Pelosok Desa
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Menyusuri budaya nongkrong warga lokal yang hangat dengan secangkir seduhan khas berbusa tebal yang nikmat.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Oleh Jelajah Kopi</span>
-            <button onclick="readStory('Keunikan Racikan Kopi Kothok', 'Cara unik merebus bubuk kopi bersama gula di atas tungku arang kayu jati.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <!-- Newsletter & Community Section -->
-    <section id="newsletter" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
-      <div class="max-w-4xl mx-auto px-4 sm:px-8 text-center">
-        <span class="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider mb-4 inline-block">
-          Komunitas & Kabar Terkini
-        </span>
-        <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-3">
-          Jangan Lewatkan Rekomendasi & Resep Pilihan Setiap Minggu
-        </h2>
-        <p class="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto mb-6 leading-relaxed">
-          Daftarkan email Anda untuk menerima kurasi ulasan kuliner terbaik, info diskon restoran, dan tips memasak praktis langsung ke kotak masuk Anda.
-        </p>
-        <form onsubmit="handleSubscribe(event)" class="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-md mx-auto">
-          <input type="email" id="sub-email" placeholder="Masukkan alamat email Anda..." required class="w-full px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
-          <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition shrink-0 cursor-pointer">
-            Langganan
-          </button>
-        </form>
       </div>
     </section>
   </main>
 
-  <!-- Interactive Article Modal -->
-  <div id="story-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl max-h-[85vh] rounded-3xl bg-zinc-950 border border-zinc-800 flex flex-col overflow-hidden shadow-2xl">
-      <div class="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
-        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-bold uppercase font-mono">Baca Lengkap</span>
-        <button onclick="closeStoryModal()" class="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white transition cursor-pointer">✕</button>
+  <!-- Article Detail Reader Modal -->
+  <div id="article-reader-modal" data-preview-source="${secReaderReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono text-[10px] font-bold">EDISI LIPUTAN KHUSUS</span>
+        <button onclick="closeReaderModal()" class="text-zinc-400 hover:text-white text-base font-bold cursor-pointer">✕</button>
       </div>
-      <div class="p-6 overflow-y-auto space-y-4 flex-1 text-xs text-zinc-300 leading-relaxed">
-        <h2 id="modal-title" class="text-xl font-bold text-white"></h2>
-        <div class="flex items-center gap-3 text-[11px] text-zinc-400 pb-3 border-b border-zinc-800 font-mono">
-          <span>Ditulis oleh Redaksi</span>
-          <span>•</span>
-          <span id="like-count">❤️ 128 Pembaca Menyukai</span>
-        </div>
-        <p id="modal-desc" class="text-sm text-zinc-200"></p>
-        <p>
-          Berdasarkan penelusuran tim liputan di lapangan, antusiasme masyarakat terhadap cita rasa otentik kian meningkat pesat. Setiap bahan dipilih dengan seleksi ketat untuk memastikan keaslian rasa tetap terjaga dari waktu ke waktu.
-        </p>
-        <p>
-          Bagi para penikmat kuliner, menikmati sajian ini bukan sekadar mengisi perut, melainkan merayakan kekayaan budaya dan dedikasi para juru masak yang setia menjaga resep leluhur.
-        </p>
-        <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 mt-4">
-          <span class="font-bold text-white block mb-1">Tinggalkan Tanggapan Anda:</span>
-          <div class="flex gap-2 mt-2">
-            <input type="text" id="comment-input" placeholder="Tulis komentar Anda..." class="flex-1 px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none">
-            <button onclick="postComment()" class="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs">Kirim</button>
-          </div>
+      <h2 id="modal-article-title" class="text-xl sm:text-2xl font-bold text-white mb-3 leading-snug">Judul Artikel</h2>
+      <div class="flex items-center gap-3 text-xs text-zinc-400 font-mono mb-4 pb-4 border-b border-zinc-800">
+        <span>Ditulis oleh Redaksi ${title}</span>
+        <span>•</span>
+        <span>Terverifikasi</span>
+      </div>
+      <div id="modal-article-content" class="text-xs sm:text-sm text-zinc-300 leading-relaxed space-y-3 mb-6"></div>
+      
+      <!-- Live Comment Section -->
+      <div class="pt-4 border-t border-zinc-800">
+        <h4 class="text-xs font-bold text-white mb-2">Opini Pembaca:</h4>
+        <div class="flex gap-2">
+          <input type="text" id="comment-input" placeholder="Tuliskan tanggapan Anda..." class="flex-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-amber-400">
+          <button onclick="postComment()" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer">Kirim</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
   <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-        <span class="text-zinc-200 font-bold">${title}</span>
-        <span>·</span>
-        <span>Edisi Digital Resmi</span>
-      </div>
       <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
+      <div class="flex items-center gap-4 text-zinc-400">
+        <span>Liputan Resmi</span>
+        <span>•</span>
+        <span>Terverifikasi</span>
+      </div>
     </div>
   </footer>
 
   <script>
-    function searchArticles(keyword) {
-      const q = keyword.toLowerCase();
-      const cards = document.querySelectorAll('.article-card');
-      let visible = 0;
-      cards.forEach(c => {
-        const text = c.textContent.toLowerCase();
-        if (text.includes(q)) {
-          c.style.display = 'flex';
-          visible++;
-        } else {
-          c.style.display = 'none';
-        }
-      });
-      document.getElementById('article-count-label').textContent = 'Ditemukan ' + visible + ' artikel';
-    }
-
     function filterCat(cat, btn) {
-      const cards = document.querySelectorAll('.article-card');
-      let visible = 0;
-      cards.forEach(c => {
-        if (cat === 'all' || c.getAttribute('data-cat') === cat) {
-          c.style.display = 'flex';
-          visible++;
-        } else {
-          c.style.display = 'none';
-        }
-      });
       document.querySelectorAll('.cat-btn').forEach(b => {
         b.className = 'cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition';
       });
       btn.className = 'cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition';
-      document.getElementById('article-count-label').textContent = 'Menampilkan ' + visible + ' artikel';
+      const cards = document.querySelectorAll('.article-card');
+      let count = 0;
+      cards.forEach(card => {
+        if (cat === 'all' || card.getAttribute('data-cat') === cat) {
+          card.style.display = 'flex';
+          count++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      document.getElementById('article-count-label').textContent = 'Menampilkan ' + count + ' artikel';
     }
 
-    function readStory(title, desc) {
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-desc').textContent = desc;
-      document.getElementById('story-modal').classList.remove('hidden');
+    function searchArticles(q) {
+      const query = q.toLowerCase().trim();
+      const cards = document.querySelectorAll('.article-card');
+      let count = 0;
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(query)) {
+          card.style.display = 'flex';
+          count++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      document.getElementById('article-count-label').textContent = 'Menampilkan ' + count + ' hasil pencarian';
     }
 
-    function closeStoryModal() {
-      document.getElementById('story-modal').classList.add('hidden');
+    function readStory(title, content) {
+      document.getElementById('modal-article-title').textContent = title;
+      document.getElementById('modal-article-content').innerHTML = '<p>' + content + '</p><p>Ulasan ini disusun untuk menyajikan fakta yang berimbang dan mudah dipahami oleh pembaca setia kami.</p>';
+      document.getElementById('article-reader-modal').classList.remove('hidden');
     }
 
-    function handleSubscribe(e) {
-      e.preventDefault();
-      const email = document.getElementById('sub-email').value;
-      alert('Terima kasih! Email (' + email + ') berhasil didaftarkan ke buletin mingguan ' + '${title}.');
-      document.getElementById('sub-email').value = '';
-    }
-
-    function openNewsletterModal() {
-      const email = prompt('Daftar buletin liputan terkini: Masukkan email Anda:');
-      if (email) alert('Terima kasih! ' + email + ' telah terdaftar.');
+    function closeReaderModal() {
+      document.getElementById('article-reader-modal').classList.add('hidden');
     }
 
     function postComment() {
       const inp = document.getElementById('comment-input');
       if (inp.value.trim()) {
-        alert('Komentar Anda terkirim: "' + inp.value + '"');
+        alert('Tanggapan Anda terkirim: "' + inp.value + '"');
         inp.value = '';
       }
     }
   </script>
 </body>
 </html>`;
+
+    return finishResult(generatedHtml, derivedSections, ["Search & Filter Live Updates", "Article Reader Modal", "Reader Opinion Submission"], ["Semua Kategori", "Filtered View", "Reading State"]);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. TEMPLATE: JASA DESAIN / CREATIVE STUDIO / BRANDING & PORTFOLIO
   // ─────────────────────────────────────────────────────────────────────────────
   if (isDesignOrAgency) {
-    return `<!DOCTYPE html>
+    const secHeroReqs = linkReq((r) => /identitas|brand|desain|studio|layanan|profil/i.test(r.text), userRequirements[0]?.id || "FR-01");
+    const secPortReqs = linkReq((r) => /portofolio|galeri|karya|showcase|proyek/i.test(r.text), userRequirements[1]?.id || "FR-02");
+    const secServReqs = linkReq((r) => /layanan|paket|fitur|kemampuan|spesialis/i.test(r.text), userRequirements[2]?.id || "FR-03");
+    const secCalcReqs = linkReq((r) => /kalkulator|harga|order|brief|pesan|formulir/i.test(r.text), userRequirements[3]?.id || "FR-04");
+    const secAlurReqs = linkReq((r) => /alur|tahap|proses|pengerjaan|timeline/i.test(r.text), userRequirements[4]?.id || "FR-05");
+
+    derivedSections.push(
+      { id: "hero", title: "Hero & Identitas Studio Desain", purpose: "Branding visual, jaminan orisinalitas, dan navigasi utama", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
+      { id: "portofolio", title: "Galeri Portofolio & Studi Kasus", purpose: "Showcase filterable karya desain dengan modal studi kasus", source_requirement_ids: secPortReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
+      { id: "layanan", title: "Layanan Desain Grafis Unggulan", purpose: "Daftar kapabilitas spesialis desain grafis", source_requirement_ids: secServReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
+      { id: "kalkulator", title: "Kalkulator Paket Desain & Formulir Brief", purpose: "Perhitungan biaya transparan dan pengiriman brief interaktif", source_requirement_ids: secCalcReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
+      { id: "alur", title: "Tahapan Pengerjaan & Alur Proyek", purpose: "Timeline transparan dari brief hingga penyerahan file master", source_requirement_ids: secAlurReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
+    );
+
+    const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -8596,7 +8448,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
       <div class="flex items-center gap-3 text-zinc-400 font-mono text-[10px] hidden sm:flex">
         <span class="text-emerald-400 font-bold">● Slot Pengerjaan Tersedia</span>
         <span>•</span>
-        <span>Revisi Cepat</span>
+        <span>Revisi Terjamin</span>
       </div>
     </div>
   </div>
@@ -8619,7 +8471,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         <a href="#layanan" class="hover:text-purple-400 transition">Layanan & Fitur</a>
         <a href="#kalkulator" class="hover:text-purple-400 transition">Kalkulator Harga</a>
         <a href="#alur" class="hover:text-purple-400 transition">Alur Pengerjaan</a>
-        <a href="#kontak" class="hover:text-purple-400 transition">Kontak & FAQ</a>
       </nav>
 
       <a href="#kalkulator" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-purple-500/20">
@@ -8630,7 +8481,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 
   <!-- Hero Section -->
   <main class="flex-1">
-    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-20 text-center relative overflow-hidden">
+    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-20 text-center relative overflow-hidden">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-[11px] font-mono text-purple-300 mb-6">
         <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
         100% Karya Orisinal · File Master Lengkap (.AI, .PSD, .FIGMA) · Revisi Terjamin
@@ -8650,17 +8501,15 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         </a>
       </div>
 
-      <!-- Trust Badges -->
       <div class="mt-12 pt-8 border-t border-zinc-900 flex flex-wrap justify-center items-center gap-6 text-zinc-400 text-xs font-mono">
         <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Hak Cipta Komersial Penuh</span></div>
         <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Resolusi Tinggi Siap Cetak (300 DPI)</span></div>
         <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Konsultasi Konsep Gratis</span></div>
-        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Garansi Kepuasan Klien</span></div>
       </div>
     </section>
 
     <!-- Portofolio Showcase (Filterable Lightbox) -->
-    <section id="portofolio" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
+    <section id="portofolio" data-preview-source="${secPortReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
@@ -8668,18 +8517,15 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
             <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Galeri Portofolio & Studi Kasus</h2>
             <p class="text-xs text-zinc-400 mt-1">Eksplorasi hasil karya desain terbaik yang telah kami selesaikan untuk berbagai brand.</p>
           </div>
-          <!-- Filter Buttons -->
           <div class="flex items-center gap-2 overflow-x-auto pb-1 select-none">
             <button onclick="filterPortfolio('all', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua</button>
             <button onclick="filterPortfolio('branding', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Logo & Brand</button>
             <button onclick="filterPortfolio('uiux', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">UI/UX & Web</button>
             <button onclick="filterPortfolio('packaging', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Packaging</button>
-            <button onclick="filterPortfolio('social', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Social Media</button>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="portfolio-grid">
-          <!-- Card 1 -->
           <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="branding">
             <div>
               <div class="h-48 rounded-2xl bg-gradient-to-tr from-purple-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
@@ -8699,7 +8545,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
             </button>
           </div>
 
-          <!-- Card 2 -->
           <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="uiux">
             <div>
               <div class="h-48 rounded-2xl bg-gradient-to-tr from-indigo-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
@@ -8719,7 +8564,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
             </button>
           </div>
 
-          <!-- Card 3 -->
           <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="packaging">
             <div>
               <div class="h-48 rounded-2xl bg-gradient-to-tr from-emerald-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
@@ -8738,72 +8582,12 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               Lihat Detail Karya →
             </button>
           </div>
-
-          <!-- Card 4 -->
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="social">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-pink-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📢</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Campaign Social Media Template Kit]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 text-[9px] font-mono font-bold">SOCIAL MEDIA</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                Urban Fitwear — Carousel Campaign & Feed Instagram
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Paket 20 template konten promosi feed & reels dengan tipografi bold dinamis yang mendorong konversi penjualan.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('Urban Fitwear Campaign', 'Social Media & Marketing', 'Pembuatan 20 template feed/carousel Instagram dengan layout modular yang mudah diedit di Canva dan Photoshop.', '#EC4899, #1E1B4B, #F8FAFC', 'PSD Smart Object, Canva Editable Link, High-Res PNG')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
-
-          <!-- Card 5 -->
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="branding">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-amber-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">🏛️</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Corporate Rebranding & Identity]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[9px] font-mono font-bold">CORPORATE</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                Vanguard Logistics — Rebranding & Fleet Graphics
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Modernisasi logo perusahaan logistik nasional, livery truk armada, kartu nama, kop surat, dan brand identity manual.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('Vanguard Logistics Rebrand', 'Logo & Rebranding Korporat', 'Pembaruan logo 30 tahun perusahaan menjadi simbol aerodinamis modern dengan pedoman livery truk dan stationery lengkap.', '#D97706, #1E293B, #F1F5F9', 'Vektor .AI, Panduan Brand Book PDF 35 Halaman')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
-
-          <!-- Card 6 -->
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="uiux">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-cyan-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">💻</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Landing Page UI/UX & Responsive Web]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">WEB DESIGN</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                SaaSify Studio — Landing Page Konversi Tinggi
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Desain landing page produk perangkat lunak B2B dengan struktur copywriting persuasif, ilustrasi vektor, dan mockup interaktif.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('SaaSify Landing Page', 'UI/UX & Desain Website', 'Landing page dengan storytelling konversi tinggi, micro-copywriting, dan komponen antarmuka modern yang siap dideploy.', '#06B6D4, #3B82F6, #090D16', 'Figma File, Export SVG Asset, Web Style Guide')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
         </div>
       </div>
     </section>
 
     <!-- Layanan & Fitur (Derived from PRD Features) -->
-    <section id="layanan" class="py-16 border-t border-zinc-800 bg-zinc-950">
+    <section id="layanan" data-preview-source="${secServReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-12">
           <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">KAPABILITAS SPESIALIS KAMI</span>
@@ -8827,7 +8611,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Interactive Pricing Calculator & Brief Submission Engine -->
-    <section id="kalkulator" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
+    <section id="kalkulator" data-preview-source="${secCalcReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-12">
           <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN & ESTIMASI BIAYA</span>
@@ -8836,9 +8620,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Left: Package Selection & Addons (2 Cols) -->
           <div class="lg:col-span-2 space-y-6">
-            <!-- Step 1: Package -->
             <div>
               <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Paket Desain Utama:</label>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -8861,7 +8643,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               </div>
             </div>
 
-            <!-- Step 2: Add-ons -->
             <div>
               <label class="text-xs font-bold text-zinc-300 block mb-2">2. Layanan Tambahan (Opsional):</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -8889,14 +8670,13 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
                 <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" onchange="toggleAddon('printkit', 400000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
                   <div>
-                    <div class="text-xs font-bold text-white">🖨️ Desain Print Stationery (Kartu, Kop, Map)</div>
+                    <div class="text-xs font-bold text-white">🖨️ Desain Print Stationery (Kartu, Kop)</div>
                     <div class="text-[11px] text-zinc-400">+Rp 400.000</div>
                   </div>
                 </label>
               </div>
             </div>
 
-            <!-- Step 3: Brief Details -->
             <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
               <label class="text-xs font-bold text-zinc-300 block">3. Detail Brief Desain Anda:</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -8922,7 +8702,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
             </div>
           </div>
 
-          <!-- Right: Summary Box (1 Col) -->
           <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
             <div>
               <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4 flex items-center justify-between">
@@ -8966,7 +8745,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Alur Kerja & Timeline Produksi (Derived from PRD Tasks) -->
-    <section id="alur" class="py-16 border-t border-zinc-800 bg-zinc-950">
+    <section id="alur" data-preview-source="${secAlurReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-12">
           <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">PROSES TRANSPARAN & TERSTRUKTUR</span>
@@ -8986,36 +8765,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               </div>
             </div>
           `).join("")}
-        </div>
-      </div>
-    </section>
-
-    <!-- Testimoni Klien -->
-    <section class="py-16 border-t border-zinc-800 bg-zinc-950/60">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-10">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Apa Kata Klien Kami</h2>
-          <p class="text-xs text-zinc-400 mt-1">Kepuasan hasil desain dan profesionalisme pengerjaan.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
-            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
-            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Desain logonya sangat filosofis dan langsung klop dengan citra coffee shop kami. Respon tim cepat dan komunikatif!"</p>
-            <div class="text-xs font-bold text-white">Rian Santoso</div>
-            <div class="text-[11px] text-zinc-500">Founder Nirvana Coffee</div>
-          </div>
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
-            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
-            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Packaging skincare yang didesain terlihat sangat mewah di display toko. Penjualan kami meningkat drastis di bulan pertama."</p>
-            <div class="text-xs font-bold text-white">dr. Amanda Putri</div>
-            <div class="text-[11px] text-zinc-500">CEO Aura Botanica</div>
-          </div>
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800">
-            <div class="text-amber-400 text-xs mb-3">★★★★★</div>
-            <p class="text-xs text-zinc-300 leading-relaxed mb-4">"Desain UI/UX aplikasi kami selesai tepat waktu dengan file Figma yang sangat rapi. Developer kami sangat terbantu!"</p>
-            <div class="text-xs font-bold text-white">Kevin Wijaya</div>
-            <div class="text-[11px] text-zinc-500">Product Manager Finflow</div>
-          </div>
         </div>
       </div>
     </section>
@@ -9068,7 +8817,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </div>
 
   <!-- Footer -->
-  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-purple-400"></span>
@@ -9143,8 +8892,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     }
 
     function submitDesignOrder() {
-      const brandInp = document.getElementById('brand-name');
-      const bName = brandInp.value.trim() || 'Klien Desain';
       const randomCode = '#DSG-' + Math.floor(10000 + Math.random() * 90000);
       document.getElementById('order-code').textContent = randomCode;
       document.getElementById('order-pkg-res').textContent = currentPkgName;
@@ -9158,13 +8905,29 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </script>
 </body>
 </html>`;
+
+    return finishResult(generatedHtml, derivedSections, ["Portfolio Filterable Lightbox", "Interactive Package Calculator", "Brief Submission State Modal"], ["Default Portfolio", "Filtered Gallery", "Package Selected", "Brief Submitted"]);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // 3. TEMPLATE: MINI SOCCER / SPORT VENUE (KHUSUS SEPAK BOLA / FUTSAL)
   // ─────────────────────────────────────────────────────────────────────────────
   if (isSoccerOrFutsal) {
-    return `<!DOCTYPE html>
+    const secHeroReqs = linkReq((r) => /jadwal|lapangan|futsal|soccer|booking|sewa/i.test(r.text), userRequirements[0]?.id || "FR-01");
+    const secArenaReqs = linkReq((r) => /arena|lapangan|rumput|spesifikasi/i.test(r.text), userRequirements[1]?.id || "FR-02");
+    const secBookReqs = linkReq((r) => /jam|slot|ketersediaan|pemesanan|harga/i.test(r.text), userRequirements[2]?.id || "FR-03");
+    const secFasilitasReqs = linkReq((r) => /fasilitas|shower|parkir|lounge|kafe/i.test(r.text), userRequirements[3]?.id || "FR-04");
+    const secModalReqs = linkReq((r) => /konfirmasi|bukti|tiket|kode/i.test(r.text), userRequirements[4]?.id || "FR-05");
+
+    derivedSections.push(
+      { id: "hero", title: "Hero & Jadwal Real-Time", purpose: "Informasi ketersediaan live dan ajakan reservasi", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
+      { id: "arena", title: "Showcase Arena Lapangan", purpose: "Pilihan spesifikasi rumput standar FIFA dan pencahayaan", source_requirement_ids: secArenaReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
+      { id: "booking", title: "Formulir Booking & Kalkulator Slot", purpose: "Pemilihan tanggal, jam pertandingan, add-ons, dan total biaya otomatis", source_requirement_ids: secBookReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
+      { id: "fasilitas", title: "Fasilitas Standar Turnamen", purpose: "Kenyamanan ekstra untuk para pemain dan pendukung", source_requirement_ids: secFasilitasReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
+      { id: "booking-modal", title: "Konfirmasi Reservasi & Tiket Digital", purpose: "Penerbitan kode booking dan ringkasan pemesanan", source_requirement_ids: secModalReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
+    );
+
+    const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -9195,7 +8958,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         <a href="#arena" class="hover:text-emerald-400 transition">Pilihan Lapangan</a>
         <a href="#booking" class="hover:text-emerald-400 transition">Pesan Jadwal</a>
         <a href="#fasilitas" class="hover:text-emerald-400 transition">Fasilitas</a>
-        <a href="#kontak" class="hover:text-emerald-400 transition">Lokasi & Kontak</a>
       </nav>
 
       <a href="#booking" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-sm">
@@ -9206,7 +8968,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 
   <!-- Hero Section -->
   <main class="flex-1">
-    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center">
+    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-mono text-emerald-400 mb-6">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         Jadwal Real-Time · Rumput Standar FIFA · Konfirmasi Otomatis
@@ -9228,7 +8990,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Pilihan Lapangan Showcase -->
-    <section id="arena" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
+    <section id="arena" data-preview-source="${secArenaReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-10">
           <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Pilihan Arena & Lapangan</h2>
@@ -9284,7 +9046,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Interactive Live Booking System -->
-    <section id="booking" class="py-16 border-t border-zinc-800 bg-zinc-950">
+    <section id="booking" data-preview-source="${secBookReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-10">
           <span class="text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN LIVE</span>
@@ -9293,9 +9055,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Step Form Controls (2 Cols) -->
           <div class="lg:col-span-2 space-y-6">
-            <!-- Step 1: Arena -->
             <div>
               <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Arena Lapangan:</label>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="court-btns">
@@ -9317,7 +9077,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               </div>
             </div>
 
-            <!-- Step 2: Date & Slots -->
             <div>
               <div class="flex items-center justify-between mb-2">
                 <label class="text-xs font-bold text-zinc-300">2. Tanggal & Jam Tersedia:</label>
@@ -9343,7 +9102,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
               </div>
             </div>
 
-            <!-- Step 3: Add-ons -->
             <div>
               <label class="text-xs font-bold text-zinc-300 block mb-2">3. Layanan Tambahan (Opsional):</label>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -9372,7 +9130,6 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
             </div>
           </div>
 
-          <!-- Summary Box (1 Col) -->
           <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
             <div>
               <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Pemesanan</h3>
@@ -9413,7 +9170,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Fasilitas Section -->
-    <section id="fasilitas" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+    <section id="fasilitas" data-preview-source="${secFasilitasReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-10">
           <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Fasilitas Standar Turnamen</h2>
@@ -9446,7 +9203,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </main>
 
   <!-- Booking Confirmation Modal -->
-  <div id="booking-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+  <div id="booking-modal" data-preview-source="${secModalReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
     <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 shadow-2xl text-center">
       <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
         ✓
@@ -9467,8 +9224,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -9548,12 +9304,28 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </script>
 </body>
 </html>`;
+
+    return finishResult(generatedHtml, derivedSections, ["Court Arena Selection", "Slot Toggle", "Add-on Calculation", "Booking Modal Confirmation"], ["Court Selected", "Slot Active", "Total Recalculated", "Confirmed"]);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 3. TEMPLATE UMUM: E-COMMERCE / TOKO ONLINE / SAAS / WEB APP LAINNYA
+  // 4. TEMPLATE UMUM: UNIVERSAL / E-COMMERCE / SAAS / CUSTOM WEB APP
   // ─────────────────────────────────────────────────────────────────────────────
-  return `<!DOCTYPE html>
+  const secHeroReqs = linkReq((r) => /identitas|utama|aplikasi|sistem|layanan|fitur|platform/i.test(r.text), userRequirements[0]?.id || "FR-01");
+  const secFiturReqs = linkReq((r) => /fitur|layanan|modul|kapabilitas|spesifikasi/i.test(r.text), userRequirements[1]?.id || "FR-02");
+  const secRoadmapReqs = linkReq((r) => /alur|tahap|proses|roadmap|pengerjaan|eksekusi/i.test(r.text), userRequirements[2]?.id || "FR-03");
+  const secInquiryReqs = linkReq((r) => /konsultasi|inquiry|formulir|pesan|interaksi|uji/i.test(r.text), userRequirements[3]?.id || "FR-04");
+  const secModalReqs = linkReq((r) => /konfirmasi|tiket|respons|hasil/i.test(r.text), userRequirements[4]?.id || "FR-05");
+
+  derivedSections.push(
+    { id: "hero", title: "Hero & Ringkasan Produk", purpose: "Komposisi headline, nilai utama, dan ajakan aksi pertama", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
+    { id: "fitur", title: "Kapabilitas & Modul Layanan Unggulan", purpose: "Menampilkan modul fungsional turunan requirement", source_requirement_ids: secFiturReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
+    { id: "roadmap", title: "Tahapan Pengerjaan & Alur Proyek", purpose: "Visualisasi tahapan pengerjaan turunan task board", source_requirement_ids: secRoadmapReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
+    { id: "demo", title: "Konsultasi & Formulir Interaksi Langsung", purpose: "Uji interaksi client-side dan pengiriman spesifikasi kebutuhan", source_requirement_ids: secInquiryReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
+    { id: "inquiry-modal", title: "Konfirmasi Penerimaan Permintaan", purpose: "Penerbitan kode tiket status penerimaan data", source_requirement_ids: secModalReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
+  );
+
+  const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -9579,8 +9351,8 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 
       <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
         <a href="#fitur" class="hover:text-white transition">Layanan & Fitur</a>
-        <a href="#demo" class="hover:text-white transition">Interaksi Langsung</a>
-        <a href="#kontak" class="hover:text-white transition">Hubungi Kami</a>
+        <a href="#roadmap" class="hover:text-white transition">Tahapan Alur</a>
+        <a href="#demo" class="hover:text-white transition">Konsultasi</a>
       </nav>
 
       <a href="#demo" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-sm">
@@ -9591,7 +9363,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
 
   <!-- Hero Section -->
   <main class="flex-1">
-    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 text-center">
+    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 text-center">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900 text-[11px] font-mono text-zinc-300 mb-6">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         ${primaryType} · Versi Resmi Siap Pakai
@@ -9604,7 +9376,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
       </p>
       <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
         <a href="#demo" class="px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition shadow-lg">
-          Jelajahi Demo Langsung
+          Jelajahi Formulir Interaksi
         </a>
         <a href="#fitur" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
           Pelajari Seluruh Layanan
@@ -9613,7 +9385,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Fitur Layanan Showcase -->
-    <section id="fitur" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+    <section id="fitur" data-preview-source="${secFiturReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-12">
           <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Kapabilitas & Layanan Unggulan</h2>
@@ -9636,7 +9408,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Alur Kerja & Timeline Proyek (Derived from Tasks) -->
-    <section class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+    <section id="roadmap" data-preview-source="${secRoadmapReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center mb-12">
           <span class="text-zinc-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">ROADMAP EKSEKUSI</span>
@@ -9660,7 +9432,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </section>
 
     <!-- Interactive Live Inquiry & Action Engine -->
-    <section id="demo" class="py-16 border-t border-zinc-800 bg-zinc-950">
+    <section id="demo" data-preview-source="${secInquiryReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
       <div class="max-w-4xl mx-auto px-4 sm:px-8">
         <div class="p-6 sm:p-8 rounded-3xl border border-zinc-800 bg-zinc-900/60 shadow-2xl">
           <div class="pb-4 mb-6 border-b border-zinc-800 flex items-center justify-between">
@@ -9702,7 +9474,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </main>
 
   <!-- Inquiry Confirmation Modal -->
-  <div id="inquiry-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+  <div id="inquiry-modal" data-preview-source="${secModalReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
     <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl text-center">
       <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
         ✓
@@ -9722,8 +9494,7 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
       <div class="flex items-center gap-4 text-zinc-400">
@@ -9754,6 +9525,99 @@ export function generateStarterPrototypeHtml(project: ProjectItem): string {
   </script>
 </body>
 </html>`;
+
+  return finishResult(generatedHtml, derivedSections, ["Form Submission", "Inquiry Confirmation Modal", "Live Responsive Navigation"], ["Default View", "Form Active", "Modal Submitted"]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RESULT BUILDER & SOURCE INTEGRITY AUDITOR
+  // ─────────────────────────────────────────────────────────────────────────────
+  function finishResult(html: string, sections: PreviewSectionSpec[], interactions: string[], states: string[]): PlanningAwarePreviewResult {
+    const derivedPages: PreviewPageSpec[] = [
+      { id: "page-home", name: "Main Page", route: "/", source_requirement_ids: Array.from(coveredRequirementIds), sections }
+    ];
+
+    const spec: PreviewSpecification = {
+      project_type: primaryType,
+      secondary_types: secondaryTypes,
+      pages: derivedPages,
+      sections,
+      components: sections.flatMap((s) => s.components),
+      interactions,
+      states,
+      responsive_behavior: [
+        "Desktop: 1440 × 900 Multi-column Grid",
+        "Tablet: 768 × 1024 Adaptive 2-column Layout",
+        "Mobile: 390 × 844 Single-column Flow with Mobile Navigation",
+      ],
+      source_requirement_ids: Array.from(coveredRequirementIds),
+    };
+
+    // Calculate Source Integrity & Coverage
+    const totalUserRequirements = userRequirements.length;
+    const coveredCount = Array.from(coveredRequirementIds).filter((id) => userRequirements.some((r) => r.id === id)).length;
+    const uncoveredUserRequirements = userRequirements
+      .filter((r) => !coveredRequirementIds.has(r.id))
+      .map((r) => r.id);
+    const coveragePercent = totalUserRequirements > 0
+      ? Math.min(100, Math.round((coveredCount / totalUserRequirements) * 100))
+      : 100;
+
+    // Scope Protection Check (Section 6)
+    const unsupportedUIElements: string[] = [];
+    FORBIDDEN_UNSUPPORTED_SCOPE.forEach((item) => {
+      const userAsked = userRequirements.some((r) => item.pattern.test(r.text));
+      if (!userAsked) {
+        const found = sections.some((s) => item.pattern.test(s.title + " " + s.purpose));
+        if (found) {
+          unsupportedUIElements.push(item.label);
+        }
+      }
+    });
+
+    // Traceability Errors Check
+    const traceabilityErrors: string[] = [];
+    sections.forEach((s) => {
+      s.source_requirement_ids.forEach((id) => {
+        if (!regMap.has(id)) {
+          traceabilityErrors.push(`Unrecognized requirement ID '${id}' in section '${s.title}'`);
+        }
+      });
+    });
+
+    const coveredReqIdList = Array.from(coveredRequirementIds).filter((id) => userRequirements.some((r) => r.id === id));
+    const integrity: PreviewSourceIntegrity = {
+      totalUserRequirements,
+      coveredUserRequirements: coveredCount,
+      coveredRequirementIds: coveredReqIdList,
+      uncoveredUserRequirements,
+      coveragePercent,
+      unsupportedUIElements,
+      traceabilityErrors,
+      traceabilityStatus: traceabilityErrors.length === 0 ? "PASS" : "FAIL",
+      status:
+        coveragePercent >= 80 && unsupportedUIElements.length === 0 && traceabilityErrors.length === 0
+          ? "PASS"
+          : coveragePercent >= 50
+          ? "WARN"
+          : "FAIL",
+      flags: {
+        PREVIEW_COVERAGE_MISSING: uncoveredUserRequirements.length > 0 && coveragePercent < 80,
+        UNSUPPORTED_PREVIEW_SCOPE: unsupportedUIElements.length > 0,
+        PREVIEW_TRACEABILITY_MISMATCH: traceabilityErrors.length > 0,
+      },
+    };
+
+    return {
+      html,
+      spec,
+      integrity,
+      hasPlanningContext,
+    };
+  }
+}
+
+export function generateStarterPrototypeHtml(project: ProjectItem): string {
+  return buildPlanningAwarePreview(project).html;
 }
 
 export type PreviewDevice = "desktop" | "tablet" | "mobile";
@@ -9791,7 +9655,13 @@ export function QuickHtmlPreview({
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showSpecModal, setShowSpecModal] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Planning-aware specification & integrity
+  const planningResult = useMemo<PlanningAwarePreviewResult>(() => {
+    return buildPlanningAwarePreview(project);
+  }, [project.id, project.updatedAt, project.prd, project.features, project.tasks, project.title]);
 
   // Sinkronisasi dengan proyek
   useEffect(() => {
@@ -9830,6 +9700,14 @@ export function QuickHtmlPreview({
 
   const currentPreset = DEVICE_PRESETS[device];
   const hasHtml = Boolean(debouncedHtml.trim());
+
+  const handleApplyPlanningAwareHtml = () => {
+    const newHtml = planningResult.html;
+    setRawHtml(newHtml);
+    setDebouncedHtml(newHtml);
+    onUpdateHtml(newHtml);
+    setRefreshKey((k) => k + 1);
+  };
 
   return (
     <div
@@ -9954,6 +9832,57 @@ export function QuickHtmlPreview({
         </div>
       </div>
 
+      {/* ── Planning-Aware Sub-bar (Universal V4 Traceability & Integrity) ── */}
+      <div className={`px-4 sm:px-6 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 select-none ${
+        isDark ? "border-zinc-800/80 bg-zinc-950/50" : "border-zinc-200 bg-zinc-50/80"
+      }`}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Planning-Aware
+          </span>
+          <span className="text-[11px] font-semibold text-zinc-400">
+            Tipe: <span className="text-zinc-200 capitalize">{planningResult.spec.project_type.replace(/_/g, " ")}</span>
+          </span>
+          <span className="text-zinc-600 hidden sm:inline">•</span>
+          <span className="text-[11px] text-zinc-400 hidden sm:inline">
+            Coverage: <strong className="text-emerald-400">{planningResult.integrity.coveragePercent}%</strong> ({planningResult.integrity.coveredUserRequirements}/{planningResult.integrity.totalUserRequirements} Req)
+          </span>
+          <span className="text-zinc-600 hidden md:inline">•</span>
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border hidden md:inline ${
+            planningResult.integrity.status === "PASS"
+              ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/40"
+              : planningResult.integrity.status === "WARN"
+              ? "bg-amber-950/40 text-amber-300 border-amber-800/40"
+              : "bg-red-950/40 text-red-300 border-red-800/40"
+          }`}>
+            Status: {planningResult.integrity.status}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSpecModal(true)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+              isDark ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-300 hover:bg-zinc-100 text-zinc-700 shadow-xs"
+            }`}
+            title="Lihat Preview Specification & Traceability Matrix"
+          >
+            <span>🔍</span>
+            <span>Spec & Traceability</span>
+          </button>
+          <button
+            onClick={handleApplyPlanningAwareHtml}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
+              isDark ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+            }`}
+            title="Generate web HTML prototype langsung dari PRD & Fitur aktif"
+          >
+            <span>⚡ Generate Web by PRD</span>
+          </button>
+        </div>
+      </div>
+
       {/* Error Notice */}
       {previewError && (
         <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs flex items-center justify-between shrink-0">
@@ -9988,21 +9917,16 @@ export function QuickHtmlPreview({
               No HTML to preview. Generate or add HTML code first.
             </h3>
             <p className="text-xs sm:text-sm text-zinc-400 max-w-md mb-6 leading-relaxed">
-              Quick HTML Preview berjalan aman di browser Anda di dalam sandbox terisolasi.
+              Quick HTML Preview merepresentasikan spesifikasi proyek <strong>{project.title || "Universal V4"}</strong> ({planningResult.spec.project_type.replace(/_/g, " ")}) secara langsung dan aman di browser.
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  const starter = generateStarterPrototypeHtml(project);
-                  setRawHtml(starter);
-                  setDebouncedHtml(starter);
-                  onUpdateHtml(starter);
-                }}
+                onClick={handleApplyPlanningAwareHtml}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm ${
                   isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
               >
-                ✨ Buat Website Prototype dari PRD
+                ✨ Generate Web by PRD
               </button>
               <button
                 onClick={() => setViewMode("code")}
@@ -10086,7 +10010,176 @@ export function QuickHtmlPreview({
           </div>
         )}
       </div>
+
+      {/* ── Preview Specification & Traceability Modal ── */}
+      {showSpecModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+          <div className={`w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden ${
+            isDark ? "bg-[#0d121d] border-zinc-800 text-zinc-100" : "bg-white border-zinc-300 text-zinc-900"
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${
+              isDark ? "border-zinc-800 bg-zinc-950/60" : "border-zinc-200 bg-zinc-50"
+            }`}>
+              <div>
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <span>📐</span>
+                  <span>Planning-Aware Preview Specification & Traceability</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Verifikasi visual dan struktural kepatuhan terhadap PRD, Features, dan User Requirements
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSpecModal(false)}
+                className={`p-1.5 rounded-lg border text-xs cursor-pointer ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-400" : "border-zinc-300 hover:bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="text-zinc-400 text-[10px] uppercase font-bold">Project Concept</div>
+                  <div className="text-sm font-bold mt-1 text-emerald-400 capitalize">{planningResult.spec.project_type.replace(/_/g, " ")}</div>
+                </div>
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="text-zinc-400 text-[10px] uppercase font-bold">Requirement Coverage</div>
+                  <div className="text-sm font-bold mt-1 text-sky-400">{planningResult.integrity.coveragePercent}% ({planningResult.integrity.coveredUserRequirements}/{planningResult.integrity.totalUserRequirements})</div>
+                </div>
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="text-zinc-400 text-[10px] uppercase font-bold">Scope Protection</div>
+                  <div className="text-sm font-bold mt-1 text-emerald-400">{planningResult.integrity.unsupportedUIElements.length === 0 ? "PASSED (No Leak)" : `${planningResult.integrity.unsupportedUIElements.length} Unsupported`}</div>
+                </div>
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                  <div className="text-zinc-400 text-[10px] uppercase font-bold">Traceability Gate</div>
+                  <div className="text-sm font-bold mt-1 text-emerald-400">{planningResult.integrity.traceabilityStatus}</div>
+                </div>
+              </div>
+
+              {/* Sections Breakdown & Traceability */}
+              <div>
+                <h4 className="font-bold text-sm mb-3 flex items-center gap-1.5">
+                  <span>🧩</span>
+                  <span>UI Sections & Traceability Mapping</span>
+                </h4>
+                <div className="space-y-3">
+                  {planningResult.spec.pages[0]?.sections.map((sec, idx) => (
+                    <div
+                      key={sec.id || idx}
+                      className={`p-3.5 rounded-xl border ${isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-sm flex items-center gap-2">
+                            <span>#{idx + 1} {sec.title}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
+                              sec.classification === "USER_DERIVED"
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : "bg-zinc-700 text-zinc-300"
+                            }`}>
+                              {sec.classification}
+                            </span>
+                          </div>
+                          <div className="text-zinc-400 text-xs mt-1">{sec.purpose}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-1 items-center justify-end">
+                          {sec.source_requirement_ids.map((reqId) => (
+                            <span key={reqId} className="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 font-mono text-[10px] font-bold">
+                              {reqId}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {sec.components && sec.components.length > 0 && (
+                        <div className="mt-3 pt-2.5 border-t border-zinc-800/60">
+                          <div className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5">Komponen Visual:</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {sec.components.map((comp) => (
+                              <span
+                                key={comp.id}
+                                className={`px-2 py-0.5 rounded text-[11px] border font-mono ${
+                                  isDark ? "bg-zinc-800/80 border-zinc-700 text-zinc-300" : "bg-white border-zinc-300 text-zinc-700"
+                                }`}
+                                title={comp.purpose}
+                              >
+                                {comp.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Requirement Coverage Details */}
+              <div className={`p-4 rounded-xl border ${isDark ? "bg-zinc-950/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-2">Requirement Coverage Breakdown</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-emerald-400 font-semibold mb-1 flex items-center gap-1">
+                      <span>✓</span>
+                      <span>Covered Requirements ({planningResult.integrity.coveredRequirementIds.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {planningResult.integrity.coveredRequirementIds.map((r: string) => (
+                        <span key={r} className="px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/40 text-[10px] font-mono">
+                          {r}
+                        </span>
+                      ))}
+                      {planningResult.integrity.coveredRequirementIds.length === 0 && (
+                        <span className="text-zinc-500 italic">Belum ada requirement terpetakan</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-amber-400 font-semibold mb-1 flex items-center gap-1">
+                      <span>•</span>
+                      <span>Uncovered Requirements ({planningResult.integrity.uncoveredUserRequirements.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {planningResult.integrity.uncoveredUserRequirements.map((r: string) => (
+                        <span key={r} className="px-1.5 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-800/40 text-[10px] font-mono">
+                          {r}
+                        </span>
+                      ))}
+                      {planningResult.integrity.uncoveredUserRequirements.length === 0 && (
+                        <span className="text-emerald-400 text-[11px]">100% Requirements Terpenuhi Sempurna 🎉</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`px-6 py-3 border-t flex items-center justify-between ${
+              isDark ? "border-zinc-800 bg-zinc-950/80" : "border-zinc-200 bg-zinc-50"
+            }`}>
+              <div className="text-[11px] text-zinc-400">
+                Prinsip Universal V4: USER menentukan WHAT • AI menentukan HOW
+              </div>
+              <button
+                onClick={() => setShowSpecModal(false)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
