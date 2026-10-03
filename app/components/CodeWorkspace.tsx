@@ -682,10 +682,36 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     return Math.round((completed / project.tasks.length) * 100);
   };
 
-  // ── Domain Detection & High-Fidelity Domain Blueprint Generators ──────────────────
+  // ── Universal Project Type Detection & Adaptive Discovery Questions (Rules 33-50) ──
+  type ProjectCategory =
+    | "Marketing Website"
+    | "Portfolio"
+    | "Company Profile"
+    | "Blog / News"
+    | "E-commerce"
+    | "Marketplace"
+    | "Booking / Reservation"
+    | "SaaS"
+    | "Dashboard / Admin"
+    | "Community"
+    | "Education"
+    | "Event"
+    | "Content Platform"
+    | "AI Application"
+    | "Internal Tool"
+    | "Service Business"
+    | "Custom Web Application";
+
   interface DetectedDomain {
     isPhotography: boolean;
     topicName: string;
+    categories: ProjectCategory[];
+    complexity: "SIMPLE" | "MEDIUM" | "COMPLEX";
+    needsAuth: boolean;
+    needsDatabase: boolean;
+    needsPayment: boolean;
+    needsStorage: boolean;
+    constraints: string[];
   }
 
   const detectProjectDomain = (messages: ProjectChatMessage[], title: string, desc?: string): DetectedDomain => {
@@ -694,26 +720,74 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       messages.map((m) => m.content).join(" ")
     ).toLowerCase();
 
-    const isPhotography = /fotograf|photo|kamera|photoshoot|fotografer|studio foto|wedding photo|portrait|prewedding|retouch|lensa|album foto/.test(combined);
-    if (isPhotography) {
-      return { isPhotography: true, topicName: "Web Portofolio & Pemesanan Jasa Fotografi Profesional" };
-    }
-    
-    if (/futsal|lapangan|badminton|booking olahraga|jadwal main/.test(combined)) {
-      return { isPhotography: false, topicName: "Aplikasi Reservasi & Booking Lapangan Olahraga" };
+    const categories: ProjectCategory[] = [];
+    if (/portfolio|portofolio|galeri|showcase|fotograf|karya|desainer|artist/i.test(combined)) categories.push("Portfolio");
+    if (/company profile|profil perusahaan|pt |cv |profil bisnis|tentang kami|layanan perusahaan/i.test(combined)) categories.push("Company Profile");
+    if (/landing page|marketing|promosi|brosur/i.test(combined)) categories.push("Marketing Website");
+    if (/blog|berita|news|artikel|portal berita|majalah/i.test(combined)) categories.push("Blog / News");
+    if (/toko|olshop|ecommerce|e-commerce|belanja|checkout|jual beli/i.test(combined)) categories.push("E-commerce");
+    if (/marketplace|multi-vendor|multi vendor|banyak seller/i.test(combined)) categories.push("Marketplace");
+    if (/booking|reservasi|jadwal|slot|sewa|futsal|lapangan|studio|antrean|appointment/i.test(combined)) categories.push("Booking / Reservation");
+    if (/saas|software as a service|langganan|subscription|workspace|multi-tenant/i.test(combined)) categories.push("SaaS");
+    if (/dashboard|admin|backoffice|crm|erp|panel admin/i.test(combined)) categories.push("Dashboard / Admin");
+    if (/komunitas|forum|member portal|diskusi/i.test(combined)) categories.push("Community");
+    if (/kursus|sekolah|lms|belajar|akademi|e-learning/i.test(combined)) categories.push("Education");
+    if (/event|acara|tiket|seminar|webinar|workshop/i.test(combined)) categories.push("Event");
+    if (/ai |artificial intelligence|gpt|chatbot|generator|machine learning/i.test(combined)) categories.push("AI Application");
+    if (categories.length === 0) categories.push("Custom Web Application");
+
+    // Adaptive Complexity (Rule 34)
+    let complexity: "SIMPLE" | "MEDIUM" | "COMPLEX" = "SIMPLE";
+    if (categories.some((c) => ["SaaS", "Marketplace", "AI Application"].includes(c)) || /multi-tenant|fintech|skala besar/i.test(combined)) {
+      complexity = "COMPLEX";
+    } else if (categories.some((c) => ["Booking / Reservation", "E-commerce", "Dashboard / Admin", "Education", "Event", "Community"].includes(c))) {
+      complexity = "MEDIUM";
+    } else {
+      complexity = "SIMPLE";
     }
 
-    if (/laundry|cuci|kiloan|dry clean/.test(combined)) {
-      return { isPhotography: false, topicName: "Sistem Kasir & Manajemen Antrean Laundry" };
-    }
+    // Conditional Auth (Rule 39): Portfolio / pure company profile = false
+    const needsAuth = Boolean(
+      complexity !== "SIMPLE" ||
+      /login|auth|autentikasi|user account|akun|member|admin portal|portal klien/i.test(combined)
+    );
 
-    if (/toko|olshop|ecommerce|belanja|checkout barang/.test(combined)) {
-      return { isPhotography: false, topicName: "Platform E-Commerce & Toko Online Interaktif" };
-    }
+    // Conditional Database (Rule 38): Static / simple portfolio = false
+    const needsDatabase = Boolean(
+      needsAuth ||
+      complexity !== "SIMPLE" ||
+      /database|crud|postgre|mysql|supabase|data dinamis|penyimpanan data/i.test(combined)
+    );
+
+    // Conditional Payment (Rule 40): strictly only if transactions exist
+    const needsPayment = Boolean(
+      /bayar|payment|pembayaran|qris|checkout|beli|midtrans|transaksi|deposit|dp /i.test(combined)
+    );
+
+    // Conditional Storage (Rule 41)
+    const needsStorage = Boolean(
+      /upload|foto|gambar|dokumen|file|berkas|pdf|galeri/i.test(combined)
+    );
+
+    // Constraints Awareness (Rule 44)
+    const constraints: string[] = [];
+    if (/tanpa supabase|no supabase|bukan supabase/i.test(combined)) constraints.push("No Supabase");
+    if (/tanpa backend|no backend|static only/i.test(combined)) constraints.push("No Backend / Static Only");
+    if (/gratis|free only/i.test(combined)) constraints.push("Free Tier Only");
+    if (/mobile-first|mobile first|responsif hp/i.test(combined)) constraints.push("Mobile-First Required");
+
+    const isPhotography = /fotograf|photo|kamera|photoshoot|fotografer|studio foto/.test(combined);
 
     return {
-      isPhotography: false,
-      topicName: title.toLowerCase().includes("coba") ? "Platform Web & Aplikasi Digital" : title
+      isPhotography,
+      topicName: title.toLowerCase().includes("coba") ? "Platform Web & Aplikasi Digital" : title,
+      categories,
+      complexity,
+      needsAuth,
+      needsDatabase,
+      needsPayment,
+      needsStorage,
+      constraints
     };
   };
 
@@ -721,110 +795,152 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     const domain = detectProjectDomain([], title, desc);
     let questions: { id: string; question: string; options: string[] }[] = [];
 
-    if (domain.isPhotography) {
+    if (domain.categories.includes("Portfolio")) {
       questions = [
         {
           id: "q1",
-          question: "Siapa target klien utama dan genre fotografi yang difokuskan?",
+          question: "Bagaimana format dan gaya showcase karya portofolio yang Anda inginkan?",
           options: [
-            "Wedding, Prewedding & Pasangan",
-            "Personal Portrait, Wisuda & Model",
-            "Commercial, Brand Fashion & Produk",
-            "Event, Konser & Corporate Gathering",
+            "Grid interaktif (Masonry) dengan modal Lightbox dan filter kategori",
+            "Studi kasus komprehensif (Case Study) per proyek dengan ringkasan brief & hasil",
+            "Showcase minimalis satu halaman (Single-page portfolio) yang fokus visual",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana sistem booking dan pemilihan paket photoshoot?",
+          question: "Apakah diperlukan fitur seleksi/proofing karya untuk klien atau client portal?",
           options: [
-            "Kalender reservasi interaktif real-time dengan pilihan studio/outdoor",
-            "Pilihan paket berjenjang (Bronze, Silver, Gold) beserta opsi add-ons",
-            "Formulir brief konsep foto dengan konsultasi via WhatsApp",
+            "Hanya showcase portofolio publik tanpa login klien",
+            "Portal seleksi privat ber-watermark untuk review & approval klien",
+            "Galeri hasil karya final yang siap diunduh batch (ZIP)",
           ],
         },
         {
           id: "q3",
-          question: "Apakah memerlukan fitur Client Proofing Portal untuk seleksi foto ber-watermark?",
+          question: "Bagaimana calon klien dapat menghubungi atau memesan jasa Anda?",
           options: [
-            "Ya, wajib ada portal privat seleksi foto ber-watermark untuk klien",
-            "Cukup galeri hasil foto final yang siap diunduh batch (ZIP)",
-            "Hanya showcase portofolio publik tanpa portal klien privat",
-          ],
-        },
-        {
-          id: "q4",
-          question: "Bagaimana alur pembayaran yang Anda rencanakan?",
-          options: [
-            "Pembayaran bertahap (DP 50% di awal + Pelunasan sebelum unduh file final)",
-            "Pembayaran penuh 100% di awal via QRIS / Virtual Account",
-            "Manual transfer bank dengan konfirmasi kasir",
+            "Formulir brief/inquiry pemesanan terstruktur dengan validasi data",
+            "Tombol direct ke chat WhatsApp dan kontak Email",
+            "Kalender reservasi tanggal konsultasi / photoshoot real-time",
           ],
         },
       ];
-    } else if (/futsal|lapangan|badminton|booking|reservasi|jadwal/.test((title + " " + (desc || "")).toLowerCase())) {
+    } else if (domain.categories.includes("Booking / Reservation")) {
       questions = [
         {
           id: "q1",
-          question: "Siapa target pengguna dan operator utama aplikasi?",
+          question: "Bagaimana mekanisme pemilihan jadwal dan alokasi slot waktu?",
           options: [
-            "Penyewa umum (Customer) & Pengelola lapangan (Admin)",
-            "Member komunitas olahraga dengan sistem langganan",
-            "Multi-venue (Banyak pemilik lapangan bergabung dalam satu platform)",
+            "Kalender slot jam real-time dengan penguncian slot otomatis (15 menit)",
+            "Jadwal fleksibel berbasis request tanggal & konfirmasi persetujuan admin",
+            "Pemesanan sesi berulang (membership / paket berkala)",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana mekanisme pemilihan jadwal & slot ketersediaan lapangan?",
+          question: "Metode pembayaran apa yang direncanakan untuk reservasi?",
           options: [
-            "Kalender slot per jam real-time dengan penguncian slot otomatis (15 menit)",
-            "Jadwal fleksibel dengan sistem request dan persetujuan admin",
-            "Pemesanan sesi berulang (membership mingguan/bulanan)",
+            "Otomatis via QRIS & Virtual Account (Payment Gateway)",
+            "Pembayaran Down Payment (DP) di awal, pelunasan sisa di lokasi",
+            "Manual transfer bank dengan konfirmasi admin kasir",
           ],
         },
         {
           id: "q3",
-          question: "Metode pembayaran apa saja yang ingin didukung?",
-          options: [
-            "Otomatis via QRIS & Virtual Account (Midtrans / Xendit)",
-            "Pembayaran DP di awal, sisa bayar di lokasi (Cash on Spot)",
-            "Manual transfer bank dengan upload bukti bayar",
-          ],
-        },
-        {
-          id: "q4",
-          question: "Apakah memerlukan notifikasi pengingat otomatis?",
+          question: "Apakah memerlukan notifikasi pengingat otomatis ke pemesan?",
           options: [
             "Ya, kirim WhatsApp / Email pengingat jadwal H-1 dan bukti invoice",
-            "Cukup riwayat booking di dashboard pengguna",
+            "Cukup riwayat booking di akun dashboard pengguna",
           ],
         },
       ];
-    } else if (/toko|olshop|ecommerce|belanja|produk|store/.test((title + " " + (desc || "")).toLowerCase())) {
+    } else if (domain.categories.includes("E-commerce") || domain.categories.includes("Marketplace")) {
       questions = [
         {
           id: "q1",
-          question: "Jenis produk apa yang dijual dan bagaimana model bisnisnya?",
+          question: "Jenis produk apa yang dijual dan bagaimana alur transaksinya?",
           options: [
-            "Produk fisik dengan pengiriman ekspedisi (JNE/J&T/SiCepat)",
-            "Produk digital (file, template, lisensi unduh instan)",
-            "Multi-vendor marketplace (banyak seller)",
+            "Produk fisik dengan kalkulasi ongkir ekspedisi otomatis (Biteship/RajaOngkir)",
+            "Produk digital (file unduh instan / lisensi software)",
+            "Katalog produk dengan pemesanan langsung via chat WhatsApp",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana alur checkout dan perhitungan ongkir?",
+          question: "Bagaimana sistem akun pelanggan dan alur checkout?",
           options: [
-            "Kalkulasi ongkir otomatis via API RajaOngkir / Biteship + Payment Gateway",
-            "Checkout langsung diarahkan ke chat WhatsApp admin",
-            "Sistem keranjang belanja & bayar di tempat (COD)",
+            "Bisa checkout instan tanpa login (Guest Checkout) dan opsi login Google",
+            "Wajib login akun member untuk mengumpulkan riwayat pesanan & poin",
+            "Multi-vendor di mana setiap penjual memiliki dasbor toko sendiri",
           ],
         },
         {
           id: "q3",
-          question: "Apakah pengguna wajib mendaftar akun untuk berbelanja?",
+          question: "Metode pembayaran apa yang diprioritaskan?",
           options: [
-            "Bisa guest checkout (tanpa akun) dan opsi login Google",
-            "Wajib login akun member untuk mengumpulkan poin reward",
+            "Payment gateway otomatis (QRIS, E-Wallet, Virtual Account)",
+            "Transfer bank manual dengan upload bukti bayar",
+            "Cash on Delivery (COD) / Bayar di Tempat",
+          ],
+        },
+      ];
+    } else if (domain.categories.includes("Company Profile") || domain.categories.includes("Marketing Website")) {
+      questions = [
+        {
+          id: "q1",
+          question: "Apa tujuan konversi utama yang ingin dicapai dari website ini?",
+          options: [
+            "Menghasilkan leads konsultasi via formulir interaktif & WhatsApp",
+            "Membangun kredibilitas korporat & showcase portofolio klien/proyek",
+            "Mengunduh company profile / brosur digital resmi (PDF)",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana struktur presentasi layanan dan produk perusahaan?",
+          options: [
+            "Daftar layanan komprehensif dengan halaman detail per layanan",
+            "Presentasi ringkas 1 halaman (Landing page) yang fokus konversi",
+            "Katalog produk / portofolio proyek terintegrasi",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Apakah memerlukan CMS (Admin panel) untuk mengupdate konten?",
+          options: [
+            "Website statis modern (konten diupdate melalui kode/JSON tanpa database)",
+            "Admin dashboard sederhana untuk update blog & portofolio",
+            "Integrasi headless CMS (Sanity / Contentful)",
+          ],
+        },
+      ];
+    } else if (domain.categories.includes("SaaS") || domain.categories.includes("Dashboard / Admin")) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana model akses dan peran pengguna (RBAC)?",
+          options: [
+            "Multi-role terproteksi (Superadmin, Manager, Staf, Klien)",
+            "Sistem langganan bertingkat (Free, Pro, Enterprise)",
+            "Single workspace untuk penggunaan internal tim",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Apa modul analitik dan pelaporan data yang paling esensial?",
+          options: [
+            "Grafik metrik performa real-time dan ringkasan KPI",
+            "Tabel data interaktif dengan filter instan dan ekspor CSV/PDF",
+            "Alur kerja otomasi dan webhook log",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Bagaimana preferensi arsitektur database dan keamanan?",
+          options: [
+            "PostgreSQL dengan Row Level Security (RLS) & session cookie",
+            "REST API terenkripsi dengan audit logging aktivitas user",
+            "Multi-tenant database terisolasi",
           ],
         },
       ];
@@ -834,36 +950,27 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
           id: "q1",
           question: `Siapa target pengguna utama untuk proyek ${title}?`,
           options: [
-            "Pengguna umum / Konsumen akhir (B2C)",
-            "Pelaku bisnis, UMKM, atau perusahaan (B2B)",
-            "Internal tim operasional & staf perusahaan",
+            "Pengguna publik / Konsumen akhir (B2C)",
+            "Pelaku bisnis, UMKM, atau korporasi (B2B)",
+            "Internal tim operasional perusahaan",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana sistem autentikasi dan hak akses pengguna?",
+          question: "Apakah aplikasi ini memerlukan sistem login akun pengguna?",
           options: [
-            "Multi-role (Administrator, Staff Operasional, Customer)",
-            "Login cepat via Google OAuth & Email Magic Link",
-            "Dapat diakses publik tanpa perlu login",
+            "Dapat diakses publik tanpa perlu login (Public / Static)",
+            "Perlu autentikasi aman (Email & Password / Google OAuth)",
+            "Multi-role dengan hak akses bertingkat (Admin, Staff, User)",
           ],
         },
         {
           id: "q3",
-          question: "Apa fungsi dan modul paling krusial yang wajib ada di versi awal (MVP)?",
+          question: "Apa fungsi dan interaksi paling krusial yang wajib ada di versi awal (MVP)?",
           options: [
-            "Katalog data interaktif, pencarian cepat & modul transaksi otomatis",
-            "Formulir pengisian data terstruktur dengan validasi ketat & ekspor laporan",
-            "Dashboard analitik, grafik visualisasi performa, dan manajemen data CRUD",
-          ],
-        },
-        {
-          id: "q4",
-          question: "Bagaimana model arsitektur teknis yang Anda harapkan?",
-          options: [
-            "Next.js 15 App Router + PostgreSQL Supabase (Modern, Cepat & Skalabel)",
-            "REST API Route Handlers terpadu dengan autentikasi session cookie",
-            "Integrasi payment gateway (QRIS/VA) dan notifikasi pesan instan",
+            "Pencarian data cepat, navigasi responsif & katalog interaktif",
+            "Formulir interaktif dengan validasi data dan feedback instan",
+            "Dashboard manajemen data terintegrasi dan laporan ringkas",
           ],
         },
       ];
@@ -2367,53 +2474,38 @@ PENTING:
 - Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
     } else {
       systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
-Pengguna telah menjawab seluruh pertanyaan klarifikasi kebutuhan untuk proyek: "${domain.topicName}" (Nama project di workspace: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
+Pengguna telah memberikan brief dan preferensi untuk proyek: "${domain.topicName}" (Nama project: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
+Karakteristik Terdeteksi: Kategori: [${domain.categories.join(", ")}], Kompleksitas: ${domain.complexity}, Auth: ${domain.needsAuth ? "YES" : "NO"}, Database: ${domain.needsDatabase ? "YES" : "NO"}, Payment: ${domain.needsPayment ? "YES" : "NO"}, Storage: ${domain.needsStorage ? "YES" : "NO"}.
+Constraint Pengguna: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Standar best-practice modern"}.
 
-TUGAS UTAMA (REFINEMENT BRIEF V2 — ACTIONABLE DEVELOPMENT BLUEPRINT):
-Ubah ide proyek menjadi DEVELOPMENT BLUEPRINT yang akurat, konsisten, terverifikasi, dan siap dieksekusi oleh AI Coding Assistant (Antigravity, Cursor, Claude Code) maupun developer manusia.
-Struktur ketertelusuran wajib:
-Requirement (FR/NFR) -> Feature (FEATURE-xx) -> Task (TASK-xxx) -> Subtasks -> Acceptance Criteria -> Testing.
-
-ATURAN STRUKTUR & KEDALAMAN (WAJIB DIIKUTI SECARA KETAT):
-1. INTELLIGENT PROJECT ANALYSIS:
-   - Pahami core & secondary functionality, target user personas, platform, integrasi pihak ketiga, dan risiko teknis.
-   - Jika ada hal yang belum ditentukan pengguna, catat sebagai ASUMSI TEKNIS eksplisit (id: "ASSUMPTION-01", assumption, reason, impact). Jangan diam-diam mengarang tanpa tanda!
-2. REQUIREMENT EXTRACTION:
-   - Functional Requirements: MINIMAL 16 item dengan format "FR-01: ...", "FR-02: ...", dst.
-   - Non-Functional Requirements: MINIMAL 8 item dengan format "NFR-01: ...", "NFR-02: ...", dst (performa, SLA latency, keamanan, responsive, dll).
-3. FEATURE IDENTIFICATION & DECOMPOSITION:
-   - MINIMAL 8 fitur modul lengkap dengan ID "FEATURE-01", "FEATURE-02", dst.
-   - Setiap fitur WAJIB memiliki: id, name, description, priority ("CRITICAL" | "HIGH" | "MEDIUM" | "LOW"), scope ("MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED"), relatedRequirements, subFeatures, dependencies, dan isMvp.
-   - Jika ada fitur tambahan usulan AI, tandai "isAiSuggested": true dengan "aiReason". Jangan memalsukannya sebagai user requirement!
-4. DEVELOPMENT TASKS GENERATION (ATOMIC, REALISTIC & ACTIONABLE):
-   - MINIMAL 16 task actionable dengan ID "TASK-001", "TASK-002", dst.
-   - Task harus cukup atomic sehingga AI coding assistant dapat mengerjakannya dalam 1 execution cycle.
-   - Terbagi ke dalam fase logis: PHASE 1 Project Foundation s/d PHASE 7 Testing & Deployment.
-   - Status Task WAJIB REALISTIS (JANGAN SEMUANYA IN_PROGRESS!):
-     * Task pertama yang siap dikerjakan tanpa dependensi berstatus "ready".
-     * Task yang memiliki dependensi belum selesai berstatus "backlog".
-     * Hanya gunakan "in_progress" jika task benar-benar sedang dikerjakan.
-   - Setiap task WAJIB memuat metadata lengkap:
-     * id: "TASK-001"
-     * title: judul spesifik dan jelas
-     * description: penjelasan teknis what to build & why
-     * phase: "PHASE 1 - Project Foundation", dll
-     * priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
-     * status: "ready" (untuk task awal) atau "backlog" (untuk downstream task)
-     * feature: "FEATURE-01: Nama Fitur"
-     * relatedFeature: "FEATURE-01: Nama Fitur" (Parent feature wajib tercantum untuk traceability)
-     * dependencyType: "HARD" | "SOFT" | "NONE"
-     * complexity: "XS" | "S" | "M" | "L" | "XL"
-     * technicalNotes: catatan teknis arsitektural, idempotency, edge cases, atau env secrets
-     * relatedRequirements: ["FR-01", "FR-02"]
-     * dependencies: ["TASK-001"] (atau [] jika task awal)
-     * subtasks: list 2-4 subtask spesifik ("TASK-001.1: ...", "TASK-001.2: ...")
-     * acceptanceCriteria: 3-5 kriteria penerimaan objektif & teruji (menjawab "Bagaimana kita tahu task ini benar-benar selesai?")
-     * testing: 3-4 skenario pengujian spesifik (valid input, invalid input, edge cases, error state)
-     * parallelizable: "YES" (hanya jika tidak ada hard dependency aktif) atau "NO"
-5. ARCHITECTURE & SQL DDL:
-   - Skema CREATE TABLE lengkap untuk 6-8 tabel relasional nyata dengan foreign keys ON DELETE CASCADE dan CREATE INDEX B-Tree.
-   - Arsitektur teknologi proporsional (tanpa overengineering yang tidak perlu).
+TUGAS UTAMA: RUMUSKAN ACTIONABLE DEVELOPMENT BLUEPRINT LENGKAP MENGIKUTI ATURAN UNIVERSAL & ADAPTIF (RULES 33-50):
+1. UNIVERSAL WEB PROJECT COMPATIBILITY (RULE 33):
+   - Kamu HARUS bersikap domain-agnostic dan beradaptasi penuh terhadap ide proyek pengguna. Jangan memaksakan template industri tertentu!
+2. ADAPTIVE PLANNING & OUTPUT DEPTH (RULE 34 & 49):
+   - Sesuaikan kedalaman output dengan kompleksitas proyek:
+     * SIMPLE PROJECT (Landing Page, Portfolio, Simple Company Profile): Hasilkan 5–10 task actionable. JANGAN membuat payment gateway, RBAC, complex database, webhook, rate limiting, atau queue jika tidak relevan!
+     * MEDIUM PROJECT (Booking, Simple E-Commerce, Content Platform): Hasilkan 10–20 task sesuai arsitektur yang dibutuhkan.
+     * COMPLEX PROJECT (SaaS, Marketplace, FinTech, AI App): Hasilkan 20–30+ task berskala penuh.
+3. CONTEXT-AWARE FEATURES & RELEVANCE FILTER (RULE 35 & 36):
+   - Setiap fitur dan task WAJIB menjawab pertanyaan: "Apakah ini relevan terhadap requirement proyek ini?". Jika TIDAK -> REMOVE!
+4. CONDITIONAL DATABASE (RULE 38):
+   - JANGAN selalu membuat skema database! Jika proyek berupa static website, landing page, atau simple portfolio tanpa backend dinamis, tulis:
+     "database": "None (Static Website / Client-side rendering)",
+     "dataSchema": "-- Tidak memerlukan skema database relasional (Static / JSON content)"
+   - Hanya buat skema SQL lengkap CREATE TABLE jika proyek memang membutuhkan persistensi data dinamis (Users, Products, Bookings, Orders, Articles, dll).
+5. CONDITIONAL AUTHENTICATION (RULE 39):
+   - Autentikasi HANYA dibuat jika proyek membutuhkan user identity. (Portfolio / Landing Page = NO AUTH).
+6. CONDITIONAL PAYMENT (RULE 40):
+   - Payment HANYA muncul jika terdapat requirement transaksi. Company profile / portofolio = JANGAN buat Payment Gateway, Webhook, atau Invoice!
+7. CONDITIONAL STORAGE & THIRD-PARTY (RULE 41 & 42):
+   - Storage hanya jika menangani file upload. Pihak ketiga hanya jika dibutuhkan (beri label AI-SUGGESTED jika saran AI).
+8. RESPECT CONSTRAINTS & STACK (RULE 43 & 44):
+   - Patuhi constraint: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Tidak ada batasan khusus"}.
+9. UNKNOWN DOMAIN & BUSINESS LOGIC (RULE 47 & 48):
+   - JANGAN mengarang asumsi bisnis (misal jangan otomatis berasumsi DP 50% atau model langganan jika pengguna tidak menyebutkannya). Tandai ketidakpastian sebagai ASSUMPTION atau TBD.
+10. REALISTIC TASK STATUS & TRACEABILITY (RULE 50):
+    - Status Task realistis: Task pertama tanpa dependensi = "ready", task yang menunggu dependensi = "backlog".
+    - Setiap task WAJIB memuat: id, title, description, phase, priority, status ("ready" / "backlog"), feature, relatedFeature, dependencyType ("HARD" | "SOFT" | "NONE"), complexity ("XS" | "S" | "M" | "L" | "XL"), technicalNotes, subtasks, acceptanceCriteria, testing, parallelizable.
 
 FORMAT OUTPUT WAJIB:
 Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprint lengkap di akhir respon:
@@ -2423,21 +2515,20 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
   "prd": {
     "overview": "...",
     "problemStatement": "...",
-    "goals": ["G-01...", "G-02...", "G-03...", "G-04...", "G-05...", "G-06...", "G-07...", "G-08..."],
-    "targetUsers": ["...", "...", "...", "..."],
-    "functionalRequirements": ["FR-01...", "FR-02...", "FR-03...", "FR-04...", "FR-05...", "FR-06...", "FR-07...", "FR-08...", "FR-09...", "FR-10...", "FR-11...", "FR-12...", "FR-13...", "FR-14...", "FR-15...", "FR-16..."],
-    "nonFunctionalRequirements": ["NFR-01...", "NFR-02...", "NFR-03...", "NFR-04...", "NFR-05...", "NFR-06...", "NFR-07...", "NFR-08..."],
+    "goals": ["G-01...", "G-02...", "G-03..."],
+    "targetUsers": ["...", "..."],
+    "functionalRequirements": ["FR-01...", "FR-02...", "FR-03..."],
+    "nonFunctionalRequirements": ["NFR-01...", "NFR-02..."],
     "assumptions": [
       {
         "id": "ASSUMPTION-01",
-        "assumption": "Autentikasi menggunakan Supabase Auth berbasis HttpOnly session cookie",
-        "reason": "Pengguna membutuhkan autentikasi web yang aman dan stateless",
-        "impact": "Arsitektur login terintegrasi langsung dengan database PostgreSQL"
+        "assumption": "...",
+        "reason": "...",
+        "impact": "..."
       }
     ],
     "risks": [
-      "Risiko race-condition saat transaksi konkuren (dicegah dengan atomic locking)",
-      "Latensi webhook pihak ketiga (dicegah dengan idempotent listener)"
+      "..."
     ]
   },
   "features": [
@@ -2449,20 +2540,20 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "scope": "MVP",
       "isAiSuggested": false,
       "relatedRequirements": ["FR-01", "FR-02"],
-      "subFeatures": ["...", "...", "...", "..."],
-      "dependencies": ["FEATURE-00"],
+      "subFeatures": ["...", "..."],
+      "dependencies": [],
       "isMvp": true
     }
   ],
-  "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ... -> 5. ... -> 6. ... -> 7. ... -> 8. ... -> 9. ... -> 10. ...",
+  "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ...",
   "architecture": {
-    "frontend": "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons, Framer Motion",
-    "backend": "Next.js Route Handlers & Server Actions, Zod Schema Validation",
-    "database": "PostgreSQL (Supabase / Neon) dengan RLS & Indexes",
-    "auth": "Supabase Auth / NextAuth dengan secure HttpOnly session cookie",
-    "storage": "Supabase Storage / Cloudflare R2",
-    "deployment": "Vercel (Edge Network)",
-    "dataSchema": "CREATE TABLE ..."
+    "frontend": "Next.js 15 (App Router), React 19, Tailwind CSS",
+    "backend": "Next.js Route Handlers / Server Actions",
+    "database": "${domain.needsDatabase ? "PostgreSQL dengan RLS & Indexes" : "None (Static Website / Client-side rendering)"}",
+    "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website)"}",
+    "storage": "${domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"}",
+    "deployment": "Vercel",
+    "dataSchema": "${domain.needsDatabase ? "CREATE TABLE ..." : "-- Tidak memerlukan skema database relasional"}"
   },
   "tasks": [
     {
@@ -2476,12 +2567,12 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "relatedFeature": "FEATURE-01: ...",
       "dependencyType": "NONE",
       "complexity": "M",
-      "technicalNotes": "Validasi schema server-side menggunakan Zod & HttpOnly cookie",
-      "relatedRequirements": ["FR-01", "FR-02"],
+      "technicalNotes": "...",
+      "relatedRequirements": ["FR-01"],
       "dependencies": [],
-      "subtasks": ["TASK-001.1: ...", "TASK-001.2: ..."],
-      "acceptanceCriteria": ["User dapat...", "Sistem memvalidasi..."],
-      "testing": ["Uji login sukses", "Uji password salah", "Uji session expire"],
+      "subtasks": ["TASK-001.1: ..."],
+      "acceptanceCriteria": ["..."],
+      "testing": ["..."],
       "parallelizable": "YES"
     }
   ]
@@ -2762,32 +2853,32 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
         if (blueprintData) {
           if (blueprintData.prd) {
             updated.prd = {
-              ...domainBlueprint.prd,
-              ...blueprintData.prd,
-              goals: (Array.isArray(blueprintData.prd.goals) && blueprintData.prd.goals.length >= 6)
+              overview: blueprintData.prd.overview || "",
+              problemStatement: blueprintData.prd.problemStatement || "",
+              goals: Array.isArray(blueprintData.prd.goals) && blueprintData.prd.goals.length > 0
                 ? blueprintData.prd.goals
-                : domainBlueprint.prd.goals,
-              functionalRequirements: (Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length >= 10)
+                : (domainBlueprint.prd.goals || []),
+              functionalRequirements: Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length > 0
                 ? blueprintData.prd.functionalRequirements
-                : domainBlueprint.prd.functionalRequirements,
-              nonFunctionalRequirements: (Array.isArray(blueprintData.prd.nonFunctionalRequirements) && blueprintData.prd.nonFunctionalRequirements.length >= 5)
+                : (domainBlueprint.prd.functionalRequirements || []),
+              nonFunctionalRequirements: Array.isArray(blueprintData.prd.nonFunctionalRequirements) && blueprintData.prd.nonFunctionalRequirements.length > 0
                 ? blueprintData.prd.nonFunctionalRequirements
-                : domainBlueprint.prd.nonFunctionalRequirements,
-              targetUsers: (Array.isArray(blueprintData.prd.targetUsers) && blueprintData.prd.targetUsers.length >= 3)
+                : (domainBlueprint.prd.nonFunctionalRequirements || []),
+              targetUsers: Array.isArray(blueprintData.prd.targetUsers) && blueprintData.prd.targetUsers.length > 0
                 ? blueprintData.prd.targetUsers
-                : domainBlueprint.prd.targetUsers,
-              assumptions: Array.isArray(blueprintData.prd.assumptions) && blueprintData.prd.assumptions.length > 0
+                : (domainBlueprint.prd.targetUsers || []),
+              assumptions: Array.isArray(blueprintData.prd.assumptions)
                 ? blueprintData.prd.assumptions
-                : domainBlueprint.prd.assumptions,
-              risks: Array.isArray(blueprintData.prd.risks) && blueprintData.prd.risks.length > 0
+                : [],
+              risks: Array.isArray(blueprintData.prd.risks)
                 ? blueprintData.prd.risks
-                : domainBlueprint.prd.risks,
+                : [],
             };
           } else {
             updated.prd = domainBlueprint.prd;
           }
 
-          if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 6) {
+          if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 3) {
             updated.features = blueprintData.features.map((f: any, idx: number) => {
               const scope = f.scope || (idx < 4 ? "MVP" : idx < 7 ? "POST-MVP" : "OPTIONAL");
               const isAiSuggested = typeof f.isAiSuggested === "boolean" ? f.isAiSuggested : scope === "AI-SUGGESTED";
@@ -2808,11 +2899,10 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
               };
             });
           } else {
-            // Jika fitur dari LLM sedikit, gunakan fitur lengkap domain agar selalu kaya & mendalam
             updated.features = domainBlueprint.features;
           }
 
-          if (blueprintData.userFlow && String(blueprintData.userFlow).length > 40) {
+          if (blueprintData.userFlow && String(blueprintData.userFlow).length > 20) {
             updated.userFlow = String(blueprintData.userFlow);
           } else {
             updated.userFlow = domainBlueprint.userFlow;
@@ -2820,15 +2910,19 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
           if (blueprintData.architecture) {
             updated.architecture = {
-              ...domainBlueprint.architecture,
-              ...blueprintData.architecture,
-              dataSchema: blueprintData.architecture.dataSchema || domainBlueprint.architecture.dataSchema,
+              frontend: blueprintData.architecture.frontend || "Next.js 15 (App Router), Tailwind CSS",
+              backend: blueprintData.architecture.backend || "Next.js Route Handlers / Server Actions",
+              database: blueprintData.architecture.database || (domain.needsDatabase ? "PostgreSQL" : "None (Static Website / Client-side rendering)"),
+              auth: blueprintData.architecture.auth || (domain.needsAuth ? "NextAuth / Session Cookie" : "None (Public Website)"),
+              storage: blueprintData.architecture.storage || (domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"),
+              deployment: blueprintData.architecture.deployment || "Vercel",
+              dataSchema: blueprintData.architecture.dataSchema || (domain.needsDatabase ? (domainBlueprint.architecture.dataSchema || "") : "-- Tidak memerlukan skema database relasional (Static site / JSON content)"),
             };
           } else {
             updated.architecture = domainBlueprint.architecture;
           }
 
-          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 10) {
+          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 4) {
             const rawTasks: ProjectTask[] = blueprintData.tasks.map((t: any, idx: number) => {
               const taskId = t.id || "TASK-" + String(idx + 1).padStart(3, "0");
               const parentFeat = t.relatedFeature || t.feature || ("FEATURE-" + String(Math.floor(idx / 2) + 1).padStart(2, "0"));
@@ -2852,21 +2946,21 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
                   ? t.subtasks
                   : [
                       `${taskId}.1: Implementasi logic & skema ${t.title || ""}`,
-                      `${taskId}.2: Integrasi UI & validasi input Zod`,
+                      `${taskId}.2: Integrasi UI & validasi input`,
                     ],
                 acceptanceCriteria: Array.isArray(t.acceptanceCriteria) && t.acceptanceCriteria.length > 0
                   ? t.acceptanceCriteria
                   : [
                       `Modul ${t.title || ""} berhasil dieksekusi tanpa throw error`,
-                      `Data input tervalidasi dan tersimpan di database`,
+                      `Data input tervalidasi dengan benar`,
                       `Error state ditampilkan saat request gagal / invalid`,
                     ],
                 testing: Array.isArray(t.testing) && t.testing.length > 0
                   ? t.testing
                   : [
                       `Pengujian skenario sukses (Happy Path)`,
-                      `Pengujian input tidak valid & validasi Zod error handling`,
-                      `Pengujian responsivitas dan loading state antarmuka`,
+                      `Pengujian input tidak valid & error handling`,
+                      `Pengujian responsivitas tampilan antarmuka`,
                     ],
                 parallelizable: (t.parallelizable === "YES" || t.parallelizable === "NO")
                   ? t.parallelizable
@@ -3095,18 +3189,21 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
   const copyEverythingText = () => {
     if (!activeProject) return;
+    if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
+      showCopyToast("Blueprint proyek belum selesai dirumuskan. Selesaikan sesi AI Planner di tab Chat terlebih dahulu.");
+      return;
+    }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
-    const domainBlueprint = getDomainBlueprint(domain, activeProject.title);
 
-    const prd = activeProject.prd || domainBlueprint.prd;
-    const arch = activeProject.architecture || domainBlueprint.architecture;
-    const features = (activeProject.features && activeProject.features.length > 0) ? activeProject.features : domainBlueprint.features;
-    const tasks = (activeProject.tasks && activeProject.tasks.length > 0) ? activeProject.tasks : domainBlueprint.tasks;
-    const userFlow = activeProject.userFlow || domainBlueprint.userFlow;
-    const dataSchema = arch?.dataSchema || domainBlueprint.architecture.dataSchema;
+    const prd = activeProject.prd;
+    const arch = activeProject.architecture;
+    const features = activeProject.features || [];
+    const tasks = activeProject.tasks || [];
+    const userFlow = activeProject.userFlow || "Standard User Journey";
+    const dataSchema = arch?.dataSchema || "";
 
     const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Claude Code)
-# Project: ${activeProject.title} ${domain.isPhotography ? `(${domain.topicName})` : ""}
+# Project: ${activeProject.title} (${domain.categories.join(", ")})
 # Generated by: Usick One — Code Planner (Ngoding Pakai AI)
 # Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
 
@@ -3409,12 +3506,22 @@ ${tasks.map((t, i) => {
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER: Project Detail Workspace
   // ─────────────────────────────────────────────────────────────────────────────
+  const isBlueprintReady = Boolean(
+    activeProject.prd?.overview &&
+    activeProject.features &&
+    activeProject.features.length > 0 &&
+    activeProject.tasks &&
+    activeProject.tasks.length > 0 &&
+    estafetStage !== "prd" &&
+    estafetStage !== "features" &&
+    estafetStage !== "architecture" &&
+    estafetStage !== "tasks"
+  );
   const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
-  const domainBlueprint = getDomainBlueprint(domain, activeProject.title);
-  const displayFeatures = (activeProject.features && activeProject.features.length > 0) ? activeProject.features : domainBlueprint.features;
-  const displayTasks = (activeProject.tasks && activeProject.tasks.length > 0) ? activeProject.tasks : domainBlueprint.tasks;
-  const displayPrd = activeProject.prd || domainBlueprint.prd;
-  const displayArch = activeProject.architecture || domainBlueprint.architecture;
+  const displayFeatures = isBlueprintReady ? (activeProject.features || []) : [];
+  const displayTasks = isBlueprintReady ? (activeProject.tasks || []) : [];
+  const displayPrd = isBlueprintReady ? activeProject.prd : undefined;
+  const displayArch = isBlueprintReady ? activeProject.architecture : undefined;
 
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0b0f19] text-white" : "bg-[#f8fafc] text-slate-900"}`}>
@@ -3670,12 +3777,34 @@ ${tasks.map((t, i) => {
                 isDark ? "border-slate-800/60 bg-slate-900/40 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-600"
               }`}>
                 <span className={`font-bold ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>✓</span>
-                <span>{displayFeatures.length} fitur dari rencana ini.</span>
+                <span>{isBlueprintReady ? `${displayFeatures.length} fitur dari rencana ini.` : "Menunggu AI Planner"}</span>
               </div>
 
               {/* Drawer Body: Formatted PRD Document */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs leading-relaxed select-text">
-                {perencanaanMode === "prd" ? (
+                {!isBlueprintReady ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 border ${
+                      isDark ? "bg-zinc-900 border-zinc-800 text-zinc-300" : "bg-zinc-100 border-zinc-200 text-zinc-700"
+                    }`}>
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-bold text-sm mb-1">Perencanaan Belum Dirumuskan</h4>
+                    <p className={`text-xs max-w-xs mb-4 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Diskusikan brief ide proyek Anda dengan AI Planner di tab Chat untuk merumuskan PRD, fitur hierarkis, dan arsitektur teknis secara estafet.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("chat")}
+                      className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer shadow-xs transition ${
+                        isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                      }`}
+                    >
+                      Mulai Diskusi di Tab Chat →
+                    </button>
+                  </div>
+                ) : perencanaanMode === "prd" ? (
                   <>
                     <div>
                       <h3 className="text-base font-bold tracking-tight mb-3">
@@ -3836,28 +3965,60 @@ ${tasks.map((t, i) => {
                 </div>
               </div>
 
-              {/* Connecting SVG Fan Lines between Root and Features */}
-              <div className="shrink-0" style={{ width: "90px", height: `${displayFeatures.length * 140}px` }}>
-                <svg className="w-full h-full overflow-visible">
-                  {displayFeatures.map((_, i) => {
-                    const totalH = displayFeatures.length * 140;
-                    const rootY = totalH / 2;
-                    const featY = i * 140 + 70;
-                    return (
-                      <path
-                        key={i}
-                        d={`M 0 ${rootY} C 45 ${rootY}, 45 ${featY}, 90 ${featY}`}
-                        stroke={isDark ? "#334155" : "#cbd5e1"}
-                        strokeWidth="1.5"
-                        fill="none"
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
+              {!isBlueprintReady || displayFeatures.length === 0 ? (
+                <>
+                  {/* Connecting SVG single line */}
+                  <div className="shrink-0 w-[80px] h-[40px]">
+                    <svg className="w-full h-full">
+                      <line x1="0" y1="20" x2="80" y2="20" stroke={isDark ? "#334155" : "#cbd5e1"} strokeWidth="1.5" strokeDasharray="4 4" />
+                    </svg>
+                  </div>
 
-              {/* Features, Sub-features & Tasks Column Rows */}
-              <div className="flex flex-col shrink-0">
+                  {/* Waiting Node Card */}
+                  <div className={`w-[280px] p-5 rounded-2xl border text-center space-y-2.5 shadow-lg ${
+                    isDark ? "bg-[#111625] border-zinc-800 text-zinc-200" : "bg-white border-zinc-200 text-zinc-800"
+                  }`}>
+                    <div className="w-8 h-8 rounded-full mx-auto flex items-center justify-center bg-zinc-800 text-zinc-300">
+                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    </div>
+                    <h4 className="font-bold text-xs">Menunggu Perumusan AI Planner</h4>
+                    <p className={`text-[11px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Peta hierarki fitur dan tugas akan digambar di sini secara visual setelah proses estafet perumusan PRD selesai.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("chat")}
+                      className={`inline-block px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                        isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                      }`}
+                    >
+                      Buka Tab Chat AI Planner →
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Connecting SVG Fan Lines between Root and Features */}
+                  <div className="shrink-0" style={{ width: "90px", height: `${displayFeatures.length * 140}px` }}>
+                    <svg className="w-full h-full overflow-visible">
+                      {displayFeatures.map((_, i) => {
+                        const totalH = displayFeatures.length * 140;
+                        const rootY = totalH / 2;
+                        const featY = i * 140 + 70;
+                        return (
+                          <path
+                            key={i}
+                            d={`M 0 ${rootY} C 45 ${rootY}, 45 ${featY}, 90 ${featY}`}
+                            stroke={isDark ? "#334155" : "#cbd5e1"}
+                            strokeWidth="1.5"
+                            fill="none"
+                          />
+                        );
+                      })}
+                    </svg>
+                  </div>
+
+                  {/* Features, Sub-features & Tasks Column Rows */}
+                  <div className="flex flex-col shrink-0">
                 {displayFeatures.map((feat, i) => {
                   const featureTasks = displayTasks.filter(
                     (t) => t.feature?.toLowerCase().includes(feat.name.toLowerCase()) || t.title.toLowerCase().includes(feat.name.toLowerCase())
@@ -3945,6 +4106,8 @@ ${tasks.map((t, i) => {
                   );
                 })}
               </div>
+            </>
+          )}
             </div>
 
             {/* Floating Zoom Controls (Bottom Left, matching screenshot) */}
@@ -4577,87 +4740,129 @@ ${tasks.map((t, i) => {
               <h3 className="text-lg font-bold">Product Requirements Document (PRD)</h3>
               <p className="text-xs text-zinc-400 mt-0.5">Spesifikasi kebutuhan produk terstruktur untuk {activeProject.title}</p>
             </div>
-            <button
-              onClick={copyPRDText}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              <span>Copy PRD</span>
-            </button>
+            {isBlueprintReady && (
+              <button
+                onClick={copyPRDText}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <span>Copy PRD</span>
+              </button>
+            )}
           </div>
 
-          <div className={`p-5 rounded-2xl border space-y-5 text-xs sm:text-sm leading-relaxed ${
-            isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
-          }`}>
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">1. Project Overview</h4>
-              <p>{activeProject.prd?.overview || activeProject.description || "Belum ada ringkasan PRD. Minta AI Planner di tab Chat untuk menyusun PRD."}</p>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">2. Problem Statement</h4>
-              <p>{activeProject.prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}</p>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">3. Goals &amp; Objectives</h4>
-              <ul className="list-disc pl-5 space-y-1 text-zinc-300 dark:text-zinc-300 light:text-zinc-700">
-                {activeProject.prd?.goals?.map((g, i) => <li key={i}>{g}</li>) || <li>Membuat MVP yang siap digunakan pengguna.</li>}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">4. Target Users</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {activeProject.prd?.targetUsers?.map((u, i) => <li key={i}>{u}</li>) || <li>End-user &amp; Administrator</li>}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">5. Functional Requirements</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {activeProject.prd?.functionalRequirements?.map((f, i) => <li key={i}>{f}</li>) || <li>Autentikasi, CRUD data, dan dashboard.</li>}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">6. Non-Functional Requirements</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {activeProject.prd?.nonFunctionalRequirements?.map((nf, i) => <li key={i}>{nf}</li>) || <li>Performa cepat, aman, dan mobile-friendly.</li>}
-              </ul>
-            </div>
-
-            {activeProject.prd?.assumptions && activeProject.prd.assumptions.length > 0 && (
+          {!isBlueprintReady || !activeProject.prd?.overview ? (
+            <div className={`p-10 rounded-2xl border text-center space-y-3.5 ${
+              isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+            }`}>
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800 text-zinc-300">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
               <div>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">7. Technical &amp; Product Assumptions</h4>
-                <div className="space-y-2 mt-2">
-                  {activeProject.prd.assumptions.map((ass, i) => (
-                    <div key={ass.id || i} className={`p-2.5 rounded-xl border text-xs ${
-                      isDark ? "bg-zinc-800/40 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-200">{ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}</span>
-                        <span className="font-medium text-xs">{ass.assumption}</span>
-                      </div>
-                      {ass.reason && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Alasan:</strong> {ass.reason}</p>}
-                      {ass.impact && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Dampak:</strong> {ass.impact}</p>}
-                    </div>
-                  ))}
+                <h4 className="font-bold text-base">Dokumen PRD Belum Dirumuskan</h4>
+                <p className={`text-xs mt-1.5 max-w-md mx-auto leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                  PRD akan tersusun secara otomatis setelah Anda menyelesaikan sesi diskusi brief dan menjawab pertanyaan discovery bersama AI Planner di tab Chat.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("chat")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                <span>Buka Tab Chat AI Planner</span>
+                <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className={`p-5 rounded-2xl border space-y-5 text-xs sm:text-sm leading-relaxed ${
+              isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+            }`}>
+              <div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">1. Project Overview</h4>
+                <p>{activeProject.prd.overview}</p>
+              </div>
+
+              {activeProject.prd.problemStatement && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">2. Problem Statement</h4>
+                  <p>{activeProject.prd.problemStatement}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeProject.prd?.risks && activeProject.prd.risks.length > 0 && (
-              <div>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">8. Technical Risks &amp; Mitigations</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {activeProject.prd.risks.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
+              {activeProject.prd.goals && activeProject.prd.goals.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">3. Goals &amp; Objectives</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {activeProject.prd.goals.map((g, i) => <li key={i}>{g}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {activeProject.prd.targetUsers && activeProject.prd.targetUsers.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">4. Target Users</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {activeProject.prd.targetUsers.map((u, i) => <li key={i}>{u}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {activeProject.prd.functionalRequirements && activeProject.prd.functionalRequirements.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">5. Functional Requirements</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {activeProject.prd.functionalRequirements.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {activeProject.prd.nonFunctionalRequirements && activeProject.prd.nonFunctionalRequirements.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">6. Non-Functional Requirements</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {activeProject.prd.nonFunctionalRequirements.map((nf, i) => <li key={i}>{nf}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {activeProject.prd.assumptions && activeProject.prd.assumptions.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">7. Technical &amp; Product Assumptions</h4>
+                  <div className="space-y-2 mt-2">
+                    {activeProject.prd.assumptions.map((ass, i) => (
+                      <div key={ass.id || i} className={`p-2.5 rounded-xl border text-xs ${
+                        isDark ? "bg-zinc-800/40 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+                      }`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-200">{ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}</span>
+                          <span className="font-medium text-xs">{ass.assumption}</span>
+                        </div>
+                        {ass.reason && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Alasan:</strong> {ass.reason}</p>}
+                        {ass.impact && <p className="text-[11px] text-zinc-400"><strong className="text-zinc-500">Dampak:</strong> {ass.impact}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeProject.prd.risks && activeProject.prd.risks.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">8. Technical Risks &amp; Mitigations</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {activeProject.prd.risks.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -4671,43 +4876,42 @@ ${tasks.map((t, i) => {
               <h3 className="text-lg font-bold">Feature Hierarchy &amp; Scope</h3>
               <p className="text-xs text-zinc-400 mt-0.5">Daftar fitur hierarkis lengkap dengan dependensi dan prioritas</p>
             </div>
-            <button
-              onClick={copyFeaturesText}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              <span>Copy Features</span>
-            </button>
+            {isBlueprintReady && activeProject.features && activeProject.features.length > 0 && (
+              <button
+                onClick={copyFeaturesText}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <span>Copy Features</span>
+              </button>
+            )}
           </div>
 
-          {(!activeProject.features || activeProject.features.length === 0) ? (
-            <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+          {(!isBlueprintReady || !activeProject.features || activeProject.features.length === 0) ? (
+            <div className={`p-10 rounded-2xl border text-center space-y-3.5 ${
               isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
             }`}>
-              <div className="w-10 h-10 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800/80 dark:bg-zinc-800 text-zinc-300">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800 text-zinc-300">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
               </div>
               <div>
-                <h4 className="font-bold text-sm">Daftar Fitur Belum Dirumuskan</h4>
-                <p className="text-xs text-zinc-400 mt-1 max-w-md mx-auto">
-                  AI Planner dapat memecah kebutuhan proyek Anda menjadi modul-modul fitur hierarkis lengkap dengan sub-fitur dan prioritas.
+                <h4 className="font-bold text-base">Daftar Fitur Belum Dirumuskan</h4>
+                <p className={`text-xs mt-1.5 max-w-md mx-auto leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                  Fitur-fitur hierarkis lengkap dengan sub-fitur dan estimasi prioritas akan digenerate secara estafet setelah sesi diskusi di tab Chat selesai.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setActiveTab("chat");
-                  handleSendChatMessage("Tolong buatkan daftar fitur hierarkis yang sangat detail dan mendalam (6-8 fitur utama dengan 4-6 sub-fitur per modul) untuk proyek ini sekarang.");
-                }}
+                onClick={() => setActiveTab("chat")}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
                   isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
               >
-                <span>Generate Fitur Lengkap Sekarang</span>
+                <span>Buka Tab Chat AI Planner</span>
                 <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                 </svg>
@@ -4805,69 +5009,103 @@ ${tasks.map((t, i) => {
               <h3 className="text-lg font-bold">User Flow &amp; Technical Architecture</h3>
               <p className="text-xs text-zinc-400 mt-0.5">Rancangan alur interaksi dan blueprint arsitektur sistem</p>
             </div>
-            <button
-              onClick={() => {
-                const text = `# Architecture & User Flow — ${activeProject.title}\n\n## User Flow\n${activeProject.userFlow}\n\n## Tech Stack\n${JSON.stringify(activeProject.architecture, null, 2)}`;
-                navigator.clipboard.writeText(text);
-                showCopyToast("Architecture berhasil disalin!");
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              <span>Copy Architecture</span>
-            </button>
-          </div>
-
-          {/* User Flow Box */}
-          <div className={`p-5 rounded-2xl border space-y-2 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
-            <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">User Flow Map</h4>
-            <div className={`p-4 rounded-xl font-mono text-xs leading-relaxed overflow-x-auto ${
-              isDark ? "bg-black/50 text-zinc-200 border border-zinc-800/80" : "bg-zinc-50 text-zinc-900 border border-zinc-200"
-            }`}>
-              {activeProject.userFlow || "Landing Page -> Login -> Dashboard -> Fitur Utama -> Selesai"}
-            </div>
-          </div>
-
-          {/* Tech Stack Cards */}
-          <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
-            <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">Tech Stack &amp; Infrastructure</h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Frontend</span>
-                <span className="font-semibold">{activeProject.architecture?.frontend || "Next.js 15, Tailwind CSS"}</span>
-              </div>
-
-              <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Backend / API</span>
-                <span className="font-semibold">{activeProject.architecture?.backend || "Next.js Server Actions / Node.js"}</span>
-              </div>
-
-              <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Database</span>
-                <span className="font-semibold">{activeProject.architecture?.database || "PostgreSQL (Supabase)"}</span>
-              </div>
-
-              <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Authentication</span>
-                <span className="font-semibold">{activeProject.architecture?.auth || "Supabase Auth / NextAuth"}</span>
-              </div>
-            </div>
-
-            {/* Schema View */}
-            {activeProject.architecture?.dataSchema && (
-              <div className="mt-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">Data Schema Blueprint</span>
-                <pre className={`p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto ${
-                  isDark ? "bg-black/60 text-zinc-300 border border-zinc-800" : "bg-zinc-100 text-zinc-800 border border-zinc-300"
-                }`}>
-                  {activeProject.architecture.dataSchema}
-                </pre>
-              </div>
+            {isBlueprintReady && (
+              <button
+                onClick={() => {
+                  const text = `# Architecture & User Flow — ${activeProject.title}\n\n## User Flow\n${activeProject.userFlow || ""}\n\n## Tech Stack\n${JSON.stringify(activeProject.architecture, null, 2)}`;
+                  navigator.clipboard.writeText(text);
+                  showCopyToast("Architecture berhasil disalin!");
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <span>Copy Architecture</span>
+              </button>
             )}
           </div>
+
+          {!isBlueprintReady || (!activeProject.userFlow && !activeProject.architecture) ? (
+            <div className={`p-10 rounded-2xl border text-center space-y-3.5 ${
+              isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+            }`}>
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800 text-zinc-300">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-base">Arsitektur &amp; Flow Belum Dirumuskan</h4>
+                <p className={`text-xs mt-1.5 max-w-md mx-auto leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                  Rancangan user flow dan arsitektur teknis yang adaptif akan diproses pada tahap estafet ke-3 di tab Chat.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("chat")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                <span>Buka Tab Chat AI Planner</span>
+                <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* User Flow Box */}
+              <div className={`p-5 rounded-2xl border space-y-2 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">User Flow Map</h4>
+                <div className={`p-4 rounded-xl font-mono text-xs leading-relaxed overflow-x-auto ${
+                  isDark ? "bg-black/50 text-zinc-200 border border-zinc-800/80" : "bg-zinc-50 text-zinc-900 border border-zinc-200"
+                }`}>
+                  {activeProject.userFlow || "User Journey belum dispesifikasikan."}
+                </div>
+              </div>
+
+              {/* Tech Stack Cards */}
+              <div className={`p-5 rounded-2xl border space-y-4 ${isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"}`}>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">Tech Stack &amp; Infrastructure</h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Frontend</span>
+                    <span className="font-semibold">{activeProject.architecture?.frontend || "Standard Web Stack"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Backend / API</span>
+                    <span className="font-semibold">{activeProject.architecture?.backend || "None / Static"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Database</span>
+                    <span className="font-semibold">{activeProject.architecture?.database || "None"}</span>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Authentication</span>
+                    <span className="font-semibold">{activeProject.architecture?.auth || "None (Public Access)"}</span>
+                  </div>
+                </div>
+
+                {/* Schema View (Only if database is needed and dataSchema is present) */}
+                {activeProject.architecture?.dataSchema && activeProject.architecture.dataSchema.trim() !== "" && activeProject.architecture.database?.toLowerCase() !== "none" && !activeProject.architecture.database?.toLowerCase().includes("static") && (
+                  <div className="mt-4">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1.5">Data Schema Blueprint</span>
+                    <pre className={`p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto ${
+                      isDark ? "bg-black/60 text-zinc-300 border border-zinc-800" : "bg-zinc-100 text-zinc-800 border border-zinc-300"
+                    }`}>
+                      {activeProject.architecture.dataSchema}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -4898,15 +5136,17 @@ ${tasks.map((t, i) => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={copyTasksText}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                <span>Copy Tasks</span>
-              </button>
+              {isBlueprintReady && activeProject.tasks.length > 0 && (
+                <button
+                  onClick={copyTasksText}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                    isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  <span>Copy Tasks</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setShowAddTaskModal(true)}
@@ -4920,8 +5160,38 @@ ${tasks.map((t, i) => {
             </div>
           </div>
 
-          {/* Kanban Columns Grid */}
-          <div className="flex-1 overflow-x-auto p-4 sm:p-6">
+          {!isBlueprintReady || activeProject.tasks.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className={`p-10 rounded-2xl border text-center space-y-3.5 max-w-md ${
+                isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+              }`}>
+                <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-zinc-800 text-zinc-300">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-bold text-base">Development Tasks Belum Dirumuskan</h4>
+                  <p className={`text-xs mt-1.5 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                    Daftar actionable tasks dengan dependency analitik, acceptance criteria, dan testing steps akan diproses otomatis oleh AI Planner di tab Chat.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("chat")}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  <span>Buka Tab Chat AI Planner</span>
+                  <svg className="w-3.5 h-3.5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-x-auto p-4 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 min-w-[1200px] h-full items-start">
               {/* Kolom 1: READY */}
               <div className={`flex flex-col h-full rounded-2xl border p-3.5 ${
@@ -5090,8 +5360,9 @@ ${tasks.map((t, i) => {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* Modal: Tambah Task Manual */}
       {showAddTaskModal && (
