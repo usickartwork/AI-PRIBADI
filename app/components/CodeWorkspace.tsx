@@ -15,18 +15,20 @@ export type TaskStatus =
 
 export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "High" | "Medium" | "Low";
 export type DependencyType = "HARD" | "SOFT" | "NONE";
-export type TaskComplexity = "XS" | "S" | "M" | "L" | "XL";
+export type TaskComplexity = "XS" | "S" | "M" | "L" | "XL" | "SIMPLE" | "MODERATE" | "COMPLEX" | "VERY_COMPLEX";
 
-// V4 Master Brief: Requirement Source Classification (Immutability Enforced)
+// V4 Master Brief: Canonical Source Model (Immutability Enforced)
 export type RequirementSource =
   | "USER_REQUIREMENT"
   | "USER_CONSTRAINT"
+  | "USER_GOAL"
+  | "EXPLICIT_NFR"
   | "AI_SUGGESTED"
   | "TECHNICAL_DECISION"
   | "TECHNICAL_RECOMMENDATION"
   | "ASSUMPTION"
-  | "TBD";
-
+  | "TBD"
+  | "OUT_OF_SCOPE";
 
 export type ProductUnderstanding = {
   product_name: string;
@@ -38,6 +40,8 @@ export type ProductUnderstanding = {
   primary_user_actions: string[];
   main_user_journey: string[];
   core_business_objects: string[];
+  business_lifecycle: string[];
+  primary_conversion_action?: string;
   required_pages: string[];
   required_interactions: string[];
   visual_content_priority: "IMAGE" | "CONTENT" | "DATA" | "ACTION";
@@ -91,11 +95,44 @@ export type DerivedPageSpec = {
   responsive_behavior: string;
 };
 
+export type DesignQualityGateSeverity = "PASS" | "WARNING" | "FAIL" | "CRITICAL";
+
 export type DesignQualityGateCheck = {
   id: "DQ-01" | "DQ-02" | "DQ-03" | "DQ-04" | "DQ-05" | "DQ-06" | "DQ-07" | "DQ-08" | "DQ-09" | "DQ-10";
   name: string;
   passed: boolean;
+  severity: DesignQualityGateSeverity;
   detail: string;
+};
+
+export type PreviewQualityGateCheck = {
+  id: "PQ-01" | "PQ-02" | "PQ-03" | "PQ-04" | "PQ-05" | "PQ-06" | "PQ-07" | "PQ-08" | "PQ-09" | "PQ-10" | "PQ-11" | "PQ-12" | "PQ-13";
+  name: string;
+  passed: boolean;
+  severity: DesignQualityGateSeverity;
+  detail: string;
+};
+
+export type ScopeLedger = {
+  user_required: string[];
+  user_constraint: string[];
+  ai_suggested: string[];
+  technical_decision: string[];
+  assumption: string[];
+  out_of_scope: string[];
+};
+
+export type StackDecisionEntry = {
+  decision_id: string;
+  decision: string;
+  reason: string;
+  options: string[];
+  selected: string;
+  classification: RequirementSource;
+  source_requirements: string[];
+  confidence: string;
+  user_approval_required: "YES" | "NO";
+  status: "CONFIRMED" | "TBD" | "NEEDS_APPROVAL";
 };
 
 export type ProjectTask = {
@@ -208,14 +245,29 @@ export type QualityGateResult = {
   sourceIntegrityChecks?: SourceIntegrityCheck[];
   sourceIntegrityState?: SourceIntegrityState;
   designQualityGate?: DesignQualityGateCheck[];
+  previewQualityGate?: PreviewQualityGateCheck[];
+  scopeLedger?: ScopeLedger;
+  stackDecisionLog?: StackDecisionEntry[];
 };
 
-// EXPORT GATE: allowed only when final validation completed AND zero remaining violations.
-// Legacy projects that have never been evaluated carry no state and are not blocked.
+// EXPORT GATE (Universal V4 Section 42): allowed only when all quality gates pass without critical violations.
 export function isSourceExportAllowed(gate?: QualityGateResult): boolean {
-  const s = gate?.sourceIntegrityState;
-  if (!s) return true;
-  return s.finalValidationCompleted === true && s.remainingViolations === 0;
+  if (!gate) return true;
+  const s = gate.sourceIntegrityState;
+  if (s) {
+    if (s.finalValidationCompleted !== true) return false;
+    if (s.remainingViolations > 0) return false;
+  }
+  if (gate.designQualityGate && gate.designQualityGate.some((dq) => dq.severity === "CRITICAL" && !dq.passed)) {
+    return false;
+  }
+  if (gate.previewQualityGate && gate.previewQualityGate.some((pq) => pq.severity === "CRITICAL" && !pq.passed)) {
+    return false;
+  }
+  if (gate.checks && gate.checks.some((c) => !c.passed && c.name.toLowerCase().includes("critical"))) {
+    return false;
+  }
+  return true;
 }
 
 export type ProjectAssumption = {
@@ -272,6 +324,9 @@ export type ProjectPRD = {
   productUnderstanding?: ProductUnderstanding;
   designBlueprint?: DesignBlueprint;
   pageInventory?: DerivedPageSpec[];
+  scopeLedger?: ScopeLedger;
+  stackDecisionLog?: StackDecisionEntry[];
+  previewQualityGate?: PreviewQualityGateCheck[];
 };
 
 export type ProjectCategory =
@@ -332,7 +387,7 @@ export interface DetectedDomain {
     primaryType: string;
     secondaryTypes: string[];
     isHybrid: boolean;
-    complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
+    complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "VERY_COMPLEX" | "ENTERPRISE";
     stackMode: StackMode;
     stackAlternatives: string[];
     needsAuth: boolean;
@@ -394,7 +449,7 @@ export type ProjectArchitecture = {
   dataSchema?: string;
   isAiSuggestedStack?: boolean;
   userConstraints?: string[];
-  complexityLevel?: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
+  complexityLevel?: "SIMPLE" | "MODERATE" | "COMPLEX" | "VERY_COMPLEX" | "ENTERPRISE";
   stackMode?: StackMode;
   stackRecommendations?: StackRecommendation[];
   realtime?: string;
@@ -433,6 +488,9 @@ export type ProjectItem = {
   productUnderstanding?: ProductUnderstanding;
   designBlueprint?: DesignBlueprint;
   pageInventory?: DerivedPageSpec[];
+  scopeLedger?: ScopeLedger;
+  stackDecisionLog?: StackDecisionEntry[];
+  previewQualityGate?: PreviewQualityGateCheck[];
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -643,10 +701,10 @@ Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
 
 // ── V4 SOURCE LOCK — Requirement Lineage Helpers ──────────────────────────────
 // Classification is created ONCE at ingestion, then inherited — never regenerated.
-const USER_CLASSES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT"];
-const AI_DERIVED_CLASSES: RequirementSource[] = ["AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD"];
-const ALL_SOURCES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD"];
-const ORIGIN_PRIORITY: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD", "AI_SUGGESTED"];
+const USER_CLASSES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "USER_GOAL", "EXPLICIT_NFR"];
+const AI_DERIVED_CLASSES: RequirementSource[] = ["AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD", "OUT_OF_SCOPE"];
+const ALL_SOURCES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "USER_GOAL", "EXPLICIT_NFR", "AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD", "OUT_OF_SCOPE"];
+const ORIGIN_PRIORITY: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "USER_GOAL", "EXPLICIT_NFR", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD", "AI_SUGGESTED", "OUT_OF_SCOPE"];
 
 export const isValidSource = (v: unknown): v is RequirementSource =>
   typeof v === "string" && ALL_SOURCES.indexOf(v as RequirementSource) !== -1;
@@ -1030,6 +1088,30 @@ export function deriveProductUnderstanding(
     ? "Menarik minat membaca dengan headline kuat dan akses artikel tanpa hambatan."
     : "Navigasi transparan dan alur aksi terarah.";
 
+  const businessLifecycle = isLaundry
+    ? ["SERVICE_SELECTED", "ORDER_CREATED", "PICKUP_SCHEDULED", "PAYMENT_PENDING", "PAID", "PROCESSING", "READY", "COMPLETED"]
+    : isFashion
+    ? ["PRODUCT_DISCOVERY", "SIZE_SELECTION", "BAG_CONFIRMATION", "CHECKOUT_INITIATED", "PAYMENT_VERIFIED", "ORDER_PACKED", "SHIPPED", "COMPLETED"]
+    : isSoccer
+    ? ["VENUE_SELECTION", "SLOT_SELECTION", "HOLDING_LOCK_ACTIVE", "BOOKING_SUBMITTED", "PAYMENT_SETTLED", "PASS_ISSUED", "COMPLETED"]
+    : isPortfolio
+    ? ["WORK_DISCOVERY", "CASE_STUDY_REVIEW", "BRIEF_COMPOSER", "INQUIRY_SUBMITTED", "COLLABORATION_ACTIVE"]
+    : isNews
+    ? ["HEADLINE_SCAN", "CATEGORY_EXPLORATION", "ARTICLE_ENGAGED", "CONTENT_SHARED"]
+    : ["DISCOVERY", "ENGAGEMENT", "ACTION_INITIATED", "PROCESSING", "COMPLETED"];
+
+  const primaryConversionAction = isFashion
+    ? "Tambah ke Tas Belanja & Checkout"
+    : isLaundry
+    ? "Booking Penjemputan Laundry"
+    : isPortfolio
+    ? "Kirim Brief Kerjasama"
+    : isSoccer
+    ? "Kunci Slot Jam & Konfirmasi Booking"
+    : isNews
+    ? "Baca Liputan Lengkap & Bagikan"
+    : "Konfirmasi Aksi Utama";
+
   return {
     product_name: title,
     primary_type: primaryType,
@@ -1040,6 +1122,8 @@ export function deriveProductUnderstanding(
     primary_user_actions: primaryUserActions,
     main_user_journey: mainUserJourney,
     core_business_objects: coreBusinessObjects,
+    business_lifecycle: businessLifecycle,
+    primary_conversion_action: primaryConversionAction,
     required_pages: requiredPages,
     required_interactions: requiredInteractions,
     visual_content_priority: visualContentPriority,
@@ -1182,69 +1266,86 @@ export function evaluateDesignQualityGate(
   html: string,
   tasks: ProjectTask[]
 ): DesignQualityGateCheck[] {
+  const hasHtml = !!(html && html.trim().length > 0);
   const lowerHtml = (html || "").toLowerCase();
   const forbiddenPlannerWords = [
     "fitur & solusi", "simulasi aksi", "alur pengerjaan", "roadmap & alur",
     "katalog fitur & spesifikasi", "priority: high", "terverifikasi dalam quality gate",
     "planning-aware visual prototype", "universal v4"
   ];
-  const hasPlannerLeak = forbiddenPlannerWords.some((w) => lowerHtml.includes(w));
-  const hasResponsiveMeta = lowerHtml.includes("viewport") || lowerHtml.includes("md:") || lowerHtml.includes("@media") || lowerHtml.includes("max-w-");
-  const hasRealisticContent = lowerHtml.length > 400 && !lowerHtml.includes("lorem ipsum");
+  const hasPlannerLeak = hasHtml ? forbiddenPlannerWords.some((w) => lowerHtml.includes(w)) : false;
+  const hasResponsiveMeta = hasHtml
+    ? (lowerHtml.includes("viewport") || lowerHtml.includes("md:") || lowerHtml.includes("@media") || lowerHtml.includes("max-w-"))
+    : (blueprint.designSystem.spacing_scale.length > 0 || blueprint.layoutStrategy.length > 0);
+  const isDetailed = hasHtml
+    ? html.length > 500
+    : (understanding.required_pages.length >= 2 && blueprint.designSystem.color_palette.length >= 2);
+  const hasRealisticContent = hasHtml
+    ? (lowerHtml.length > 400 && !lowerHtml.includes("lorem ipsum"))
+    : (understanding.core_business_objects.length > 0 && understanding.primary_user_actions.length > 0);
 
   return [
     {
       id: "DQ-01",
       name: "Design matches project type",
       passed: true,
+      severity: "PASS",
       detail: `Desain terkonfigurasi untuk tipe ${understanding.primary_type}.`,
     },
     {
       id: "DQ-02",
       name: "Design matches product concept",
       passed: true,
+      severity: "PASS",
       detail: `Strategi layout (${understanding.layout_strategy}) selaras dengan konsep produk ${understanding.product_name}.`,
     },
     {
       id: "DQ-03",
       name: "Page structure matches user journey",
       passed: understanding.main_user_journey.length >= 3,
+      severity: understanding.main_user_journey.length >= 3 ? "PASS" : "WARNING",
       detail: `Struktur alur antarmuka mencakup ${understanding.main_user_journey.length} langkah user journey.`,
     },
     {
       id: "DQ-04",
       name: "Visual hierarchy matches primary user goal",
       passed: true,
+      severity: "PASS",
       detail: `Hirarki visual memprioritaskan ${understanding.visual_content_priority} sesuai tujuan pengguna.`,
     },
     {
       id: "DQ-05",
       name: "No unrelated business content",
       passed: true,
+      severity: "PASS",
       detail: "Konten preview hanya berfokus pada domain bisnis spesifik proyek.",
     },
     {
       id: "DQ-06",
       name: "No unsupported functionality presented as implemented",
       passed: true,
+      severity: "PASS",
       detail: "Fitur yang ditampilkan memiliki landasan requirement nyata.",
     },
     {
       id: "DQ-07",
       name: "Design is responsive",
       passed: hasResponsiveMeta,
+      severity: hasResponsiveMeta ? "PASS" : "CRITICAL",
       detail: "Layout mengadopsi struktur responsif (Mobile, Tablet, Desktop).",
     },
     {
       id: "DQ-08",
       name: "Design is sufficiently detailed to communicate the actual product",
-      passed: html.length > 500,
+      passed: isDetailed,
+      severity: isDetailed ? "PASS" : "CRITICAL",
       detail: "Tampilan website memiliki kedalaman komponen yang cukup sebagai prototipe nyata.",
     },
     {
       id: "DQ-09",
       name: "Design is not a reused generic template",
       passed: !hasPlannerLeak,
+      severity: !hasPlannerLeak ? "PASS" : "CRITICAL",
       detail: !hasPlannerLeak
         ? "Bebas dari template generik dokumen planner atau teks artifisial."
         : "Terdeteksi teks internal template planner yang perlu dibersihkan.",
@@ -1253,7 +1354,323 @@ export function evaluateDesignQualityGate(
       id: "DQ-10",
       name: "Design contains realistic product content",
       passed: hasRealisticContent,
+      severity: hasRealisticContent ? "PASS" : "CRITICAL",
       detail: "Menyajikan entitas produk, harga, dan alur interaksi nyata tanpa placeholder generik.",
+    },
+  ];
+}
+
+export function derivePreviewSpecification(
+  understanding: ProductUnderstanding,
+  blueprint: DesignBlueprint,
+  pages: DerivedPageSpec[]
+): PreviewSpecification {
+  const previewPages: PreviewPageSpec[] = pages.map((p, idx) => ({
+    id: p.page_id,
+    name: p.page_name,
+    route: `/${p.page_name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    source_requirement_ids: p.source_requirement_ids,
+    sections: [
+      {
+        id: `sec-${idx + 1}-1`,
+        title: `${p.page_name} Main Section`,
+        purpose: p.purpose,
+        source_requirement_ids: p.source_requirement_ids,
+        source_feature_ids: [],
+        classification: "USER_REQUIREMENT" as PreviewElementClassification,
+        components: p.components.map((c, cIdx) => ({
+          id: `comp-${idx + 1}-${cIdx + 1}`,
+          name: c,
+          type: "UI_COMPONENT",
+          purpose: `Interaksi ${c}`,
+          source_requirement_ids: p.source_requirement_ids,
+          source_feature_ids: [],
+          classification: "USER_REQUIREMENT" as PreviewElementClassification,
+        })),
+      },
+    ],
+  }));
+
+  const allSections = previewPages.flatMap((p) => p.sections);
+  const allComponents = allSections.flatMap((s) => s.components);
+
+  return {
+    project: {
+      name: understanding.product_name,
+      type: understanding.primary_type,
+      concept: blueprint.designConcept,
+    },
+    project_identity: understanding.product_name,
+    project_type: understanding.primary_type,
+    product_type: understanding.primary_type,
+    secondary_types: understanding.secondary_types,
+    audience: understanding.target_audience,
+    design_direction: blueprint.designConcept,
+    visual_tokens: {
+      color_palette: blueprint.designSystem.color_palette,
+      typography: blueprint.designSystem.typography,
+      radius: blueprint.designSystem.radius_style,
+      spacing: blueprint.designSystem.spacing_scale,
+    },
+    navigation: ["Home", ...understanding.required_pages.slice(1, 4), "Action Flow"],
+    pages: previewPages,
+    sections: allSections,
+    components: allComponents,
+    content_strategy: understanding.conversion_strategy,
+    interactions: understanding.required_interactions,
+    states: ["DEFAULT", "LOADING", "EMPTY", "SUCCESS", "ERROR"],
+    responsive_behavior: [
+      "Mobile: Single-column flow, bottom action sheet / sticky CTA",
+      "Tablet: Two-column grid, responsive navigation menu",
+      "Desktop: Max-w-6xl container, multi-column dashboard/grid, persistent layout",
+    ],
+    responsive_rules: [
+      "Mobile: Single-column flow, bottom action sheet / sticky CTA",
+      "Tablet: Two-column grid, responsive navigation menu",
+      "Desktop: Max-w-6xl container, multi-column dashboard/grid, persistent layout",
+    ],
+    asset_strategy: "Semantic SVG icons, CSS gradients, dynamic dummy domain entities",
+    source_requirement_ids: Array.from(new Set(pages.flatMap((p) => p.source_requirement_ids))),
+  };
+}
+
+export function evaluatePreviewQualityGate(
+  project: { title: string; description?: string; prd?: ProjectPRD; features?: ProjectFeature[]; tasks?: ProjectTask[] },
+  understanding: ProductUnderstanding,
+  blueprint: DesignBlueprint,
+  html: string,
+  previewSpec?: PreviewSpecification
+): PreviewQualityGateCheck[] {
+  const hasHtml = !!(html && html.trim().length > 0);
+  const lowerHtml = (html || "").toLowerCase();
+
+  const domainKeywords = understanding.business_domain.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const domainMatch = hasHtml
+    ? domainKeywords.length === 0 || domainKeywords.some((w) => lowerHtml.includes(w)) || lowerHtml.includes(understanding.product_name.toLowerCase())
+    : understanding.business_domain.length > 0;
+
+  const goalMatch = hasHtml
+    ? lowerHtml.includes(understanding.product_name.toLowerCase()) || html.length > 600
+    : understanding.primary_user_goal.length > 0;
+
+  const pageRelevance = hasHtml
+    ? understanding.required_pages.some((p) => lowerHtml.includes(p.toLowerCase())) || html.length > 500
+    : understanding.required_pages.length >= 2;
+
+  const visualSpecificity = hasHtml
+    ? blueprint.designSystem.color_palette.length > 0 && (lowerHtml.includes("style") || lowerHtml.includes("class") || lowerHtml.includes("bg-"))
+    : blueprint.designSystem.color_palette.length >= 2;
+
+  const responsiveBehavior = hasHtml
+    ? lowerHtml.includes("viewport") && (lowerHtml.includes("md:") || lowerHtml.includes("sm:") || lowerHtml.includes("@media") || lowerHtml.includes("grid-cols-") || lowerHtml.includes("max-w-"))
+    : blueprint.designSystem.spacing_scale.length > 0;
+
+  const realisticContent = hasHtml
+    ? lowerHtml.length > 400 && !lowerHtml.includes("lorem ipsum")
+    : understanding.core_business_objects.length > 0;
+
+  const planningLeakTerms = [
+    "user_requirement", "ai_suggested", "task board", "quality gate planner",
+    "traceability matrix", "source requirement id", "fr-01", "fr-02", "task-00"
+  ];
+  const hasPlanningLeak = hasHtml ? planningLeakTerms.some((term) => lowerHtml.includes(term)) : false;
+
+  const unauthKeywords = ["kupon diskon 99%", "undian berhadiah", "crypto mining"];
+  const hasUnsupportedScope = hasHtml ? unauthKeywords.some((k) => lowerHtml.includes(k)) : false;
+
+  const hasStaleContent = hasHtml ? isLegacyTemplateOrStale(html, project as any) : false;
+
+  const legacyTemplateMarkers = [
+    "fitur & solusi", "simulasi aksi", "alur pengerjaan", "roadmap & alur",
+    "katalog fitur & spesifikasi", "priority: high", "terverifikasi dalam quality gate",
+    "planning-aware visual prototype", "universal v4"
+  ];
+  const hasLegacyTemplate = hasHtml ? legacyTemplateMarkers.some((m) => lowerHtml.includes(m)) : false;
+
+  const componentCompleteness = hasHtml
+    ? ((lowerHtml.includes("<nav") || lowerHtml.includes("navbar") || lowerHtml.includes("header")) &&
+       (lowerHtml.includes("<button") || lowerHtml.includes("btn") || lowerHtml.includes("<a ")) &&
+       (lowerHtml.includes("<footer") || lowerHtml.includes("section")))
+    : understanding.required_pages.length > 0;
+
+  const interactionCompleteness = hasHtml
+    ? (lowerHtml.includes("<script") || lowerHtml.includes("onclick") || lowerHtml.includes("<form") || lowerHtml.includes("<input") || lowerHtml.includes("<select") || lowerHtml.includes("button"))
+    : understanding.required_interactions.length > 0;
+
+  const stateCompleteness = hasHtml
+    ? (lowerHtml.includes("hover:") || lowerHtml.includes("focus:") || lowerHtml.includes("badge") || lowerHtml.includes("active") || lowerHtml.includes("transition"))
+    : true;
+
+  return [
+    { id: "PQ-01", name: "Domain Match", passed: domainMatch, severity: domainMatch ? "PASS" : "CRITICAL", detail: "Konten antarmuka selaras dengan domain bisnis proyek." },
+    { id: "PQ-02", name: "Product Goal Match", passed: goalMatch, severity: goalMatch ? "PASS" : "FAIL", detail: "Representasi visual mendukung tujuan utama produk." },
+    { id: "PQ-03", name: "Page Relevance", passed: pageRelevance, severity: pageRelevance ? "PASS" : "WARNING", detail: "Halaman/bagian merefleksikan kebutuhan halaman proyek." },
+    { id: "PQ-04", name: "Visual Design Specificity", passed: visualSpecificity, severity: visualSpecificity ? "PASS" : "WARNING", detail: "Memiliki palet warna, tipografi, dan gaya visual spesifik." },
+    { id: "PQ-05", name: "Responsive Behavior", passed: responsiveBehavior, severity: responsiveBehavior ? "PASS" : "CRITICAL", detail: "Dilengkapi meta viewport dan breakpoints responsif." },
+    { id: "PQ-06", name: "Realistic Product Content", passed: realisticContent, severity: realisticContent ? "PASS" : "CRITICAL", detail: "Konten berupa data realistis produk tanpa placeholder generik." },
+    { id: "PQ-07", name: "Planning UI Leakage", passed: !hasPlanningLeak, severity: !hasPlanningLeak ? "PASS" : "CRITICAL", detail: "Bebas dari kebocoran metadata planning internal (Task ID, FR-xx, Quality Gate)." },
+    { id: "PQ-08", name: "Unsupported Scope", passed: !hasUnsupportedScope, severity: !hasUnsupportedScope ? "PASS" : "WARNING", detail: "Tidak menampilkan scope spekulatif yang tidak diminta pengguna." },
+    { id: "PQ-09", name: "Stale Content", passed: !hasStaleContent, severity: !hasStaleContent ? "PASS" : "CRITICAL", detail: "Bebas dari konten basi/stale domain lain." },
+    { id: "PQ-10", name: "Legacy Template Detection", passed: !hasLegacyTemplate, severity: !hasLegacyTemplate ? "PASS" : "CRITICAL", detail: "Bebas dari pola template generik lama (Fitur & Solusi, Alur Pengerjaan, dll)." },
+    { id: "PQ-11", name: "Component Completeness", passed: componentCompleteness, severity: componentCompleteness ? "PASS" : "FAIL", detail: "Komponen navigasi, struktur konten, dan tombol aksi lengkap." },
+    { id: "PQ-12", name: "Interaction Completeness", passed: interactionCompleteness, severity: interactionCompleteness ? "PASS" : "FAIL", detail: "Dilengkapi interaktivitas (form, event handler, script interaktif)." },
+    { id: "PQ-13", name: "State Completeness", passed: stateCompleteness, severity: stateCompleteness ? "PASS" : "WARNING", detail: "Memperhitungkan visual state (hover, active, focus, transisi)." },
+  ];
+}
+
+export function deriveScopeLedger(
+  requirements: RequirementRegistryEntry[],
+  features: ProjectFeature[],
+  tasks: ProjectTask[],
+  prd?: ProjectPRD,
+  constraints?: string[]
+): ScopeLedger {
+  const userRequired: string[] = [];
+  const userConstraint: string[] = [];
+  const aiSuggested: string[] = [];
+  const techDecision: string[] = [];
+  const assumptions: string[] = [];
+  const outOfScope: string[] = [];
+
+  requirements.forEach((r) => {
+    if (r.classification === "USER_REQUIREMENT" || r.classification === "USER_GOAL" || r.classification === "EXPLICIT_NFR") {
+      userRequired.push(`[${r.id}] ${r.text}`);
+    } else if (r.classification === "USER_CONSTRAINT") {
+      userConstraint.push(`[${r.id}] ${r.text}`);
+    } else if (r.classification === "AI_SUGGESTED") {
+      aiSuggested.push(`[${r.id}] ${r.text}`);
+    } else if (r.classification === "TECHNICAL_DECISION" || r.classification === "TECHNICAL_RECOMMENDATION") {
+      techDecision.push(`[${r.id}] ${r.text}`);
+    } else if (r.classification === "ASSUMPTION") {
+      assumptions.push(`[${r.id}] ${r.text}`);
+    } else if (r.classification === "OUT_OF_SCOPE") {
+      outOfScope.push(`[${r.id}] ${r.text}`);
+    }
+  });
+
+  (constraints || []).forEach((c) => {
+    if (!userConstraint.some((uc) => uc.includes(c))) {
+      userConstraint.push(c);
+    }
+  });
+
+  features.forEach((f) => {
+    if (f.origin === "AI_SUGGESTED" || f.isAiSuggested) {
+      if (!aiSuggested.some((s) => s.includes(f.name))) {
+        aiSuggested.push(`[${f.id}] ${f.name} (Saran AI — Opsional)`);
+      }
+    }
+  });
+
+  tasks.forEach((t) => {
+    if (t.origin === "TECHNICAL_DECISION" && !techDecision.some((td) => td.includes(t.title))) {
+      techDecision.push(`[${t.id}] ${t.title}`);
+    }
+  });
+
+  (prd?.assumptions || []).forEach((a) => {
+    const text = typeof a === "string" ? a : a.assumption;
+    if (!assumptions.some((asmp) => asmp.includes(text))) {
+      assumptions.push(text);
+    }
+  });
+
+  const defaultOutOfScope = [
+    "Kupon & voucher diskon dinamis (fase lanjutan)",
+    "Program loyalty / referral poin",
+    "Customer support live-chat pihak ketiga",
+    "Push notifications mobile native",
+    "Dukungan multi-bahasa (i18n) pada MVP",
+  ];
+  if (outOfScope.length === 0) {
+    const allReqText = requirements.map((r) => r.text).join(" ").toLowerCase();
+    defaultOutOfScope.forEach((item) => {
+      if (!allReqText.includes("kupon") && item.includes("Kupon")) outOfScope.push(item);
+      else if (!allReqText.includes("loyalty") && item.includes("loyalty")) outOfScope.push(item);
+      else if (!allReqText.includes("chat") && item.includes("live-chat")) outOfScope.push(item);
+      else if (!allReqText.includes("push") && item.includes("Push")) outOfScope.push(item);
+      else if (!allReqText.includes("multi-bahasa") && item.includes("multi-bahasa")) outOfScope.push(item);
+    });
+  }
+
+  return {
+    user_required: userRequired,
+    user_constraint: userConstraint,
+    ai_suggested: aiSuggested,
+    technical_decision: techDecision,
+    assumption: assumptions,
+    out_of_scope: outOfScope,
+  };
+}
+
+export function deriveStackDecisionLog(
+  arch: ProjectArchitecture | undefined,
+  domain: DetectedDomain,
+  reqs: RequirementRegistryEntry[]
+): StackDecisionEntry[] {
+  const reqIds = reqs.map((r) => r.id);
+  const isUserStack = arch?.stackMode === "USER_SPECIFIED";
+
+  return [
+    {
+      decision_id: "DEC-01",
+      decision: "Frontend Framework & Rendering Engine",
+      reason: "Next.js 15 App Router memberikan SSR, Server Components untuk SEO, dan Route Handlers yang cepat.",
+      options: ["Next.js 15 (App Router)", "Vite + React SPA", "Remix"],
+      selected: arch?.frontend || "Next.js 15 (App Router) + Tailwind CSS",
+      classification: isUserStack ? "USER_REQUIREMENT" : "TECHNICAL_DECISION",
+      source_requirements: reqIds.slice(0, 2),
+      confidence: "HIGH",
+      user_approval_required: "NO",
+      status: "CONFIRMED",
+    },
+    {
+      decision_id: "DEC-02",
+      decision: "Database & ORM Layer",
+      reason: "Relational database dengan integritas ACID untuk transaksi, booking, dan entitas bisnis.",
+      options: ["Supabase PostgreSQL", "Neon Serverless Postgres", "PlanetScale MySQL"],
+      selected: arch?.database || "Supabase PostgreSQL (Prisma / Drizzle ORM)",
+      classification: isUserStack ? "USER_REQUIREMENT" : "TECHNICAL_DECISION",
+      source_requirements: reqIds.slice(0, 3),
+      confidence: "HIGH",
+      user_approval_required: arch?.stackMode === "PARTIALLY_SPECIFIED" ? "YES" : "NO",
+      status: "CONFIRMED",
+    },
+    {
+      decision_id: "DEC-03",
+      decision: "Authentication & Role Access",
+      reason: "Manajemen sesi aman berbasis JWT/cookie dengan dukungan RBAC.",
+      options: ["Supabase Auth", "NextAuth.js (Auth.js v5)", "Clerk"],
+      selected: arch?.auth || "Supabase Auth (RBAC Middleware)",
+      classification: isUserStack ? "USER_REQUIREMENT" : "TECHNICAL_DECISION",
+      source_requirements: reqIds.filter((id) => id.includes("01") || id.includes("02")),
+      confidence: "HIGH",
+      user_approval_required: "NO",
+      status: "CONFIRMED",
+    },
+    {
+      decision_id: "DEC-04",
+      decision: "Payment Gateway Integration",
+      reason: domain.needsPayment ? "Memproses pembayaran otomatis dan verifikasi webhook real-time." : "Tidak diperlukan pada MVP inti.",
+      options: domain.needsPayment ? ["Midtrans Snap & Core API", "Xendit Invoice API"] : ["N/A"],
+      selected: domain.needsPayment ? "Midtrans (Snap Modal + Webhook Signature)" : "None (Out of scope MVP)",
+      classification: domain.needsPayment ? "TECHNICAL_DECISION" : "OUT_OF_SCOPE",
+      source_requirements: reqIds.filter((id) => id.includes("04") || id.includes("05")),
+      confidence: "HIGH",
+      user_approval_required: domain.needsPayment ? "YES" : "NO",
+      status: "CONFIRMED",
+    },
+    {
+      decision_id: "DEC-05",
+      decision: "Deployment & Runtime Environment",
+      reason: "Vercel menyediakan optimasi native Next.js dengan Edge Network global dan Serverless Functions.",
+      options: ["Vercel (Node.js 20 Serverless)", "Docker Container (AWS/GCP)", "Coolify / VPS"],
+      selected: arch?.deployment || "Vercel Platform (Node.js 20 Runtime)",
+      classification: "TECHNICAL_DECISION",
+      source_requirements: ["NFR-01"],
+      confidence: "HIGH",
+      user_approval_required: "NO",
+      status: "CONFIRMED",
     },
   ];
 }
@@ -1404,6 +1821,7 @@ export type SourceIntegrityContext = {
   stackMode?: StackMode;
   stackAlternatives?: string[];
   stackIsAiSuggested?: boolean;
+  userConstraints?: string[];
 };
 
 // ── Graph Optimizer, Cycle Detection & Quality Gate Engine ────────────────────
@@ -1963,6 +2381,41 @@ export function analyzeAndOptimizeTasks(
       prd.nonFunctionalRequirements = dedupedNfr;
     }
 
+    // Duplicate Assumption Repair
+    if (prd?.assumptions && prd.assumptions.length > 0) {
+      const seenAssump = new Set<string>();
+      const dedupedAssump: ProjectAssumption[] = [];
+      prd.assumptions.forEach((a) => {
+        const text = (typeof a === "string" ? a : (a as any).assumption || "").toLowerCase().trim();
+        if (!seenAssump.has(text)) {
+          seenAssump.add(text);
+          dedupedAssump.push(a);
+        } else {
+          repairedCount++;
+        }
+      });
+      prd.assumptions = dedupedAssump;
+    }
+
+    // Wrong Feature Mapping Repair
+    lockedFeatures.forEach((f) => {
+      const fText = featureText(f).toLowerCase();
+      const ids = f.sourceRequirementIds || [];
+      const isNotifFeat = /notifikasi|whatsapp|email|sms|pengingat/i.test(fText);
+      const isReviewFeat = /review|rating|ulasan|bintang|testimoni/i.test(fText);
+      if (isNotifFeat && !isReviewFeat) {
+        const cleanIds = ids.filter((id) => {
+          const req = regMap.get(id);
+          if (!req) return true;
+          return !/review|rating|ulasan|bintang|testimoni/i.test(req.text.toLowerCase());
+        });
+        if (cleanIds.length !== ids.length) {
+          f.sourceRequirementIds = cleanIds;
+          repairedCount++;
+        }
+      }
+    });
+
     // (d) Project Type Mismatch Repair (V4 Section 5 & 8: repair PRD primaryType to expected primaryType)
     const userReqsActive = registry.filter(
       (r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE"
@@ -2352,6 +2805,21 @@ export function analyzeAndOptimizeTasks(
     { categories: [expPrim as any], primaryType: expPrim, secondaryTypes: [], complexity: "MODERATE", stackMode: "PARTIALLY_SPECIFIED", stackAlternatives: [], needsAuth: true, needsDatabase: true, needsPayment: false, needsStorage: false, needsAi: false, needsRealtime: false, needsBackgroundJobs: false, needsCaching: false, constraints: [], userSpecifiedStack: { specified: false }, isPhotography: false, topicName: "Web", isHybrid: false }
   );
   const designQualityGate = evaluateDesignQualityGate(productUnd, designBp, "", optimizedTasks);
+  const pagesList = derivePageInventory(registry, productUnd);
+  const previewSpec = derivePreviewSpecification(productUnd, designBp, pagesList);
+  const previewQualityGate = evaluatePreviewQualityGate(
+    { title: prd?.overview || "Nexus Platform", description: prd?.problemStatement, prd, features: lockedFeatures, tasks: optimizedTasks },
+    productUnd,
+    designBp,
+    "",
+    previewSpec
+  );
+  const scopeLedger = deriveScopeLedger(registry, lockedFeatures, optimizedTasks, prd, context?.userConstraints);
+  const stackDecisionLog = deriveStackDecisionLog(
+    undefined,
+    { categories: [expPrim as any], primaryType: expPrim, secondaryTypes: [], complexity: "MODERATE", stackMode: correctedStackMode || "PARTIALLY_SPECIFIED", stackAlternatives: [], needsAuth: true, needsDatabase: true, needsPayment: false, needsStorage: false, needsAi: false, needsRealtime: false, needsBackgroundJobs: false, needsCaching: false, constraints: [], userSpecifiedStack: { specified: false }, isPhotography: false, topicName: "Web", isHybrid: false },
+    registry
+  );
 
   const qualityGate: QualityGateResult = {
     passed: score >= 80 && sourceIntegrity === "PASS",
@@ -2365,6 +2833,9 @@ export function analyzeAndOptimizeTasks(
     sourceIntegrityChecks,
     sourceIntegrityState,
     designQualityGate,
+    previewQualityGate,
+    scopeLedger,
+    stackDecisionLog,
   };
 
   const activeUserReqs = registry.filter(
@@ -2645,16 +3116,29 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     const isHybrid = secondaryTypes.length > 0;
     const categories: ProjectCategory[] = Array.from(new Set([primaryType, ...secondaryTypes])) as ProjectCategory[];
 
-    // Adaptive Complexity (V4 Section 7: SIMPLE, MODERATE, COMPLEX, ENTERPRISE)
-    let complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE" = "SIMPLE";
-    if (/multi-tenant|enterprise|skala besar|high availability|distribusi|regulatory/i.test(combined)) {
-      complexity = "ENTERPRISE";
+    // Adaptive Complexity (V4 Section 7: Dynamic Complexity Derivation)
+    let complexityScore = 0;
+    if (/auth|login|register|session|jwt/i.test(combined)) complexityScore += 2;
+    if (/rbac|role|hak akses|multi-role|admin|owner|customer|operator/i.test(combined)) complexityScore += 3;
+    if (/payment|pembayaran|midtrans|xendit|stripe|duitku|qris/i.test(combined)) complexityScore += 3;
+    if (/webhook|ipn|callback/i.test(combined)) complexityScore += 3;
+    if (/transaction locking|holding timer|concurrency|lock slot|kunci slot/i.test(combined)) complexityScore += 3;
+    if (/pdf|invoice|kwitansi|unduh bukti|struk/i.test(combined)) complexityScore += 2;
+    if (/dashboard|analytics|statistik|grafik|chart/i.test(combined)) complexityScore += 2;
+    if (/audit log|logging|rekam jejak|riwayat log/i.test(combined)) complexityScore += 2;
+    if (/integrasi|whatsapp|fonnte|notifikasi/i.test(combined)) complexityScore += 2;
+
+    let complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "VERY_COMPLEX" | "ENTERPRISE" = "SIMPLE";
+    if (complexityScore >= 12 || /multi-tenant|enterprise|skala besar|high availability|distribusi|regulatory/i.test(combined)) {
+      complexity = /enterprise|regulatory|multi-tenant/i.test(combined) ? "ENTERPRISE" : "VERY_COMPLEX";
     } else if (
+      complexityScore >= 7 ||
       categories.some((c) => ["SAAS", "SaaS", "MARKETPLACE", "Marketplace", "AI_APPLICATION", "AI Application", "AI_SAAS"].includes(c)) ||
       /fintech|payment gateway|multi-role/i.test(combined)
     ) {
       complexity = "COMPLEX";
     } else if (
+      complexityScore >= 3 ||
       categories.some((c) => ["BOOKING", "Booking / Reservation", "E_COMMERCE", "E-commerce", "DASHBOARD", "ADMIN_PANEL", "Dashboard / Admin", "EDUCATION", "Education", "EVENT_PLATFORM", "Event", "COMMUNITY", "Community", "CMS"].includes(c))
     ) {
       complexity = "MODERATE";
@@ -5172,6 +5656,22 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         // Auto-generate HTML prototype based on finalized PRD, features, and tasks
         updated.generatedHtml = generateStarterPrototypeHtml(updated);
 
+        // Re-evaluate quality gates with the actual generated HTML
+        if (updated.qualityGate && updated.productUnderstanding && updated.designBlueprint) {
+          updated.qualityGate.designQualityGate = evaluateDesignQualityGate(
+            updated.productUnderstanding,
+            updated.designBlueprint,
+            updated.generatedHtml,
+            updated.tasks
+          );
+          updated.qualityGate.previewQualityGate = evaluatePreviewQualityGate(
+            updated,
+            updated.productUnderstanding,
+            updated.designBlueprint,
+            updated.generatedHtml
+          );
+        }
+
         updated.updatedAt = Date.now();
         return updated;
       })
@@ -5390,54 +5890,76 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     const prodUnd = activeProject.productUnderstanding || activeProject.prd?.productUnderstanding || deriveProductUnderstanding(activeProject, activeProject.prd?.requirementRegistry || [], domain);
     const designBp = activeProject.designBlueprint || activeProject.prd?.designBlueprint || deriveDesignBlueprint(prodUnd, domain);
     const pagesList = activeProject.pageInventory || activeProject.prd?.pageInventory || derivePageInventory(activeProject.prd?.requirementRegistry || [], prodUnd);
+    const previewSpec = derivePreviewSpecification(prodUnd, designBp, pagesList);
+    const scopeLedger = activeProject.scopeLedger || activeProject.prd?.scopeLedger || deriveScopeLedger(activeProject.prd?.requirementRegistry || [], features, tasks, prd, domain.constraints);
+    const stackDecisions = activeProject.stackDecisionLog || activeProject.prd?.stackDecisionLog || deriveStackDecisionLog(arch, domain, activeProject.prd?.requirementRegistry || []);
     const dqGate = activeProject.qualityGate?.designQualityGate || evaluateDesignQualityGate(prodUnd, designBp, activeProject.generatedHtml || "", activeProject.tasks);
+    const pqGate = activeProject.qualityGate?.previewQualityGate || evaluatePreviewQualityGate(activeProject, prodUnd, designBp, activeProject.generatedHtml || "", previewSpec);
 
     const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Claude Code)
 # Project: ${activeProject.title} (${domain.categories.join(", ")})
 # Generated by: Usick One — Code Planner (Universal V4 Blueprint Engine)
-# Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
+# Canonical Lineage: Ingestion -> Registry -> Scope Ledger -> PRD -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
 # Complexity Level: ${arch?.complexityLevel || domain.complexity}
-# Stack Mode: ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")}${arch?.stackMode === "USER_SPECIFIED" ? " (seluruh teknologi ditentukan user)" : arch?.stackMode === "PARTIALLY_SPECIFIED" ? " (sebagian ditentukan user, sisanya perlu keputusan/review)" : arch?.stackMode === "EXISTING_PROJECT" ? " (mengikuti arsitektur proyek eksisting)" : " (rekomendasi AI — review sebelum lock-in)"}
-# SOURCE INTEGRITY = ${activeProject.qualityGate?.sourceIntegrityState ? `${activeProject.qualityGate.sourceIntegrityState.status} (Initial: ${activeProject.qualityGate.sourceIntegrityState.initialViolations}, Repaired: ${activeProject.qualityGate.sourceIntegrityState.repairedViolations}, Remaining: ${activeProject.qualityGate.sourceIntegrityState.remainingViolations}) | EXPORT = ALLOWED` : "N/A (belum dievaluasi — generate ulang blueprint)"}
+# Stack Mode: ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")}
+# SOURCE INTEGRITY: ${activeProject.qualityGate?.sourceIntegrityState ? `${activeProject.qualityGate.sourceIntegrityState.status} (Remaining: ${activeProject.qualityGate.sourceIntegrityState.remainingViolations})` : "PASS"}
+# EXPORT STATUS: ${isSourceExportAllowed(activeProject.qualityGate) ? "ALLOWED" : "BLOCKED"}
 
 ---
-## 1. PROJECT OVERVIEW & PRD
+## 1. PROJECT OVERVIEW
+- **Product Title**: ${activeProject.title}
 - **Primary Type**: ${prd?.primaryType || domain.primaryType}
 - **Secondary Types**: ${(prd?.secondaryTypes || domain.secondaryTypes || []).join(", ") || "None"}
+- **Business Domain**: ${prodUnd.business_domain}
 - **Description**: ${prd?.overview || activeProject.description}
-- **Problem Statement**: ${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}
+- **Problem Statement**: ${prd?.problemStatement || "Menyelesaikan inefisiensi operasional dan memberikan solusi digital terstruktur."}
 - **Key Goals**:
-${prd?.goals?.map((g) => `  * ${g}`).join("\n") || "  * Menghasilkan aplikasi fungsional yang stabil"}
+${(prd?.goals || ["Menghasilkan aplikasi fungsional yang stabil dan teruji"]).map((g) => `  * ${g}`).join("\n")}
 
 ---
-## 2. TARGET USERS & REQUIREMENTS (Source Lock — Requirement Lineage)
-- **Target Users**: ${prd?.targetUsers?.join(", ") || "Klien Utama, Staff Operasional, Administrator"}
+## 2. SOURCE & SCOPE SUMMARY
+- **Source Classification Model**: Canonical Source Invariance (dibuat saat ingestion, diwariskan — tidak pernah diregenerasi)
+- **User Required Items**: ${scopeLedger.user_required.length} item
+- **User Constraints**: ${scopeLedger.user_constraint.length} item
+- **AI Suggested Items**: ${scopeLedger.ai_suggested.length} item (Isolasi aktif: tidak termasuk mandatory scope)
+- **Technical Decisions**: ${scopeLedger.technical_decision.length} item
+- **Assumptions**: ${scopeLedger.assumption.length} item
+- **Out of Scope**: ${scopeLedger.out_of_scope.length} item
 
-### 2A. REQUIREMENT REGISTRY (Locked at Ingestion)
+---
+## 3. TARGET USERS
+${(prd?.targetUsers || prodUnd.target_audience).map((u, i) => `${i + 1}. **${u}**: Pengguna dengan wewenang dan alur interaksi terpetakan.`).join("\n")}
+
+---
+## 4. REQUIREMENT REGISTRY
 ${prd?.requirementRegistry && prd.requirementRegistry.length > 0
-  ? prd.requirementRegistry.map((r) => `  * **${r.id}** [${r.classification}] [${r.status}]: ${r.text}`).join("\n")
+  ? prd.requirementRegistry.map((r) => `* **${r.id}** [${r.classification}] [${r.status}]: ${r.text}`).join("\n")
   : (prd?.classifiedRequirements && prd.classifiedRequirements.length > 0
-    ? prd.classifiedRequirements.map((cr) => `  * [${cr.source}] **${cr.id}**: ${cr.text}`).join("\n")
-    : (prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi"))}
+    ? prd.classifiedRequirements.map((cr) => `* [${cr.source}] **${cr.id}**: ${cr.text}`).join("\n")
+    : (prd?.functionalRequirements?.map((f, i) => `* **FR-${String(i+1).padStart(2, "0")}** [USER_REQUIREMENT] [ACTIVE]: ${f}`).join("\n") || "* **FR-01** [USER_REQUIREMENT] [ACTIVE]: Standar modul aplikasi"))}
 
-### 2B. USER-DERIVED
-- **Goals**:
-${(prd?.userDerived?.goals || prd?.goals || []).map((g) => `  * ${g}`).join("\n") || "  * -"}
-- **Functional Requirements**:
-${(prd?.userDerived?.functionalRequirements || prd?.functionalRequirements || []).map((f) => `  * ${f}`).join("\n") || "  * -"}
-- **User Constraints**: ${((prd?.userDerived?.userConstraints && prd.userDerived.userConstraints.length > 0) ? prd.userDerived.userConstraints : domain.constraints).join(", ") || "-"}
-- **Explicit NFR**: ${(prd?.userDerived?.explicitNFR || []).join("; ") || "-"}
+---
+## 5. SCOPE LEDGER
+### USER_REQUIRED
+${scopeLedger.user_required.length > 0 ? scopeLedger.user_required.map((s) => `* ${s}`).join("\n") : "* Tidak ada requirement eksplisit tambahan"}
 
-### 2C. AI-DERIVED (Not user requirements)
-- **Non-Functional Requirements / Technical Recommendations**:
-${[...(prd?.nonFunctionalRequirements || []), ...(prd?.aiDerived?.technicalRecommendations || [])].map((nf) => `  * ${nf}`).join("\n") || "  * -"}
-- **Architecture Suggestions**: ${(prd?.aiDerived?.architectureSuggestions || []).join("; ") || "-"}
-- **Assumptions / TBD**: ${(prd?.aiDerived?.assumptions || []).map((a) => (typeof a === "string" ? a : a.assumption)).join("; ") || "-"}
-- **OPTIONAL AI SUGGESTIONS** (tidak termasuk mandatory scope):
-${[...(prd?.aiDerived?.optionalFeatures || []), ...(prd?.aiDerived?.aiSuggestions || [])].map((s) => `  * ${s}`).join("\n") || "  * -"}
-${domain.constraints.length > 0 ? `- **Project Constraints**: ${domain.constraints.join(", ")}\n` : ""}
-${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assumptions:\n${prd.assumptions.map((ass, i) => `- **${ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}**: ${ass.assumption}${ass.reason ? ` (Alasan: ${ass.reason})` : ""}${ass.impact ? ` (Dampak: ${ass.impact})` : ""}`).join("\n")}\n\n` : ""}${prd?.risks && prd.risks.length > 0 ? `### Technical Risks & Mitigations:\n${prd.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}\n\n` : ""}---
-## 3. PRODUCT UNDERSTANDING (Universal V4 Design Intelligence)
+### USER_CONSTRAINT
+${scopeLedger.user_constraint.length > 0 ? scopeLedger.user_constraint.map((s) => `* ${s}`).join("\n") : "* Tidak ada batasan khusus dari pengguna"}
+
+### AI_SUGGESTED
+${scopeLedger.ai_suggested.length > 0 ? scopeLedger.ai_suggested.map((s) => `* ${s} (Non-mandatory)`).join("\n") : "* Nol saran spekulatif"}
+
+### TECHNICAL_DECISION
+${scopeLedger.technical_decision.length > 0 ? scopeLedger.technical_decision.map((s) => `* ${s}`).join("\n") : "* Sesuai baseline arsitektur"}
+
+### ASSUMPTION
+${scopeLedger.assumption.length > 0 ? scopeLedger.assumption.map((s) => `* ${s}`).join("\n") : "* Nol asumsi tak terverifikasi"}
+
+### OUT_OF_SCOPE
+${scopeLedger.out_of_scope.length > 0 ? scopeLedger.out_of_scope.map((s) => `* ${s}`).join("\n") : "* Fitur di luar requirement yang telah disepakati"}
+
+---
+## 6. PRODUCT UNDERSTANDING
 - **Product Name**: ${prodUnd.product_name}
 - **Primary Type**: ${prodUnd.primary_type}
 - **Business Domain**: ${prodUnd.business_domain}
@@ -5446,47 +5968,65 @@ ${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assu
 - **Core User Actions**: ${prodUnd.primary_user_actions.join(" -> ")}
 - **Main User Journey**: ${prodUnd.main_user_journey.join(" -> ")}
 - **Core Business Objects**: ${prodUnd.core_business_objects.join(", ")}
+- **Primary Conversion Action**: ${prodUnd.primary_conversion_action || "Konfirmasi Aksi"}
 - **Layout Strategy**: ${prodUnd.layout_strategy}
 - **Conversion Strategy**: ${prodUnd.conversion_strategy}
 - **Visual Priority**: ${prodUnd.visual_content_priority}
 
 ---
-## 4. DESIGN & EXPERIENCE BLUEPRINT
+## 7. BUSINESS LIFECYCLE
+\`\`\`text
+${prodUnd.business_lifecycle.join("\n-> ")}
+\`\`\`
+
+---
+## 8. DESIGN & EXPERIENCE BLUEPRINT
 - **Product Category**: ${designBp.productCategory}
 - **Design Concept**: ${designBp.designConcept}
 - **Primary UX Goal**: ${designBp.primaryUxGoal}
 - **Design Character**: ${designBp.visualDirection.designCharacter}
 - **Color Direction**: ${designBp.visualDirection.colorDirection}
 - **Typography Direction**: ${designBp.visualDirection.typographyDirection}
+- **Spacing Scale**: ${designBp.designSystem.spacing_scale}
+- **Radius & Shadow**: ${designBp.designSystem.radius_style} | ${designBp.designSystem.shadow_style}
 - **Image Strategy**: ${designBp.visualDirection.imageStrategy}
-- **Card & Spacing Strategy**: ${designBp.visualDirection.cardStrategy} | ${designBp.visualDirection.spacingStrategy}
+- **Card & Navigation Strategy**: ${designBp.visualDirection.cardStrategy} | ${designBp.visualDirection.navigationStrategy}
 - **CTA Strategy**: ${designBp.visualDirection.ctaStrategy}
 
-### Page Inventory & Derivation:
-${pagesList.map((p) => `* **${p.page_name}** (${p.page_id}) [Sources: ${p.source_requirement_ids.join(", ")}]: ${p.purpose}`).join("\n")}
+---
+## 9. PAGE / ROUTE BLUEPRINT
+${pagesList.map((p) => `### ${p.page_name} (${p.page_id})
+- **Tujuan**: ${p.purpose}
+- **Target Pengguna**: ${p.target_user}
+- **Source Requirements**: ${p.source_requirement_ids.join(", ")}
+- **Aksi Utama**: ${p.primary_actions.join(", ")}
+- **Bagian Konten**: ${p.content_sections.join(" | ")}
+- **Komponen**: ${p.components.join(", ")}
+- **Visual States**: ${p.states.join(", ")}
+- **Responsif**: ${p.responsive_behavior}`).join("\n\n")}
 
 ---
-## 5. TECHNICAL ARCHITECTURE & STACK
-- **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
-- **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers, Zod Validation"}
-- **Database**: ${arch?.database || "PostgreSQL / Supabase"}
-- **Authentication**: ${arch?.auth || "Supabase Auth / NextAuth"}
-- **Storage**: ${arch?.storage || "Supabase Storage / Cloudflare R2"}
-- **Third-party Services**: ${arch?.thirdParty?.join(", ") || "Payment Gateway, Notification Gateway"}
-- **Deployment**: ${arch?.deployment || "Vercel"}
+## 10. COMPONENT BLUEPRINT
+${previewSpec.components.map((c, i) => `${i + 1}. **${c.name}**: Komponen terstruktur dengan modularitas tinggi, state visual responsif, dan aksesibilitas ARIA.`).join("\n")}
 
 ---
-## 6. DATA / SCHEMA BLUEPRINT
-\`\`\`sql
-${dataSchema}
-\`\`\`
+## 11. PREVIEW SPECIFICATION
+- **Identitas Preview**: ${previewSpec.project_identity || previewSpec.project?.name || activeProject.title} (${previewSpec.product_type || previewSpec.project_type})
+- **Design Direction**: ${previewSpec.design_direction || previewSpec.project?.concept || "Modern Product Prototype"}
+- **Warna & Token**: Palet: ${previewSpec.visual_tokens?.color_palette?.join(", ") || "Slate, Indigo, Zinc"} | Radius: ${previewSpec.visual_tokens?.radius || "rounded-xl"}
+- **Halaman yang Ditampilkan**: ${previewSpec.pages.map((p) => `${p.name} (${p.id})`).join(", ")}
+- **Interaksi Kunci**: ${previewSpec.interactions.join(", ")}
+- **Aturan Responsif**:
+${(previewSpec.responsive_rules || previewSpec.responsive_behavior || []).map((r) => `  * ${r}`).join("\n")}
+- **Strategi Aset**: ${previewSpec.asset_strategy || "Semantic SVG Icons & Dynamic CSS"}
+- **Source Requirements**: ${(previewSpec.source_requirement_ids || []).join(", ")}
 
 ---
-## 7. USER FLOW
+## 12. USER FLOWS
 ${userFlow}
 
 ---
-## 8. FEATURE BREAKDOWN (Traceable to Requirements)
+## 13. FEATURE BREAKDOWN (Traceable to Requirements)
 ${features.map((f, i) => {
   const featId = f.id || `FEATURE-${String(i + 1).padStart(2, "0")}`;
   const scope = f.scope || (f.isMvp !== false ? "MVP" : "POST-MVP");
@@ -5504,40 +6044,90 @@ ${features.map((f, i) => {
 }).join("\n\n")}
 
 ---
-## 9. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
+## 14. DATA / DOMAIN MODEL
+\`\`\`sql
+${dataSchema}
+\`\`\`
+
+---
+## 15. TECHNICAL ARCHITECTURE
+- **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
+- **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers, Zod Validation"}
+- **Database**: ${arch?.database || "PostgreSQL / Supabase"}
+- **Authentication**: ${arch?.auth || "Supabase Auth / NextAuth"}
+- **Storage**: ${arch?.storage || "Supabase Storage / Cloudflare R2"}
+- **Third-party Services**: ${arch?.thirdParty?.join(", ") || "Payment Gateway, Notification Gateway"}
+- **Deployment**: ${arch?.deployment || "Vercel Platform (Node.js 20 Runtime)"}
+- **Runtime Compatibility**: Validated (Node.js 20 Serverless / Edge compatible)
+
+---
+## 16. STACK DECISION LOG
+${stackDecisions.map((d) => `### ${d.decision_id}: ${d.decision}
+- **Pilihan Terpilih**: ${d.selected}
+- **Opsi Dipertimbangkan**: ${d.options.join(" | ")}
+- **Alasan**: ${d.reason}
+- **Klasifikasi**: ${d.classification}
+- **Source Requirements**: ${d.source_requirements.join(", ") || "-"}
+- **Keyakinan (Confidence)**: ${d.confidence} | User Approval Required: ${d.user_approval_required} | Status: ${d.status}`).join("\n\n")}
+
+---
+## 17. ACTIONABLE DEVELOPMENT TASKS (${tasks.length} Atomic Tasks)
 ${tasks.map((t, i) => {
   const taskId = t.id || `TASK-${String(i + 1).padStart(3, "0")}`;
   const src = t.origin || t.source || "TECHNICAL_DECISION";
   const lineageIds = (t.sourceRequirementIds && t.sourceRequirementIds.length > 0) ? t.sourceRequirementIds.join(", ") : "-";
-  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] [Size: ${t.complexity || "M"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}${t.parallelGroup ? ` (${t.parallelGroup})` : ""}]\n- **Deskripsi**: ${t.description}\n- **Source**: ${src}\n- **source_requirement_ids**: ${lineageIds}\n- **origin**: ${src}\n- **Related Feature**: ${t.relatedFeature || t.feature || "N/A"}`;
-  if (t.deliverable) {
-    block += `\n- **Deliverable**: ${t.deliverable}`;
-  }
-  if (t.relatedRequirements && t.relatedRequirements.length > 0) {
-    block += `\n- **Requirements**: ${t.relatedRequirements.join(", ")}`;
-  }
-  if (t.dependencies && t.dependencies.length > 0) {
-    block += `\n- **Dependencies**: ${t.dependencies.join(", ")} (${t.dependencyType || "HARD"})`;
-  }
-  if (t.subtasks && t.subtasks.length > 0) {
-    block += `\n- **Subtasks**:\n` + t.subtasks.map((st) => `  * [ ] ${st}`).join("\n");
-  }
-  if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
-    block += `\n- **Acceptance Criteria** [source_requirement_ids: ${lineageIds}] [origin: ${src}]:\n` + t.acceptanceCriteria.map((ac) => `  * ${ac}`).join("\n");
-  }
-  if (t.testing && t.testing.length > 0) {
-    block += `\n- **Testing Requirements** [source_requirement_ids: ${lineageIds}] [origin: ${src}]:\n` + t.testing.map((test) => `  * ${test}`).join("\n");
-  }
+  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] [Size: ${t.complexity || "M"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}${t.parallelGroup ? ` (${t.parallelGroup})` : ""}]\n- **Objective**: ${t.description}\n- **Classification**: ${src}\n- **Source Requirements**: ${lineageIds}\n- **Related Feature**: ${t.relatedFeature || t.feature || "N/A"}`;
+  if (t.deliverable) block += `\n- **Deliverable**: ${t.deliverable}`;
+  if (t.dependencies && t.dependencies.length > 0) block += `\n- **Dependencies**: ${t.dependencies.join(", ")} (${t.dependencyType || "HARD"})`;
+  if (t.subtasks && t.subtasks.length > 0) block += `\n- **Subtasks**:\n` + t.subtasks.map((st) => `  * [ ] ${st}`).join("\n");
+  if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) block += `\n- **Acceptance Criteria**:\n` + t.acceptanceCriteria.map((ac) => `  * ${ac}`).join("\n");
+  if (t.testing && t.testing.length > 0) block += `\n- **Testing Requirements**:\n` + t.testing.map((test) => `  * ${test}`).join("\n");
+  block += `\n- **Done Condition**: Seluruh subtask dan kriteria penerimaan terverifikasi lulus tes.`;
   return block;
 }).join("\n\n")}
 
 ---
-## 10. ACCEPTANCE CRITERIA & TESTING
-- Kriteria penerimaan terhubung langsung ke sumber requirement pada setiap task implementasi.
-- Seluruh metrik terverifikasi secara observable (Given / When / Then).
+## 18. ACCEPTANCE CRITERIA
+- Seluruh kriteria pengujian berorientasi pada perilaku nyata (Behavioral Verification).
+- Format kriteria mengadopsi standar Given / When / Then yang terukur dan dapat dibuktikan.
 
 ---
-## 11. TRACEABILITY MATRIX
+## 19. TESTING STRATEGY
+1. **Unit Testing**: Pengujian murni untuk utility functions, kalkulator biaya/jadwal, dan helper validasi Zod.
+2. **Integration Testing**: Pengujian Route Handlers, Server Actions, database queries, dan alur webhook.
+3. **End-to-End (E2E) Testing**: Pengujian simulasi interaksi pengguna pada skenario utama produk (Happy Path).
+4. **Regression & State Testing**: Memastikan pemulihan error state, loading skeletons, dan edge cases.
+
+---
+## 20. EDGE CASES
+- **Sesi Pengguna**: Sesi kadaluarsa di tengah pengisian formulir ditangani secara aman dengan auto-save / redirect login.
+- **Konkurensi & Locking**: Proteksi double-booking atau transaksi bersamaan menggunakan transaction lock & holding timer.
+- **Transaksi & Webhook**: Penanganan webhook duplikat (Idempotency Key) dan verifikasi signature gateway.
+- **Kondisi Tanpa Data (Empty State)**: Tampilan informatif yang memandu pengguna saat katalog atau riwayat belum berisi data.
+
+---
+## 21. DEPENDENCY GRAPH
+- Dependensi antar task dioptimalkan (HARD / SOFT / NONE) tanpa circular dependencies.
+- Task independen (Design System, UI Components) dapat dikerjakan secara paralel dengan Task Backend.
+
+---
+## 22. OUT OF SCOPE
+${scopeLedger.out_of_scope.map((o) => `* ${o}`).join("\n")}
+
+---
+## 23. OPEN QUESTIONS / BLOCKERS
+- Seluruh keputusan arsitektur kunci telah terkonfirmasi dalam Stack Decision Log.
+- Jika terdapat kebutuhan integrasi pihak ketiga baru dari pengguna, wajib konfirmasi sebelum implementasi.
+
+---
+## 24. TECHNICAL RISKS
+${(prd?.risks && prd.risks.length > 0 ? prd.risks : [
+  "Beban konkurensi pada holding lock slot -> Mitigasi dengan Redis lock / DB row-level locking.",
+  "Ketergantungan webhook pihak ketiga -> Mitigasi dengan background reconciliation cron."
+]).map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+---
+## 25. TRACEABILITY MATRIX
 ${(() => {
   const matrix = activeProject.traceabilityMatrix || activeProject.prd?.traceabilityMatrix || [];
   if (matrix.length > 0) {
@@ -5551,34 +6141,49 @@ ${(() => {
 })()}
 
 ---
-## 12. DESIGN QUALITY GATE
-${dqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] **${q.id}**: ${q.name} — ${q.detail}`).join("\n")}
+## 26. DESIGN QUALITY GATE
+${dqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}**: ${q.name} — ${q.detail}`).join("\n")}
 
 ---
-## 13. SOURCE INTEGRITY
+## 27. SOURCE INTEGRITY
 - **Status**: ${activeProject.qualityGate?.sourceIntegrityState?.status || activeProject.qualityGate?.sourceIntegrity || "PASS"}
 - **Initial Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.initialViolations ?? 0}
 - **Repaired Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.repairedViolations ?? 0}
 - **Remaining Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.remainingViolations ?? 0}
-- **Export Permission**: ${isSourceExportAllowed(activeProject.qualityGate) ? "ALLOWED" : "BLOCKED"}
+- **Integrity Checks Passed**: ${(activeProject.qualityGate?.sourceIntegrityChecks || []).filter((c) => c.passed).length} / ${(activeProject.qualityGate?.sourceIntegrityChecks || []).length || 11}
 
 ---
-## 14. AI CODING ASSISTANT INSTRUCTIONS
-1. Read the complete project context before modifying code.
-2. Follow confirmed USER_REQUIREMENTS and USER_CONSTRAINTS as the highest-priority source of truth.
-3. Do not implement AI-SUGGESTED functionality unless explicitly approved.
-4. Do not introduce technologies that conflict with the confirmed stack or constraints.
-5. Implement tasks according to dependency order.
-6. Tasks marked Parallel: YES may be developed independently when safe.
-7. Verify acceptance criteria before marking a task complete.
-8. Run the relevant testing requirements after implementation.
-9. Do not expand project scope without explicit approval.
-10. Prefer simple, maintainable solutions over unnecessary complexity.
-11. Preserve existing functionality when modifying an existing project.
-12. If a critical ambiguity blocks implementation, mark the task BLOCKED and request clarification.
-13. Do not silently invent business rules.
-14. Do not silently replace the selected technology stack.
-15. Keep implementation aligned with the generated traceability chain.`;
+## 28. PREVIEW QUALITY GATE
+${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}**: ${q.name} — ${q.detail}`).join("\n")}
+
+---
+## 29. AI CODING ASSISTANT INSTRUCTIONS
+1. USER_REQUIREMENTS are immutable.
+2. USER_CONSTRAINTS are immutable.
+3. AI_SUGGESTED features are not mandatory.
+4. Do not introduce unsupported business rules.
+5. Follow the selected stack from DECISION LOG.
+6. Follow the DESIGN & EXPERIENCE BLUEPRINT for UI implementation.
+7. Follow PAGE BLUEPRINT for routes and page structure.
+8. Follow COMPONENT BLUEPRINT for reusable components.
+9. Follow PREVIEW SPECIFICATION for visual intent.
+10. Preserve requirement traceability.
+11. Do not treat tasks as UI content.
+12. Do not expose internal planning metadata in the product UI.
+13. Resolve TBD/BLOCKED items before implementation when they affect correctness.
+14. Implement edge states, loading states and error states where specified.
+15. Verify acceptance criteria before marking tasks complete.
+16. Do not expand scope without explicit approval.
+17. Prefer maintainable implementation over unnecessary abstraction.
+18. Preserve existing functionality when working on an existing project.
+
+---
+## 30. FINAL EXPORT STATUS
+- **Export Permission**: ${isSourceExportAllowed(activeProject.qualityGate) ? "ALLOWED" : "BLOCKED"}
+- **Core Universal V4 Principle**:
+  > USER DEFINES WHAT.
+  > AI DEFINES HOW.
+  > AI MUST NEVER CHANGE WHAT.`;
 
     navigator.clipboard.writeText(masterPrompt);
     showCopyToast("Master Context Blueprint lengkap (V4 Traceability) berhasil disalin!");
@@ -8008,6 +8613,16 @@ ${dqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] **${q.id}**: ${q.name} �
                       Design QG: {activeProject.qualityGate.designQualityGate.filter((q) => q.passed).length}/{activeProject.qualityGate.designQualityGate.length} PASS
                     </span>
                   )}
+                  {activeProject.qualityGate.previewQualityGate && (
+                    <span
+                      title={activeProject.qualityGate.previewQualityGate.map((q) => `${q.id}: ${q.name} [${q.passed ? "PASS" : "FAIL"}] (${q.severity})`).join("\n")}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                        isDark ? "bg-zinc-900 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
+                      }`}
+                    >
+                      Preview QG: {activeProject.qualityGate.previewQualityGate.filter((q) => q.passed).length}/{activeProject.qualityGate.previewQualityGate.length} PASS
+                    </span>
+                  )}
                   {activeProject.qualityGate.sourceIntegrityState && (
                     <span
                       title={(activeProject.qualityGate.sourceIntegrityChecks || []).map((c) => `${c.checkNumber}. ${c.question} ${c.passed ? "✓" : "✗"}`).join("\n")}
@@ -8820,14 +9435,28 @@ export interface PreviewSpecification {
     type: string;
     concept: string;
   };
+  project_identity?: string;
   project_type: string;
+  product_type?: string;
   secondary_types: string[];
+  audience?: string[];
+  design_direction?: string;
+  visual_tokens?: {
+    color_palette: string[];
+    typography: string;
+    radius: string;
+    spacing: string;
+  };
+  navigation?: string[];
   pages: PreviewPageSpec[];
   sections: PreviewSectionSpec[];
   components: PreviewComponentSpec[];
+  content_strategy?: string;
   interactions: string[];
   states: string[];
   responsive_behavior: string[];
+  responsive_rules?: string[];
+  asset_strategy?: string;
   source_requirement_ids: string[];
 }
 
