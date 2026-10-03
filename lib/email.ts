@@ -19,7 +19,9 @@ export type ScheduleEmailReminderParams = {
 async function sendViaGmail(user: string, pass: string, toEmail: string, subject: string, html: string) {
   const cleanPass = pass.replace(/\s+/g, "");
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
       user,
       pass: cleanPass,
@@ -70,7 +72,15 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions) {
   }
 
   if (gmailUser && gmailPass) {
-    return await sendViaGmail(gmailUser, gmailPass, to, subject, html);
+    try {
+      return await sendViaGmail(gmailUser, gmailPass, to, subject, html);
+    } catch (gmailErr) {
+      console.error("Gagal mengirim via Gmail SMTP, mencoba fallback Resend:", gmailErr);
+      if (resendKey) {
+        return await sendViaResend(resendKey, to, subject, html);
+      }
+      throw gmailErr;
+    }
   } else if (resendKey) {
     return await sendViaResend(resendKey, to, subject, html);
   }

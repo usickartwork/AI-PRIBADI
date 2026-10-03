@@ -8,7 +8,9 @@ const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 async function sendViaGmail(user: string, pass: string, toEmail: string, otp: string) {
   const cleanPass = pass.replace(/\s+/g, "");
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
       user,
       pass: cleanPass,
@@ -129,7 +131,16 @@ export async function POST(request: Request) {
 
       try {
         if (gmailUser && gmailPass) {
-          await sendViaGmail(gmailUser, gmailPass, normalizedEmail, generatedOtp);
+          try {
+            await sendViaGmail(gmailUser, gmailPass, normalizedEmail, generatedOtp);
+          } catch (gmailErr: any) {
+            console.error("Gagal mengirim via Gmail SMTP, mencoba fallback Resend:", gmailErr);
+            if (resendKey) {
+              resendResult = await sendViaResend(resendKey, normalizedEmail, generatedOtp);
+            } else {
+              throw gmailErr;
+            }
+          }
         } else if (resendKey) {
           resendResult = await sendViaResend(resendKey, normalizedEmail, generatedOtp);
         }
