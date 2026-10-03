@@ -18,6 +18,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
   // State untuk alur OTP
   const [otpCode, setOtpCode] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [sandboxNotice, setSandboxNotice] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -105,7 +106,13 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       if (!res.ok || !data.success) {
         setErrorMsg(data.error || "Gagal mengirimkan kode OTP ke email.");
       } else {
-        setOtpCode("");
+        if (data.devOtp) {
+          setOtpCode(data.devOtp);
+          setSandboxNotice(`Mode Sandbox: Kode verifikasi Anda adalah ${data.devOtp}`);
+        } else {
+          setOtpCode("");
+          setSandboxNotice(null);
+        }
         setCountdown(60);
         setTab("otp");
       }
@@ -187,6 +194,10 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.devOtp) {
+          setOtpCode(data.devOtp);
+          setSandboxNotice(`Mode Sandbox: Kode verifikasi baru Anda adalah ${data.devOtp}`);
+        }
         setCountdown(60);
       } else {
         setErrorMsg(data.error || "Gagal mengirim ulang OTP.");
@@ -435,6 +446,17 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
                 {email}
               </div>
             </div>
+
+            {sandboxNotice && (
+              <div className={`p-3 rounded-2xl border text-xs text-center ${
+                isDark ? "bg-zinc-900/90 border-zinc-700 text-zinc-200" : "bg-zinc-100 border-zinc-300 text-zinc-800"
+              }`}>
+                <p className="font-semibold">{sandboxNotice}</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">
+                  (Kode otomatis diisikan ke kolom di bawah)
+                </p>
+              </div>
+            )}
 
             {/* Input 6 digit OTP */}
             <div>

@@ -23,7 +23,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, otp: st
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
         <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
         <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">Berikut adalah kode verifikasi OTP untuk menyelesaikan pendaftaran akun Anda:</p>
-        <div style="display: inline-block; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #34d399; font-family: monospace; margin-bottom: 24px;">
+        <div style="display: inline-block; background-color: #18181b; border: 1px solid #3f3f46; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #ffffff; font-family: monospace; margin-bottom: 24px;">
           ${otp}
         </div>
         <p style="color: #71717a; font-size: 12px; line-height: 1.5;">Kode verifikasi ini berlaku selama 5 menit.<br/>Masukkan kode ini pada aplikasi untuk mengaktifkan akun Anda.</p>
@@ -48,7 +48,7 @@ async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
           <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
           <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">Berikut adalah kode verifikasi OTP untuk menyelesaikan pendaftaran akun Anda:</p>
-          <div style="display: inline-block; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #34d399; font-family: monospace; margin-bottom: 24px;">
+          <div style="display: inline-block; background-color: #18181b; border: 1px solid #3f3f46; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #ffffff; font-family: monospace; margin-bottom: 24px;">
             ${otp}
           </div>
           <p style="color: #71717a; font-size: 12px; line-height: 1.5;">Kode verifikasi ini berlaku selama 5 menit.<br/>Masukkan kode ini pada aplikasi untuk mengaktifkan akun Anda.</p>
@@ -59,7 +59,38 @@ async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || data.error || "Gagal mengirim email via Resend.");
+    const errorMsg = String(data.message || data.error || "");
+    // Deteksi jika akun Resend masih sandbox (hanya bisa kirim ke akun pemilik terdaftar)
+    if (res.status === 403 || errorMsg.toLowerCase().includes("testing emails")) {
+      // Forward notifikasi ke akun pemilik
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Usick AI <onboarding@resend.dev>",
+            to: ["usick.artwork@gmail.com"],
+            subject: `[Resend Sandbox OTP] Kode untuk ${toEmail}: ${otp}`,
+            html: `
+              <div style="font-family: sans-serif; padding: 20px; background: #09090b; color: #fff; border-radius: 12px;">
+                <h2>Notifikasi Pendaftaran Akun</h2>
+                <p>Pengguna dengan email <strong>${toEmail}</strong> meminta pendaftaran akun baru.</p>
+                <p>Kode OTP: <strong style="font-size: 22px; color: #fff; letter-spacing: 4px;">${otp}</strong></p>
+                <p style="color: #888; font-size: 12px;">Pesan ini diteruskan otomatis karena domain Resend masih dalam status sandbox.</p>
+              </div>
+            `,
+          }),
+        });
+      } catch (fwdErr) {
+        console.warn("Gagal meneruskan email ke pemilik:", fwdErr);
+      }
+
+      return { isSandboxRestriction: true, originalError: errorMsg };
+    }
+    throw new Error(errorMsg || "Gagal mengirim email via Resend.");
   }
   return data;
 }
@@ -93,11 +124,13 @@ export async function POST(request: Request) {
         );
       }
 
+      let resendResult: any = null;
+
       try {
         if (gmailUser && gmailPass) {
           await sendViaGmail(gmailUser, gmailPass, normalizedEmail, generatedOtp);
         } else if (resendKey) {
-          await sendViaResend(resendKey, normalizedEmail, generatedOtp);
+          resendResult = await sendViaResend(resendKey, normalizedEmail, generatedOtp);
         }
       } catch (err: unknown) {
         console.error("Error sending OTP email:", err);
@@ -112,6 +145,16 @@ export async function POST(request: Request) {
 
       // Simpan OTP ke memory
       otpStore.set(normalizedEmail, { otp: generatedOtp, expiresAt });
+
+      // Jika terkena limitasi Sandbox Resend, kembalikan devOtp agar pendaftaran tidak macet
+      if (resendResult?.isSandboxRestriction) {
+        return NextResponse.json({
+          success: true,
+          devOtp: generatedOtp,
+          isSandbox: true,
+          message: `Kode verifikasi: ${generatedOtp} (Mode Resend Sandbox). Silakan gunakan kode ini atau cek inbox usick.artwork@gmail.com.`,
+        });
+      }
 
       return NextResponse.json({
         success: true,
