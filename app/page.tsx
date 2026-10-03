@@ -386,28 +386,11 @@ function ModelCategoryIcon({ category }: { category: string }) {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    const initial = loadSessions(null);
-    return initial.length > 0 ? initial : [createFreshSession()];
-  });
-  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(getActiveSessionStorageKey(null));
-      if (saved) return saved;
-    }
-    const initialSessions = loadSessions(null);
-    if (initialSessions.length > 0) return initialSessions[0].id;
-    return generateUUID();
-  });
-
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+  const sessionsOwnerIdRef = useRef<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>(() => [createFreshSession()]);
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => generateUUID());
   const activeSessionIdRef = useRef(activeSessionId);
-  useEffect(() => {
-    activeSessionIdRef.current = activeSessionId;
-    try {
-      localStorage.setItem(getActiveSessionStorageKey(user?.id), activeSessionId);
-    } catch {}
-  }, [activeSessionId, user?.id]);
+  activeSessionIdRef.current = activeSessionId;
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
   const messages = currentSession?.messages || [];
@@ -565,6 +548,7 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    sessionsOwnerIdRef.current = null;
     setUser(null);
     const guestSessions = loadSessions(null);
     if (guestSessions.length > 0) {
@@ -580,25 +564,33 @@ export default function Home() {
 
   // Sinkronisasi riwayat chat dari Supabase saat user login atau berganti akun
   useEffect(() => {
-    const currentUserId = user?.id ?? null;
+    if (authLoading) return;
 
-    // Deteksi jika user berubah (login baru, logout, atau berganti akun)
-    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== currentUserId) {
-      // Segera bersihkan data memori dan muat hanya data milik akun ini
-      const cached = loadSessions(currentUserId);
-      if (cached.length > 0) {
-        setSessions(cached);
-        setActiveSessionId(cached[0].id);
+    const currentUserId = user?.id ?? null;
+    let isMounted = true;
+
+    // Catat bahwa sesi di memori sekarang menjadi milik currentUserId
+    sessionsOwnerIdRef.current = currentUserId;
+
+    // Muat data lokal milik user ini terlebih dahulu
+    const cached = loadSessions(currentUserId);
+    const activeKey = getActiveSessionStorageKey(currentUserId);
+    const savedActiveId = typeof window !== "undefined" ? localStorage.getItem(activeKey) : null;
+
+    if (cached.length > 0) {
+      setSessions(cached);
+      if (savedActiveId && cached.some((s) => s.id === savedActiveId)) {
+        setActiveSessionId(savedActiveId);
       } else {
-        const fresh = createFreshSession();
-        setSessions([fresh]);
-        setActiveSessionId(fresh.id);
+        setActiveSessionId(cached[0].id);
       }
+    } else {
+      const fresh = createFreshSession();
+      setSessions([fresh]);
+      setActiveSessionId(fresh.id);
     }
-    prevUserIdRef.current = currentUserId;
 
     if (!currentUserId) return;
-    let isMounted = true;
 
     async function fetchUserChatHistory() {
       try {
@@ -615,7 +607,7 @@ export default function Home() {
 
         if (data && data.messages) {
           const parsed = parseRawToSessions(data.messages);
-          if (parsed.length > 0 && isMounted) {
+          if (parsed.length > 0 && isMounted && sessionsOwnerIdRef.current === currentUserId) {
             setSessions(parsed);
             if (!parsed.some((s) => s.id === activeSessionIdRef.current)) {
               setActiveSessionId(parsed[0].id);
@@ -625,8 +617,6 @@ export default function Home() {
             } catch {}
           }
         }
-        // Catatan: Jika di cloud belum ada riwayat (akun baru), JANGAN PERNAH menyalin data lokal akun lain.
-        // Akun baru tetap memiliki sesi bersih untuk akun tersebut.
       } catch (err) {
         console.warn("[supabase] sync error:", err);
       }
@@ -637,7 +627,7 @@ export default function Home() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     try {
@@ -917,8 +907,18 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
+    const currentUserId = user?.id ?? null;
+
+    // GUARD KETAT:
+    // Pastikan sessions yang ada di memori memang milik user yang sedang aktif!
+    // Ini 100% mencegah data akun lama tertulis ke akun baru saat pergantian login.
+    if (sessionsOwnerIdRef.current !== currentUserId) {
+      return;
+    }
+
     try {
-      const currentUserId = user?.id ?? null;
       const sessionsKey = getSessionsStorageKey(currentUserId);
       const activeKey = getActiveSessionStorageKey(currentUserId);
 
@@ -935,25 +935,27 @@ export default function Home() {
 
       // Simpan dan sinkronkan ke database Supabase HANYA jika:
       // 1. Pengguna sedang login (ada currentUserId)
-      // 2. Ada pesan riwayat di dalam sessions (mencegah menimpa riwayat dengan array kosong saat inisialisasi)
+      // 2. Ada pesan riwayat di dalam sessions
       if (currentUserId && sessionsToSave.length > 0 && sessionsToSave.some((s) => s.messages && s.messages.length > 0)) {
         const timer = setTimeout(() => {
-          supabase
-            .from("chat_history")
-            .upsert({
-              user_id: currentUserId,
-              messages: sessionsToSave,
-              updated_at: new Date().toISOString(),
-            })
-            .then(({ error }) => {
-              if (error) console.warn("[supabase] save chat_history error:", error.message);
-            });
+          if (sessionsOwnerIdRef.current === currentUserId) {
+            supabase
+              .from("chat_history")
+              .upsert({
+                user_id: currentUserId,
+                messages: sessionsToSave,
+                updated_at: new Date().toISOString(),
+              })
+              .then(({ error }) => {
+                if (error) console.warn("[supabase] save chat_history error:", error.message);
+              });
+          }
         }, 1000);
 
         return () => clearTimeout(timer);
       }
     } catch {}
-  }, [sessions, activeSessionId, user?.id]);
+  }, [sessions, activeSessionId]);
 
   const closeSidebarOnMobile = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
