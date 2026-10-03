@@ -7906,1114 +7906,992 @@ window.addEventListener('error', function(event) {
 
 export function generateStarterPrototypeHtml(project: ProjectItem): string {
   const title = escapeHtml(project.title || "Web Prototype");
-  const desc = escapeHtml(project.description || project.prd?.overview || "Interactive prototype generated from verified PRD blueprint.");
+  const desc = escapeHtml(project.description || project.prd?.overview || "Modern web application prototype.");
   const primaryType = (project.prd?.primaryType || "WEB APPLICATION").toUpperCase();
   const secondaryTypes = project.prd?.secondaryTypes || [];
   const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")}`.toLowerCase();
 
-  const isBooking = /booking|reservasi|jadwal|futsal|soccer|lapangan|hotel|tiket|appointment/i.test(domainStr);
-  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah/i.test(domainStr);
-  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja/i.test(domainStr);
+  const isBooking = /booking|reservasi|jadwal|futsal|soccer|lapangan|hotel|tiket|appointment|venue/i.test(domainStr);
+  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(domainStr);
+  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja|store/i.test(domainStr);
   const isDashboard = /dashboard|admin|manajemen|panel|monitoring|analytics|crm/i.test(domainStr);
-  const isPortfolio = /portfolio|showcase|karya|desain|fotografi|profil/i.test(domainStr);
+  const isPortfolio = /portfolio|showcase|karya|desain|fotografi|profil|agensi|agency/i.test(domainStr);
 
-  const prd = project.prd || {};
-  const problemStatement = escapeHtml(prd.problemStatement || "Membutuhkan solusi sistem yang terstruktur, responsif, dan mudah digunakan pengguna.");
-  const goals = (prd.goals && prd.goals.length > 0)
-    ? prd.goals
-    : ["Meningkatkan efisiensi proses", "Memberikan pengalaman pengguna yang intuitif", "Menjamin skalabilitas dan keandalan sistem"];
-  const targetUsers = (prd.targetUsers && prd.targetUsers.length > 0)
-    ? prd.targetUsers
-    : ["Pengguna Umum / Publik", "Administrator Sistem", "Manajemen Operasional"];
-  const userStories = (prd.userStories && prd.userStories.length > 0)
-    ? prd.userStories
-    : [
-        "Sebagai pengguna, saya ingin dapat mengakses informasi dan layanan dengan cepat dari perangkat mobile maupun desktop.",
-        "Sebagai pengguna, saya ingin mendapatkan konfirmasi langsung saat melakukan interaksi atau transaksi.",
-        "Sebagai administrator, saya ingin memantau dan mengelola data operasional secara terpusat.",
-      ];
-  const functionalReqs = (prd.functionalRequirements && prd.functionalRequirements.length > 0)
-    ? prd.functionalRequirements
-    : [];
-  const nonFunctionalReqs = (prd.nonFunctionalRequirements && prd.nonFunctionalRequirements.length > 0)
-    ? prd.nonFunctionalRequirements
-    : [
-        "Waktu respon halaman < 1.5 detik pada koneksi standar",
-        "Kompatibilitas tampilan responsif penuh (Mobile, Tablet, Desktop)",
-        "Keamanan data pengguna dengan standar enkripsi modern",
-      ];
-
-  const arch = project.architecture || {};
-  const frontendTech = escapeHtml(arch.frontend || "Next.js / Tailwind CSS / TypeScript");
-  const backendTech = escapeHtml(arch.backend || "Node.js / REST API");
-  const databaseTech = escapeHtml(arch.database || "PostgreSQL / Prisma ORM");
-  const authTech = escapeHtml(arch.auth || "NextAuth.js / JWT Session");
-
-  // ALL FEATURES (Lengkap tanpa pemotongan)
   const features = (project.features && project.features.length > 0)
-    ? project.features.map((f, idx) => ({
-        id: f.id || `FEAT-${String(idx + 1).padStart(3, "0")}`,
-        name: f.name || `Fitur ${idx + 1}`,
-        description: f.description || "Fitur terintegrasi dalam arsitektur sistem.",
-        scope: f.scope || (idx < 4 ? "MVP" : "POST-MVP"),
-        priority: f.priority || "MEDIUM",
-        reqs: (f.sourceRequirementIds && f.sourceRequirementIds.length > 0)
-          ? f.sourceRequirementIds
-          : (f.sourceRequirements && f.sourceRequirements.length > 0)
-          ? f.sourceRequirements
-          : ["REQ-CORE"],
+    ? project.features.map((f) => ({
+        name: f.name || "Fitur Layanan",
+        description: f.description || "Layanan terintegrasi dengan performa tinggi.",
       }))
     : [
-        { id: "FEAT-001", name: "Beranda & Navigasi Terpadu", description: "Tampilan antarmuka beranda responsif dengan navigasi cepat ke seluruh layanan.", scope: "MVP", priority: "CRITICAL", reqs: ["REQ-001"] },
-        { id: "FEAT-002", name: "Katalog & Layanan Inti", description: "Daftar layanan/konten dinamis dengan filter interaktif dan pencarian terintegrasi.", scope: "MVP", priority: "HIGH", reqs: ["REQ-002"] },
-        { id: "FEAT-003", name: "Panel Interaksi & Konfirmasi", description: "Formulir interaktif real-time dengan feedback instan dan validasi data.", scope: "MVP", priority: "HIGH", reqs: ["REQ-003"] },
+        { name: "Katalog & Layanan Inti", description: "Akses mudah dan cepat ke seluruh katalog layanan." },
+        { name: "Sistem Pencarian & Filter Cepat", description: "Temukan informasi atau produk secara instan." },
+        { name: "Interaksi & Konfirmasi Cepat", description: "Pengalaman pengguna interaktif tanpa kendala." },
       ];
 
-  const mvpCount = features.filter((f) => f.scope === "MVP").length;
-  const postMvpCount = features.length - mvpCount;
-
-  // ALL TASKS (Lengkap tanpa pemotongan)
-  const tasks = (project.tasks && project.tasks.length > 0)
-    ? project.tasks.map((t, idx) => ({
-        id: t.id || `TASK-${String(idx + 1).padStart(3, "0")}`,
-        title: t.title || `Task ${idx + 1}`,
-        description: t.description || "Implementasi modul teknis.",
-        phase: t.phase || (idx < 3 ? "Phase 1: Setup & Core" : idx < 7 ? "Phase 2: Core Features" : "Phase 3: QA & Testing"),
-        priority: t.priority || "MEDIUM",
-        complexity: t.complexity || "M",
-        deliverable: t.deliverable || `Deliverable modul ${t.title || ""}`,
-        acceptanceCriteria: (t.acceptanceCriteria && t.acceptanceCriteria.length > 0)
-          ? t.acceptanceCriteria
-          : ["Data tervalidasi dengan benar", "UI responsif tanpa visual defect"],
-        testing: (t.testing && t.testing.length > 0)
-          ? t.testing
-          : ["Uji fungsionalitas dan responsivitas"],
-      }))
-    : [
-        { id: "TASK-001", title: "Setup Kerangka Proyek & Styling Dasar", description: "Inisialisasi repositori, konfigurasi Tailwind CSS, dan tata letak shell aplikasi.", phase: "Phase 1: Setup & Core", priority: "CRITICAL", complexity: "M", deliverable: "Project Shell & Config", acceptanceCriteria: ["Struktur folder rapi", "Styling responsive aktif"], testing: ["Smoke test di 3 resolusi layar"] },
-        { id: "TASK-002", title: "Implementasi Modul Interaktif Utama", description: "Pengembangan komponen inti dan logika state interaktif sesuai spesifikasi.", phase: "Phase 2: Core Features", priority: "HIGH", complexity: "L", deliverable: "Interactive Core Component", acceptanceCriteria: ["Input tervalidasi", "Feedback visual muncul"], testing: ["Pengujian interaksi pengguna"] },
-        { id: "TASK-003", title: "Pengujian Kualitas & Optimasi Tampilan", description: "Audit tampilan antarmuka, verifikasi kriteria penerimaan, dan optimasi performa.", phase: "Phase 3: QA & Polish", priority: "MEDIUM", complexity: "S", deliverable: "QA Validation Report", acceptanceCriteria: ["Zero visual glitch", "Semua tombol fungsional"], testing: ["Cross-browser checklist"] },
-      ];
-
-  // Features Cards HTML
-  const featureCardsHtml = features.map((f, i) => `
-    <div class="feature-card p-5 sm:p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between" data-scope="${f.scope}">
-      <div>
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <span class="px-2.5 py-0.5 rounded-md bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300 border border-zinc-700">${escapeHtml(f.id)}</span>
-          <div class="flex items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              f.scope === "MVP" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-zinc-800 text-zinc-400 border border-zinc-700"
-            }">${escapeHtml(f.scope)}</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              f.priority === "CRITICAL" ? "bg-red-500/10 text-red-400 border border-red-500/30" :
-              f.priority === "HIGH" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
-              "bg-zinc-800 text-zinc-400 border border-zinc-700"
-            }">${escapeHtml(f.priority)}</span>
-          </div>
-        </div>
-        <h3 class="text-sm sm:text-base font-bold text-white mb-2 leading-snug">${escapeHtml(f.name)}</h3>
-        <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
-      </div>
-      <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-        <span>Req: ${escapeHtml(f.reqs.join(", "))}</span>
-        <span class="text-zinc-400">Fitur #${i + 1}</span>
-      </div>
-    </div>
-  `).join("\n");
-
-  // Tasks Cards HTML
-  const taskCardsHtml = tasks.map((t, i) => `
-    <div class="task-card p-4 sm:p-5 rounded-2xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between" data-task-id="${escapeHtml(t.id)}">
-      <div>
-        <div class="flex items-start justify-between gap-3 mb-2.5">
-          <label class="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" onchange="toggleTaskDone('${escapeHtml(t.id)}', this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 accent-emerald-500 cursor-pointer">
-            <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300 border border-zinc-700">${escapeHtml(t.id)}</span>
-          </label>
-          <div class="flex items-center gap-1.5 flex-wrap justify-end">
-            <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">${escapeHtml(t.phase)}</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
-              t.priority === "CRITICAL" ? "bg-red-500/10 text-red-400 border border-red-500/30" :
-              t.priority === "HIGH" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
-              "bg-zinc-800 text-zinc-400"
-            }">${escapeHtml(t.priority)}</span>
-          </div>
-        </div>
-        <h4 class="task-title text-xs sm:text-sm font-bold text-white mb-1.5 transition leading-snug">${escapeHtml(t.title)}</h4>
-        <p class="text-[11px] text-zinc-400 leading-relaxed mb-3">${escapeHtml(t.description)}</p>
-
-        <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 mb-3 text-[11px]">
-          <span class="font-bold text-zinc-300 block mb-1">Deliverable:</span>
-          <span class="font-mono text-zinc-400">${escapeHtml(t.deliverable)}</span>
-        </div>
-
-        <div class="space-y-1 mb-2">
-          <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Acceptance Criteria:</span>
-          ${t.acceptanceCriteria.map((ac) => `
-            <div class="flex items-start gap-1.5 text-[11px] text-zinc-300">
-              <span class="text-emerald-400 font-bold shrink-0">✓</span>
-              <span>${escapeHtml(ac)}</span>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-      <div class="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-        <span>Complexity: ${escapeHtml(t.complexity)}</span>
-        <span>Task #${i + 1}</span>
-      </div>
-    </div>
-  `).join("\n");
-
-  // DOMAIN-SPECIFIC INTERACTIVE COMPONENT
-  let interactiveDemoSectionHtml = "";
-
-  if (isBooking) {
-    interactiveDemoSectionHtml = `
-      <!-- DOMAIN DEMO: Mini Soccer / Booking Reservation System -->
-      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Booking Engine · State Connected
-            </div>
-            <h3 class="text-lg sm:text-xl font-bold text-white">Sistem Reservasi & Jadwal Interaktif</h3>
-            <p class="text-xs text-zinc-400 mt-1">Pilih arena/lapangan, tentukan tanggal & slot jam, serta hitung total biaya secara real-time.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="px-3 py-1 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-mono text-zinc-300">Jadwal Realtime</span>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Step 1 & 2: Pilih Lapangan & Slot -->
-          <div class="lg:col-span-2 space-y-6">
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2.5">1. Pilih Lapangan / Arena:</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="court-selector">
-                <button onclick="selectCourt('Lapangan A - Rumput Sintetis FIFA', 350000, this)" class="court-btn p-3.5 rounded-2xl border border-white bg-zinc-800 text-left transition cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan A</div>
-                  <div class="text-[11px] text-zinc-400">Rumput Sintetis FIFA</div>
-                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 350.000/jam</div>
-                </button>
-                <button onclick="selectCourt('Lapangan B - Indoor Pro Vinyl', 300000, this)" class="court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan B</div>
-                  <div class="text-[11px] text-zinc-400">Indoor Vinyl Pro</div>
-                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 300.000/jam</div>
-                </button>
-                <button onclick="selectCourt('Lapangan VIP - Rooftop Arena', 500000, this)" class="court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan VIP</div>
-                  <div class="text-[11px] text-zinc-400">Rooftop + AC Lounge</div>
-                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 500.000/jam</div>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div class="flex items-center justify-between mb-2.5">
-                <label class="text-xs font-bold text-zinc-300">2. Pilih Tanggal & Slot Jam Tersedia:</label>
-                <input type="date" id="booking-date" value="${new Date().toISOString().split("T")[0]}" class="px-2.5 py-1 rounded-xl bg-zinc-950 border border-zinc-700 text-xs font-mono text-white outline-none">
-              </div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="slot-selector">
-                <button onclick="toggleSlot('08:00 - 10:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">08:00 - 10:00</span>
-                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia</span>
-                </button>
-                <button onclick="toggleSlot('16:00 - 18:00', this)" class="slot-btn p-2.5 rounded-xl border border-white bg-zinc-800 text-center transition cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">16:00 - 18:00</span>
-                  <span class="block text-[10px] text-emerald-400 font-semibold">Dipilih</span>
-                </button>
-                <button onclick="toggleSlot('19:00 - 21:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">19:00 - 21:00</span>
-                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia (Prime)</span>
-                </button>
-                <button onclick="toggleSlot('21:00 - 23:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">21:00 - 23:00</span>
-                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia</span>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2">3. Layanan Tambahan (Add-ons):</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('referee', 100000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
-                  <div class="text-[11px]">
-                    <div class="font-bold text-white">Wasit Resmi</div>
-                    <div class="text-zinc-400">+Rp 100.000</div>
-                  </div>
-                </label>
-                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('photo', 150000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
-                  <div class="text-[11px]">
-                    <div class="font-bold text-white">Dokumentasi / Foto</div>
-                    <div class="text-zinc-400">+Rp 150.000</div>
-                  </div>
-                </label>
-                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('water', 30000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
-                  <div class="text-[11px]">
-                    <div class="font-bold text-white">Air Mineral Galon</div>
-                    <div class="text-zinc-400">+Rp 30.000</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 3: Ringkasan & Konfirmasi -->
-          <div class="rounded-2xl bg-zinc-950 border border-zinc-800 p-5 flex flex-col justify-between">
-            <div>
-              <h4 class="text-sm font-bold text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Reservasi</h4>
-              <div class="space-y-2.5 text-xs">
-                <div class="flex justify-between text-zinc-400">
-                  <span>Lapangan:</span>
-                  <span id="summary-court" class="font-semibold text-white">Lapangan A</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Tanggal:</span>
-                  <span id="summary-date" class="font-mono text-white">${new Date().toISOString().split("T")[0]}</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Slot Jam:</span>
-                  <span id="summary-slot" class="font-mono text-emerald-400 font-bold">16:00 - 18:00 (2 Jam)</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Durasi:</span>
-                  <span id="summary-duration" class="text-white">2 Jam</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Layanan Tambahan:</span>
-                  <span id="summary-addons" class="text-white font-mono">Rp 0</span>
-                </div>
-              </div>
-
-              <div class="mt-6 pt-4 border-t border-zinc-800">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-zinc-400">Total Biaya:</span>
-                  <span id="summary-total" class="text-lg font-mono font-bold text-white">Rp 700.000</span>
-                </div>
-                <p class="text-[10px] text-zinc-500 mt-1">Pembayaran aman dengan simulasi verifikasi otomatis.</p>
-              </div>
-            </div>
-
-            <button onclick="confirmBooking()" class="mt-6 w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-lg cursor-pointer">
-              Konfirmasi & Buat Pesanan
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (isNews) {
-    interactiveDemoSectionHtml = `
-      <!-- DOMAIN DEMO: Portal Berita / Media / Culinary Blog -->
-      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
-        <div class="pb-6 mb-6 border-b border-zinc-800">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-[10px] font-mono font-bold text-red-400 animate-pulse">
-              ● BREAKING NEWS
-            </span>
-            <span class="text-xs text-zinc-300 font-medium truncate">Eksplorasi tren dan liputan khusus terbaru hari ini telah dirilis</span>
-          </div>
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 class="text-lg sm:text-xl font-bold text-white">Feed Berita & Artikel Interaktif</h3>
-              <p class="text-xs text-zinc-400 mt-1">Uji filter kategori, pencarian artikel, dan pembaca modal interaktif.</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <input type="text" id="news-search" oninput="filterArticles(this.value)" placeholder="Cari artikel berita..." class="px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none w-48 focus:border-white">
-            </div>
-          </div>
-        </div>
-
-        <!-- Category Pills -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 text-xs select-none">
-          <button onclick="filterCategory('all', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-white text-black font-bold transition">Semua Topik</button>
-          <button onclick="filterCategory('rekomendasi', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Rekomendasi</button>
-          <button onclick="filterCategory('ulasan', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Ulasan & Review</button>
-          <button onclick="filterCategory('eksplorasi', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Eksplorasi Khusus</button>
-        </div>
-
-        <!-- Articles Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5" id="articles-grid">
-          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="rekomendasi">
-            <div>
-              <div class="flex items-center justify-between text-[11px] mb-3">
-                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Rekomendasi</span>
-                <span class="text-zinc-500 font-mono">4 min baca</span>
-              </div>
-              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Menjelajahi Cita Rasa Otentik: Destinasi Kuliner Legendaris</h4>
-              <p class="text-xs text-zinc-400 leading-relaxed">Ulasan mendalam mengenai warisan resep turun-temurun dan rahasia racikan bumbu khas daerah.</p>
-            </div>
-            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
-              <span class="text-[11px] text-zinc-500 font-mono">Oleh Tim Redaksi</span>
-              <button onclick="openArticle('Menjelajahi Cita Rasa Otentik: Destinasi Kuliner Legendaris')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
-            </div>
-          </div>
-
-          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="ulasan">
-            <div>
-              <div class="flex items-center justify-between text-[11px] mb-3">
-                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Ulasan</span>
-                <span class="text-zinc-500 font-mono">6 min baca</span>
-              </div>
-              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Review Komprehensif: Standar Pelayanan dan Pengalaman Rasa</h4>
-              <p class="text-xs text-zinc-400 leading-relaxed">Analisis objektif tentang kebersihan, kenyamanan suasana, dan perbandingan harga menu.</p>
-            </div>
-            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
-              <span class="text-[11px] text-zinc-500 font-mono">Oleh Kontributor</span>
-              <button onclick="openArticle('Review Komprehensif: Standar Pelayanan dan Pengalaman Rasa')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
-            </div>
-          </div>
-
-          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="eksplorasi">
-            <div>
-              <div class="flex items-center justify-between text-[11px] mb-3">
-                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Eksplorasi</span>
-                <span class="text-zinc-500 font-mono">5 min baca</span>
-              </div>
-              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Inovasi Tren Baru: Perpaduan Resep Tradisional & Sentuhan Modern</h4>
-              <p class="text-xs text-zinc-400 leading-relaxed">Bagaimana generasi baru meredefinisi sajian klasik dengan teknik penyajian masa kini.</p>
-            </div>
-            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
-              <span class="text-[11px] text-zinc-500 font-mono">Oleh Redaktur Senior</span>
-              <button onclick="openArticle('Inovasi Tren Baru: Perpaduan Resep Tradisional & Sentuhan Modern')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (isCommerce) {
-    interactiveDemoSectionHtml = `
-      <!-- DOMAIN DEMO: E-Commerce Store & Shopping Cart Simulator -->
-      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Shopping Cart Engine
-            </div>
-            <h3 class="text-lg sm:text-xl font-bold text-white">Katalog Produk & Transaksi Interaktif</h3>
-            <p class="text-xs text-zinc-400 mt-1">Uji penambahan produk, kalkulasi keranjang, dan proses checkout simulasi.</p>
-          </div>
-          <button onclick="openCartModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-xs font-bold transition shadow-sm cursor-pointer">
-            <span>🛒 Keranjang</span>
-            <span id="cart-badge" class="px-1.5 py-0.2 rounded-full bg-black text-white text-[10px] font-mono font-bold">0</span>
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #1</div>
-              <h4 class="text-sm font-bold text-white mb-1">Paket Signature Spesial</h4>
-              <p class="text-xs text-zinc-400 mb-2">Pilihan utama dengan kualitas premium dan garansi kepuasan.</p>
-              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 185.000</div>
-            </div>
-            <button onclick="addToCart('Paket Signature Spesial', 185000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
-              + Tambah ke Keranjang
-            </button>
-          </div>
-
-          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #2</div>
-              <h4 class="text-sm font-bold text-white mb-1">Paket Komplit Eksklusif</h4>
-              <p class="text-xs text-zinc-400 mb-2">Varian lengkap dengan bonus item pelengkap.</p>
-              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 275.000</div>
-            </div>
-            <button onclick="addToCart('Paket Komplit Eksklusif', 275000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
-              + Tambah ke Keranjang
-            </button>
-          </div>
-
-          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #3</div>
-              <h4 class="text-sm font-bold text-white mb-1">Edisi Terbatas Kolektor</h4>
-              <p class="text-xs text-zinc-400 mb-2">Stok terbatas dengan sertifikat nomor seri.</p>
-              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 450.000</div>
-            </div>
-            <button onclick="addToCart('Edisi Terbatas Kolektor', 450000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
-              + Tambah ke Keranjang
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (isDashboard) {
-    interactiveDemoSectionHtml = `
-      <!-- DOMAIN DEMO: Dashboard & Admin Panel Simulator -->
-      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Admin Monitoring Console
-            </div>
-            <h3 class="text-lg sm:text-xl font-bold text-white">Panel Metrik & Manajemen Data</h3>
-            <p class="text-xs text-zinc-400 mt-1">Pantau statistik operasional, kelola tabel data, dan simulasikan aksi admin.</p>
-          </div>
-          <button onclick="addNewAdminRecord()" class="px-4 py-2 rounded-xl bg-white text-black text-xs font-bold transition shadow-sm cursor-pointer">
-            + Tambah Data Baru
-          </button>
-        </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <span class="text-[11px] text-zinc-400 font-medium">Total Aktivitas</span>
-            <div class="text-xl font-black font-mono text-white mt-1">2,845</div>
-            <span class="text-[10px] text-emerald-400 font-mono">↑ 14% dari minggu lalu</span>
-          </div>
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <span class="text-[11px] text-zinc-400 font-medium">Pengguna Aktif</span>
-            <div class="text-xl font-black font-mono text-white mt-1">1,210</div>
-            <span class="text-[10px] text-emerald-400 font-mono">Online saat ini: 42</span>
-          </div>
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <span class="text-[11px] text-zinc-400 font-medium">Penyelesaian Task</span>
-            <div class="text-xl font-black font-mono text-white mt-1">94.8%</div>
-            <span class="text-[10px] text-zinc-400 font-mono">Zero Critical Blockers</span>
-          </div>
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <span class="text-[11px] text-zinc-400 font-medium">Uptime Layanan</span>
-            <div class="text-xl font-black font-mono text-white mt-1">99.98%</div>
-            <span class="text-[10px] text-emerald-400 font-mono">Status Sistem Prima</span>
-          </div>
-        </div>
-
-        <div class="rounded-2xl bg-zinc-950 border border-zinc-800 overflow-hidden">
-          <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-            <span class="text-xs font-bold text-white">Log Transaksi & Pengguna Terkini</span>
-            <span class="text-[11px] font-mono text-zinc-400" id="admin-table-count">3 baris data</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-zinc-900/60 text-zinc-400 font-mono text-[11px] border-b border-zinc-800">
-                <tr>
-                  <th class="p-3">ID</th>
-                  <th class="p-3">Entitas</th>
-                  <th class="p-3">Status</th>
-                  <th class="p-3">Waktu</th>
-                  <th class="p-3 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-800/80 font-mono text-[11px]" id="admin-table-body">
-                <tr>
-                  <td class="p-3 text-zinc-400">#REC-001</td>
-                  <td class="p-3 font-bold text-white">Sinkronisasi Database Pengguna</td>
-                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BERHASIL</span></td>
-                  <td class="p-3 text-zinc-400">10:42 WIB</td>
-                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-001 valid!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
-                </tr>
-                <tr>
-                  <td class="p-3 text-zinc-400">#REC-002</td>
-                  <td class="p-3 font-bold text-white">Verifikasi Modul API Gateway</td>
-                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BERHASIL</span></td>
-                  <td class="p-3 text-zinc-400">09:15 WIB</td>
-                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-002 valid!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
-                </tr>
-                <tr>
-                  <td class="p-3 text-zinc-400">#REC-003</td>
-                  <td class="p-3 font-bold text-white">Audit Security & Token Expiry</td>
-                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">IN REVIEW</span></td>
-                  <td class="p-3 text-zinc-400">08:00 WIB</td>
-                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-003 in progress!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    `;
-  } else {
-    // Default interactive web application
-    interactiveDemoSectionHtml = `
-      <!-- DOMAIN DEMO: Interactive Web App Workflow Simulator -->
-      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
-        <div class="flex items-center justify-between pb-4 mb-6 border-b border-zinc-800">
-          <div>
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Sandbox Workflow Tester
-            </div>
-            <h3 class="text-base sm:text-lg font-bold text-white">Simulasi Interaksi Aplikasi</h3>
-            <p class="text-xs text-zinc-400">Uji eksekusi antarmuka dan penanganan state sesuai alur fitur proyek.</p>
-          </div>
-          <span class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[10px] font-mono text-zinc-300">Sandbox Ready</span>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <label class="text-xs font-bold text-zinc-300 block mb-2">Simulasi Masukan / Aksi Pengguna:</label>
-            <input id="sample-input" type="text" placeholder="Masukkan judul catatan atau aksi..." class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-white">
-            <button id="add-btn" class="mt-3 w-full py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition cursor-pointer">
-              Eksekusi Aksi Simulasi
-            </button>
-          </div>
-
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-zinc-300">Daftar Aktivitas Realtime (<span id="count">0</span>)</span>
-              <button id="clear-btn" class="text-[10px] text-zinc-400 hover:text-white transition cursor-pointer">Bersihkan</button>
-            </div>
-            <ul id="item-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
-              <li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada aksi dieksekusi. Ketik di sebelah kiri untuk menguji.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  return `<!DOCTYPE html>
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 1. TEMPLATE: PORTAL BERITA / KULINER / MEDIA / BLOG
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (isNews) {
+    return `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · V4 Interactive Blueprint Prototype</title>
+  <title>${title} · Portal Berita & Informasi Terkini</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .task-done { text-decoration: line-through; opacity: 0.6; }
     .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
   </style>
 </head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-black">
 
-  <!-- Top Sticky Navigation Bar -->
+  <!-- Top Bar: Breaking News & Tanggal -->
+  <div class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="px-2 py-0.5 rounded-full bg-red-600 text-white font-bold font-mono text-[9px] animate-pulse">BREAKING</span>
+        <span class="text-zinc-300 truncate">Rekomendasi Terkini: Tren Baru, Resep Rahasia, dan Liputan Spesial Hari Ini Telah Dirilis!</span>
+      </div>
+      <div class="flex items-center gap-4 text-zinc-400 font-mono text-[10px] hidden sm:flex">
+        <span>${new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
+        <span>•</span>
+        <span class="text-emerald-400">● Edisi Terverifikasi</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header & Navigation -->
   <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-md shrink-0">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500 text-black font-black flex items-center justify-center text-base shadow-lg">
           ${title.charAt(0).toUpperCase()}
         </div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="font-bold tracking-tight text-white text-sm sm:text-base truncate">${title}</span>
-            <span class="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">${primaryType}</span>
-          </div>
+        <div>
+          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
+          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Portal Liputan & Rekomendasi</span>
         </div>
       </div>
 
-      <nav class="hidden md:flex items-center gap-5 text-xs text-zinc-400 font-semibold">
-        <a href="#interactive-app" class="hover:text-white transition">Demo Aplikasi</a>
-        <a href="#features" class="hover:text-white transition">Fitur (${features.length})</a>
-        <a href="#tasks" class="hover:text-white transition">Tasks (${tasks.length})</a>
-        <button onclick="togglePrdModal(true)" class="hover:text-white transition flex items-center gap-1 cursor-pointer">
-          <span>Spesifikasi PRD</span>
-          <span class="px-1.5 py-0.2 rounded bg-zinc-800 text-[10px] font-mono text-zinc-300">V4</span>
-        </button>
+      <nav class="hidden lg:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
+        <a href="#headline" class="hover:text-amber-400 transition">Beranda</a>
+        <a href="#kategori" class="hover:text-amber-400 transition">Kategori</a>
+        <a href="#rekomendasi" class="hover:text-amber-400 transition">Ulasan Favorit</a>
+        <a href="#newsletter" class="hover:text-amber-400 transition">Komunitas</a>
       </nav>
 
-      <div class="flex items-center gap-2.5 shrink-0">
-        <button onclick="togglePrdModal(true)" class="px-3 py-1.5 rounded-xl border border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition cursor-pointer">
-          📑 PRD & Arsitektur
+      <div class="flex items-center gap-3">
+        <div class="relative hidden sm:block">
+          <input type="text" id="article-search" oninput="searchArticles(this.value)" placeholder="Cari artikel atau menu..." class="w-48 lg:w-60 pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
+          <span class="absolute left-2.5 top-2 text-zinc-400 text-xs">🔍</span>
+        </div>
+        <button onclick="openNewsletterModal()" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
+          Berlangganan
         </button>
-        <a href="#interactive-app" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-sm">
-          Coba Demo
-        </a>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
+  <!-- Hero Headline Section -->
   <main class="flex-1">
-    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/80 text-[11px] font-mono text-zinc-300 mb-6 shadow-xs">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>100% Traceable Prototype · PRD & Tasks Connected</span>
-      </div>
-
-      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white max-w-4xl mx-auto leading-tight">
-        ${title}
-      </h1>
-
-      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
-        ${desc}
-      </p>
-
-      <!-- Key Stats Bar -->
-      <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
-        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
-          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Primary Type</span>
-          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block truncate">${primaryType}</span>
+    <section id="headline" class="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Featured Story (Col 2) -->
+        <div class="lg:col-span-2 rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col justify-between group relative shadow-2xl">
+          <div class="p-6 sm:p-10 flex flex-col justify-end min-h-[380px] bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-900">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="px-2.5 py-1 rounded-md bg-amber-500 text-black font-bold text-[10px] uppercase font-mono tracking-wider">Top Headline</span>
+              <span class="text-xs text-zinc-400 font-mono">5 Menit Membaca</span>
+            </div>
+            <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-4 group-hover:text-amber-400 transition">
+              Eksplorasi Kelezatan Autentik: Rahasia Bumbu Tradisional yang Memikat Lidah Nusantara
+            </h1>
+            <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">
+              ${desc} Dari warisan racikan rempah kuno hingga penyajian modern, temukan kisah inspiratif di balik cita rasa yang tak lekang oleh waktu.
+            </p>
+            <div class="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center font-bold text-[10px] text-white">R</div>
+                <span class="font-semibold text-white">Redaksi ${title}</span>
+              </div>
+              <button onclick="readStory('Eksplorasi Kelezatan Autentik', 'Ulasan komprehensif tentang rahasia bumbu tradisional dan metode memasak yang menghasilkan harmoni rasa sempurna.')" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-amber-400 transition cursor-pointer">
+                Baca Selengkapnya →
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
-          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Fitur Terdaftar</span>
-          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block">${features.length} Total (${mvpCount} MVP)</span>
-        </div>
-        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
-          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Task Terjadwal</span>
-          <span class="text-xs sm:text-sm font-bold text-emerald-400 mt-0.5 block">${tasks.length} Actionable</span>
-        </div>
-        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
-          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Stack Inti</span>
-          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block truncate">${frontendTech.split("/")[0].trim()}</span>
-        </div>
-      </div>
 
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#interactive-app" class="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition shadow-sm">
-          ▶ Coba Demo Interaktif
-        </a>
-        <a href="#features" class="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-semibold transition">
-          Lihat Semua Fitur (${features.length})
-        </a>
-        <a href="#tasks" class="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-semibold transition">
-          Roadmap Task (${tasks.length})
-        </a>
-      </div>
-    </section>
-
-    <!-- Interactive Application Demo Section -->
-    <section id="interactive-app" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-8">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Simulasi Fungsional Aplikasi</h2>
-          <p class="text-xs sm:text-sm text-zinc-400 mt-1">Implementasi visual interaktif sesuai domain spesifikasi proyek Anda.</p>
-        </div>
-        ${interactiveDemoSectionHtml}
-      </div>
-    </section>
-
-    <!-- ALL FEATURES SECTION -->
-    <section id="features" class="py-16 border-t border-zinc-800">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <!-- Trending Sidebar (Col 1) -->
+        <div class="rounded-3xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between">
           <div>
-            <div class="inline-flex items-center gap-1.5 text-xs font-mono text-zinc-400 mb-1">
-              <span>DAFTAR LENGKAP FITUR</span>
-              <span>•</span>
-              <span class="text-white font-bold">${features.length} Fitur Teridentifikasi</span>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
+              <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                <span class="text-amber-400">🔥</span> Populer Minggu Ini
+              </h3>
+              <span class="text-[10px] font-mono text-zinc-500">Live Update</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Arsitektur & Spesifikasi Fitur</h2>
-            <p class="text-xs text-zinc-400 mt-1">Seluruh kapabilitas yang dirumuskan dalam PRD dengan prioritas dan ruang lingkup.</p>
+            <div class="space-y-4">
+              <div class="group cursor-pointer" onclick="readStory('5 Tempat Kuliner Legendaris di Sudut Kota', 'Panduan lengkap berburu kuliner tersembunyi yang wajib dikunjungi akhir pekan ini.')">
+                <span class="text-amber-500 font-mono font-black text-xs">#01</span>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">5 Tempat Kuliner Legendaris di Sudut Kota yang Wajib Kamu Coba</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Ulasan antrean, jam buka, dan menu favorit pengunjung.</p>
+              </div>
+              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Resep Sambal Bakar Juara dengan Aroma Khas', 'Trik membakar cobek tanah liat agar aroma sambal keluar maksimal dan tahan lama.')">
+                <span class="text-amber-500 font-mono font-black text-xs">#02</span>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Resep Sambal Bakar Juara dengan Aroma Khas Menggugah Selera</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Rahasia pemilihan cabai segar dan terasi bakar pilihan.</p>
+              </div>
+              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Tren Minuman Herbal Modern: Sehat & Segar', 'Transformasi jamu tradisional menjadi mocktail kekinian ramah milenial.')">
+                <span class="text-amber-500 font-mono font-black text-xs">#03</span>
+                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Tren Minuman Herbal Modern: Segar dan Kaya Khasiat Alami</h4>
+                <p class="text-[11px] text-zinc-400 mt-1">Kombinasi rempah sereh, jahe merah, dan madu hutan murni.</p>
+              </div>
+            </div>
           </div>
-
-          <!-- Feature Filter Tabs -->
-          <div class="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-semibold select-none">
-            <button onclick="filterFeatures('all', this)" class="feat-filter-btn px-3 py-1 rounded-lg bg-white text-black transition">Semua (${features.length})</button>
-            <button onclick="filterFeatures('MVP', this)" class="feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition">MVP (${mvpCount})</button>
-            <button onclick="filterFeatures('POST-MVP', this)" class="feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition">Post-MVP (${postMvpCount})</button>
+          <div class="mt-6 pt-4 border-t border-zinc-800 text-center">
+            <span class="text-[11px] text-zinc-400">Ingin mengirimkan rekomendasi liputan?</span>
+            <button onclick="openNewsletterModal()" class="text-xs text-amber-400 font-bold block mt-1 hover:underline mx-auto">Kirim Saran & Liputan</button>
           </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="features-container">
-          ${featureCardsHtml}
         </div>
       </div>
     </section>
 
-    <!-- ALL TASKS & ROADMAP SECTION -->
-    <section id="tasks" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+    <!-- Category Filter Bar -->
+    <section id="kategori" class="border-y border-zinc-800/80 bg-zinc-950/40 py-4">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4 overflow-x-auto select-none">
+        <div class="flex items-center gap-2">
+          <button onclick="filterCat('all', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua Artikel</button>
+          <button onclick="filterCat('nusantara', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Kuliner Nusantara</button>
+          <button onclick="filterCat('resep', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Resep & Tips Dapur</button>
+          <button onclick="filterCat('restoran', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Review Resto & Kafe</button>
+          <button onclick="filterCat('street', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Street Food</button>
+        </div>
+        <span class="text-xs text-zinc-500 font-mono hidden md:inline" id="article-count-label">Menampilkan seluruh artikel</span>
+      </div>
+    </section>
+
+    <!-- Articles Grid Section -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="articles-container">
+        <!-- Article Card 1 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nusantara">
           <div>
-            <div class="inline-flex items-center gap-1.5 text-xs font-mono text-zinc-400 mb-1">
-              <span>ROADMAP IMPLEMENTASI TEKNIS</span>
-              <span>•</span>
-              <span class="text-emerald-400 font-bold">${tasks.length} Actionable Tasks</span>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">NUSANTARA</span>
+              <span class="text-zinc-500 font-mono text-[11px]">3 jam yang lalu</span>
             </div>
-            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Task Implementation & Traceability</h2>
-            <p class="text-xs text-zinc-400 mt-1">Centang task pada daftar di bawah untuk menguji kemajuan penyelesaian secara realtime.</p>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Rahasia Kuah Soto Lamongan yang Kuning Gurih', 'Kuncian rasa soto khas terletak pada sangraian kemiri dan koya udang rebon istimewa.')">
+              Rahasia Kuah Soto Lamongan yang Kuning Gurih dan Koya Gurih Renyah
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Bagaimana perpaduan kaldu ayam kampung dengan racikan koya udang menghasilkan kehangatan rasa yang selalu dicari saat santap siang.
+            </p>
           </div>
-
-          <!-- Realtime Task Progress Bar Simulator -->
-          <div class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 sm:w-72">
-            <div class="flex items-center justify-between text-xs mb-1.5">
-              <span class="text-zinc-400 font-medium">Progress Simulasi:</span>
-              <span id="task-progress-label" class="font-mono font-bold text-white">0 / ${tasks.length} (0%)</span>
-            </div>
-            <div class="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
-              <div id="task-progress-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%;"></div>
-            </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Oleh Chef Budi S.</span>
+            <button onclick="readStory('Rahasia Kuah Soto Lamongan', 'Kuncian rasa soto khas terletak pada sangraian kemiri dan koya udang rebon istimewa.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
           </div>
-        </div>
+        </article>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="tasks-container">
-          ${taskCardsHtml}
-        </div>
+        <!-- Article Card 2 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="resep">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">RESEP & TIPS</span>
+              <span class="text-zinc-500 font-mono text-[11px]">5 jam yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Panduan Membuat Rendang Daging Empuk Meresap', 'Teknik api lilin dan kesabaran mengaduk santan kental hingga berubah menjadi dedak rendang legit.')">
+              Panduan Membuat Rendang Daging Empuk Meresap Sempurna Tanpa Presto
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Tahapan penting memasak mulai dari gulai, kalio, hingga rendang hitam pekat beraroma kelapa sangrai harum.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Oleh Dapur Bunda Rina</span>
+            <button onclick="readStory('Panduan Membuat Rendang', 'Teknik api lilin dan kesabaran mengaduk santan kental hingga berubah menjadi dedak rendang legit.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+
+        <!-- Article Card 3 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="restoran">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] border border-purple-500/20">REVIEW RESTO</span>
+              <span class="text-zinc-500 font-mono text-[11px]">1 hari yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Ulasan Kafe Rooftop Bernuansa Tropis', 'Menikmati seduhan kopi arabika lokal ditemani pemandangan senja kota yang menenangkan.')">
+              Ulasan Kafe Rooftop Bernuansa Tropis: Tempat Nyaman Bersantai & Diskusi
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Ulasan mendalam mengenai harga menu, kestabilan koneksi internet, hingga fasilitas parkir yang ramah pengendara.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Rating: ★ 4.8 / 5</span>
+            <button onclick="readStory('Ulasan Kafe Rooftop Bernuansa Tropis', 'Menikmati seduhan kopi arabika lokal ditemani pemandangan senja kota yang menenangkan.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+
+        <!-- Article Card 4 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="street">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 font-mono font-bold text-[10px] border border-blue-500/20">STREET FOOD</span>
+              <span class="text-zinc-500 font-mono text-[11px]">2 hari yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Berburu Martabak Telur Bebek Super Renyah', 'Sensasi kulit martabak tipis renyah dengan isian daging cacah berbumbu rempah kari gurih.')">
+              Berburu Martabak Telur Bebek Super Renyah di Kawasan Pasar Malam
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Pedagang legendaris yang telah berjualan selama 3 dekade tanpa pernah menurunkan standar mutu bahan dasarnya.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Oleh Tim Keliling</span>
+            <button onclick="readStory('Berburu Martabak Telur Bebek', 'Sensasi kulit martabak tipis renyah dengan isian daging cacah berbumbu rempah kari gurih.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+
+        <!-- Article Card 5 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="resep">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">RESEP & TIPS</span>
+              <span class="text-zinc-500 font-mono text-[11px]">3 hari yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Tips Menyimpan Bumbu Dapur Agar Tahan Berbulan', 'Cara praktis membuat stok baceman bawang putih dan pasta cabai siap masak.')">
+              Tips Menyimpan Bumbu Dapur Halus Agar Awet Berbulan-bulan Tanpa Pengawet
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Solusi hemat waktu untuk kamu yang gemar memasak cepat setiap hari dengan hasil rasa masakan yang tetap segar.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Oleh Chef Aris</span>
+            <button onclick="readStory('Tips Menyimpan Bumbu Dapur', 'Cara praktis membuat stok baceman bawang putih dan pasta cabai siap masak.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+
+        <!-- Article Card 6 -->
+        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nusantara">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-3">
+              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">NUSANTARA</span>
+              <span class="text-zinc-500 font-mono text-[11px]">4 hari yang lalu</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Keunikan Racikan Kopi Kothok Tradisional', 'Cara unik merebus bubuk kopi bersama gula di atas tungku arang kayu jati.')">
+              Keunikan Racikan Kopi Kothok Tradisional di Warung Pelosok Desa
+            </h3>
+            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+              Menyusuri budaya nongkrong warga lokal yang hangat dengan secangkir seduhan khas berbusa tebal yang nikmat.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+            <span class="font-mono text-[11px]">Oleh Jelajah Kopi</span>
+            <button onclick="readStory('Keunikan Racikan Kopi Kothok', 'Cara unik merebus bubuk kopi bersama gula di atas tungku arang kayu jati.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Newsletter & Community Section -->
+    <section id="newsletter" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
+      <div class="max-w-4xl mx-auto px-4 sm:px-8 text-center">
+        <span class="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider mb-4 inline-block">
+          Komunitas & Kabar Terkini
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-3">
+          Jangan Lewatkan Rekomendasi & Resep Pilihan Setiap Minggu
+        </h2>
+        <p class="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto mb-6 leading-relaxed">
+          Daftarkan email Anda untuk menerima kurasi ulasan kuliner terbaik, info diskon restoran, dan tips memasak praktis langsung ke kotak masuk Anda.
+        </p>
+        <form onsubmit="handleSubscribe(event)" class="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-md mx-auto">
+          <input type="email" id="sub-email" placeholder="Masukkan alamat email Anda..." required class="w-full px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
+          <button type="submit" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition shrink-0 cursor-pointer">
+            Langganan
+          </button>
+        </form>
       </div>
     </section>
   </main>
 
-  <!-- PRD & ARCHITECTURE MODAL EXPLORER -->
-  <div id="prd-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-4xl max-h-[85vh] rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col overflow-hidden shadow-2xl">
-      <!-- Modal Header -->
-      <div class="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80 shrink-0">
-        <div>
-          <div class="flex items-center gap-2">
-            <h3 class="text-base font-bold text-white">Spesifikasi Lengkap PRD & Arsitektur</h3>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300">V4 Traceable</span>
-          </div>
-          <p class="text-xs text-zinc-400 mt-0.5">Dokumen persyaratan produk dan fondasi teknis yang telah diverifikasi.</p>
-        </div>
-        <button onclick="togglePrdModal(false)" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer">
-          ✕
-        </button>
+  <!-- Interactive Article Modal -->
+  <div id="story-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl max-h-[85vh] rounded-3xl bg-zinc-950 border border-zinc-800 flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
+        <span class="px-2.5 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-bold uppercase font-mono">Baca Lengkap</span>
+        <button onclick="closeStoryModal()" class="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white transition cursor-pointer">✕</button>
       </div>
-
-      <!-- Modal Tabs -->
-      <div class="flex items-center gap-2 px-5 py-2 border-b border-zinc-800 bg-zinc-950 text-xs font-semibold overflow-x-auto shrink-0 select-none">
-        <button onclick="switchPrdTab('tab-overview', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl bg-white text-black transition">Overview & Goals</button>
-        <button onclick="switchPrdTab('tab-stories', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">User Stories & Persona</button>
-        <button onclick="switchPrdTab('tab-requirements', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">Functional & NFR</button>
-        <button onclick="switchPrdTab('tab-architecture', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">Tech Architecture</button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-zinc-300">
-        <!-- TAB 1: Overview & Goals -->
-        <div id="tab-overview" class="prd-tab-panel space-y-5">
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-1">Problem Statement:</span>
-            <p class="text-sm font-medium text-white leading-relaxed">${problemStatement}</p>
-          </div>
-
-          <div>
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Tujuan & Sasaran Solusi (Goals):</span>
-            <div class="space-y-2">
-              ${goals.map((g, i) => `
-                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
-                  <span class="w-5 h-5 rounded-md bg-zinc-800 text-white font-mono font-bold flex items-center justify-center text-[10px] shrink-0">${i + 1}</span>
-                  <span class="text-xs text-zinc-200">${escapeHtml(g)}</span>
-                </div>
-              `).join("")}
-            </div>
+      <div class="p-6 overflow-y-auto space-y-4 flex-1 text-xs text-zinc-300 leading-relaxed">
+        <h2 id="modal-title" class="text-xl font-bold text-white"></h2>
+        <div class="flex items-center gap-3 text-[11px] text-zinc-400 pb-3 border-b border-zinc-800 font-mono">
+          <span>Ditulis oleh Redaksi</span>
+          <span>•</span>
+          <span id="like-count">❤️ 128 Pembaca Menyukai</span>
+        </div>
+        <p id="modal-desc" class="text-sm text-zinc-200"></p>
+        <p>
+          Berdasarkan penelusuran tim liputan di lapangan, antusiasme masyarakat terhadap cita rasa otentik kian meningkat pesat. Setiap bahan dipilih dengan seleksi ketat untuk memastikan keaslian rasa tetap terjaga dari waktu ke waktu.
+        </p>
+        <p>
+          Bagi para penikmat kuliner, menikmati sajian ini bukan sekadar mengisi perut, melainkan merayakan kekayaan budaya dan dedikasi para juru masak yang setia menjaga resep leluhur.
+        </p>
+        <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 mt-4">
+          <span class="font-bold text-white block mb-1">Tinggalkan Tanggapan Anda:</span>
+          <div class="flex gap-2 mt-2">
+            <input type="text" id="comment-input" placeholder="Tulis komentar Anda..." class="flex-1 px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none">
+            <button onclick="postComment()" class="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs">Kirim</button>
           </div>
         </div>
-
-        <!-- TAB 2: User Stories & Target Persona -->
-        <div id="tab-stories" class="prd-tab-panel hidden space-y-5">
-          <div>
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Target Pengguna (Audience Persona):</span>
-            <div class="flex flex-wrap gap-2">
-              ${targetUsers.map((u) => `
-                <span class="px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-semibold text-white">👤 ${escapeHtml(u)}</span>
-              `).join("")}
-            </div>
-          </div>
-
-          <div>
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">User Stories:</span>
-            <div class="space-y-2.5">
-              ${userStories.map((s, i) => `
-                <div class="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
-                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">US-0${i + 1}</span>
-                  <p class="text-xs text-zinc-200 leading-relaxed">${escapeHtml(s)}</p>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 3: Functional & Non-Functional Requirements -->
-        <div id="tab-requirements" class="prd-tab-panel hidden space-y-5">
-          <div>
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Persyaratan Fungsional (FR):</span>
-            <div class="space-y-2">
-              ${(functionalReqs.length > 0 ? functionalReqs : ["Modul autentikasi dan manajemen sesi", "Modul katalog data dan pencarian dinamis", "Modul formulir transaksi dengan validasi otomatis"]).map((fr, i) => `
-                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
-                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">FR-${String(i + 1).padStart(2, "0")}</span>
-                  <span class="text-xs text-zinc-200">${escapeHtml(fr)}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-
-          <div>
-            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Persyaratan Non-Fungsional (NFR):</span>
-            <div class="space-y-2">
-              ${nonFunctionalReqs.map((nfr, i) => `
-                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
-                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">NFR-${String(i + 1).padStart(2, "0")}</span>
-                  <span class="text-xs text-zinc-200">${escapeHtml(nfr)}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 4: Tech Architecture -->
-        <div id="tab-architecture" class="prd-tab-panel hidden space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Frontend Layer:</span>
-              <span class="text-sm font-bold text-white block">${frontendTech}</span>
-            </div>
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Backend & API:</span>
-              <span class="text-sm font-bold text-white block">${backendTech}</span>
-            </div>
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Database & ORM:</span>
-              <span class="text-sm font-bold text-white block">${databaseTech}</span>
-            </div>
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Authentication:</span>
-              <span class="text-sm font-bold text-white block">${authTech}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="p-4 border-t border-zinc-800 bg-zinc-950/80 flex items-center justify-end">
-        <button onclick="togglePrdModal(false)" class="px-5 py-2 rounded-xl bg-white text-black text-xs font-bold transition hover:bg-zinc-200 cursor-pointer">
-          Tutup Spesifikasi
-        </button>
       </div>
     </div>
   </div>
 
   <!-- Footer -->
   <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span class="text-zinc-300 font-semibold">${title}</span>
+        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+        <span class="text-zinc-200 font-bold">${title}</span>
         <span>·</span>
-        <span>Engine V4 Verified</span>
+        <span>Edisi Digital Resmi</span>
       </div>
-      <p>© ${new Date().getFullYear()} ${title} · Seluruh PRD, ${features.length} Fitur & ${tasks.length} Task Terintegrasi</p>
+      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
     </div>
   </footer>
 
-  <!-- Scripts -->
   <script>
-    // PRD Modal Toggle
-    function togglePrdModal(show) {
-      const modal = document.getElementById('prd-modal');
-      if (show) {
-        modal.classList.remove('hidden');
-      } else {
-        modal.classList.add('hidden');
-      }
-    }
-
-    // PRD Modal Tab Switcher
-    function switchPrdTab(tabId, btn) {
-      document.querySelectorAll('.prd-tab-panel').forEach(p => p.classList.add('hidden'));
-      document.getElementById(tabId).classList.remove('hidden');
-      document.querySelectorAll('.prd-tab-btn').forEach(b => {
-        b.className = 'prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition';
-      });
-      btn.className = 'prd-tab-btn px-3 py-1.5 rounded-xl bg-white text-black transition';
-    }
-
-    // Features Filter Tab
-    function filterFeatures(scope, btn) {
-      const cards = document.querySelectorAll('.feature-card');
-      cards.forEach(card => {
-        if (scope === 'all' || card.getAttribute('data-scope') === scope) {
-          card.style.display = 'flex';
+    function searchArticles(keyword) {
+      const q = keyword.toLowerCase();
+      const cards = document.querySelectorAll('.article-card');
+      let visible = 0;
+      cards.forEach(c => {
+        const text = c.textContent.toLowerCase();
+        if (text.includes(q)) {
+          c.style.display = 'flex';
+          visible++;
         } else {
-          card.style.display = 'none';
+          c.style.display = 'none';
         }
       });
-      document.querySelectorAll('.feat-filter-btn').forEach(b => {
-        b.className = 'feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition';
+      document.getElementById('article-count-label').textContent = 'Ditemukan ' + visible + ' artikel';
+    }
+
+    function filterCat(cat, btn) {
+      const cards = document.querySelectorAll('.article-card');
+      let visible = 0;
+      cards.forEach(c => {
+        if (cat === 'all' || c.getAttribute('data-cat') === cat) {
+          c.style.display = 'flex';
+          visible++;
+        } else {
+          c.style.display = 'none';
+        }
       });
-      btn.className = 'feat-filter-btn px-3 py-1 rounded-lg bg-white text-black transition';
+      document.querySelectorAll('.cat-btn').forEach(b => {
+        b.className = 'cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition';
+      });
+      btn.className = 'cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition';
+      document.getElementById('article-count-label').textContent = 'Menampilkan ' + visible + ' artikel';
     }
 
-    // Task Checklist Progress Simulator
-    let completedTasks = new Set();
-    const totalTasksCount = ${tasks.length};
+    function readStory(title, desc) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-desc').textContent = desc;
+      document.getElementById('story-modal').classList.remove('hidden');
+    }
 
-    function toggleTaskDone(taskId, checkbox) {
-      const card = checkbox.closest('.task-card');
-      const title = card.querySelector('.task-title');
-      if (checkbox.checked) {
-        completedTasks.add(taskId);
-        title.classList.add('task-done');
-        card.classList.add('border-emerald-500/50', 'bg-emerald-950/20');
-      } else {
-        completedTasks.delete(taskId);
-        title.classList.remove('task-done');
-        card.classList.remove('border-emerald-500/50', 'bg-emerald-950/20');
+    function closeStoryModal() {
+      document.getElementById('story-modal').classList.add('hidden');
+    }
+
+    function handleSubscribe(e) {
+      e.preventDefault();
+      const email = document.getElementById('sub-email').value;
+      alert('Terima kasih! Email (' + email + ') berhasil didaftarkan ke buletin mingguan ' + '${title}.');
+      document.getElementById('sub-email').value = '';
+    }
+
+    function openNewsletterModal() {
+      const email = prompt('Daftar buletin liputan terkini: Masukkan email Anda:');
+      if (email) alert('Terima kasih! ' + email + ' telah terdaftar.');
+    }
+
+    function postComment() {
+      const inp = document.getElementById('comment-input');
+      if (inp.value.trim()) {
+        alert('Komentar Anda terkirim: "' + inp.value + '"');
+        inp.value = '';
       }
-      updateTaskProgress();
     }
+  </script>
+</body>
+</html>`;
+  }
 
-    function updateTaskProgress() {
-      const count = completedTasks.size;
-      const pct = totalTasksCount > 0 ? Math.round((count / totalTasksCount) * 100) : 0;
-      document.getElementById('task-progress-label').textContent = count + ' / ' + totalTasksCount + ' (' + pct + '%)';
-      document.getElementById('task-progress-bar').style.width = pct + '%';
-    }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 2. TEMPLATE: MINI SOCCER / SPORT VENUE / BOOKING RESERVASI
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (isBooking) {
+    return `<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} · Reservasi Lapangan & Jadwal Real-Time</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-emerald-400 selection:text-black">
 
-    // Domain Specific: Booking Logic
-    let selectedCourtName = 'Lapangan A';
-    let selectedCourtPrice = 350000;
-    let selectedSlots = ['16:00 - 18:00'];
-    let addonsTotal = 0;
+  <!-- Header & Navigation -->
+  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500 text-black font-black flex items-center justify-center text-base shadow-lg">
+          ⚽
+        </div>
+        <div>
+          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
+          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Online Booking System</span>
+        </div>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
+        <a href="#arena" class="hover:text-emerald-400 transition">Pilihan Lapangan</a>
+        <a href="#booking" class="hover:text-emerald-400 transition">Pesan Jadwal</a>
+        <a href="#fasilitas" class="hover:text-emerald-400 transition">Fasilitas</a>
+        <a href="#kontak" class="hover:text-emerald-400 transition">Lokasi & Kontak</a>
+      </nav>
+
+      <a href="#booking" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-sm">
+        Booking Sekarang
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1">
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-mono text-emerald-400 mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Jadwal Real-Time · Rumput Standar FIFA · Konfirmasi Otomatis
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+        Sewa Lapangan Mini Soccer Mudah, Cepat & Tanpa Ribet
+      </h1>
+      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+        ${desc} Cek ketersediaan slot jam secara live, pilih fasilitas tambahan, dan amankan jadwal pertandingan tim Anda hanya dalam 1 menit.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <a href="#booking" class="px-6 py-3 rounded-xl bg-white hover:bg-emerald-400 text-black font-bold text-xs transition shadow-lg">
+          ⚽ Cek & Pesan Slot Jam
+        </a>
+        <a href="#arena" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
+          Lihat Spesifikasi Lapangan
+        </a>
+      </div>
+    </section>
+
+    <!-- Pilihan Lapangan Showcase -->
+    <section id="arena" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-10">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Pilihan Arena & Lapangan</h2>
+          <p class="text-xs text-zinc-400 mt-1">Dua lapangan berstandar internasional dengan pencahayaan pro lighting malam hari.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
+                [Foto Lapangan A - Sintetis FIFA]
+              </div>
+              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">OUTDOOR STADIUM</span>
+              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan A (Rumput FIFA Pro)</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Rumput sintetis monofilamen lembut, anti selip, dan empuk untuk proteksi lutut pemain.</p>
+              <div class="text-sm font-mono font-bold text-emerald-400 mb-4">Rp 350.000 / Jam</div>
+            </div>
+            <a href="#booking" onclick="selectCourtPreset('Lapangan A', 350000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
+              Pilih Lapangan A
+            </a>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
+                [Foto Lapangan B - Semi Indoor]
+              </div>
+              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">SEMI INDOOR CANOPY</span>
+              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan B (Canopy Rain-Shield)</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Dilengkapi atap kanopi anti hujan dan lampu LED 1000 Watt bebas silau saat laga malam.</p>
+              <div class="text-sm font-mono font-bold text-emerald-400 mb-4">Rp 380.000 / Jam</div>
+            </div>
+            <a href="#booking" onclick="selectCourtPreset('Lapangan B', 380000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
+              Pilih Lapangan B
+            </a>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
+                [Foto Lapangan VIP Arena]
+              </div>
+              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[10px] font-mono font-bold">VIP SUITE LOUNGE</span>
+              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan VIP (Rooftop + Lounge)</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Akses privat ruang ganti AC, shower air panas eksklusif, dan tribun penonton nyaman.</p>
+              <div class="text-sm font-mono font-bold text-amber-400 mb-4">Rp 500.000 / Jam</div>
+            </div>
+            <a href="#booking" onclick="selectCourtPreset('Lapangan VIP', 500000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
+              Pilih Lapangan VIP
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live Booking System -->
+    <section id="booking" class="py-16 border-t border-zinc-800 bg-zinc-950">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-10">
+          <span class="text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN LIVE</span>
+          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Pilih Tanggal & Jam Pertandingan</h2>
+          <p class="text-xs text-zinc-400 mt-1">Sistem otomatis menghitung total harga sesuai pilihan lapangan dan durasi slot.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Step Form Controls (2 Cols) -->
+          <div class="lg:col-span-2 space-y-6">
+            <!-- Step 1: Arena -->
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Arena Lapangan:</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="court-btns">
+                <button type="button" onclick="selectCourt('Lapangan A', 350000, this)" class="court-choice p-4 rounded-2xl border border-emerald-400 bg-zinc-900 text-left transition cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan A</div>
+                  <div class="text-[11px] text-zinc-400">Rumput FIFA Pro</div>
+                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 350.000/jam</div>
+                </button>
+                <button type="button" onclick="selectCourt('Lapangan B', 380000, this)" class="court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan B</div>
+                  <div class="text-[11px] text-zinc-400">Canopy Rain-Shield</div>
+                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 380.000/jam</div>
+                </button>
+                <button type="button" onclick="selectCourt('Lapangan VIP', 500000, this)" class="court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan VIP</div>
+                  <div class="text-[11px] text-zinc-400">Rooftop Lounge</div>
+                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 500.000/jam</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Date & Slots -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs font-bold text-zinc-300">2. Tanggal & Jam Tersedia:</label>
+                <input type="date" id="order-date" value="${new Date().toISOString().split("T")[0]}" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-mono text-white outline-none">
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <button type="button" onclick="toggleSlot('08:00 - 10:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">08:00 - 10:00</span>
+                  <span class="block text-[10px] text-emerald-400">Tersedia (Pagi)</span>
+                </button>
+                <button type="button" onclick="toggleSlot('16:00 - 18:00', this)" class="slot-choice p-3 rounded-xl border border-emerald-400 bg-zinc-900 text-center transition cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">16:00 - 18:00</span>
+                  <span class="block text-[10px] text-emerald-400 font-bold">Dipilih (Sore)</span>
+                </button>
+                <button type="button" onclick="toggleSlot('19:00 - 21:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">19:00 - 21:00</span>
+                  <span class="block text-[10px] text-amber-400">Tersedia (Prime)</span>
+                </button>
+                <button type="button" onclick="toggleSlot('21:00 - 23:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">21:00 - 23:00</span>
+                  <span class="block text-[10px] text-emerald-400">Tersedia (Malam)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Add-ons -->
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2">3. Layanan Tambahan (Opsional):</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('referee', 100000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">Wasit Berlisensi</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 100.000</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('photo', 150000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">Fotografer Laga</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 150.000</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('water', 30000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
+                  <div>
+                    <div class="text-xs font-bold text-white">Air Galon + Es</div>
+                    <div class="text-[11px] text-zinc-400">+Rp 30.000</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Box (1 Col) -->
+          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
+            <div>
+              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Pemesanan</h3>
+              <div class="space-y-3 text-xs">
+                <div class="flex justify-between text-zinc-400">
+                  <span>Arena:</span>
+                  <span id="order-court" class="font-bold text-white">Lapangan A</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Jadwal:</span>
+                  <span id="order-slot" class="font-mono text-emerald-400 font-bold">16:00 - 18:00</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Durasi:</span>
+                  <span id="order-duration" class="text-white font-mono">2 Jam</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Layanan Tambahan:</span>
+                  <span id="order-addons" class="text-white font-mono">Rp 0</span>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-4 border-t border-zinc-800">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-zinc-400">Total Pembayaran:</span>
+                  <span id="order-total" class="text-2xl font-black font-mono text-white">Rp 700.000</span>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1">Konfirmasi instan dengan kode booking dan bukti digital.</p>
+              </div>
+            </div>
+
+            <button type="button" onclick="submitBooking()" class="mt-8 w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition shadow-lg cursor-pointer">
+              Konfirmasi & Amankan Slot
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fasilitas Section -->
+    <section id="fasilitas" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-10">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Fasilitas Standar Turnamen</h2>
+          <p class="text-xs text-zinc-400 mt-1">Kenyamanan ekstra untuk para pemain dan pendukung tim.</p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+            <span class="text-2xl mb-2 block">🚿</span>
+            <h4 class="text-xs font-bold text-white mb-1">Shower Air Hangat</h4>
+            <p class="text-[11px] text-zinc-400">Ruang bilas bersih dan higienis.</p>
+          </div>
+          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+            <span class="text-2xl mb-2 block">☕</span>
+            <h4 class="text-xs font-bold text-white mb-1">Cafe & Mini Market</h4>
+            <p class="text-[11px] text-zinc-400">Minuman isotonik & makanan hangat.</p>
+          </div>
+          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+            <span class="text-2xl mb-2 block">📶</span>
+            <h4 class="text-xs font-bold text-white mb-1">Free Wi-Fi & Lounge</h4>
+            <p class="text-[11px] text-zinc-400">Tempat istirahat nyaman ber-AC.</p>
+          </div>
+          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+            <span class="text-2xl mb-2 block">🅿️</span>
+            <h4 class="text-xs font-bold text-white mb-1">Parkir Luas & Aman</h4>
+            <p class="text-[11px] text-zinc-400">Kapasitas 40+ mobil dan motor.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Booking Confirmation Modal -->
+  <div id="booking-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 shadow-2xl text-center">
+      <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
+        ✓
+      </div>
+      <h3 class="text-lg font-bold text-white mb-1">Booking Berhasil Dikonfirmasi!</h3>
+      <p class="text-xs text-zinc-400 mb-6">Slot jam Anda telah tercatat pada sistem reservasi arena.</p>
+
+      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
+        <div class="flex justify-between"><span class="text-zinc-400">Kode Booking:</span><span id="res-code" class="font-bold text-emerald-400">#BKG-99214</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Arena:</span><span id="res-court" class="text-white font-bold">Lapangan A</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Slot:</span><span id="res-slot" class="text-white font-bold">16:00 - 18:00</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">Total Biaya:</span><span id="res-total" class="text-white font-bold">Rp 700.000</span></div>
+      </div>
+
+      <button type="button" onclick="closeBookingModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+        Tutup & Simpan Tiket
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="text-zinc-200 font-bold">${title}</span>
+        <span>·</span>
+        <span>Sistem Reservasi Resmi</span>
+      </div>
+      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
+    </div>
+  </footer>
+
+  <script>
+    let courtName = 'Lapangan A';
+    let courtPrice = 350000;
+    let selectedSlot = '16:00 - 18:00';
+    let addonsFee = 0;
 
     function selectCourt(name, price, btn) {
-      selectedCourtName = name;
-      selectedCourtPrice = price;
-      document.querySelectorAll('.court-btn').forEach(b => {
-        b.className = 'court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
+      courtName = name;
+      courtPrice = price;
+      document.querySelectorAll('.court-choice').forEach(b => {
+        b.className = 'court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
       });
-      btn.className = 'court-btn p-3.5 rounded-2xl border border-white bg-zinc-800 text-left transition cursor-pointer';
-      document.getElementById('summary-court').textContent = name.split(' - ')[0];
-      recalcBookingTotal();
+      btn.className = 'court-choice p-4 rounded-2xl border border-emerald-400 bg-zinc-900 text-left transition cursor-pointer';
+      document.getElementById('order-court').textContent = name;
+      calculateTotal();
     }
 
-    function toggleSlot(slotText, btn) {
-      if (selectedSlots.includes(slotText)) {
-        if (selectedSlots.length > 1) {
-          selectedSlots = selectedSlots.filter(s => s !== slotText);
-          btn.className = 'slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer';
-          btn.querySelector('span:last-child').textContent = 'Tersedia';
-          btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-semibold';
-        } else {
-          alert('Minimal harus memilih 1 slot jam.');
-        }
-      } else {
-        selectedSlots.push(slotText);
-        btn.className = 'slot-btn p-2.5 rounded-xl border border-white bg-zinc-800 text-center transition cursor-pointer';
-        btn.querySelector('span:last-child').textContent = 'Dipilih';
-        btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-semibold';
-      }
-      document.getElementById('summary-slot').textContent = selectedSlots.join(', ');
-      document.getElementById('summary-duration').textContent = (selectedSlots.length * 2) + ' Jam';
-      recalcBookingTotal();
+    function selectCourtPreset(name, price) {
+      courtName = name;
+      courtPrice = price;
+      document.getElementById('order-court').textContent = name;
+      calculateTotal();
     }
 
-    function toggleAddon(type, price, checkbox) {
+    function toggleSlot(slot, btn) {
+      selectedSlot = slot;
+      document.querySelectorAll('.slot-choice').forEach(b => {
+        b.className = 'slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer';
+        b.querySelector('span:last-child').textContent = 'Tersedia';
+        b.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400';
+      });
+      btn.className = 'slot-choice p-3 rounded-xl border border-emerald-400 bg-zinc-900 text-center transition cursor-pointer';
+      btn.querySelector('span:last-child').textContent = 'Dipilih';
+      btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-bold';
+      document.getElementById('order-slot').textContent = slot;
+      calculateTotal();
+    }
+
+    function toggleAddon(type, fee, checkbox) {
       if (checkbox.checked) {
-        addonsTotal += price;
+        addonsFee += fee;
       } else {
-        addonsTotal -= price;
+        addonsFee -= fee;
       }
-      document.getElementById('summary-addons').textContent = 'Rp ' + addonsTotal.toLocaleString('id-ID');
-      recalcBookingTotal();
+      document.getElementById('order-addons').textContent = 'Rp ' + addonsFee.toLocaleString('id-ID');
+      calculateTotal();
     }
 
-    function recalcBookingTotal() {
-      const hours = selectedSlots.length * 2;
-      const subtotal = (selectedCourtPrice / 2) * hours;
-      const grandTotal = subtotal + addonsTotal;
-      const el = document.getElementById('summary-total');
-      if (el) el.textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
+    function calculateTotal() {
+      const grandTotal = (courtPrice * 2) + addonsFee;
+      document.getElementById('order-total').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
     }
 
-    function confirmBooking() {
-      const bookingCode = '#BKG-' + Math.floor(100000 + Math.random() * 900000);
-      alert('Reservasi Berhasil Dibuat!\\n\\nKode Booking: ' + bookingCode + '\\nLapangan: ' + selectedCourtName + '\\nJadwal: ' + selectedSlots.join(', ') + '\\nStatus: TERKONFIRMASI');
+    function submitBooking() {
+      const randomCode = '#BKG-' + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('res-code').textContent = randomCode;
+      document.getElementById('res-court').textContent = courtName;
+      document.getElementById('res-slot').textContent = selectedSlot;
+      document.getElementById('res-total').textContent = document.getElementById('order-total').textContent;
+      document.getElementById('booking-modal').classList.remove('hidden');
     }
 
-    // Domain Specific: News Filter & Reader
-    function filterCategory(cat, btn) {
-      const items = document.querySelectorAll('.article-item');
-      items.forEach(it => {
-        if (cat === 'all' || it.getAttribute('data-category') === cat) {
-          it.style.display = 'flex';
-        } else {
-          it.style.display = 'none';
-        }
-      });
-      document.querySelectorAll('.cat-pill').forEach(b => {
-        b.className = 'cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition';
-      });
-      btn.className = 'cat-pill px-3 py-1.5 rounded-xl bg-white text-black font-bold transition';
+    function closeBookingModal() {
+      document.getElementById('booking-modal').classList.add('hidden');
     }
+  </script>
+</body>
+</html>`;
+  }
 
-    function filterArticles(keyword) {
-      const q = keyword.toLowerCase();
-      document.querySelectorAll('.article-item').forEach(it => {
-        const text = it.textContent.toLowerCase();
-        it.style.display = text.includes(q) ? 'flex' : 'none';
-      });
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 3. TEMPLATE UMUM: E-COMMERCE / TOKO ONLINE / SAAS / WEB APP LAINNYA
+  // ─────────────────────────────────────────────────────────────────────────────
+  return `<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} · Official Website</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+
+  <!-- Header -->
+  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-md">
+          ${title.charAt(0).toUpperCase()}
+        </div>
+        <span class="font-bold tracking-tight text-white text-base">${title}</span>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
+        <a href="#fitur" class="hover:text-white transition">Layanan & Fitur</a>
+        <a href="#demo" class="hover:text-white transition">Interaksi Langsung</a>
+        <a href="#kontak" class="hover:text-white transition">Hubungi Kami</a>
+      </nav>
+
+      <a href="#demo" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-sm">
+        Mulai Sekarang
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1">
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900 text-[11px] font-mono text-zinc-300 mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        ${primaryType} · Versi Resmi Siap Pakai
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+        ${title}
+      </h1>
+      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+        ${desc}
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <a href="#demo" class="px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition shadow-lg">
+          Jelajahi Demo Langsung
+        </a>
+        <a href="#fitur" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
+          Pelajari Seluruh Layanan
+        </a>
+      </div>
+    </section>
+
+    <!-- Fitur Layanan Showcase -->
+    <section id="fitur" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center mb-12">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Kapabilitas & Layanan Unggulan</h2>
+          <p class="text-xs text-zinc-400 mt-1">Dirancang khusus untuk menghadirkan pengalaman pengguna terbaik.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          ${features.slice(0, 6).map((f, i) => `
+            <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between hover:border-zinc-700 transition">
+              <div>
+                <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center font-mono font-bold text-sm text-zinc-200 mb-4">
+                  0${i + 1}
+                </div>
+                <h3 class="text-base font-bold text-white mb-2">${escapeHtml(f.name)}</h3>
+                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live Simulator Section -->
+    <section id="demo" class="py-16 border-t border-zinc-800">
+      <div class="max-w-4xl mx-auto px-4 sm:px-8">
+        <div class="p-6 sm:p-8 rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl">
+          <div class="pb-4 mb-6 border-b border-zinc-800 flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-white">Simulasi Interaksi Langsung</h3>
+              <p class="text-xs text-zinc-400">Ketik pesan atau masukan data untuk menguji respon aplikasi.</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-md bg-zinc-800 text-[10px] font-mono text-zinc-300">Live State</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800">
+              <label class="text-xs font-bold text-zinc-300 block mb-2">Masukan / Interaksi:</label>
+              <input type="text" id="demo-input" placeholder="Ketik sesuatu..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+              <button onclick="addDemoItem()" class="mt-3 w-full py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer">
+                Kirim & Tambahkan
+              </button>
+            </div>
+            <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-zinc-300">Daftar Hasil (<span id="demo-count">0</span>)</span>
+                <button onclick="clearDemoList()" class="text-[10px] text-zinc-400 hover:text-white transition cursor-pointer">Bersihkan</button>
+              </div>
+              <ul id="demo-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
+                <li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-500 italic text-[11px]">Belum ada masukan ditambahkan.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer id="kontak" class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
+      <div class="flex items-center gap-4 text-zinc-400">
+        <span>Responsif</span>
+        <span>•</span>
+        <span>Performa Tinggi</span>
+        <span>•</span>
+        <span>Mudah Digunakan</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    let demoItems = [];
+    function addDemoItem() {
+      const inp = document.getElementById('demo-input');
+      const val = inp.value.trim();
+      if (!val) return;
+      demoItems.push(val);
+      inp.value = '';
+      renderDemoItems();
     }
-
-    function openArticle(title) {
-      alert('Membaca Artikel:\\n\\n' + title + '\\n\\nArtikel dimuat secara lengkap di reader sandbox.');
+    function clearDemoList() {
+      demoItems = [];
+      renderDemoItems();
     }
-
-    // Domain Specific: Cart
-    let cartCount = 0;
-    function addToCart(name, price) {
-      cartCount++;
-      const el = document.getElementById('cart-badge');
-      if (el) el.textContent = cartCount;
-      alert('✓ ' + name + ' berhasil ditambahkan ke keranjang!');
-    }
-
-    function openCartModal() {
-      if (cartCount === 0) {
-        alert('Keranjang Anda masih kosong. Silakan tambahkan produk terlebih dahulu.');
-      } else {
-        alert('Keranjang Belanja: ' + cartCount + ' item.\\nTotal telah terhitung. Siap melanjutkan ke checkout!');
-      }
-    }
-
-    // Domain Specific: Admin Record
-    function addNewAdminRecord() {
-      const title = prompt('Masukkan nama aktivitas atau log baru:');
-      if (!title) return;
-      const tbody = document.getElementById('admin-table-body');
-      if (!tbody) return;
-      const tr = document.createElement('tr');
-      const id = '#REC-' + Math.floor(100 + Math.random() * 900);
-      tr.innerHTML = '<td class="p-3 text-zinc-400">' + id + '</td><td class="p-3 font-bold text-white">' + title + '</td><td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BARU</span></td><td class="p-3 text-zinc-400">Baru saja</td><td class="p-3 text-right"><button onclick="alert(\\'Audit log valid!\\')" class="text-zinc-300 hover:text-white underline">Detail</button></td>';
-      tbody.prepend(tr);
-      alert('Data aktivitas baru berhasil ditambahkan ke tabel monitoring!');
-    }
-
-    // Default Interactive Sandbox Demo
-    const sampleInput = document.getElementById('sample-input');
-    const addSampleBtn = document.getElementById('add-btn');
-    const clearSampleBtn = document.getElementById('clear-btn');
-    const sampleList = document.getElementById('item-list');
-    const sampleCountEl = document.getElementById('count');
-    let sampleItems = [];
-
-    if (addSampleBtn && sampleInput) {
-      addSampleBtn.addEventListener('click', () => {
-        const val = sampleInput.value.trim();
-        if (!val) return;
-        sampleItems.push(val);
-        sampleInput.value = '';
-        renderSampleItems();
-      });
-
-      sampleInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addSampleBtn.click();
-      });
-    }
-
-    if (clearSampleBtn) {
-      clearSampleBtn.addEventListener('click', () => {
-        sampleItems = [];
-        renderSampleItems();
-      });
-    }
-
-    function renderSampleItems() {
-      if (!sampleCountEl || !sampleList) return;
-      sampleCountEl.textContent = sampleItems.length;
-      if (sampleItems.length === 0) {
-        sampleList.innerHTML = '<li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada aksi dieksekusi.</li>';
+    function renderDemoItems() {
+      document.getElementById('demo-count').textContent = demoItems.length;
+      const list = document.getElementById('demo-list');
+      if (demoItems.length === 0) {
+        list.innerHTML = '<li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-500 italic text-[11px]">Belum ada masukan ditambahkan.</li>';
         return;
       }
-      sampleList.innerHTML = sampleItems.map((it, idx) => '<li class="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs"><span>' + it + '</span><span class="text-[10px] text-zinc-500 font-mono">#' + (idx + 1) + '</span></li>').join('');
+      list.innerHTML = demoItems.map((item, idx) => '<li class="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs"><span>' + item + '</span><span class="text-[10px] font-mono text-zinc-500">#' + (idx + 1) + '</span></li>').join('');
     }
+    document.getElementById('demo-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addDemoItem();
+    });
   </script>
 </body>
 </html>`;
 }
 
-export type PreviewDevice = "desktop" | "tablet" | "mobile" | "responsive";
+export type PreviewDevice = "desktop" | "tablet" | "mobile";
 
 export interface DevicePreset {
-  width: number | string;
-  height: number | string;
+  width: number;
+  height: number;
   label: string;
 }
 
@@ -9021,7 +8899,6 @@ export const DEVICE_PRESETS: Record<PreviewDevice, DevicePreset> = {
   desktop: { width: 1440, height: 900, label: "Desktop (1440 × 900)" },
   tablet: { width: 768, height: 1024, label: "Tablet (768 × 1024)" },
   mobile: { width: 390, height: 844, label: "Mobile (390 × 844)" },
-  responsive: { width: "100%", height: "100%", label: "Responsive (100%)" },
 };
 
 export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
@@ -9039,16 +8916,15 @@ export function QuickHtmlPreview({
 }) {
   const [rawHtml, setRawHtml] = useState<string>(() => extractHtmlFromProject(project));
   const [debouncedHtml, setDebouncedHtml] = useState<string>(() => extractHtmlFromProject(project));
-  const [viewMode, setViewMode] = useState<"preview" | "code" | "split">("preview");
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [device, setDevice] = useState<PreviewDevice>("desktop");
   const [zoom, setZoom] = useState<number>(100);
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync with project if external html changes
+  // Sinkronisasi dengan proyek
   useEffect(() => {
     const extracted = extractHtmlFromProject(project);
     if (extracted && extracted !== rawHtml && !rawHtml.trim()) {
@@ -9068,42 +8944,16 @@ export function QuickHtmlPreview({
     return () => clearTimeout(timer);
   }, [rawHtml]);
 
-  // Listen to sandbox runtime errors
+  // Error listener di iframe
   useEffect(() => {
     const handleMsg = (e: MessageEvent) => {
       if (e.data && e.data.type === "PREVIEW_CONSOLE_ERROR") {
-        setPreviewError(e.data.message || "Runtime error inside preview sandbox");
+        setPreviewError(e.data.message || "Runtime notice inside preview sandbox");
       }
     };
     window.addEventListener("message", handleMsg);
     return () => window.removeEventListener("message", handleMsg);
   }, []);
-
-  const handleCopy = () => {
-    if (!rawHtml) return;
-    navigator.clipboard.writeText(rawHtml);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownload = () => {
-    if (!rawHtml) return;
-    const blob = new Blob([rawHtml], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(project.title || "prototype").toLowerCase().replace(/[^a-z0-9]/g, "-")}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleGeneratePrototype = () => {
-    const starter = generateStarterPrototypeHtml(project);
-    setRawHtml(starter);
-    setDebouncedHtml(starter);
-    onUpdateHtml(starter);
-    setPreviewError(null);
-  };
 
   const securedHtml = useMemo(() => {
     return injectSandboxSecurity(debouncedHtml);
@@ -9119,120 +8969,102 @@ export function QuickHtmlPreview({
         isFullscreen ? "fixed inset-0 z-50 bg-black" : ""
       } ${isDark ? "bg-[#090d16] text-zinc-100" : "bg-zinc-50 text-zinc-900"}`}
     >
-      {/* ── Toolbar ── */}
-      <div className={`px-4 sm:px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-2.5 shrink-0 select-none ${
+      {/* ── Toolbar (Sesuai Brief PRD — Quick HTML Preview Option A) ── */}
+      <div className={`px-4 sm:px-6 py-2.5 border-b flex items-center justify-between gap-3 shrink-0 select-none ${
         isDark ? "border-zinc-800 bg-zinc-950/90" : "border-zinc-200 bg-white"
       }`}>
-        {/* Left: View Mode Toggle & Device Selector */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Mode Switcher */}
+        {/* Left: View Mode Toggle (Code vs 👁 Preview) */}
+        <div className={`flex items-center p-0.5 rounded-xl border ${
+          isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
+        }`}>
+          <button
+            onClick={() => setViewMode("code")}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              viewMode === "code"
+                ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            <span>Code</span>
+          </button>
+          <button
+            onClick={() => setViewMode("preview")}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              viewMode === "preview"
+                ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span>Preview</span>
+          </button>
+        </div>
+
+        {/* Center: Device Selector (Desktop / Tablet / Mobile) */}
+        {viewMode === "preview" && (
           <div className={`flex items-center p-0.5 rounded-xl border ${
             isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
           }`}>
-            <button
-              onClick={() => setViewMode("preview")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                viewMode === "preview"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span>Preview</span>
-            </button>
-            <button
-              onClick={() => setViewMode("code")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                viewMode === "code"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              <span>Code</span>
-            </button>
-            <button
-              onClick={() => setViewMode("split")}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                viewMode === "split"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4v16m6-16v16M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" />
-              </svg>
-              <span>Split</span>
-            </button>
-          </div>
-
-          {/* Device Selector (Active only when preview is visible) */}
-          {viewMode !== "code" && (
-            <div className={`hidden md:flex items-center p-0.5 rounded-xl border ${
-              isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
-            }`}>
-              {(["desktop", "tablet", "mobile", "responsive"] as PreviewDevice[]).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDevice(d)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer capitalize ${
-                    device === d
-                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                  }`}
-                  title={DEVICE_PRESETS[d].label}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Zoom, Refresh, Fullscreen & Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-          {/* Zoom Selector (Only in preview/split) */}
-          {viewMode !== "code" && (
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-zinc-400 font-mono hidden lg:inline">Zoom:</span>
-              <select
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className={`text-xs px-2 py-1 rounded-lg border font-mono outline-none cursor-pointer ${
-                  isDark ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-300 text-zinc-800"
+            {(["desktop", "tablet", "mobile"] as PreviewDevice[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDevice(d)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer capitalize flex items-center gap-1 ${
+                  device === d
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
                 }`}
+                title={DEVICE_PRESETS[d].label}
               >
-                {ZOOM_PRESETS.map((z) => (
-                  <option key={z} value={z}>{z}%</option>
-                ))}
-              </select>
-            </div>
+                <span>{d === "desktop" ? "🖥" : "📱"}</span>
+                <span className="hidden sm:inline">{d}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Right: Controls (Zoom, Refresh, Fullscreen) */}
+        <div className="flex items-center gap-2">
+          {viewMode === "preview" && (
+            <>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-zinc-400 font-mono hidden md:inline">Zoom:</span>
+                <select
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className={`text-xs px-2 py-1 rounded-lg border font-mono outline-none cursor-pointer ${
+                    isDark ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-300 text-zinc-800"
+                  }`}
+                >
+                  {ZOOM_PRESETS.map((z) => (
+                    <option key={z} value={z}>{z}%</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  setRefreshKey((k) => k + 1);
+                  setPreviewError(null);
+                }}
+                className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+                title="Refresh Preview (↻)"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </>
           )}
 
-          {/* Refresh Button */}
-          {viewMode !== "code" && (
-            <button
-              onClick={() => {
-                setRefreshKey((k) => k + 1);
-                setPreviewError(null);
-              }}
-              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-              title="Refresh Preview (↻)"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          )}
-
-          {/* Fullscreen Toggle */}
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
             className={`p-1.5 rounded-lg border transition cursor-pointer ${
@@ -9250,53 +9082,10 @@ export function QuickHtmlPreview({
               </svg>
             )}
           </button>
-
-          {/* Action: Copy HTML */}
-          {hasHtml && (
-            <button
-              onClick={handleCopy}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-              title="Copy HTML Source"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <span>{copied ? "Tersalin!" : "Copy"}</span>
-            </button>
-          )}
-
-          {/* Action: Download HTML */}
-          {hasHtml && (
-            <button
-              onClick={handleDownload}
-              className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-              }`}
-              title="Download HTML file"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>Download</span>
-            </button>
-          )}
-
-          {/* Generate / Re-generate Prototype */}
-          <button
-            onClick={handleGeneratePrototype}
-            className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-            }`}
-            title="Generate prototype HTML from blueprint"
-          >
-            <span>✨ {hasHtml ? "Re-generate" : "Generate"}</span>
-          </button>
         </div>
       </div>
 
-      {/* ── Error Banner (if runtime notice caught) ── */}
+      {/* Error Notice */}
       {previewError && (
         <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
@@ -9315,10 +9104,9 @@ export function QuickHtmlPreview({
         </div>
       )}
 
-      {/* ── Main Content Area ── */}
+      {/* Main Content */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* VIEW: Empty State */}
-        {!hasHtml && viewMode !== "code" ? (
+        {!hasHtml && viewMode === "preview" ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className={`w-16 h-16 rounded-3xl border flex items-center justify-center mb-4 ${
               isDark ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-300 text-zinc-600"
@@ -9331,16 +9119,21 @@ export function QuickHtmlPreview({
               No HTML to preview. Generate or add HTML code first.
             </h3>
             <p className="text-xs sm:text-sm text-zinc-400 max-w-md mb-6 leading-relaxed">
-              Quick HTML Preview runs completely in your browser inside an isolated sandbox. You can generate a prototype from your PRD, paste existing code, or generate code through Tanya AI chat.
+              Quick HTML Preview berjalan aman di browser Anda di dalam sandbox terisolasi.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex items-center gap-3">
               <button
-                onClick={handleGeneratePrototype}
+                onClick={() => {
+                  const starter = generateStarterPrototypeHtml(project);
+                  setRawHtml(starter);
+                  setDebouncedHtml(starter);
+                  onUpdateHtml(starter);
+                }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm ${
                   isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
               >
-                ✨ Generate Starter Prototype from PRD
+                ✨ Buat Website Prototype dari PRD
               </button>
               <button
                 onClick={() => setViewMode("code")}
@@ -9348,109 +9141,80 @@ export function QuickHtmlPreview({
                   isDark ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
                 }`}
               >
-                ✏️ Write or Paste HTML
-              </button>
-              <button
-                onClick={onSwitchToChat}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                  isDark ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                }`}
-              >
-                💬 Go to Tanya AI (Chat)
+                ✏️ Tulis atau Tempel HTML
               </button>
             </div>
           </div>
+        ) : viewMode === "code" ? (
+          <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[#090d16]" : "bg-white"}`}>
+            <div className={`px-4 py-2 border-b flex items-center justify-between text-xs font-mono shrink-0 ${
+              isDark ? "border-zinc-800 text-zinc-400 bg-zinc-950/60" : "border-zinc-200 text-zinc-600 bg-zinc-50"
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>HTML / CSS / JS Editor</span>
+              </div>
+              <div className="flex items-center gap-3 text-[11px]">
+                <span>{rawHtml.length} chars</span>
+                <span>{rawHtml.split("\n").length} lines</span>
+              </div>
+            </div>
+            <div className="flex-1 relative overflow-hidden">
+              <textarea
+                value={rawHtml}
+                onChange={(e) => setRawHtml(e.target.value)}
+                placeholder="<!DOCTYPE html><html>... tulis atau tempel kode HTML di sini...</html>"
+                className={`w-full h-full p-4 font-mono text-xs outline-none resize-none border-none leading-relaxed ${
+                  isDark ? "bg-[#090d16] text-zinc-200 selection:bg-zinc-800" : "bg-white text-zinc-900 selection:bg-zinc-200"
+                }`}
+                spellCheck={false}
+              />
+            </div>
+          </div>
         ) : (
-          <>
-            {/* VIEW MODE: CODE EDITOR (in 'code' or 'split') */}
-            {(viewMode === "code" || viewMode === "split") && (
-              <div className={`flex flex-col min-h-0 border-r ${
-                viewMode === "split" ? "w-1/2" : "w-full"
-              } ${isDark ? "border-zinc-800 bg-[#090d16]" : "border-zinc-200 bg-white"}`}>
-                <div className={`px-4 py-2 border-b flex items-center justify-between text-xs font-mono shrink-0 ${
-                  isDark ? "border-zinc-800 text-zinc-400 bg-zinc-950/60" : "border-zinc-200 text-zinc-600 bg-zinc-50"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>HTML / CSS / JS Editor</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px]">
-                    <span>{rawHtml.length} chars</span>
-                    <span>{rawHtml.split("\n").length} lines</span>
-                  </div>
-                </div>
-                <div className="flex-1 relative overflow-hidden">
-                  <textarea
-                    value={rawHtml}
-                    onChange={(e) => setRawHtml(e.target.value)}
-                    placeholder="<!DOCTYPE html><html>... tulis atau tempel kode HTML di sini...</html>"
-                    className={`w-full h-full p-4 font-mono text-xs outline-none resize-none border-none leading-relaxed ${
-                      isDark ? "bg-[#090d16] text-zinc-200 selection:bg-zinc-800" : "bg-white text-zinc-900 selection:bg-zinc-200"
-                    }`}
-                    spellCheck={false}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* VIEW MODE: PREVIEW VIEWPORT (in 'preview' or 'split') */}
-            {(viewMode === "preview" || viewMode === "split") && (
-              <div className={`flex-1 flex flex-col min-h-0 overflow-auto relative items-center justify-start p-2 sm:p-4 ${
-                isDark ? "bg-[#0b0f19]" : "bg-zinc-100"
+          <div className={`flex-1 flex flex-col min-h-0 overflow-auto relative items-center justify-start p-4 sm:p-8 ${
+            isDark ? "bg-[#0b0f19]" : "bg-zinc-100"
+          }`}>
+            <div
+              className={`flex flex-col transition-all duration-300 relative shadow-2xl rounded-3xl overflow-hidden border shrink-0 my-auto ${
+                isDark ? "border-zinc-800 bg-black" : "border-zinc-300 bg-white"
+              }`}
+              style={{
+                width: `${currentPreset.width}px`,
+                height: `${currentPreset.height}px`,
+                transform: `scale(${zoom / 100})`,
+                transformOrigin: "top center",
+              }}
+            >
+              {/* Device Header Bar */}
+              <div className={`px-4 py-2 border-b flex items-center justify-between text-[11px] font-mono shrink-0 select-none ${
+                isDark ? "border-zinc-800/80 bg-zinc-950 text-zinc-400" : "border-zinc-200 bg-zinc-50 text-zinc-600"
               }`}>
-                {/* Device Frame Wrapper */}
-                <div
-                  className={`flex flex-col transition-all duration-300 relative shadow-2xl rounded-2xl overflow-hidden border ${
-                    device === "responsive"
-                      ? "w-full h-full"
-                      : "shrink-0 my-auto"
-                  } ${isDark ? "border-zinc-800 bg-black" : "border-zinc-300 bg-white"}`}
-                  style={
-                    device !== "responsive"
-                      ? {
-                          width: typeof currentPreset.width === "number" ? `${currentPreset.width}px` : currentPreset.width,
-                          height: typeof currentPreset.height === "number" ? `${currentPreset.height}px` : currentPreset.height,
-                          transform: `scale(${zoom / 100})`,
-                          transformOrigin: "top center",
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                        }
-                      : {}
-                  }
-                >
-                  {/* Device Header Bar */}
-                  <div className={`px-4 py-2 border-b flex items-center justify-between text-[11px] font-mono shrink-0 select-none ${
-                    isDark ? "border-zinc-800/80 bg-zinc-950 text-zinc-400" : "border-zinc-200 bg-zinc-50 text-zinc-600"
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
-                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
-                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
-                      </div>
-                      <span className="ml-2 font-bold">{currentPreset.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300">
-                        sandbox="allow-scripts"
-                      </span>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
                   </div>
-
-                  {/* Sandboxed Iframe */}
-                  <div className="flex-1 w-full h-full relative bg-white">
-                    <iframe
-                      key={refreshKey}
-                      srcDoc={securedHtml}
-                      sandbox="allow-scripts"
-                      className="w-full h-full border-none"
-                      title="Quick HTML Preview"
-                    />
-                  </div>
+                  <span className="ml-2 font-bold">{currentPreset.label}</span>
                 </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300">
+                  sandbox="allow-scripts"
+                </span>
               </div>
-            )}
-          </>
+
+              {/* Sandboxed Iframe */}
+              <div className="flex-1 w-full h-full relative bg-white">
+                <iframe
+                  key={refreshKey}
+                  srcDoc={securedHtml}
+                  sandbox="allow-scripts"
+                  className="w-full h-full border-none"
+                  title="Quick HTML Preview"
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
