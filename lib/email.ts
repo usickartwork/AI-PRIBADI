@@ -89,7 +89,7 @@ export function buildScheduleReminderHtml({
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 24px; max-width: 600px; margin: 0 auto; border-radius: 20px; border: 1px solid #27272a;">
       <div style="margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #10b981; background: #064e3b; padding: 4px 10px; border-radius: 9999px;">Schedule Reminder</span>
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #ffffff; background: #27272a; padding: 4px 12px; border-radius: 9999px; border: 1px solid #3f3f46;">Schedule Reminder</span>
       </div>
       
       <h1 style="color: #ffffff; font-size: 26px; font-weight: 800; margin: 0 0 12px 0; letter-spacing: -0.5px;">
@@ -98,13 +98,13 @@ export function buildScheduleReminderHtml({
 
       <div style="background-color: #18181b; border: 1px solid #27272a; border-radius: 14px; padding: 20px; margin-bottom: 24px;">
         <div style="color: #a1a1aa; font-size: 13px; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Waktu & Agenda</div>
-        <div style="color: #34d399; font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+        <div style="color: #ffffff; font-size: 18px; font-weight: 700; margin-bottom: 4px;">
           ${escapeHtml(scheduledTimeText)}
         </div>
-        ${durationText ? `<div style="color: #71717a; font-size: 13px;">Durasi: ${escapeHtml(durationText)}</div>` : ""}
+        ${durationText ? `<div style="color: #a1a1aa; font-size: 13px;">Durasi: ${escapeHtml(durationText)}</div>` : ""}
       </div>
 
-      <div style="background-color: #18181b; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 0 12px 12px 0; margin-bottom: 24px;">
+      <div style="background-color: #18181b; border-left: 4px solid #ffffff; padding: 14px 18px; border-radius: 0 12px 12px 0; margin-bottom: 24px;">
         <p style="color: #e4e4e7; font-size: 14px; margin: 0; font-weight: 500;">
           ⏰ Pengingat: <strong>${timeDesc}</strong>
         </p>

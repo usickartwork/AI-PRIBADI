@@ -25,6 +25,16 @@ type ScheduleWorkspaceProps = {
   setShowAuthModal?: (show: boolean) => void;
 };
 
+type ScheduleChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  pendingSchedule?: ParsedScheduleAI;
+  isConfirmed?: boolean;
+  confirmedSchedule?: ScheduleItem;
+  timestamp: string;
+};
+
 const SUGGESTED_PROMPTS = [
   "Besok jam 9 pagi meeting dengan tim selama 1 jam",
   "Hari Senin jam 7 malam gym",
@@ -39,19 +49,28 @@ export function ScheduleWorkspace({
   user,
   setShowAuthModal,
 }: ScheduleWorkspaceProps) {
+  // Mode Tampilan: "chat" (Chat Asisten AI) atau "list" (Daftar Agenda)
+  const [currentTab, setCurrentTab] = useState<"chat" | "list">("chat");
+
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "today" | "upcoming" | "completed" | "cancelled">("all");
 
-  // AI Command Input States
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiParsing, setAiParsing] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
-  // Confirmation Card State (Sebelum Schedule disimpan)
-  const [pendingSchedule, setPendingSchedule] = useState<ParsedScheduleAI | null>(null);
-  const [clarificationQuestion, setClarificationQuestion] = useState<string | null>(null);
+  // Chat Interface States
+  const [chatMessages, setChatMessages] = useState<ScheduleChatMessage[]>([
+    {
+      id: "init_1",
+      role: "assistant",
+      content:
+        "Halo! Saya asisten jadwal Usick One. Anda dapat menambahkan agenda atau pengingat baru cukup dengan mengetik bahasa santai, seperti *“Besok jam 9 pagi meeting dengan tim selama 1 jam”* atau *“Hari Senin jam 7 malam gym”*.",
+      timestamp: "Baru saja",
+    },
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Manual Modal State (Create & Edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -72,6 +91,21 @@ export function ScheduleWorkspace({
   const userId = user?.id || "guest";
   const userEmail = user?.email || "";
 
+  // Auto-scroll chat ke pesan paling bawah
+  useEffect(() => {
+    if (currentTab === "chat") {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, isProcessing, currentTab]);
+
+  // Auto resize textarea
+  const autoResizeTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  };
+
   // ─── Fetch Schedules ────────────────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
@@ -86,13 +120,11 @@ export function ScheduleWorkspace({
               setSchedules(json.data);
               saveLocalSchedules(user.id, json.data);
             } else {
-              // Jika kosong dari server, load dari cache lokal jika ada
               const cached = getLocalSchedules(user.id);
               setSchedules(cached);
             }
           }
         } else {
-          // Guest User (Local Storage)
           const guestItems = getLocalSchedules("guest");
           if (isMounted) {
             setSchedules(guestItems);
@@ -113,20 +145,31 @@ export function ScheduleWorkspace({
     };
   }, [user?.id, userId]);
 
-  // Simpan ke local cache setiap kali schedules berubah
   const updateSchedulesState = (newItems: ScheduleItem[]) => {
     setSchedules(newItems);
     saveLocalSchedules(userId, newItems);
   };
 
-  // ─── Handle AI Natural Language Submission ───────────────────────────────────
-  const handleAiSubmit = async (customText?: string) => {
-    const textToParse = (customText ?? aiPrompt).trim();
-    if (!textToParse) return;
+  // ─── Chat AI Submission Handler ──────────────────────────────────────────────
+  const handleSendChatMessage = async (textToSend?: string) => {
+    const text = (textToSend ?? inputMessage).trim();
+    if (!text || isProcessing) return;
 
-    setAiParsing(true);
-    setAiError(null);
-    setClarificationQuestion(null);
+    setInputMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+
+    const userMsgId = `user_${Date.now()}`;
+    const newUserMsg: ScheduleChatMessage = {
+      id: userMsgId,
+      role: "user",
+      content: text,
+      timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setChatMessages((prev) => [...prev, newUserMsg]);
+    setIsProcessing(true);
 
     try {
       const now = new Date();
@@ -137,7 +180,7 @@ export function ScheduleWorkspace({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: textToParse,
+          prompt: text,
           clientDate,
           timezone: tz,
         }),
@@ -145,87 +188,131 @@ export function ScheduleWorkspace({
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error || "Gagal memproses bahasa natural schedule.");
+        throw new Error(json.error || "Gagal menganalisis permintaan jadwal.");
       }
 
       const parsed: ParsedScheduleAI = json.data;
+      const assistantMsgId = `assistant_${Date.now()}`;
 
-      // Cek apakah ambigu
       if (parsed.isAmbiguous && parsed.clarificationQuestion) {
-        setClarificationQuestion(parsed.clarificationQuestion);
-        setPendingSchedule(parsed);
+        // AI meminta klarifikasi detail waktu/tanggal
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: parsed.clarificationQuestion || "Kapan agenda ini akan diadakan? Mohon sebutkan tanggal atau jamnya.",
+            timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
       } else {
-        // Tampilkan preview / confirmation card sebelum disimpan
-        setPendingSchedule(parsed);
+        // AI berhasil mem-parse, tampilkan kartu konfirmasi inline di dalam chat
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: "Saya telah menyiapkan rincian jadwal untuk Anda. Silakan periksa kartu konfirmasi di bawah ini:",
+            pendingSchedule: parsed,
+            isConfirmed: false,
+            timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
       }
     } catch (err: any) {
-      setAiError(err?.message || "Terjadi kesalahan saat memproses input.");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant_${Date.now()}`,
+          role: "assistant",
+          content: `Maaf, terjadi kendala saat memproses: ${err?.message || "Silakan coba ulangi kembali."}`,
+          timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
     } finally {
-      setAiParsing(false);
+      setIsProcessing(false);
     }
   };
 
-  // ─── Konfirmasi dan Simpan Schedule Hasil AI ─────────────────────────────────
-  const handleConfirmPendingSchedule = async () => {
-    if (!pendingSchedule) return;
-
-    const newSchedulePayload = {
+  // ─── Konfirmasi Schedule dari Kartu Chat ─────────────────────────────────────
+  const handleConfirmInlineSchedule = async (messageId: string, parsed: ParsedScheduleAI) => {
+    const payload = {
       user_id: userId,
-      title: pendingSchedule.title,
-      description: pendingSchedule.description || "",
-      date: pendingSchedule.date || getTodayDateString(),
-      time: pendingSchedule.time || "09:00",
-      duration_minutes: pendingSchedule.duration || 60,
-      reminder_minutes: pendingSchedule.reminder ?? 15,
-      recurrence: pendingSchedule.recurrence || "once",
-      timezone: pendingSchedule.timezone || "Asia/Jakarta",
+      title: parsed.title,
+      description: parsed.description || "",
+      date: parsed.date || getTodayDateString(),
+      time: parsed.time || "09:00",
+      duration_minutes: parsed.duration || 60,
+      reminder_minutes: parsed.reminder ?? 15,
+      recurrence: parsed.recurrence || "once",
+      timezone: parsed.timezone || "Asia/Jakarta",
       user_email: userEmail || undefined,
     };
+
+    let savedItem: ScheduleItem;
 
     try {
       const res = await fetch("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSchedulePayload),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
       if (json.success && json.data) {
-        updateSchedulesState([...schedules, json.data]);
+        savedItem = json.data;
       } else {
-        // Fallback local
-        const localItem: ScheduleItem = {
-          ...newSchedulePayload,
+        savedItem = {
+          ...payload,
           id: `sch_${Date.now()}`,
           status: "upcoming",
           reminder_status: "pending",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-        updateSchedulesState([...schedules, localItem]);
       }
-
-      // Reset Form State
-      setPendingSchedule(null);
-      setClarificationQuestion(null);
-      setAiPrompt("");
-    } catch (err) {
-      console.error("Gagal menyimpan schedule:", err);
-      const localItem: ScheduleItem = {
-        ...newSchedulePayload,
+    } catch {
+      savedItem = {
+        ...payload,
         id: `sch_${Date.now()}`,
         status: "upcoming",
         reminder_status: "pending",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      updateSchedulesState([...schedules, localItem]);
-      setPendingSchedule(null);
-      setAiPrompt("");
     }
+
+    updateSchedulesState([...schedules, savedItem]);
+
+    // Update pesan chat menjadi terkonfirmasi
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              isConfirmed: true,
+              confirmedSchedule: savedItem,
+            }
+          : msg
+      )
+    );
   };
 
-  // ─── Manual Form: Create or Edit ─────────────────────────────────────────────
+  const handleCancelInlineSchedule = (messageId: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: "Jadwal telah dibatalkan sebelum disimpan.",
+              pendingSchedule: undefined,
+            }
+          : msg
+      )
+    );
+  };
+
+  // ─── Manual Form Modal ───────────────────────────────────────────────────────
   const openNewScheduleModal = () => {
     setEditingItem(null);
     setFormTitle("");
@@ -247,7 +334,7 @@ export function ScheduleWorkspace({
     setFormDuration(item.duration_minutes);
     setFormReminder(item.reminder_minutes);
     setFormRecurrence(item.recurrence);
-    setSelectedItem(null); // Tutup detail modal jika terbuka
+    setSelectedItem(null);
     setModalOpen(true);
   };
 
@@ -256,7 +343,6 @@ export function ScheduleWorkspace({
     if (!formTitle.trim() || !formDate || !formTime) return;
 
     if (editingItem) {
-      // Update existing item
       const updatedFields = {
         title: formTitle.trim(),
         description: formDescription.trim(),
@@ -278,7 +364,7 @@ export function ScheduleWorkspace({
           }),
         });
       } catch (err) {
-        console.warn("Update API call failed:", err);
+        console.warn("Update error:", err);
       }
 
       const updatedList = schedules.map((item) =>
@@ -286,7 +372,6 @@ export function ScheduleWorkspace({
       );
       updateSchedulesState(updatedList);
     } else {
-      // Create new item
       const payload = {
         user_id: userId,
         title: formTitle.trim(),
@@ -349,7 +434,7 @@ export function ScheduleWorkspace({
         }),
       });
     } catch (err) {
-      console.warn("Status update API error:", err);
+      console.warn("Status update error:", err);
     }
 
     const updated = schedules.map((s) =>
@@ -369,7 +454,7 @@ export function ScheduleWorkspace({
         method: "DELETE",
       });
     } catch (err) {
-      console.warn("Delete API error:", err);
+      console.warn("Delete error:", err);
     }
 
     const updated = schedules.filter((s) => s.id !== item.id);
@@ -379,9 +464,8 @@ export function ScheduleWorkspace({
     }
   };
 
-  // ─── Test Send Email Reminder ────────────────────────────────────────────────
   const handleTestEmailReminder = async (item: ScheduleItem) => {
-    const targetEmail = userEmail || prompt("Masukkan alamat email untuk menerima tes pengingat:");
+    const targetEmail = userEmail || prompt("Masukkan alamat email untuk tes pengingat:");
     if (!targetEmail || !targetEmail.includes("@")) {
       alert("Harap masukkan alamat email yang valid.");
       return;
@@ -403,17 +487,17 @@ export function ScheduleWorkspace({
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.error || "Gagal mengirim tes email.");
+        throw new Error(json.error || "Gagal mengirim email tes.");
       }
 
       setEmailStatusMsg({
         type: "success",
-        text: `Email berhasil dikirim ke ${targetEmail}. Cek Inbox / Spam!`,
+        text: `Email tes berhasil dikirim ke ${targetEmail}. Silakan periksa inbox Anda!`,
       });
     } catch (err: any) {
       setEmailStatusMsg({
         type: "error",
-        text: err?.message || "Terjadi kesalahan saat mengirim email.",
+        text: err?.message || "Terjadi kendala saat mengirim email.",
       });
     } finally {
       setTestingEmail(false);
@@ -423,7 +507,6 @@ export function ScheduleWorkspace({
   // ─── Filtered & Grouped Schedules ────────────────────────────────────────────
   const filteredSchedules = useMemo(() => {
     return schedules.filter((item) => {
-      // Filter status tab
       if (statusFilter === "today") {
         if (item.date !== getTodayDateString()) return false;
       } else if (statusFilter === "upcoming") {
@@ -434,12 +517,9 @@ export function ScheduleWorkspace({
         if (item.status !== "cancelled") return false;
       }
 
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const inTitle = item.title.toLowerCase().includes(q);
-        const inDesc = item.description?.toLowerCase().includes(q);
-        return inTitle || inDesc;
+        return item.title.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q);
       }
 
       return true;
@@ -453,16 +533,16 @@ export function ScheduleWorkspace({
   return (
     <div
       className={`flex flex-col h-full w-full overflow-hidden ${
-        isDark ? "bg-[#0f0f12] text-zinc-100" : "bg-zinc-50 text-zinc-900"
+        isDark ? "bg-[#0c0c0e] text-zinc-100" : "bg-white text-zinc-900"
       }`}
     >
       {/* ─── Top Header Bar ────────────────────────────────────────────────── */}
       <header
-        className={`shrink-0 z-10 flex items-center justify-between border-b px-4 sm:px-8 py-3.5 backdrop-blur-md ${
-          isDark ? "bg-[#121215]/90 border-zinc-800/80" : "bg-white/90 border-zinc-200"
+        className={`shrink-0 z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 backdrop-blur-md ${
+          isDark ? "bg-[#121215]/95 border-zinc-800/80 text-white" : "bg-white/95 border-zinc-200 text-zinc-900"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={onClose}
             className={`p-2 rounded-xl transition cursor-pointer ${
@@ -472,452 +552,606 @@ export function ScheduleWorkspace({
             }`}
             title="Kembali ke Chat"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <h1 className="text-base sm:text-lg font-bold tracking-tight">Schedule</h1>
+              <span className={`flex h-2 w-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
+              <h1 className="text-sm sm:text-base font-bold tracking-tight">Schedule</h1>
             </div>
-            <p className="text-xs text-zinc-400 hidden sm:block">
+            <p className="text-[11px] text-zinc-400 hidden sm:block">
               Manage your personal schedules and reminders.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        {/* Header Tabs: Asisten AI (Chat) vs Daftar Agenda (List) */}
+        <div className="flex items-center gap-2">
+          <div
+            className={`flex items-center p-0.5 rounded-xl border text-xs font-semibold ${
+              isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-200"
+            }`}
+          >
+            <button
+              onClick={() => setCurrentTab("chat")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                currentTab === "chat"
+                  ? isDark
+                    ? "bg-zinc-800 text-white shadow-xs"
+                    : "bg-white text-black shadow-xs"
+                  : isDark
+                  ? "text-zinc-400 hover:text-white"
+                  : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              <span>AI Chat</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                currentTab === "list"
+                  ? isDark
+                    ? "bg-zinc-800 text-white shadow-xs"
+                    : "bg-white text-black shadow-xs"
+                  : isDark
+                  ? "text-zinc-400 hover:text-white"
+                  : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>Daftar Agenda</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isDark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-200 text-zinc-700"
+                }`}
+              >
+                {schedules.length}
+              </span>
+            </button>
+          </div>
+
           <button
             onClick={openNewScheduleModal}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 text-xs font-semibold shadow-md transition hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-xs transition cursor-pointer ${
+              isDark
+                ? "bg-white text-black hover:bg-zinc-200"
+                : "bg-black text-white hover:bg-zinc-800"
+            }`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>+ New Schedule</span>
+            <span className="hidden sm:inline">+ New Schedule</span>
+            <span className="sm:hidden">+ New</span>
           </button>
         </div>
       </header>
 
-      {/* ─── Main Content Scrollable Area ──────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6">
-        {/* Banner Guest Mode jika belum login */}
-        {!user && (
-          <div
-            className={`rounded-2xl p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-              isDark
-                ? "bg-amber-950/20 border-amber-800/40 text-amber-200"
-                : "bg-amber-50 border-amber-200 text-amber-900"
-            }`}
-          >
-            <div className="flex items-start gap-2.5">
-              <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <span className="font-semibold">Mode Tamu (Penyimpanan Lokal):</span> Jadwal tersimpan pada peramban ini. Masuk dengan akun Anda untuk sinkronisasi antar perangkat dan pengiriman pengingat via Email otomatis.
-              </div>
-            </div>
-            {setShowAuthModal && (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="shrink-0 self-start sm:self-center px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium transition cursor-pointer"
-              >
-                Masuk / Daftar
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ─── 1. AI Schedule Command Bar ──────────────────────────────────── */}
-        <section
-          className={`rounded-3xl border p-5 sm:p-6 transition-all shadow-sm ${
-            isDark
-              ? "bg-[#141418] border-zinc-800/90 shadow-black/40"
-              : "bg-white border-zinc-200/90 shadow-zinc-200/60"
+      {/* Guest Notice Banner */}
+      {!user && (
+        <div
+          className={`shrink-0 px-4 py-2 border-b flex items-center justify-between text-xs ${
+            isDark ? "bg-zinc-900/80 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
           }`}
         >
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-emerald-500 font-bold text-sm">✦</span>
-            <label className="text-xs sm:text-sm font-semibold tracking-wide uppercase text-zinc-400">
-              What do you want to schedule?
-            </label>
+          <div className="flex items-center gap-2 truncate">
+            <span className="text-zinc-400">💡</span>
+            <span className="truncate">
+              Mode Tamu: Jadwal tersimpan lokal. Masuk untuk pengingat otomatis via email.
+            </span>
           </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAiSubmit();
-            }}
-            className="flex flex-col sm:flex-row gap-2.5"
-          >
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Contoh: Besok jam 9 pagi meeting dengan tim selama 1 jam"
-                disabled={aiParsing}
-                className={`w-full rounded-2xl border px-4 py-3 text-sm transition outline-none pr-10 ${
-                  isDark
-                    ? "bg-[#0b0b0e] border-zinc-700/80 text-white placeholder-zinc-500 focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500"
-                    : "bg-zinc-50 border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-                }`}
-              />
-              {aiPrompt && !aiParsing && (
-                <button
-                  type="button"
-                  onClick={() => setAiPrompt("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
+          {setShowAuthModal && (
             <button
-              type="submit"
-              disabled={aiParsing || !aiPrompt.trim()}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-6 py-3 text-xs sm:text-sm font-semibold transition cursor-pointer shadow-md"
-            >
-              {aiParsing ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  <span>Menganalisis...</span>
-                </>
-              ) : (
-                <>
-                  <span>✦ Buat dengan AI</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Prompt Quick Suggestions */}
-          <div className="mt-3.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-zinc-500 mr-1 font-medium">Contoh cepat:</span>
-            {SUGGESTED_PROMPTS.map((promptText, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setAiPrompt(promptText);
-                  handleAiSubmit(promptText);
-                }}
-                disabled={aiParsing}
-                className={`rounded-full px-2.5 py-1 border transition text-left cursor-pointer ${
-                  isDark
-                    ? "bg-zinc-800/40 border-zinc-700/60 text-zinc-400 hover:text-zinc-200 hover:border-emerald-500/50"
-                    : "bg-zinc-100 border-zinc-200 text-zinc-600 hover:text-black hover:border-emerald-500"
-                }`}
-              >
-                &ldquo;{promptText}&rdquo;
-              </button>
-            ))}
-          </div>
-
-          {/* AI Parsing Error */}
-          {aiError && (
-            <div className="mt-3 p-3 rounded-xl bg-red-950/30 border border-red-800/50 text-red-300 text-xs flex items-center justify-between">
-              <span>{aiError}</span>
-              <button onClick={() => setAiError(null)} className="ml-2 font-bold hover:underline">
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* ─── Confirmation Card / AI Clarification Modal ───────────────── */}
-          {pendingSchedule && (
-            <div
-              className={`mt-5 rounded-2xl border p-5 transition-all animate-fadeIn ${
-                isDark ? "bg-[#18181d] border-emerald-500/30" : "bg-emerald-50/50 border-emerald-300"
+              onClick={() => setShowAuthModal(true)}
+              className={`shrink-0 ml-3 text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-700 bg-zinc-800 text-white hover:bg-zinc-700"
+                  : "border-zinc-300 bg-white text-black hover:bg-zinc-100"
               }`}
             >
-              <div className="flex items-center justify-between border-b pb-3 mb-4 border-zinc-700/40">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <h3 className="text-sm font-bold text-emerald-400">
-                    {clarificationQuestion ? "Pertanyaan Klarifikasi Jadwal" : "Konfirmasi Jadwal Baru"}
-                  </h3>
-                </div>
-                <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 font-medium">
-                  AI Parsed
-                </span>
-              </div>
-
-              {clarificationQuestion ? (
-                <div className="space-y-3 mb-4">
-                  <p className="text-xs sm:text-sm font-medium text-amber-300 bg-amber-950/30 p-3 rounded-xl border border-amber-800/50">
-                    💡 {clarificationQuestion}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="text-zinc-400 block mb-1">Tanggal Kegiatan:</label>
-                      <input
-                        type="date"
-                        value={pendingSchedule.date || getTodayDateString()}
-                        onChange={(e) => setPendingSchedule({ ...pendingSchedule, date: e.target.value })}
-                        className={`w-full rounded-xl border p-2 ${
-                          isDark ? "bg-zinc-900 border-zinc-700 text-white" : "bg-white border-zinc-300"
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-zinc-400 block mb-1">Waktu / Jam (24-jam):</label>
-                      <input
-                        type="time"
-                        value={pendingSchedule.time || "09:00"}
-                        onChange={(e) => setPendingSchedule({ ...pendingSchedule, time: e.target.value })}
-                        className={`w-full rounded-xl border p-2 ${
-                          isDark ? "bg-zinc-900 border-zinc-700 text-white" : "bg-white border-zinc-300"
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Preview Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                <div className="p-2.5 rounded-xl bg-black/20 border border-zinc-700/30">
-                  <div className="text-zinc-400 text-[10px] uppercase font-semibold">Judul Jadwal</div>
-                  <div className="font-semibold text-sm mt-0.5 truncate text-white">{pendingSchedule.title}</div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-black/20 border border-zinc-700/30">
-                  <div className="text-zinc-400 text-[10px] uppercase font-semibold">Tanggal & Waktu</div>
-                  <div className="font-semibold text-sm mt-0.5 text-emerald-400">
-                    {pendingSchedule.date ? formatScheduleDate(pendingSchedule.date) : "Hari Ini"} ·{" "}
-                    {pendingSchedule.time || "09:00"}
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-black/20 border border-zinc-700/30">
-                  <div className="text-zinc-400 text-[10px] uppercase font-semibold">Durasi & Pengingat</div>
-                  <div className="font-medium text-xs mt-0.5 text-zinc-300">
-                    Durasi: {formatDuration(pendingSchedule.duration || 60)} <br />
-                    Reminder: {formatReminderText(pendingSchedule.reminder ?? 15)}
-                  </div>
-                </div>
-              </div>
-
-              {pendingSchedule.description && (
-                <div className="mt-3 p-2.5 rounded-xl bg-black/20 border border-zinc-700/30 text-xs">
-                  <span className="text-zinc-400 text-[10px] uppercase font-semibold block mb-0.5">Catatan</span>
-                  <span className="text-zinc-300">{pendingSchedule.description}</span>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="mt-4 flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingSchedule(null);
-                    setClarificationQuestion(null);
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer border ${
-                    isDark
-                      ? "border-zinc-700 hover:bg-zinc-800 text-zinc-300"
-                      : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmPendingSchedule}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition hover:scale-[1.02] cursor-pointer flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Schedule</span>
-                </button>
-              </div>
-            </div>
+              Masuk
+            </button>
           )}
-        </section>
+        </div>
+      )}
 
-        {/* ─── 2. Controls & Filter Bar ────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-          {/* Filter Status Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
-            {(
-              [
-                { id: "all", label: "Semua", count: schedules.length },
-                { id: "today", label: "Hari Ini", count: grouped.today.length },
-                { id: "upcoming", label: "Akan Datang", count: grouped.upcoming.length },
-                { id: "completed", label: "Selesai", count: grouped.completed.length },
-                { id: "cancelled", label: "Dibatalkan", count: grouped.cancelled.length },
-              ] as const
-            ).map((tab) => {
-              const active = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setStatusFilter(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition cursor-pointer ${
-                    active
-                      ? isDark
-                        ? "bg-emerald-600 text-white font-semibold shadow-xs"
-                        : "bg-emerald-600 text-white font-semibold shadow-xs"
-                      : isDark
-                      ? "hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-200"
-                      : "hover:bg-zinc-200 text-zinc-600 hover:text-black"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      active
-                        ? "bg-white/20 text-white"
-                        : isDark
-                        ? "bg-zinc-800 text-zinc-400"
-                        : "bg-zinc-200 text-zinc-600"
+      {/* ─── TAB 1: AI CHAT INTERFACE ──────────────────────────────────────── */}
+      {currentTab === "chat" && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          {/* Scrollable Chat Messages Feed */}
+          <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-6 space-y-5">
+            <div className="max-w-3xl mx-auto w-full space-y-5">
+              {chatMessages.map((msg) => {
+                const isUser = msg.role === "user";
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex gap-2.5 sm:gap-3.5 ${
+                      isUser ? "justify-end" : "justify-start"
+                    } animate-in fade-in-0 duration-200`}
+                  >
+                    {/* Assistant Star Avatar */}
+                    {!isUser && (
+                      <div
+                        className={`relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl shadow-xs ${
+                          isDark ? "bg-white text-black" : "bg-black text-white"
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Message Body */}
+                    <div
+                      className={`relative max-w-[90%] sm:max-w-[82%] rounded-2xl p-3.5 sm:p-4 text-[13.5px] sm:text-sm ${
+                        isUser
+                          ? isDark
+                            ? "bg-zinc-800 border border-zinc-700 text-white rounded-tr-xs"
+                            : "bg-black text-white rounded-tr-xs"
+                          : isDark
+                          ? "bg-[#18181c] border border-zinc-800 text-zinc-100 rounded-tl-xs"
+                          : "bg-zinc-100/90 border border-zinc-200 text-zinc-900 rounded-tl-xs"
+                      }`}
+                    >
+                      {msg.content && (
+                        <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      )}
+
+                      {/* ── Inline Schedule Confirmation Card ── */}
+                      {msg.pendingSchedule && (
+                        <div
+                          className={`mt-3.5 rounded-2xl border p-4 space-y-3 ${
+                            isDark
+                              ? "bg-zinc-900/90 border-zinc-700/80 text-white"
+                              : "bg-white border-zinc-300 text-zinc-900 shadow-xs"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between border-b pb-2.5 border-zinc-700/40">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                              Detail Jadwal
+                            </span>
+                            {msg.isConfirmed ? (
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                                  isDark
+                                    ? "bg-zinc-800 text-white border-zinc-600"
+                                    : "bg-zinc-100 text-black border-zinc-300"
+                                }`}
+                              >
+                                ✓ Sudah Dijadwalkan
+                              </span>
+                            ) : (
+                              <span
+                                className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                                  isDark
+                                    ? "bg-zinc-800/80 text-zinc-300 border-zinc-700"
+                                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                                }`}
+                              >
+                                Menunggu Konfirmasi
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <div className="text-[10px] text-zinc-400 uppercase font-semibold">Judul</div>
+                              <div className="text-sm font-bold">{msg.pendingSchedule.title}</div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div
+                                className={`p-2.5 rounded-xl border ${
+                                  isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
+                                }`}
+                              >
+                                <div className="text-[10px] text-zinc-400 uppercase font-semibold">Waktu</div>
+                                <div className="font-semibold text-xs mt-0.5">
+                                  {msg.pendingSchedule.date
+                                    ? formatScheduleDate(msg.pendingSchedule.date)
+                                    : "Hari Ini"}
+                                </div>
+                                <div className="text-zinc-400 text-[11px]">
+                                  Pukul {formatScheduleTime(msg.pendingSchedule.time || "09:00")} WIB
+                                </div>
+                              </div>
+
+                              <div
+                                className={`p-2.5 rounded-xl border ${
+                                  isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
+                                }`}
+                              >
+                                <div className="text-[10px] text-zinc-400 uppercase font-semibold">
+                                  Durasi & Pengingat
+                                </div>
+                                <div className="font-semibold text-xs mt-0.5">
+                                  {formatDuration(msg.pendingSchedule.duration || 60)}
+                                </div>
+                                <div className="text-zinc-400 text-[11px]">
+                                  ⏰ {formatReminderText(msg.pendingSchedule.reminder ?? 15)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {msg.pendingSchedule.recurrence && msg.pendingSchedule.recurrence !== "once" && (
+                              <div className="text-xs text-zinc-400">
+                                Pengulangan:{" "}
+                                <span className="font-semibold text-zinc-200">
+                                  {formatRecurrence(msg.pendingSchedule.recurrence)}
+                                </span>
+                              </div>
+                            )}
+
+                            {msg.pendingSchedule.description && (
+                              <div className="text-xs text-zinc-400">
+                                Catatan:{" "}
+                                <span className="text-zinc-200">{msg.pendingSchedule.description}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Confirmation Buttons */}
+                          {!msg.isConfirmed ? (
+                            <div className="pt-2 border-t border-zinc-700/40 flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCancelInlineSchedule(msg.id)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                                  isDark
+                                    ? "border-zinc-700 hover:bg-zinc-800 text-zinc-300"
+                                    : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                                }`}
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmInlineSchedule(msg.id, msg.pendingSchedule!)}
+                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer flex items-center gap-1.5 ${
+                                  isDark
+                                    ? "bg-white text-black hover:bg-zinc-200"
+                                    : "bg-black text-white hover:bg-zinc-800"
+                                }`}
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span>Konfirmasi & Jadwalkan</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pt-2 border-t border-zinc-700/40 flex items-center justify-between text-xs text-zinc-400">
+                              <span>✓ Jadwal telah ditambahkan ke agenda</span>
+                              <button
+                                onClick={() => setCurrentTab("list")}
+                                className="font-semibold underline hover:text-white cursor-pointer"
+                              >
+                                Lihat di Daftar Agenda →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-1 text-[10px] text-zinc-500 text-right">{msg.timestamp}</div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Typing indicator */}
+              {isProcessing && (
+                <div className="flex gap-3 justify-start items-center text-xs text-zinc-400 animate-fadeIn">
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+                      isDark ? "bg-white text-black" : "bg-black text-white"
                     }`}
                   >
-                    {tab.count}
-                  </span>
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center gap-2 py-1">
+                    <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
+                    <span>Sedang menganalisis jadwal...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Quick Prompts Pills Carousel above Chat Input */}
+          <div className="shrink-0 px-3.5 sm:px-6 pt-1">
+            <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+              <span className="text-zinc-500 shrink-0 font-medium">Contoh cepat:</span>
+              {SUGGESTED_PROMPTS.map((promptText, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={() => handleSendChatMessage(promptText)}
+                  className={`shrink-0 rounded-full px-2.5 py-1 border transition text-left cursor-pointer ${
+                    isDark
+                      ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                      : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200 hover:text-black"
+                  }`}
+                >
+                  &ldquo;{promptText}&rdquo;
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="relative min-w-[220px]">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari jadwal..."
-              className={`w-full rounded-xl border pl-8 pr-3 py-1.5 text-xs outline-none transition ${
-                isDark
-                  ? "bg-zinc-900 border-zinc-700/80 text-white placeholder-zinc-500 focus:border-emerald-500"
-                  : "bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:border-emerald-600"
-              }`}
-            />
-            <svg
-              className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-        </div>
-
-        {/* ─── 3. Schedule List (Grouped) ──────────────────────────────────── */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-            <svg className="w-6 h-6 animate-spin mb-2" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-            <span className="text-xs">Memuat daftar jadwal...</span>
-          </div>
-        ) : filteredSchedules.length === 0 ? (
+          {/* ─── FLOATING CHAT BOX (Styled exactly like the main chat) ──────── */}
           <div
-            className={`flex flex-col items-center justify-center py-16 px-4 rounded-3xl border border-dashed text-center ${
-              isDark ? "border-zinc-800 bg-zinc-900/30" : "border-zinc-300 bg-zinc-50"
+            className={`shrink-0 w-full z-20 px-3.5 sm:px-6 pt-2 pb-4 ${
+              isDark
+                ? "bg-gradient-to-t from-[#0c0c0e]/95 via-[#0c0c0e]/70 to-transparent"
+                : "bg-gradient-to-t from-white/95 via-white/70 to-transparent"
             }`}
           >
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-3">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <div className="mx-auto max-w-3xl w-full">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendChatMessage();
+                }}
+                className={`relative rounded-2xl sm:rounded-3xl p-2 sm:p-2.5 transition-all border ${
+                  isDark
+                    ? "bg-[#16161b] border-zinc-800 shadow-2xl shadow-black/80"
+                    : "bg-white border-zinc-200 shadow-xl shadow-zinc-900/10"
+                }`}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={inputMessage}
+                    onChange={(e) => {
+                      setInputMessage(e.target.value);
+                      autoResizeTextarea();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendChatMessage();
+                      }
+                    }}
+                    placeholder="Ketik apa yang ingin Anda jadwalkan (misal: Besok jam 9 pagi meeting tim)..."
+                    disabled={isProcessing}
+                    className={`flex-1 bg-transparent px-3 py-1.5 text-xs sm:text-sm focus:outline-none resize-none leading-relaxed ${
+                      isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-400 font-normal"
+                    }`}
+                    style={{ maxHeight: "120px" }}
+                  />
+
+                  {/* Send Button */}
+                  <button
+                    type="submit"
+                    disabled={isProcessing || !inputMessage.trim()}
+                    className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 transition shadow-xs cursor-pointer disabled:opacity-30 ${
+                      isDark
+                        ? "bg-white text-black hover:bg-zinc-200"
+                        : "bg-black text-white hover:bg-zinc-800"
+                    }`}
+                    title="Kirim pesan jadwal"
+                  >
+                    {isProcessing ? (
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 2: DAFTAR AGENDA (LIST & FILTERS) ─────────────────────────── */}
+      {currentTab === "list" && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-4 sm:px-8 py-6 space-y-6">
+          {/* Controls & Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+              {(
+                [
+                  { id: "all", label: "Semua", count: schedules.length },
+                  { id: "today", label: "Hari Ini", count: grouped.today.length },
+                  { id: "upcoming", label: "Akan Datang", count: grouped.upcoming.length },
+                  { id: "completed", label: "Selesai", count: grouped.completed.length },
+                  { id: "cancelled", label: "Dibatalkan", count: grouped.cancelled.length },
+                ] as const
+              ).map((tab) => {
+                const active = statusFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusFilter(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                      active
+                        ? isDark
+                          ? "bg-white text-black font-semibold shadow-xs"
+                          : "bg-black text-white font-semibold shadow-xs"
+                        : isDark
+                        ? "hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+                        : "hover:bg-zinc-200 text-zinc-600 hover:text-black"
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        active
+                          ? isDark
+                            ? "bg-black/20 text-black"
+                            : "bg-white/20 text-white"
+                          : isDark
+                          ? "bg-zinc-800 text-zinc-400"
+                          : "bg-zinc-200 text-zinc-600"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search Box */}
+            <div className="relative min-w-[220px]">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari agenda atau catatan..."
+                className={`w-full rounded-xl border pl-8 pr-3 py-1.5 text-xs outline-none transition ${
+                  isDark
+                    ? "bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600"
+                    : "bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400"
+                }`}
+              />
+              <svg
+                className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <h3 className="text-sm font-semibold mb-1">Belum ada agenda di sini</h3>
-            <p className="text-xs text-zinc-400 max-w-sm mb-4">
-              Tulis di kolom AI di atas (misal &ldquo;Besok jam 9 pagi meeting&rdquo;) atau klik tombol &ldquo;+ New Schedule&rdquo; untuk membuat jadwal manual.
-            </p>
-            <button
-              onClick={openNewScheduleModal}
-              className="text-xs font-semibold px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs"
+          </div>
+
+          {/* List Content */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
+              <svg className="w-6 h-6 animate-spin mb-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <span className="text-xs">Memuat daftar jadwal...</span>
+            </div>
+          ) : filteredSchedules.length === 0 ? (
+            <div
+              className={`flex flex-col items-center justify-center py-16 px-4 rounded-3xl border border-dashed text-center ${
+                isDark ? "border-zinc-800 bg-zinc-900/30" : "border-zinc-300 bg-zinc-50"
+              }`}
             >
-              + Buat Jadwal Baru
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Group: HARI INI */}
-            {grouped.today.length > 0 && (
-              <ScheduleSection
-                title="Hari Ini"
-                iconColor="text-emerald-500"
-                items={grouped.today}
-                isDark={isDark}
-                onSelect={setSelectedItem}
-                onEdit={openEditScheduleModal}
-                onDelete={handleDeleteSchedule}
-                onToggleComplete={(item) =>
-                  handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
-                }
-              />
-            )}
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${
+                  isDark ? "bg-zinc-800 text-white" : "bg-zinc-200 text-black"
+                }`}
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-semibold mb-1">Belum ada agenda di sini</h3>
+              <p className="text-xs text-zinc-400 max-w-sm mb-4">
+                Ketik langsung di tab <strong>AI Chat</strong> atau klik tombol &ldquo;+ New Schedule&rdquo; untuk membuat jadwal secara manual.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentTab("chat")}
+                  className={`text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer ${
+                    isDark ? "bg-zinc-800 text-white hover:bg-zinc-700" : "bg-zinc-200 text-black hover:bg-zinc-300"
+                  }`}
+                >
+                  Buka AI Chat
+                </button>
+                <button
+                  onClick={openNewScheduleModal}
+                  className={`text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer shadow-xs ${
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  + Buat Manual
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {grouped.today.length > 0 && (
+                <ScheduleSection
+                  title="Hari Ini"
+                  items={grouped.today}
+                  isDark={isDark}
+                  onSelect={setSelectedItem}
+                  onEdit={openEditScheduleModal}
+                  onDelete={handleDeleteSchedule}
+                  onToggleComplete={(item) =>
+                    handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                />
+              )}
 
-            {/* Group: AKAN DATANG */}
-            {grouped.upcoming.length > 0 && (
-              <ScheduleSection
-                title="Akan Datang"
-                iconColor="text-blue-500"
-                items={grouped.upcoming}
-                isDark={isDark}
-                onSelect={setSelectedItem}
-                onEdit={openEditScheduleModal}
-                onDelete={handleDeleteSchedule}
-                onToggleComplete={(item) =>
-                  handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
-                }
-              />
-            )}
+              {grouped.upcoming.length > 0 && (
+                <ScheduleSection
+                  title="Akan Datang"
+                  items={grouped.upcoming}
+                  isDark={isDark}
+                  onSelect={setSelectedItem}
+                  onEdit={openEditScheduleModal}
+                  onDelete={handleDeleteSchedule}
+                  onToggleComplete={(item) =>
+                    handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                />
+              )}
 
-            {/* Group: SELESAI */}
-            {grouped.completed.length > 0 && (
-              <ScheduleSection
-                title="Selesai / Lewat"
-                iconColor="text-zinc-500"
-                items={grouped.completed}
-                isDark={isDark}
-                onSelect={setSelectedItem}
-                onEdit={openEditScheduleModal}
-                onDelete={handleDeleteSchedule}
-                onToggleComplete={(item) =>
-                  handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
-                }
-              />
-            )}
+              {grouped.completed.length > 0 && (
+                <ScheduleSection
+                  title="Selesai / Riwayat"
+                  items={grouped.completed}
+                  isDark={isDark}
+                  onSelect={setSelectedItem}
+                  onEdit={openEditScheduleModal}
+                  onDelete={handleDeleteSchedule}
+                  onToggleComplete={(item) =>
+                    handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                />
+              )}
 
-            {/* Group: DIBATALKAN */}
-            {grouped.cancelled.length > 0 && (
-              <ScheduleSection
-                title="Dibatalkan"
-                iconColor="text-red-500"
-                items={grouped.cancelled}
-                isDark={isDark}
-                onSelect={setSelectedItem}
-                onEdit={openEditScheduleModal}
-                onDelete={handleDeleteSchedule}
-                onToggleComplete={(item) =>
-                  handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
-                }
-              />
-            )}
-          </div>
-        )}
-      </div>
+              {grouped.cancelled.length > 0 && (
+                <ScheduleSection
+                  title="Dibatalkan"
+                  items={grouped.cancelled}
+                  isDark={isDark}
+                  onSelect={setSelectedItem}
+                  onEdit={openEditScheduleModal}
+                  onDelete={handleDeleteSchedule}
+                  onToggleComplete={(item) =>
+                    handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── 4. Modal: Create / Edit Schedule (Manual) ────────────────────── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fadeIn">
           <div
             className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl transition-all ${
               isDark ? "bg-[#16161b] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
@@ -1057,7 +1291,9 @@ export function ScheduleWorkspace({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition"
+                  className={`px-5 py-2 rounded-xl font-semibold transition shadow-xs ${
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                  }`}
                 >
                   {editingItem ? "Simpan Perubahan" : "Simpan Jadwal"}
                 </button>
@@ -1069,7 +1305,7 @@ export function ScheduleWorkspace({
 
       {/* ─── 5. Modal: Schedule Details & Actions ─────────────────────────── */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fadeIn">
           <div
             className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl transition-all ${
               isDark ? "bg-[#16161b] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
@@ -1079,12 +1315,14 @@ export function ScheduleWorkspace({
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                    className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
                       selectedItem.status === "completed"
-                        ? "bg-zinc-800 text-zinc-400"
+                        ? "bg-zinc-800 text-zinc-400 border-zinc-700"
                         : selectedItem.status === "cancelled"
-                        ? "bg-red-950/60 text-red-400 border border-red-800/40"
-                        : "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40"
+                        ? "bg-zinc-900 text-zinc-500 border-zinc-800 line-through"
+                        : isDark
+                        ? "bg-white text-black border-white"
+                        : "bg-black text-white border-black"
                     }`}
                   >
                     {selectedItem.status === "completed"
@@ -1094,7 +1332,7 @@ export function ScheduleWorkspace({
                       : "Akan Datang"}
                   </span>
                   {selectedItem.recurrence !== "once" && (
-                    <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-950/50 text-blue-300 border border-blue-800/40">
+                    <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full border border-zinc-700 text-zinc-300">
                       {formatRecurrence(selectedItem.recurrence)}
                     </span>
                   )}
@@ -1115,14 +1353,14 @@ export function ScheduleWorkspace({
 
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-2xl bg-black/20 border border-zinc-700/30">
+                <div className="p-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40">
                   <div className="text-zinc-400 text-[10px] uppercase font-semibold">Waktu Pelaksanaan</div>
-                  <div className="font-semibold text-sm mt-1 text-emerald-400">
+                  <div className="font-semibold text-sm mt-1">
                     {formatScheduleDate(selectedItem.date)}
                   </div>
-                  <div className="text-zinc-300 mt-0.5">Pukul {formatScheduleTime(selectedItem.time)} WIB</div>
+                  <div className="text-zinc-400 mt-0.5">Pukul {formatScheduleTime(selectedItem.time)} WIB</div>
                 </div>
-                <div className="p-3 rounded-2xl bg-black/20 border border-zinc-700/30">
+                <div className="p-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40">
                   <div className="text-zinc-400 text-[10px] uppercase font-semibold">Pengingat & Durasi</div>
                   <div className="font-semibold text-zinc-200 mt-1">
                     Durasi: {formatDuration(selectedItem.duration_minutes)}
@@ -1134,27 +1372,27 @@ export function ScheduleWorkspace({
               </div>
 
               {selectedItem.description && (
-                <div className="p-3 rounded-2xl bg-black/20 border border-zinc-700/30">
+                <div className="p-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40">
                   <div className="text-zinc-400 text-[10px] uppercase font-semibold mb-1">Catatan Tambahan</div>
                   <p className="text-zinc-200 whitespace-pre-wrap leading-relaxed">{selectedItem.description}</p>
                 </div>
               )}
 
-              {/* Status Email Reminder Notification */}
+              {/* Status Email Reminder */}
               <div
                 className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
-                  isDark ? "bg-zinc-900/60 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+                  isDark ? "bg-zinc-900/80 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
                 }`}
               >
                 <div>
                   <div className="font-semibold text-[11px] text-zinc-400 uppercase">Status Pengingat Email:</div>
                   <div className="text-xs font-medium mt-0.5">
                     {selectedItem.reminder_status === "sent" ? (
-                      <span className="text-emerald-400">✓ Sudah Terkirim ke Email</span>
+                      <span className="text-white font-semibold">✓ Terkirim ke Email</span>
                     ) : selectedItem.reminder_status === "failed" ? (
-                      <span className="text-red-400">✕ Gagal Terkirim</span>
+                      <span className="text-zinc-400">✕ Gagal Terkirim</span>
                     ) : (
-                      <span className="text-amber-400">⏳ Menunggu Jadwal (Pending)</span>
+                      <span className="text-zinc-300">⏳ Terjadwal (Menunggu waktu)</span>
                     )}
                   </div>
                 </div>
@@ -1163,7 +1401,11 @@ export function ScheduleWorkspace({
                   type="button"
                   disabled={testingEmail}
                   onClick={() => handleTestEmailReminder(selectedItem)}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-[11px] transition cursor-pointer border border-zinc-700 disabled:opacity-50"
+                  className={`px-3 py-1.5 rounded-xl font-medium text-[11px] transition cursor-pointer border disabled:opacity-50 ${
+                    isDark
+                      ? "bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
+                      : "bg-zinc-100 hover:bg-zinc-200 text-black border-zinc-300"
+                  }`}
                 >
                   {testingEmail ? "Mengirim..." : "Kirim Tes Email"}
                 </button>
@@ -1171,10 +1413,8 @@ export function ScheduleWorkspace({
 
               {emailStatusMsg && (
                 <div
-                  className={`p-2.5 rounded-xl text-xs font-medium ${
-                    emailStatusMsg.type === "success"
-                      ? "bg-emerald-950/40 text-emerald-300 border border-emerald-800/40"
-                      : "bg-red-950/40 text-red-300 border border-red-800/40"
+                  className={`p-2.5 rounded-xl text-xs font-medium border ${
+                    isDark ? "bg-zinc-800 text-white border-zinc-700" : "bg-zinc-100 text-black border-zinc-300"
                   }`}
                 >
                   {emailStatusMsg.text}
@@ -1194,7 +1434,7 @@ export function ScheduleWorkspace({
                   <button
                     type="button"
                     onClick={() => handleDeleteSchedule(selectedItem)}
-                    className="px-3.5 py-1.5 rounded-xl border border-red-900/50 hover:bg-red-950/50 text-red-400 font-semibold transition"
+                    className="px-3.5 py-1.5 rounded-xl border border-zinc-700 hover:bg-zinc-800 text-zinc-400 hover:text-white font-semibold transition"
                   >
                     Hapus
                   </button>
@@ -1219,10 +1459,12 @@ export function ScheduleWorkspace({
                         selectedItem.status === "completed" ? "upcoming" : "completed"
                       )
                     }
-                    className={`px-4 py-1.5 rounded-xl font-semibold text-white shadow-xs transition ${
+                    className={`px-4 py-1.5 rounded-xl font-semibold shadow-xs transition ${
                       selectedItem.status === "completed"
-                        ? "bg-zinc-700 hover:bg-zinc-600"
-                        : "bg-emerald-600 hover:bg-emerald-500"
+                        ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                        : isDark
+                        ? "bg-white text-black hover:bg-zinc-200"
+                        : "bg-black text-white hover:bg-zinc-800"
                     }`}
                   >
                     {selectedItem.status === "completed" ? "Tandai Belum Selesai" : "Tandai Selesai ✓"}
@@ -1237,10 +1479,9 @@ export function ScheduleWorkspace({
   );
 }
 
-// ─── Sub-component: Section Group for Schedules ──────────────────────────────
+// ─── Sub-component: Section Group for Schedules (Monochrome Clean) ───────────
 function ScheduleSection({
   title,
-  iconColor,
   items,
   isDark,
   onSelect,
@@ -1249,7 +1490,6 @@ function ScheduleSection({
   onToggleComplete,
 }: {
   title: string;
-  iconColor: string;
   items: ScheduleItem[];
   isDark: boolean;
   onSelect: (item: ScheduleItem) => void;
@@ -1260,7 +1500,7 @@ function ScheduleSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 px-1">
-        <span className={`text-xs font-bold uppercase tracking-wider ${iconColor}`}>●</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">●</span>
         <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-400">
           {title} ({items.length})
         </h2>
@@ -1275,21 +1515,23 @@ function ScheduleSection({
             <div
               key={item.id}
               onClick={() => onSelect(item)}
-              className={`group relative rounded-2xl border p-4 transition-all duration-200 cursor-pointer hover:scale-[1.01] hover:shadow-lg ${
+              className={`group relative rounded-2xl border p-4 transition-all duration-200 cursor-pointer hover:scale-[1.01] hover:shadow-md ${
                 isDark
                   ? "bg-[#141418] hover:bg-[#18181e] border-zinc-800/80 hover:border-zinc-700"
-                  : "bg-white hover:bg-zinc-50/90 border-zinc-200 hover:border-zinc-300"
-              } ${isDone ? "opacity-70" : ""}`}
+                  : "bg-white hover:bg-zinc-50 border-zinc-200 hover:border-zinc-300"
+              } ${isDone ? "opacity-60" : ""}`}
             >
               {/* Header Card: Jam & Status */}
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span
-                  className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
                     isDone
-                      ? "bg-zinc-800 text-zinc-400 line-through"
+                      ? "bg-zinc-800 text-zinc-400 border-zinc-700 line-through"
                       : isCancelled
-                      ? "bg-red-950/50 text-red-400"
-                      : "bg-emerald-950/60 text-emerald-400 border border-emerald-800/30"
+                      ? "bg-zinc-900 text-zinc-500 border-zinc-800 line-through"
+                      : isDark
+                      ? "bg-zinc-800 text-white border-zinc-700"
+                      : "bg-zinc-100 text-black border-zinc-300"
                   }`}
                 >
                   {formatScheduleTime(item.time)} WIB
@@ -1297,14 +1539,14 @@ function ScheduleSection({
 
                 <div className="flex items-center gap-1.5">
                   {item.recurrence !== "once" && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-950/50 text-blue-300 border border-blue-800/30">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md border border-zinc-700 text-zinc-300">
                       {formatRecurrence(item.recurrence)}
                     </span>
                   )}
                   {item.reminder_minutes > 0 && (
                     <span
                       title={`Pengingat ${formatReminderText(item.reminder_minutes)}`}
-                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300"
+                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60"
                     >
                       🔔 {item.reminder_minutes}m
                     </span>
@@ -1332,7 +1574,7 @@ function ScheduleSection({
                 <span className="truncate">{formatScheduleDate(item.date)}</span>
 
                 <div
-                  className="flex items-center gap-1.5 opacity-90 group-hover:opacity-100"
+                  className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -1341,8 +1583,10 @@ function ScheduleSection({
                     title={isDone ? "Tandai belum selesai" : "Tandai selesai"}
                     className={`p-1.5 rounded-lg border transition ${
                       isDone
-                        ? "border-emerald-600 bg-emerald-600 text-white"
-                        : "border-zinc-700 hover:border-emerald-500 hover:text-emerald-400"
+                        ? isDark
+                          ? "border-zinc-600 bg-zinc-700 text-white"
+                          : "border-black bg-black text-white"
+                        : "border-zinc-700 hover:border-zinc-500 hover:text-white"
                     }`}
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1365,7 +1609,7 @@ function ScheduleSection({
                     type="button"
                     onClick={() => onDelete(item)}
                     title="Hapus jadwal"
-                    className="p-1.5 rounded-lg border border-zinc-700/60 hover:bg-red-950/60 hover:text-red-400 transition"
+                    className="p-1.5 rounded-lg border border-zinc-700/60 hover:bg-zinc-800 hover:text-white transition"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
