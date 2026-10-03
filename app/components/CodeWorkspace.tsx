@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
 
 export type TaskStatus =
@@ -258,6 +258,7 @@ export type ProjectItem = {
   tasks: ProjectTask[];
   qualityGate?: QualityGateResult;
   traceabilityMatrix?: TraceabilityRow[];
+  generatedHtml?: string;
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -1741,7 +1742,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   });
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("mindmap");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "preview">("mindmap");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -1894,6 +1895,15 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     if (!project.tasks || project.tasks.length === 0) return 0;
     const completed = project.tasks.filter((t) => t.status === "done").length;
     return Math.round((completed / project.tasks.length) * 100);
+  };
+
+  const handleUpdateProjectHtml = (html: string) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId ? { ...p, generatedHtml: html } : p
+      )
+    );
   };
 
   // ── Universal Project Type Detection & Adaptive Discovery Questions (V4 Master Brief) ──
@@ -5394,6 +5404,22 @@ ${(() => {
               </svg>
               <span className="hidden md:inline">Tasks</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab("preview")}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === "preview"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+              }`}
+              title="Quick HTML Preview"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>Preview</span>
+            </button>
           </div>
 
           {/* Primary CTA: Export Dropdown (Replaces Lanjutkan Proyek) */}
@@ -7433,6 +7459,26 @@ ${(() => {
       </div>
     )}
 
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {/* TAB 6: QUICK HTML PREVIEW (PRD — Quick HTML Preview)                       */}
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {activeTab === "preview" && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {activeProject ? (
+            <QuickHtmlPreview
+              project={activeProject}
+              isDark={isDark}
+              onUpdateHtml={handleUpdateProjectHtml}
+              onSwitchToChat={() => setActiveTab("chat")}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-zinc-400 text-sm">
+              Pilih proyek terlebih dahulu untuk melihat preview.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modal: Tambah Task Manual */}
       {showAddTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -7781,6 +7827,699 @@ function TaskCard({
           <option value="done">Done (Selesai)</option>
           <option value="blocked">Blocked</option>
         </select>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRD — QUICK HTML PREVIEW HELPERS & COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function extractHtmlFromProject(project: ProjectItem): string {
+  if (project.generatedHtml && project.generatedHtml.trim().length > 0) {
+    return project.generatedHtml;
+  }
+  if (project.messages && project.messages.length > 0) {
+    for (let i = project.messages.length - 1; i >= 0; i--) {
+      const msg = project.messages[i];
+      if (msg.role === "assistant" && msg.content) {
+        const htmlBlockRegex = /```html\s*([\s\S]*?)```/i;
+        const match = msg.content.match(htmlBlockRegex);
+        if (match && match[1]?.trim()) {
+          return match[1].trim();
+        }
+        if (msg.content.includes("<!DOCTYPE html>") || (msg.content.includes("<html") && msg.content.includes("</html>"))) {
+          const docMatch = msg.content.match(/<!DOCTYPE html>[\s\S]*?<\/html>/i) || msg.content.match(/<html[\s\S]*?<\/html>/i);
+          if (docMatch && docMatch[0]) {
+            return docMatch[0].trim();
+          }
+        }
+      }
+    }
+  }
+  return "";
+}
+
+export function injectSandboxSecurity(html: string): string {
+  if (!html.trim()) return "";
+  const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https: http:; script-src 'unsafe-inline' https: http:; img-src data: https: http:; font-src https: data:; frame-src 'none';">`;
+  const errorCatcher = `
+<script>
+window.addEventListener('error', function(event) {
+  try {
+    window.parent.postMessage({ type: 'PREVIEW_CONSOLE_ERROR', message: event.message || 'Error occurred in preview iframe' }, '*');
+  } catch (err) {}
+});
+</script>
+`;
+
+  if (html.includes("<head>")) {
+    return html.replace("<head>", `<head>\n  ${cspMeta}\n  ${errorCatcher}`);
+  } else if (html.includes("<html")) {
+    return html.replace(/<html[^>]*>/, `$&<head>\n  ${cspMeta}\n  ${errorCatcher}</head>`);
+  }
+  return `${cspMeta}\n${errorCatcher}\n${html}`;
+}
+
+export function generateStarterPrototypeHtml(project: ProjectItem): string {
+  const title = (project.title || "Web Prototype").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const desc = (project.description || "Interactive HTML prototype generated from project blueprint.").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const features = (project.features && project.features.length > 0)
+    ? project.features.slice(0, 6).map((f) => ({
+        id: f.id,
+        name: f.name || "Fitur",
+        description: f.description || "Fitur terintegrasi.",
+      }))
+    : [
+        { id: "FEAT-1", name: "Beranda & Navigasi", description: "Tampilan utama dengan navigasi responsif dan pencarian." },
+        { id: "FEAT-2", name: "Katalog & Konten", description: "Daftar konten dinamis dengan filter dan pagination." },
+        { id: "FEAT-3", name: "Panel Interaktif", description: "Aksi user real-time dengan status feedback." },
+      ];
+
+  const featureCards = features.map((f, i) => `
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition">
+          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center font-mono font-bold text-sm text-zinc-300 mb-4">
+            0${i + 1}
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">${f.name.replace(/"/g, '&quot;')}</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed">${(f.description || "Fitur terintegrasi.").replace(/"/g, '&quot;')}</p>
+        </div>
+  `).join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+  <!-- Navigation Bar -->
+  <header class="border-b border-zinc-800/80 bg-zinc-950/80 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-sm">
+          ${title.charAt(0).toUpperCase()}
+        </div>
+        <span class="font-bold tracking-tight text-white text-sm sm:text-base">${title}</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-400 font-medium">
+        <a href="#features" class="hover:text-white transition">Fitur</a>
+        <a href="#interactive" class="hover:text-white transition">Demo Interaktif</a>
+        <a href="#about" class="hover:text-white transition">Tentang</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <button id="cta-btn" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition">
+          Mulai Sekarang
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1">
+    <section class="max-w-6xl mx-auto px-6 py-16 sm:py-24 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/60 text-[11px] font-mono text-zinc-300 mb-6">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Live Prototype Sandbox · V4 Engine
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white max-w-3xl mx-auto leading-tight">
+        ${title}
+      </h1>
+      <p class="text-zinc-400 text-sm sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+        ${desc}
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <a href="#interactive" class="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition shadow-sm">
+          Coba Demo Interaktif
+        </a>
+        <a href="#features" class="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-semibold transition">
+          Jelajahi Fitur
+        </a>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="border-t border-zinc-800/80 bg-zinc-950/40 py-16">
+      <div class="max-w-6xl mx-auto px-6">
+        <div class="text-center mb-12">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Komponen & Arsitektur Fitur</h2>
+          <p class="text-xs text-zinc-400 mt-2">Daftar kapabilitas utama yang diturunkan dari blueprint proyek.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+${featureCards}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Sandbox Section -->
+    <section id="interactive" class="py-16">
+      <div class="max-w-4xl mx-auto px-6">
+        <div class="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 backdrop-blur-xs">
+          <div class="flex items-center justify-between pb-4 mb-6 border-b border-zinc-800">
+            <div>
+              <h3 class="text-base font-bold text-white">Live Prototype State Test</h3>
+              <p class="text-xs text-zinc-400">Uji interaksi JavaScript murni di dalam isolasi sandbox.</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[10px] font-mono text-zinc-300">Sandbox OK</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <label class="text-xs font-bold text-zinc-300 block mb-2">Simulasi Input / Interaksi</label>
+              <input id="sample-input" type="text" placeholder="Ketik sesuatu..." class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+              <button id="add-btn" class="mt-3 w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition">
+                Simpan Item Simulasi
+              </button>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-zinc-300">Daftar Data (<span id="count">0</span>)</span>
+                <button id="clear-btn" class="text-[10px] text-zinc-400 hover:text-white transition">Bersihkan</button>
+              </div>
+              <ul id="item-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
+                <li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada data ditambahkan.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer id="about" class="border-t border-zinc-800/80 py-8 bg-black text-center text-xs text-zinc-500">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p>© ${new Date().getFullYear()} ${title} · Generated with Antigravity AI Engine</p>
+      <div class="flex items-center gap-4 text-zinc-400">
+        <span>Self-contained</span>
+        <span>•</span>
+        <span>No Server Required</span>
+        <span>•</span>
+        <span>Zero Dependency</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const input = document.getElementById('sample-input');
+    const addBtn = document.getElementById('add-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const list = document.getElementById('item-list');
+    const countEl = document.getElementById('count');
+    const ctaBtn = document.getElementById('cta-btn');
+    let items = [];
+
+    function renderItems() {
+      countEl.textContent = items.length;
+      if (items.length === 0) {
+        list.innerHTML = '<li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada data ditambahkan.</li>';
+        return;
+      }
+      list.innerHTML = items.map((it, idx) => \`
+        <li class="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs animate-fadeIn">
+          <span>\${it}</span>
+          <span class="text-[10px] text-zinc-500 font-mono">#\${idx + 1}</span>
+        </li>
+      \`).join('');
+    }
+
+    addBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      if (!val) return;
+      items.push(val);
+      input.value = '';
+      renderItems();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addBtn.click();
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      items = [];
+      renderItems();
+    });
+
+    ctaBtn.addEventListener('click', () => {
+      alert('Prototype siap! Anda dapat mengedit HTML langsung pada tab Code.');
+    });
+  </script>
+</body>
+</html>`;
+}
+
+export type PreviewDevice = "desktop" | "tablet" | "mobile" | "responsive";
+
+export interface DevicePreset {
+  width: number | string;
+  height: number | string;
+  label: string;
+}
+
+export const DEVICE_PRESETS: Record<PreviewDevice, DevicePreset> = {
+  desktop: { width: 1440, height: 900, label: "Desktop (1440 × 900)" },
+  tablet: { width: 768, height: 1024, label: "Tablet (768 × 1024)" },
+  mobile: { width: 390, height: 844, label: "Mobile (390 × 844)" },
+  responsive: { width: "100%", height: "100%", label: "Responsive (100%)" },
+};
+
+export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
+
+export function QuickHtmlPreview({
+  project,
+  isDark,
+  onUpdateHtml,
+  onSwitchToChat,
+}: {
+  project: ProjectItem;
+  isDark: boolean;
+  onUpdateHtml: (html: string) => void;
+  onSwitchToChat: () => void;
+}) {
+  const [rawHtml, setRawHtml] = useState<string>(() => extractHtmlFromProject(project));
+  const [debouncedHtml, setDebouncedHtml] = useState<string>(() => extractHtmlFromProject(project));
+  const [viewMode, setViewMode] = useState<"preview" | "code" | "split">("preview");
+  const [device, setDevice] = useState<PreviewDevice>("desktop");
+  const [zoom, setZoom] = useState<number>(100);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync with project if external html changes
+  useEffect(() => {
+    const extracted = extractHtmlFromProject(project);
+    if (extracted && extracted !== rawHtml && !rawHtml.trim()) {
+      setRawHtml(extracted);
+      setDebouncedHtml(extracted);
+    }
+  }, [project.id, project.generatedHtml]);
+
+  // Debounced live update (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedHtml(rawHtml);
+      if (rawHtml !== project.generatedHtml) {
+        onUpdateHtml(rawHtml);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [rawHtml]);
+
+  // Listen to sandbox runtime errors
+  useEffect(() => {
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data && e.data.type === "PREVIEW_CONSOLE_ERROR") {
+        setPreviewError(e.data.message || "Runtime error inside preview sandbox");
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => window.removeEventListener("message", handleMsg);
+  }, []);
+
+  const handleCopy = () => {
+    if (!rawHtml) return;
+    navigator.clipboard.writeText(rawHtml);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    if (!rawHtml) return;
+    const blob = new Blob([rawHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(project.title || "prototype").toLowerCase().replace(/[^a-z0-9]/g, "-")}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleGeneratePrototype = () => {
+    const starter = generateStarterPrototypeHtml(project);
+    setRawHtml(starter);
+    setDebouncedHtml(starter);
+    onUpdateHtml(starter);
+    setPreviewError(null);
+  };
+
+  const securedHtml = useMemo(() => {
+    return injectSandboxSecurity(debouncedHtml);
+  }, [debouncedHtml]);
+
+  const currentPreset = DEVICE_PRESETS[device];
+  const hasHtml = Boolean(debouncedHtml.trim());
+
+  return (
+    <div
+      ref={containerRef}
+      className={`flex-1 flex flex-col min-h-0 overflow-hidden relative ${
+        isFullscreen ? "fixed inset-0 z-50 bg-black" : ""
+      } ${isDark ? "bg-[#090d16] text-zinc-100" : "bg-zinc-50 text-zinc-900"}`}
+    >
+      {/* ── Toolbar ── */}
+      <div className={`px-4 sm:px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-2.5 shrink-0 select-none ${
+        isDark ? "border-zinc-800 bg-zinc-950/90" : "border-zinc-200 bg-white"
+      }`}>
+        {/* Left: View Mode Toggle & Device Selector */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Mode Switcher */}
+          <div className={`flex items-center p-0.5 rounded-xl border ${
+            isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
+          }`}>
+            <button
+              onClick={() => setViewMode("preview")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === "preview"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>Preview</span>
+            </button>
+            <button
+              onClick={() => setViewMode("code")}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === "code"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span>Code</span>
+            </button>
+            <button
+              onClick={() => setViewMode("split")}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === "split"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                  : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4v16m6-16v16M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" />
+              </svg>
+              <span>Split</span>
+            </button>
+          </div>
+
+          {/* Device Selector (Active only when preview is visible) */}
+          {viewMode !== "code" && (
+            <div className={`hidden md:flex items-center p-0.5 rounded-xl border ${
+              isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
+            }`}>
+              {(["desktop", "tablet", "mobile", "responsive"] as PreviewDevice[]).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDevice(d)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer capitalize ${
+                    device === d
+                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
+                  title={DEVICE_PRESETS[d].label}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Zoom, Refresh, Fullscreen & Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          {/* Zoom Selector (Only in preview/split) */}
+          {viewMode !== "code" && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-zinc-400 font-mono hidden lg:inline">Zoom:</span>
+              <select
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className={`text-xs px-2 py-1 rounded-lg border font-mono outline-none cursor-pointer ${
+                  isDark ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-300 text-zinc-800"
+                }`}
+              >
+                {ZOOM_PRESETS.map((z) => (
+                  <option key={z} value={z}>{z}%</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Refresh Button */}
+          {viewMode !== "code" && (
+            <button
+              onClick={() => {
+                setRefreshKey((k) => k + 1);
+                setPreviewError(null);
+              }}
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+              }`}
+              title="Refresh Preview (↻)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
+
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={() => setIsFullscreen((prev) => !prev)}
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+            }`}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Preview (⛶)"}
+          >
+            {isFullscreen ? (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            )}
+          </button>
+
+          {/* Action: Copy HTML */}
+          {hasHtml && (
+            <button
+              onClick={handleCopy}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+              }`}
+              title="Copy HTML Source"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>{copied ? "Tersalin!" : "Copy"}</span>
+            </button>
+          )}
+
+          {/* Action: Download HTML */}
+          {hasHtml && (
+            <button
+              onClick={handleDownload}
+              className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+              }`}
+              title="Download HTML file"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download</span>
+            </button>
+          )}
+
+          {/* Generate / Re-generate Prototype */}
+          <button
+            onClick={handleGeneratePrototype}
+            className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+            }`}
+            title="Generate prototype HTML from blueprint"
+          >
+            <span>✨ {hasHtml ? "Re-generate" : "Generate"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Error Banner (if runtime notice caught) ── */}
+      {previewError && (
+        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{previewError}</span>
+          </div>
+          <button
+            onClick={() => {
+              setRefreshKey((k) => k + 1);
+              setPreviewError(null);
+            }}
+            className="underline font-bold text-[11px] hover:text-amber-300 cursor-pointer"
+          >
+            Refresh Preview
+          </button>
+        </div>
+      )}
+
+      {/* ── Main Content Area ── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* VIEW: Empty State */}
+        {!hasHtml && viewMode !== "code" ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className={`w-16 h-16 rounded-3xl border flex items-center justify-center mb-4 ${
+              isDark ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-300 text-zinc-600"
+            }`}>
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold mb-1">
+              No HTML to preview. Generate or add HTML code first.
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-md mb-6 leading-relaxed">
+              Quick HTML Preview runs completely in your browser inside an isolated sandbox. You can generate a prototype from your PRD, paste existing code, or generate code through Tanya AI chat.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={handleGeneratePrototype}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                ✨ Generate Starter Prototype from PRD
+              </button>
+              <button
+                onClick={() => setViewMode("code")}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                ✏️ Write or Paste HTML
+              </button>
+              <button
+                onClick={onSwitchToChat}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                💬 Go to Tanya AI (Chat)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* VIEW MODE: CODE EDITOR (in 'code' or 'split') */}
+            {(viewMode === "code" || viewMode === "split") && (
+              <div className={`flex flex-col min-h-0 border-r ${
+                viewMode === "split" ? "w-1/2" : "w-full"
+              } ${isDark ? "border-zinc-800 bg-[#090d16]" : "border-zinc-200 bg-white"}`}>
+                <div className={`px-4 py-2 border-b flex items-center justify-between text-xs font-mono shrink-0 ${
+                  isDark ? "border-zinc-800 text-zinc-400 bg-zinc-950/60" : "border-zinc-200 text-zinc-600 bg-zinc-50"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>HTML / CSS / JS Editor</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px]">
+                    <span>{rawHtml.length} chars</span>
+                    <span>{rawHtml.split("\n").length} lines</span>
+                  </div>
+                </div>
+                <div className="flex-1 relative overflow-hidden">
+                  <textarea
+                    value={rawHtml}
+                    onChange={(e) => setRawHtml(e.target.value)}
+                    placeholder="<!DOCTYPE html><html>... tulis atau tempel kode HTML di sini...</html>"
+                    className={`w-full h-full p-4 font-mono text-xs outline-none resize-none border-none leading-relaxed ${
+                      isDark ? "bg-[#090d16] text-zinc-200 selection:bg-zinc-800" : "bg-white text-zinc-900 selection:bg-zinc-200"
+                    }`}
+                    spellCheck={false}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* VIEW MODE: PREVIEW VIEWPORT (in 'preview' or 'split') */}
+            {(viewMode === "preview" || viewMode === "split") && (
+              <div className={`flex-1 flex flex-col min-h-0 overflow-auto relative items-center justify-start p-2 sm:p-4 ${
+                isDark ? "bg-[#0b0f19]" : "bg-zinc-100"
+              }`}>
+                {/* Device Frame Wrapper */}
+                <div
+                  className={`flex flex-col transition-all duration-300 relative shadow-2xl rounded-2xl overflow-hidden border ${
+                    device === "responsive"
+                      ? "w-full h-full"
+                      : "shrink-0 my-auto"
+                  } ${isDark ? "border-zinc-800 bg-black" : "border-zinc-300 bg-white"}`}
+                  style={
+                    device !== "responsive"
+                      ? {
+                          width: typeof currentPreset.width === "number" ? `${currentPreset.width}px` : currentPreset.width,
+                          height: typeof currentPreset.height === "number" ? `${currentPreset.height}px` : currentPreset.height,
+                          transform: `scale(${zoom / 100})`,
+                          transformOrigin: "top center",
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                        }
+                      : {}
+                  }
+                >
+                  {/* Device Header Bar */}
+                  <div className={`px-4 py-2 border-b flex items-center justify-between text-[11px] font-mono shrink-0 select-none ${
+                    isDark ? "border-zinc-800/80 bg-zinc-950 text-zinc-400" : "border-zinc-200 bg-zinc-50 text-zinc-600"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 inline-block"></span>
+                      </div>
+                      <span className="ml-2 font-bold">{currentPreset.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300">
+                        sandbox="allow-scripts"
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Sandboxed Iframe */}
+                  <div className="flex-1 w-full h-full relative bg-white">
+                    <iframe
+                      key={refreshKey}
+                      srcDoc={securedHtml}
+                      sandbox="allow-scripts"
+                      className="w-full h-full border-none"
+                      title="Quick HTML Preview"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
