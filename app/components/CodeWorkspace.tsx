@@ -1885,7 +1885,7 @@ export function isFeatureSemanticallyCompatible(
   const isAuthReq = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanRText);
   if (isAuthReq) {
     if (isReviewFeat || isNotifFeat || isPaymentFeat) return false;
-    return isAuthFeat;
+    return isAuthReq;
   }
 
   // If requirement is notif:
@@ -1902,21 +1902,32 @@ export function isFeatureSemanticallyCompatible(
     return isPaymentFeat;
   }
 
+  // If requirement is holding lock / transaction concurrency:
+  const isLockOrTxReq = /\b(lock|holding|penguncian|overbooking|race-condition|checkout|transaksi|reservasi|booking)\b/i.test(rText);
+  const isLockOrTxFeat = /\b(lock|holding|penguncian|overbooking|race-condition|checkout|transaksi|reservasi|booking|pemrosesan)\b/i.test(fText);
+  if (isLockOrTxReq) {
+    if (isReviewFeat || isNotifFeat || isAuthFeat) return false;
+    if (isLockOrTxFeat) return true;
+  }
+
   // If requirement is booking:
-  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(rText);
-  const isBookingFeat = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(fText);
+  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b|overbooking/i.test(rText);
+  const isBookingFeat = /\b(booking|reservasi|jadwal|sewa|slot|transaksi|pemrosesan|holding|lock)\b/i.test(fText);
   if (isBookingReq) {
     if (isReviewFeat || isAuthFeat) return false;
     return isBookingFeat;
   }
 
   // If requirement is catalog:
-  const isCatalogReq = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(rText);
-  const isCatalogFeat = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(fText);
+  const isCatalogReq = !r.id.startsWith("NFR-") && /\b(katalog|produk|menu|paket|kiloan|satuan|daftar layanan)\b/i.test(rText);
+  const isCatalogFeat = /\b(katalog|produk|menu|paket|kiloan|satuan|layanan)\b/i.test(fText);
   if (isCatalogReq) {
     if (isReviewFeat || isNotifFeat) return false;
     return isCatalogFeat;
   }
+
+  // Explicit lineage match:
+  if ((f.sourceRequirementIds || []).includes(r.id)) return true;
 
   // Domain token overlap check:
   const score = overlapScore(r.text, fText);
@@ -1933,6 +1944,18 @@ export function isTaskSemanticallyCompatible(
   const tText = [t.title, t.description, ...(t.subtasks || [])].join(" ").toLowerCase();
   const cleanTText = tText.replace(/\bmasukan\b/gi, "");
   const cleanRText = rText.replace(/\bmasukan\b/gi, "");
+
+  // NFR / Technical requirement handling:
+  if (
+    r.id.startsWith("NFR-") ||
+    r.classification === "TECHNICAL_RECOMMENDATION" ||
+    r.classification === "TECHNICAL_DECISION" ||
+    r.classification === "EXPLICIT_NFR"
+  ) {
+    if ((t.sourceRequirementIds || []).includes(r.id) || (t.relatedRequirements || []).includes(r.id)) return true;
+    const isTechOrQaTask = /\b(test|testing|qa|e2e|error|boundary|logging|keamanan|security|performa|arsitektur|hardening|fallback|graceful|reliability|reliabilitas|deploy|monitoring|audit)\b/i.test(tText);
+    if (isTechOrQaTask) return true;
+  }
 
   const isReviewReq = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(rText);
   const isReviewTask = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(tText);
@@ -1968,23 +1991,31 @@ export function isTaskSemanticallyCompatible(
     return isPaymentTask;
   }
 
+  // If requirement is holding lock / transaction concurrency:
+  const isLockOrTxReq = /\b(lock|holding|penguncian|overbooking|race-condition|checkout|transaksi|reservasi|booking)\b/i.test(rText);
+  const isLockOrTxTask = /\b(lock|holding|penguncian|overbooking|race-condition|checkout|transaksi|reservasi|booking|pemesanan)\b/i.test(tText);
+  if (isLockOrTxReq) {
+    if (isReviewTask || isNotifTask || isAuthTask) return false;
+    if (isLockOrTxTask) return true;
+  }
+
   // If requirement is booking:
-  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(rText);
-  const isBookingTask = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(tText);
+  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b|overbooking/i.test(rText);
+  const isBookingTask = /\b(booking|reservasi|jadwal|sewa|slot|pemesanan|holding|lock)\b/i.test(tText);
   if (isBookingReq) {
     if (isReviewTask || isAuthTask) return false;
     return isBookingTask;
   }
 
   // If requirement is catalog:
-  const isCatalogReq = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(rText);
-  const isCatalogTask = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(tText);
+  const isCatalogReq = !r.id.startsWith("NFR-") && /\b(katalog|produk|menu|paket|kiloan|satuan|daftar layanan)\b/i.test(rText);
+  const isCatalogTask = /\b(katalog|produk|menu|paket|kiloan|satuan|layanan)\b/i.test(tText);
   if (isCatalogReq) {
     if (isReviewTask || isNotifTask) return false;
     return isCatalogTask;
   }
 
-  if ((t.sourceRequirementIds || []).includes(r.id)) return true;
+  if ((t.sourceRequirementIds || []).includes(r.id) || (t.relatedRequirements || []).includes(r.id)) return true;
   return overlapScore(r.text, tText) >= 2;
 }
 
@@ -2001,6 +2032,10 @@ export function createSemanticFeatureForRequirement(
     featId = "FEATURE-CUSTOMER-REVIEW-RATING";
     featName = "Customer Review & Rating";
     featDesc = "Modul rating kepuasan pelanggan, form review bintang 1-5, dan catatan masukan feedback ulasan.";
+  } else if (/lock|holding|penguncian|overbooking|race-condition/i.test(rText)) {
+    featId = "FEATURE-TRANSACTION-LOCK";
+    featName = "Transaction Concurrency & Holding Lock Engine";
+    featDesc = "Mekanisme penguncian sementara (temporary holding lock) dan pencegahan overbooking race-condition saat checkout.";
   } else if (/booking|reservasi|jadwal|sewa|slot/i.test(rText)) {
     featId = "FEATURE-BOOKING-MANAGEMENT";
     featName = "Booking & Reservation System";
@@ -2058,7 +2093,7 @@ export function createSemanticFeatureForRequirement(
     relatedRequirements: [r.id],
     subFeatures: [
       `Implementasi antarmuka dan interaksi pengguna untuk ${featName}`,
-      `Validasi logika dan penanganan data untuk ${featName}`,
+      `Validasi logika, holding lock, dan penanganan data untuk ${featName}: ${r.text.slice(0, 80)}`,
     ],
     dependencies: [],
   };
@@ -2251,8 +2286,9 @@ export function analyzeAndOptimizeTasks(
     const userReqsAllText = userReqs.map((r) => r.text).join(" ").toLowerCase();
     const unauthorizedScopeLeaks = lineageItems.filter((x) => {
       if (x.origin !== "USER_REQUIREMENT") return false;
-      const text = lockedFeatures.some((f) => f === x) ? featureText(x as ProjectFeature) : taskText(x as ProjectTask);
-      return unauthorizedKeywords.test(text.toLowerCase()) && !unauthorizedKeywords.test(userReqsAllText);
+      const isFeat = lockedFeatures.some((f) => f === x);
+      const nameOrTitle = isFeat ? ((x as ProjectFeature).name || "").toLowerCase() : ((x as ProjectTask).title || "").toLowerCase();
+      return unauthorizedKeywords.test(nameOrTitle) && !unauthorizedKeywords.test(userReqsAllText);
     });
 
     // Universal V4: Traceability Semantic Mismatch Detection (Section 8 & 9)
@@ -2661,7 +2697,8 @@ export function analyzeAndOptimizeTasks(
     const unauthKeywords = /\b(coupon|kupon|voucher|faq|tanya jawab|live chat|customer support|cs online|avatar upload|unggah avatar|notification history|wishlist|loyalty|poin loyalitas|recommendation engine|ticketing system|whatsapp help)\b/i;
     const userReqsActiveText = registry.filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE").map((r) => r.text).join(" ").toLowerCase();
     lockedFeatures.forEach((f) => {
-      if (f.origin === "USER_REQUIREMENT" && unauthKeywords.test(featureText(f).toLowerCase()) && !unauthKeywords.test(userReqsActiveText)) {
+      const featName = (f.name || "").toLowerCase();
+      if (f.origin === "USER_REQUIREMENT" && unauthKeywords.test(featName) && !unauthKeywords.test(userReqsActiveText)) {
         f.origin = "AI_SUGGESTED";
         f.sourceType = "AI_SUGGESTED";
         f.isMvp = false;
@@ -2671,7 +2708,8 @@ export function analyzeAndOptimizeTasks(
       }
     });
     taskMap.forEach((t) => {
-      if (t.origin === "USER_REQUIREMENT" && unauthKeywords.test(taskText(t).toLowerCase()) && !unauthKeywords.test(userReqsActiveText)) {
+      const taskTitle = (t.title || "").toLowerCase();
+      if (t.origin === "USER_REQUIREMENT" && unauthKeywords.test(taskTitle) && !unauthKeywords.test(userReqsActiveText)) {
         t.origin = "AI_SUGGESTED";
         t.source = "AI_SUGGESTED";
         t.sourceRequirementIds = [];
@@ -4608,6 +4646,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Sistem Autentikasi Terpadu & Manajemen Hak Akses (RBAC)",
           description: `Sistem otentikasi multi-peran tingkat enterprise yang mengisolasi wewenang Customer, Staff, dan Administrator secara ketat untuk ${title}.`,
           priority: "High" as const,
+          sourceRequirementIds: ["FR-01", "FR-02"],
           subFeatures: [
             "Registrasi & Login aman dengan email/password atau login instan Google OAuth",
             "Role-based Access Control (RBAC) middleware untuk proteksi rute halaman privat",
@@ -4622,6 +4661,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Katalog Interaktif, Instant Search & Filter Multi-Kategori",
           description: "Pusat eksplorasi data visual interaktif dengan performa pencarian kilat dan sistem filter kategori berjenjang.",
           priority: "High" as const,
+          sourceRequirementIds: ["FR-03", "FR-04"],
           subFeatures: [
             "Pencarian instan real-time dengan debounce delay 250ms dan pencocokan teks toleran typo",
             "Filter multi-kriteria: kategori utama, rentang harga, rating, dan status ketersediaan live",
@@ -4635,10 +4675,11 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Core Engine Pemrosesan Transaksi & Reservasi Real-Time",
           description: "Mesin transaksi terintegrasi dengan validasi skema ketat Zod dan proteksi bentrok ketersediaan.",
           priority: "High" as const,
+          sourceRequirementIds: ["FR-05", "FR-06"],
           subFeatures: [
             "Formulir transaksi interaktif multi-step dengan validasi integritas data di sisi klien & server",
             "Mekanisme holding lock 15 menit pada database untuk mencegah pemesanan ganda (race-condition)",
-            "Kalkulator otomatis rincian harga, potongan kupon diskon, kalkulasi biaya admin, dan kode unik",
+            "Kalkulator otomatis rincian harga, potongan harga promo, kalkulasi biaya admin, dan kode unik",
             "Penyimpanan draf transaksi otomatis sehingga data pengguna tidak hilang jika koneksi terputus"
           ],
           dependencies: ["Katalog Interaktif", "Autentikasi Pengguna"]
@@ -4648,6 +4689,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Integrasi Gateway Pembayaran Otomatis & Rekonsiliasi Webhook",
           description: "Sistem penerimaan pembayaran digital otomatis multi-channel dengan verifikasi server-to-server.",
           priority: "High" as const,
+          sourceRequirementIds: ["FR-07", "FR-08"],
           subFeatures: [
             "Penerbitan QRIS dinamis otomatis yang langsung dapat dipindai aplikasi mobile banking / e-wallet",
             "Pembuatan nomor Virtual Account (BCA, Mandiri, BRI, BNI, Permata) dengan batas waktu bayar",
@@ -4661,6 +4703,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Pusat Notifikasi Terjadwal & Distribusi Dokumen Digital",
           description: "Modul komunikasi otomatis kepada pengguna untuk update status pesanan dan penerbitan faktur digital.",
           priority: "Medium" as const,
+          sourceRequirementIds: ["FR-09", "FR-10"],
           subFeatures: [
             "Notifikasi konfirmasi sukses dan rincian transaksi otomatis via WhatsApp API (Fonnte/Waba)",
             "Pengiriman email transaksional dengan lampiran bukti pembayaran resmi",
@@ -4674,6 +4717,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Dashboard Pengelola, Visualisasi Analitik & BI",
           description: "Panel kendali terpusat bagi pimpinan dan staf operasional untuk memantau performa harian dan tren bisnis.",
           priority: "High" as const,
+          sourceRequirementIds: ["FR-13", "FR-14"],
           subFeatures: [
             "Visualisasi grafik tren omzet harian, mingguan, dan bulanan berbasis diagram garis & batang",
             "Kartu ringkasan KPI: Total Pendapatan, Transaksi Sukses, Tingkat Konversi, dan Order Pending",
@@ -4687,6 +4731,7 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           name: "Manajemen Data Master (CRUD) & Alokasi Sumber Daya",
           description: "Antarmuka administrasi lengkap untuk menambah, mengubah, menonaktifkan, atau mengarsipkan item dan layanan.",
           priority: "Medium" as const,
+          sourceRequirementIds: ["FR-11", "FR-12"],
           subFeatures: [
             "Modal input/edit data master dengan upload berkas gambar media dan validasi tipe berkas",
             "Manajemen stok atau slot kuota ketersediaan harian secara dinamis",
@@ -4697,13 +4742,13 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
         },
         {
           id: "feat-8",
-          name: "Modul Feedback Pengguna, Ulasan & Customer Support",
-          description: "Fasilitas interaksi purna-jual untuk mengumpulkan ulasan kualitas dan memberikan saluran bantuan pelanggan.",
+          name: "Modul Feedback Pengguna, Ulasan & Kepuasan Pelanggan",
+          description: "Fasilitas interaksi purna-jual untuk mengumpulkan ulasan kualitas dan kepuasan pelanggan.",
           priority: "Low" as const,
+          sourceRequirementIds: ["FR-15"],
           subFeatures: [
             "Form ulasan kepuasan bintang 1-5 dan testimoni teks pasca transaksi selesai",
-            "Widget tombol bantuan cepat terhubung ke WhatsApp customer service dengan template pesan otomatis",
-            "Halaman Frequently Asked Questions (FAQ) interaktif dengan fitur accordion",
+            "Pemberian bintang penilaian dan umpan balik ulasan layanan",
             "Moderasi review di sisi admin sebelum ditampilkan pada showcase publik"
           ],
           dependencies: ["Engine Transaksi"]
@@ -5006,52 +5051,54 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
         {
           id: "TASK-008",
           title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking",
-          description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.",
+          description: "Pembangunan form alur pemesanan multi-langkah dengan validasi server-side Zod dan mekanisme database holding lock 15 menit.",
           status: "in_progress" as const,
-          feature: "Transaksi",
-          phase: "Phase 4 - Modul Transaksi",
+          feature: "Core Engine Pemrosesan Transaksi & Reservasi Real-Time",
+          phase: "Phase 3 - Transaction & Booking Engine",
           priority: "CRITICAL",
+          sourceRequirementIds: ["FR-05", "FR-06"],
           relatedRequirements: ["FR-05", "FR-06", "NFR-07"],
-          dependencies: ["TASK-007", "TASK-003"],
+          dependencies: ["TASK-004", "TASK-006"],
           subtasks: [
-            "Skema Zod komprehensif untuk payload data transaksi",
-            "Server Action createBookingWithLock dengan database transaction (ACID)",
-            "Logika holding lock kuota selama 15 menit dengan kolom hold_expires_at",
-            "Background cron / trigger untuk melepaskan lock yang kedaluwarsa"
+            "Form input data pemesanan multi-langkah dengan validasi schema Zod di klien & server",
+            "Mekanisme atomic locking 15 menit pada baris slot ketersediaan database",
+            "Penyimpanan draft transaksi ke local session untuk toleransi pemutusan koneksi",
+            "Handling release lock otomatis saat transaksi dibatalkan atau waktu timeout 15 menit tercapai"
           ],
           acceptanceCriteria: [
-            "Dua pengguna tidak dapat mengunci slot ketersediaan yang sama pada detik yang bersamaan",
-            "Lock otomatis gugur setelah 15 menit jika pembayaran tidak diselesaikan",
-            "Data transaksi tersimpan dengan status 'pending'"
+            "Data transaksi lolos validasi skema Zod secara ketat sebelum insert database",
+            "Holding lock mencegah pemesanan ganda (race condition) pada slot yang sama secara absolut",
+            "Sistem mengembalikan status error 409 Conflict secara informatif jika slot sudah di-lock pengguna lain"
           ],
           testing: [
-            "Jalankan uji konkurensi (simultaneous checkout requests)",
-            "Verifikasi lock kadaluwarsa ter-release kembali ke pool ketersediaan"
+            "Uji coba submit form dengan data valid dan data invalid",
+            "Simulasikan 2 request checkout bersamaan pada slot waktu yang sama untuk verifikasi locking"
           ],
           parallelizable: "NO"
         },
         {
           id: "TASK-009",
-          title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan",
-          description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.",
+          title: "Kalkulator Checkout Otomatis: Rincian Biaya, Diskon & Breakdown Tagihan",
+          description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan diskon promo, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.",
           status: "in_progress" as const,
           feature: "Transaksi",
           phase: "Phase 4 - Modul Transaksi",
           priority: "HIGH",
+          sourceRequirementIds: ["FR-05"],
           relatedRequirements: ["FR-05"],
           dependencies: ["TASK-008"],
           subtasks: [
             "Fungsi kalkulasi subtotal, pajak, diskon, dan total akhir di server",
-            "Validasi kode voucher diskon (kuota pemakaian, minimum transaksi, masa berlaku)",
+            "Validasi kode diskon promo (kuota pemakaian, minimum transaksi, masa berlaku)",
             "Komponen UI ringkasan tagihan transparan di layar checkout"
           ],
           acceptanceCriteria: [
             "Kalkulasi di client selalu dicocokkan dan divalidasi ulang di backend",
-            "Voucher diskon yang tidak valid menampilkan pesan error deskriptif",
+            "Diskon promo yang tidak valid menampilkan pesan error deskriptif",
             "Nominal total tagihan tidak pernah bernilai negatif"
           ],
           testing: [
-            "Uji penerapan kupon diskon persentase dan nominal flat",
+            "Uji penerapan diskon persentase dan nominal flat",
             "Coba manipulasi nominal di client side dan verifikasi backend menolaknya"
           ],
           parallelizable: "YES"
@@ -5062,122 +5109,128 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
           description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.",
           status: "in_progress" as const,
           feature: "Pembayaran",
-          phase: "Phase 5 - Integrasi",
+          phase: "Phase 5 - Integrasi Gateway Pembayaran",
           priority: "CRITICAL",
+          sourceRequirementIds: ["FR-07"],
           relatedRequirements: ["FR-07"],
-          dependencies: ["TASK-009"],
+          dependencies: ["TASK-008"],
           subtasks: [
-            "Setup koneksi SDK API Payment Gateway dengan server key aman",
-            "Server Action generatePaymentToken untuk charge QRIS dan Virtual Account",
-            "Komponen modal transaksi dengan QR code responsif dan tombol salin nomor VA"
+            "Setup client library Midtrans Snap / Core API di server action",
+            "Generator charge transaksi untuk tipe QRIS dinamis dan Bank Transfer (VA BCA, Mandiri, BRI)",
+            "Halaman antarmuka pembayaran pengguna dengan countdown timer batas waktu transfer 15 menit",
+            "Tombol verifikasi status pembayaran manual untuk kenyamanan pengguna"
           ],
           acceptanceCriteria: [
-            "QRIS dinamis ter-generate seketika dan dapat dipindai aplikasi pembayaran",
-            "Nomor Virtual Account bank (BCA, Mandiri, BRI) muncul lengkap dengan instruksi",
-            "Status pembayaran awal tercatat 'unpaid' dengan timestamp expired 15 menit"
+            "QRIS image URL dan nomor VA berhasil digenerate seketika tanpa error",
+            "Countdown timer sinkron dengan waktu kedaluwarsa charge transaksi di payment gateway",
+            "Handling kegagalan API eksternal payment gateway dengan pesan error yang ramah pengguna"
           ],
           testing: [
-            "Eksekusi charge API di sandbox mode payment gateway",
-            "Verifikasi respon payment gateway ter-mapping akurat ke tabel payments"
+            "Gunakan sandbox Midtrans simulator untuk melakukan transaksi sukses QRIS dan VA",
+            "Verifikasi state perubahan pembayaran menjadi settlement di antarmuka web"
           ],
           parallelizable: "NO"
         },
         {
           id: "TASK-011",
           title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order",
-          description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.",
+          description: "Endpoint /api/webhook/payment untuk menerima notifikasi server-to-server saat pembayaran sukses, expired, atau dibatalkan.",
           status: "in_progress" as const,
           feature: "Pembayaran",
-          phase: "Phase 5 - Integrasi",
+          phase: "Phase 5 - Integrasi Gateway Pembayaran",
           priority: "CRITICAL",
+          sourceRequirementIds: ["FR-08"],
           relatedRequirements: ["FR-08"],
           dependencies: ["TASK-010"],
           subtasks: [
-            "Endpoint Route Handler POST /api/webhook/payment",
-            "Verifikasi HMAC SHA512 signature dari payload gateway",
-            "Update atomic status payments menjadi 'paid' dan orders menjadi 'confirmed'",
-            "Penanganan status transaksi gagal (expire / cancel / deny)"
+            "Route handler POST /api/webhook/payment dengan validasi cryptographic signature SHA512",
+            "Idempotency check untuk mencegah eksekusi ganda jika webhook dikirim ulang",
+            "Database transaction untuk update status order menjadi 'PAID' dan melepas holding lock menjadi permanent booking",
+            "Trigger otomatis pembuatan antrean job pengiriman notifikasi WhatsApp dan Email"
           ],
           acceptanceCriteria: [
-            "Request dengan signature palsu langsung ditolak dengan HTTP 401 Unauthorized",
-            "Idempotensi: request webhook ganda tidak menduplikasi mutasi saldo atau status",
-            "Status order berubah secara real-time"
+            "Signature payload yang tidak valid ditolak langsung dengan status code 403 Forbidden",
+            "Payload webhook yang diproses ulang tidak menghasilkan perubahan data ganda (idempotent)",
+            "Status order berubah secara real-time menjadi PAID dalam waktu kurang dari 2 detik pasca webhook diterima"
           ],
           testing: [
-            "Simulasi kirim payload webhook settlement resmi",
-            "Uji kirim payload dengan signature sengaja dirusak"
+            "Simulasikan pengiriman webhook POST menggunakan Midtrans Mock / Postman dengan signature valid",
+            "Uji penolakan request dengan signature yang sengaja diubah (invalid)"
           ],
           parallelizable: "NO"
         },
         {
           id: "TASK-012",
           title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp",
-          description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).",
+          description: "Generator berkas faktur pembayaran PDF resmi dan pengiriman konfirmasi transaksi otomatis ke nomor WhatsApp pelanggan via Fonnte/Waba API.",
           status: "in_progress" as const,
           feature: "Notifikasi",
-          phase: "Phase 5 - Integrasi",
+          phase: "Phase 6 - Notifikasi & Pelaporan",
           priority: "HIGH",
+          sourceRequirementIds: ["FR-09", "FR-10"],
           relatedRequirements: ["FR-09", "FR-10"],
           dependencies: ["TASK-011"],
           subtasks: [
-            "Template invoice PDF dengan styling profesional dan QR verifikasi",
-            "Endpoint download invoice /api/invoices/[orderNumber]",
-            "Integrasi API WhatsApp Gateway untuk dispatch notifikasi bukti bayar",
-            "Fallback email transaksional dengan lampiran invoice"
+            "Template dokumen invoice dinamis menggunakan React-PDF / PDFKit dengan nomor faktur urut",
+            "Server action untuk stream download berkas PDF dari halaman invoice",
+            "Integrasi API WhatsApp Gateway dengan template pesan kustomisasi dinamis",
+            "Fallback pengiriman email transaksional via Resend / Nodemailer jika WhatsApp gagal terkirim"
           ],
           acceptanceCriteria: [
-            "PDF invoice berukuran ringkas (< 500KB) dan terformat rapi",
-            "Pesan WhatsApp terkirim dalam waktu < 5 detik setelah pembayaran sukses",
-            "Invoice memuat rincian item, nomor transaksi unik, dan breakdown harga"
+            "Berkas PDF invoice terunduh sempurna dengan data item, subtotal, diskon, dan PPN yang akurat",
+            "Pesan notifikasi WhatsApp masuk ke nomor pelanggan dalam waktu < 10 detik pasca pembayaran sukses",
+            "Sistem mencatat riwayat log status pengiriman notifikasi ke database"
           ],
           testing: [
-            "Uji generate invoice PDF dan inspeksi kejelasan layout",
-            "Test pengiriman pesan WhatsApp ke nomor penguji di staging"
+            "Lakukan trigger download PDF invoice dan verifikasi integritas tampilan dokumen",
+            "Kirim pesan notifikasi uji coba ke nomor WhatsApp pengujian"
           ],
           parallelizable: "YES"
         },
         {
           id: "TASK-013",
           title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis",
-          description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.",
+          description: "Panel eksekutif ringkasan metrik performa bisnis: grafik pendapatan harian/bulanan, rasio konversi checkout, dan pemantauan order pending.",
           status: "in_progress" as const,
-          feature: "Dashboard Admin",
-          phase: "Phase 6 - Dashboard Admin",
+          feature: "Analitik",
+          phase: "Phase 6 - Notifikasi & Pelaporan",
           priority: "HIGH",
+          sourceRequirementIds: ["FR-13"],
           relatedRequirements: ["FR-13"],
-          dependencies: ["TASK-011", "TASK-004"],
+          dependencies: ["TASK-004", "TASK-011"],
           subtasks: [
-            "Query agregasi SQL untuk total omzet harian, mingguan, dan bulanan",
-            "Komponen kartu metrik KPI (Revenue, Orders, Conversion Rate, Average Order Value)",
-            "Visualisasi grafik chart performa penjualan",
-            "Filter rentang tanggal analitik (Hari ini, 7 hari terakhir, 30 hari terakhir)"
+            "Agregasi data query SQL untuk metrik KPI (Total Revenue, Total Orders, Conversion Rate)",
+            "Visualisasi diagram grafik interaktif menggunakan Recharts / Chart.js",
+            "Filter rentang waktu (Hari ini, 7 Hari Terakhir, Bulan ini, Kustom)",
+            "Komponen tabel transaksi terkini dengan status badge warna real-time"
           ],
           acceptanceCriteria: [
-            "Perhitungan angka omzet akurat 100% dengan total transaksi settlement di database",
-            "Grafik chart responsif dan interaktif dengan tooltip detail",
-            "Query agregasi dioptimalkan sehingga dashboard dimuat < 800ms"
+            "Angka KPI dan grafik omzet sinkron 100% dengan total transaksi di database",
+            "Perubahan filter rentang tanggal memperbarui tampilan grafik tanpa reload seluruh halaman",
+            "Komponen grafik responsif dan mudah dibaca di layar tablet maupun desktop"
           ],
           testing: [
-            "Validasi hasil kalkulasi query agregasi terhadap data transaksi riil",
-            "Uji filter rentang tanggal analitik"
+            "Verifikasi kesesuaian nilai total omzet pada grafik dengan agregasi query SQL database",
+            "Uji interaktivitas tooltip pada diagram grafik"
           ],
           parallelizable: "YES"
         },
         {
           id: "TASK-014",
           title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel",
-          description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.",
+          description: "Antarmuka lengkap bagi admin untuk mengelola katalog data, mengatur ketersediaan, menonaktifkan item, serta mengunduh rekap transaksi.",
           status: "in_progress" as const,
-          feature: "Dashboard Admin",
-          phase: "Phase 6 - Dashboard Admin",
-          priority: "MEDIUM",
-          relatedRequirements: ["FR-12", "FR-14"],
-          dependencies: ["TASK-013"],
+          feature: "Admin",
+          phase: "Phase 6 - Notifikasi & Pelaporan",
+          priority: "HIGH",
+          sourceRequirementIds: ["FR-11", "FR-12", "FR-14"],
+          relatedRequirements: ["FR-11", "FR-12", "FR-14"],
+          dependencies: ["TASK-004", "TASK-013"],
           subtasks: [
-            "Tabel data master dengan pagination, sorting kolom, dan filter status",
-            "Modal dialog formulir tambah & edit item dengan upload media gambar",
-            "Fungsi export data tabel ke file CSV dan Microsoft Excel (.xlsx)",
-            "Konfirmasi dialog proteksi saat aksi hapus data"
+            "Modal form penambahan dan pengeditan item katalog dengan preview upload gambar",
+            "Fitur switch toggle instan untuk mengaktifkan / menonaktifkan status visibilitas item",
+            "Fungsi ekspor data tabel transaksi ke format CSV / Microsoft Excel XLSX",
+            "Audit trail pencatatan ID admin yang melakukan aksi modifikasi data master"
           ],
           acceptanceCriteria: [
             "Admin dapat menambah, mengedit, dan menonaktifkan item secara instan",
@@ -5198,6 +5251,7 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
           feature: "QA & Hardening",
           phase: "Phase 7 - QA & Deployment",
           priority: "HIGH",
+          sourceRequirementIds: ["NFR-06"],
           relatedRequirements: ["NFR-06"],
           dependencies: ["TASK-012", "TASK-014"],
           subtasks: [
@@ -5225,6 +5279,7 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
           feature: "QA & Hardening",
           phase: "Phase 7 - QA & Deployment",
           priority: "CRITICAL",
+          sourceRequirementIds: ["NFR-01", "NFR-03", "NFR-05"],
           relatedRequirements: ["NFR-01", "NFR-03", "NFR-05"],
           dependencies: ["TASK-015"],
           subtasks: [
@@ -5243,6 +5298,34 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
             "Lakukan audit performa menggunakan Google PageSpeed Insights"
           ],
           parallelizable: "NO"
+        },
+        {
+          id: "TASK-017",
+          title: "Implementasi Modul Review & Rating Kepuasan Pelanggan",
+          description: "Form ulasan rating bintang 1-5, testimoni pelanggan, dan integrasi feedback ulasan pasca transaksi.",
+          status: "backlog" as const,
+          feature: "Modul Feedback Pengguna, Ulasan & Kepuasan Pelanggan",
+          featureId: "feat-8",
+          relatedFeature: "feat-8 — Modul Feedback Pengguna, Ulasan & Kepuasan Pelanggan",
+          phase: "Phase 4 - User Experience & Feedback",
+          priority: "MEDIUM",
+          sourceRequirementIds: ["FR-15"],
+          relatedRequirements: ["FR-15"],
+          dependencies: ["TASK-008"],
+          subtasks: [
+            "TASK-017.1: Komponen form review rating bintang 1-5 dan input testimoni teks",
+            "TASK-017.2: Server action penyimpanan ulasan dan agregasi nilai rating rata-rata",
+            "TASK-017.3: Tampilan showcase ulasan terverifikasi pada halaman produk/layanan"
+          ],
+          acceptanceCriteria: [
+            "Pengguna dapat memberikan rating 1-5 bintang dan ulasan teks setelah transaksi selesai",
+            "Rating rata-rata terhitung secara akurat dan ulasan tersimpan di database"
+          ],
+          testing: [
+            "Kirim form rating bintang dan verifikasi data ulasan tersimpan",
+            "Periksa validasi input bintang hanya menerima angka 1 sampai 5"
+          ],
+          parallelizable: "YES"
         }
       ]
     };
