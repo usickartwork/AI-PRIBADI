@@ -136,11 +136,11 @@ function heuristicParse(text: string, clientDate?: string): ParsedScheduleAI {
   const isAmbiguous = !dateStr || !timeStr;
   let clarificationQuestion: string | undefined = undefined;
   if (!dateStr && !timeStr) {
-    clarificationQuestion = "Kapan jadwal ini akan dilaksanakan? Mohon sebutkan tanggal dan jamnya.";
+    clarificationQuestion = "Boleh tahu mau dijadwalkan tanggal berapa dan jam berapa?";
   } else if (!dateStr) {
-    clarificationQuestion = `Jam ${timeStr} untuk tanggal berapa atau hari apa?`;
+    clarificationQuestion = `Untuk jam ${timeStr}, mau di hari apa atau tanggal berapa?`;
   } else if (!timeStr) {
-    clarificationQuestion = `Untuk tanggal ${dateStr}, jam berapa jadwal tersebut diadakan?`;
+    clarificationQuestion = `Untuk tanggal ${dateStr}, rencananya mau jam berapa?`;
   }
 
   return {
@@ -173,15 +173,15 @@ export async function POST(req: NextRequest) {
     // 1. Coba panggil LLM untuk pemahaman semantik yang fleksibel
     let parsedResult: ParsedScheduleAI | null = null;
 
-    const systemPrompt = `You are an expert AI Schedule Assistant for Usick One.
-Your job is to parse the user's natural language input (mostly in Indonesian or English) into structured schedule data.
+    const systemPrompt = `You are a helpful, friendly personal schedule assistant for Usick One.
+Your job is to parse the user's natural language input into clean schedule data. Speak naturally like a human assistant, never robotic.
 
 Today's date is: ${todayDate} (${new Date().toLocaleDateString("id-ID", { weekday: "long" })})
 User Timezone: ${userTz}
 
 Return ONLY valid JSON matching this schema:
 {
-  "title": string, // Clear, concise title of the activity/meeting/reminder
+  "title": string, // Clean, concise title (e.g. "Meeting dengan tim", "Bayar listrik")
   "date": "YYYY-MM-DD", // Date of the schedule
   "time": "HH:mm", // 24-hour format time, e.g. "09:00", "14:30"
   "duration": number, // Duration in minutes (default 60 if not specified)
@@ -189,7 +189,7 @@ Return ONLY valid JSON matching this schema:
   "recurrence": "once" | "daily" | "weekly" | "monthly",
   "description": string, // Additional notes or details if mentioned
   "isAmbiguous": boolean, // Set true if the user DID NOT specify a date, time, or key details
-  "clarificationQuestion": string | null // If ambiguous, ask a polite question in Indonesian to clarify
+  "clarificationQuestion": string | null // If ambiguous, ask in a friendly, conversational Indonesian tone (e.g. "Boleh tahu mau dijadwalkan tanggal berapa dan jam berapa?")
 }
 
 Guidelines:
@@ -199,7 +199,7 @@ Guidelines:
 - "siang" -> afternoon (12:00 - 15:00)
 - "sore" -> late afternoon (15:00 - 18:00)
 - "malam" -> evening/night (19:00 - 22:00)
-- If user only mentions "Meeting dengan tim" without any time or date, set "isAmbiguous": true and ask "Kapan meeting ini akan dilaksanakan? Tolong sebutkan tanggal atau jamnya."
+- If user only mentions "Meeting dengan tim" without any time or date, set "isAmbiguous": true and ask naturally: "Boleh tahu mau dijadwalkan tanggal berapa dan jam berapa?"
 - Respond ONLY with the JSON object, NO markdown formatting, NO extra commentary.`;
 
     // Ambil AI API dari env (Custom, Novita, Cloudflare, etc.)

@@ -58,15 +58,7 @@ export function ScheduleWorkspace({
   const [statusFilter, setStatusFilter] = useState<"all" | "today" | "upcoming" | "completed" | "cancelled">("all");
 
   // Chat Interface States
-  const [chatMessages, setChatMessages] = useState<ScheduleChatMessage[]>([
-    {
-      id: "init_1",
-      role: "assistant",
-      content:
-        "Halo! Saya asisten jadwal Usick One. Anda dapat menambahkan agenda atau pengingat baru cukup dengan mengetik bahasa santai, seperti *“Besok jam 9 pagi meeting dengan tim selama 1 jam”* atau *“Hari Senin jam 7 malam gym”*.",
-      timestamp: "Baru saja",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ScheduleChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -201,7 +193,7 @@ export function ScheduleWorkspace({
           {
             id: assistantMsgId,
             role: "assistant",
-            content: parsed.clarificationQuestion || "Kapan agenda ini akan diadakan? Mohon sebutkan tanggal atau jamnya.",
+            content: parsed.clarificationQuestion || "Boleh tahu mau tanggal berapa dan jam berapa agendanya?",
             timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
@@ -212,7 +204,7 @@ export function ScheduleWorkspace({
           {
             id: assistantMsgId,
             role: "assistant",
-            content: "Saya telah menyiapkan rincian jadwal untuk Anda. Silakan periksa kartu konfirmasi di bawah ini:",
+            content: "Oke, ini detail jadwalnya. Cek dulu ya, kalau sudah pas tinggal klik Konfirmasi & Jadwalkan:",
             pendingSchedule: parsed,
             isConfirmed: false,
             timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
@@ -225,7 +217,7 @@ export function ScheduleWorkspace({
         {
           id: `assistant_${Date.now()}`,
           role: "assistant",
-          content: `Maaf, terjadi kendala saat memproses: ${err?.message || "Silakan coba ulangi kembali."}`,
+          content: `Maaf, aku belum bisa memproses input tersebut: ${err?.message || "Coba tulis ulang ya."}`,
           timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -304,7 +296,7 @@ export function ScheduleWorkspace({
         msg.id === messageId
           ? {
               ...msg,
-              content: "Jadwal telah dibatalkan sebelum disimpan.",
+              content: "Oke, pembuatan jadwal ini dibatalkan.",
               pendingSchedule: undefined,
             }
           : msg
@@ -669,7 +661,42 @@ export function ScheduleWorkspace({
           {/* Scrollable Chat Messages Feed */}
           <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-6 space-y-5">
             <div className="max-w-3xl mx-auto w-full space-y-5">
-              {chatMessages.map((msg) => {
+              {chatMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center pt-8 sm:pt-16 pb-6 text-center animate-in fade-in-0 duration-200">
+                  <div
+                    className={`h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center mb-3.5 shadow-md ${
+                      isDark ? "bg-white text-black" : "bg-black text-white"
+                    }`}
+                  >
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ada agenda apa hari ini?</h2>
+                  <p className="mt-1.5 text-xs sm:text-sm text-zinc-400 max-w-sm px-4">
+                    Tulis jadwalmu dengan bahasa santai, nanti aku yang atur dan kirimkan pengingat via email.
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg px-2">
+                    {SUGGESTED_PROMPTS.map((promptText, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => handleSendChatMessage(promptText)}
+                        className={`rounded-2xl px-3.5 py-2 text-xs border transition cursor-pointer text-left ${
+                          isDark
+                            ? "bg-[#141418] hover:bg-[#1a1a20] border-zinc-800 text-zinc-300 hover:text-white"
+                            : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        &ldquo;{promptText}&rdquo;
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((msg) => {
                 const isUser = msg.role === "user";
                 return (
                   <div
@@ -847,7 +874,7 @@ export function ScheduleWorkspace({
                     </div>
                   </div>
                 );
-              })}
+              }))}
 
               {/* Typing indicator */}
               {isProcessing && (
@@ -872,27 +899,29 @@ export function ScheduleWorkspace({
             </div>
           </div>
 
-          {/* Quick Prompts Pills Carousel above Chat Input */}
-          <div className="shrink-0 px-3.5 sm:px-6 pt-1">
-            <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
-              <span className="text-zinc-500 shrink-0 font-medium">Contoh cepat:</span>
-              {SUGGESTED_PROMPTS.map((promptText, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={() => handleSendChatMessage(promptText)}
-                  className={`shrink-0 rounded-full px-2.5 py-1 border transition text-left cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                      : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200 hover:text-black"
-                  }`}
-                >
-                  &ldquo;{promptText}&rdquo;
-                </button>
-              ))}
+          {/* Quick Prompts Pills Carousel above Chat Input (hanya jika sudah ada chat) */}
+          {chatMessages.length > 0 && (
+            <div className="shrink-0 px-3.5 sm:px-6 pt-1">
+              <div className="max-w-3xl mx-auto flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+                <span className="text-zinc-500 shrink-0 font-medium">Contoh:</span>
+                {SUGGESTED_PROMPTS.map((promptText, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => handleSendChatMessage(promptText)}
+                    className={`shrink-0 rounded-full px-2.5 py-1 border transition text-left cursor-pointer ${
+                      isDark
+                        ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                        : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200 hover:text-black"
+                    }`}
+                  >
+                    &ldquo;{promptText}&rdquo;
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ─── FLOATING CHAT BOX (Styled exactly like the main chat) ──────── */}
           <div
