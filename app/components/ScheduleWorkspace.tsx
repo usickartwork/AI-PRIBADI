@@ -106,6 +106,15 @@ export function ScheduleWorkspace({
     }
   };
 
+  // Background periodic check untuk memproses pengingat yang jatuh tempo
+  useEffect(() => {
+    fetch("/api/schedules/remind").catch(() => {});
+    const interval = setInterval(() => {
+      fetch("/api/schedules/remind").catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ─── Fetch Schedules ────────────────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
