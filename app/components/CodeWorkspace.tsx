@@ -1884,8 +1884,8 @@ export function isFeatureSemanticallyCompatible(
   // If requirement is auth:
   const isAuthReq = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanRText);
   if (isAuthReq) {
-    if (isReviewFeat || isNotifFeat || isPaymentFeat) return false;
-    return isAuthReq;
+    if (isAuthFeat && !isReviewFeat) return true;
+    return false;
   }
 
   // If requirement is notif:
@@ -1973,8 +1973,9 @@ export function isTaskSemanticallyCompatible(
   // If requirement is auth:
   const isAuthReq = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanRText);
   if (isAuthReq) {
-    if (isReviewTask || isNotifTask || isPaymentTask) return false;
-    return isAuthTask;
+    // Auth tasks often mention email (reset password token) — auth capability wins over incidental keywords.
+    if (isAuthTask && !isReviewTask) return true;
+    return false;
   }
 
   // If requirement is notif:
