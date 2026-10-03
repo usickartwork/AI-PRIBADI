@@ -4503,6 +4503,9 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
           }
         }
 
+        // Auto-generate HTML prototype based on finalized PRD, features, and tasks
+        updated.generatedHtml = generateStarterPrototypeHtml(updated);
+
         updated.updatedAt = Date.now();
         return updated;
       })
@@ -7836,6 +7839,16 @@ function TaskCard({
 // PRD — QUICK HTML PREVIEW HELPERS & COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+export function escapeHtml(str?: string): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function extractHtmlFromProject(project: ProjectItem): string {
   if (project.generatedHtml && project.generatedHtml.trim().length > 0) {
     return project.generatedHtml;
@@ -7857,6 +7870,15 @@ export function extractHtmlFromProject(project: ProjectItem): string {
         }
       }
     }
+  }
+  // Jika belum ada HTML tersimpan, tapi proyek memiliki PRD, fitur, atau tasks:
+  // Otomatis bangun prototype interaktif lengkap berdasarkan blueprint PRD & tasks!
+  if (
+    (project.prd && (project.prd.overview || (project.prd.goals && project.prd.goals.length > 0))) ||
+    (project.features && project.features.length > 0) ||
+    (project.tasks && project.tasks.length > 0)
+  ) {
+    return generateStarterPrototypeHtml(project);
   }
   return "";
 }
@@ -7883,195 +7905,1105 @@ window.addEventListener('error', function(event) {
 }
 
 export function generateStarterPrototypeHtml(project: ProjectItem): string {
-  const title = (project.title || "Web Prototype").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const desc = (project.description || "Interactive HTML prototype generated from project blueprint.").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const features = (project.features && project.features.length > 0)
-    ? project.features.slice(0, 6).map((f) => ({
-        id: f.id,
-        name: f.name || "Fitur",
-        description: f.description || "Fitur terintegrasi.",
-      }))
+  const title = escapeHtml(project.title || "Web Prototype");
+  const desc = escapeHtml(project.description || project.prd?.overview || "Interactive prototype generated from verified PRD blueprint.");
+  const primaryType = (project.prd?.primaryType || "WEB APPLICATION").toUpperCase();
+  const secondaryTypes = project.prd?.secondaryTypes || [];
+  const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")}`.toLowerCase();
+
+  const isBooking = /booking|reservasi|jadwal|futsal|soccer|lapangan|hotel|tiket|appointment/i.test(domainStr);
+  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah/i.test(domainStr);
+  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja/i.test(domainStr);
+  const isDashboard = /dashboard|admin|manajemen|panel|monitoring|analytics|crm/i.test(domainStr);
+  const isPortfolio = /portfolio|showcase|karya|desain|fotografi|profil/i.test(domainStr);
+
+  const prd = project.prd || {};
+  const problemStatement = escapeHtml(prd.problemStatement || "Membutuhkan solusi sistem yang terstruktur, responsif, dan mudah digunakan pengguna.");
+  const goals = (prd.goals && prd.goals.length > 0)
+    ? prd.goals
+    : ["Meningkatkan efisiensi proses", "Memberikan pengalaman pengguna yang intuitif", "Menjamin skalabilitas dan keandalan sistem"];
+  const targetUsers = (prd.targetUsers && prd.targetUsers.length > 0)
+    ? prd.targetUsers
+    : ["Pengguna Umum / Publik", "Administrator Sistem", "Manajemen Operasional"];
+  const userStories = (prd.userStories && prd.userStories.length > 0)
+    ? prd.userStories
     : [
-        { id: "FEAT-1", name: "Beranda & Navigasi", description: "Tampilan utama dengan navigasi responsif dan pencarian." },
-        { id: "FEAT-2", name: "Katalog & Konten", description: "Daftar konten dinamis dengan filter dan pagination." },
-        { id: "FEAT-3", name: "Panel Interaktif", description: "Aksi user real-time dengan status feedback." },
+        "Sebagai pengguna, saya ingin dapat mengakses informasi dan layanan dengan cepat dari perangkat mobile maupun desktop.",
+        "Sebagai pengguna, saya ingin mendapatkan konfirmasi langsung saat melakukan interaksi atau transaksi.",
+        "Sebagai administrator, saya ingin memantau dan mengelola data operasional secara terpusat.",
+      ];
+  const functionalReqs = (prd.functionalRequirements && prd.functionalRequirements.length > 0)
+    ? prd.functionalRequirements
+    : [];
+  const nonFunctionalReqs = (prd.nonFunctionalRequirements && prd.nonFunctionalRequirements.length > 0)
+    ? prd.nonFunctionalRequirements
+    : [
+        "Waktu respon halaman < 1.5 detik pada koneksi standar",
+        "Kompatibilitas tampilan responsif penuh (Mobile, Tablet, Desktop)",
+        "Keamanan data pengguna dengan standar enkripsi modern",
       ];
 
-  const featureCards = features.map((f, i) => `
-        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition">
-          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center font-mono font-bold text-sm text-zinc-300 mb-4">
-            0${i + 1}
+  const arch = project.architecture || {};
+  const frontendTech = escapeHtml(arch.frontend || "Next.js / Tailwind CSS / TypeScript");
+  const backendTech = escapeHtml(arch.backend || "Node.js / REST API");
+  const databaseTech = escapeHtml(arch.database || "PostgreSQL / Prisma ORM");
+  const authTech = escapeHtml(arch.auth || "NextAuth.js / JWT Session");
+
+  // ALL FEATURES (Lengkap tanpa pemotongan)
+  const features = (project.features && project.features.length > 0)
+    ? project.features.map((f, idx) => ({
+        id: f.id || `FEAT-${String(idx + 1).padStart(3, "0")}`,
+        name: f.name || `Fitur ${idx + 1}`,
+        description: f.description || "Fitur terintegrasi dalam arsitektur sistem.",
+        scope: f.scope || (idx < 4 ? "MVP" : "POST-MVP"),
+        priority: f.priority || "MEDIUM",
+        reqs: (f.sourceRequirementIds && f.sourceRequirementIds.length > 0)
+          ? f.sourceRequirementIds
+          : (f.sourceRequirements && f.sourceRequirements.length > 0)
+          ? f.sourceRequirements
+          : ["REQ-CORE"],
+      }))
+    : [
+        { id: "FEAT-001", name: "Beranda & Navigasi Terpadu", description: "Tampilan antarmuka beranda responsif dengan navigasi cepat ke seluruh layanan.", scope: "MVP", priority: "CRITICAL", reqs: ["REQ-001"] },
+        { id: "FEAT-002", name: "Katalog & Layanan Inti", description: "Daftar layanan/konten dinamis dengan filter interaktif dan pencarian terintegrasi.", scope: "MVP", priority: "HIGH", reqs: ["REQ-002"] },
+        { id: "FEAT-003", name: "Panel Interaksi & Konfirmasi", description: "Formulir interaktif real-time dengan feedback instan dan validasi data.", scope: "MVP", priority: "HIGH", reqs: ["REQ-003"] },
+      ];
+
+  const mvpCount = features.filter((f) => f.scope === "MVP").length;
+  const postMvpCount = features.length - mvpCount;
+
+  // ALL TASKS (Lengkap tanpa pemotongan)
+  const tasks = (project.tasks && project.tasks.length > 0)
+    ? project.tasks.map((t, idx) => ({
+        id: t.id || `TASK-${String(idx + 1).padStart(3, "0")}`,
+        title: t.title || `Task ${idx + 1}`,
+        description: t.description || "Implementasi modul teknis.",
+        phase: t.phase || (idx < 3 ? "Phase 1: Setup & Core" : idx < 7 ? "Phase 2: Core Features" : "Phase 3: QA & Testing"),
+        priority: t.priority || "MEDIUM",
+        complexity: t.complexity || "M",
+        deliverable: t.deliverable || `Deliverable modul ${t.title || ""}`,
+        acceptanceCriteria: (t.acceptanceCriteria && t.acceptanceCriteria.length > 0)
+          ? t.acceptanceCriteria
+          : ["Data tervalidasi dengan benar", "UI responsif tanpa visual defect"],
+        testing: (t.testing && t.testing.length > 0)
+          ? t.testing
+          : ["Uji fungsionalitas dan responsivitas"],
+      }))
+    : [
+        { id: "TASK-001", title: "Setup Kerangka Proyek & Styling Dasar", description: "Inisialisasi repositori, konfigurasi Tailwind CSS, dan tata letak shell aplikasi.", phase: "Phase 1: Setup & Core", priority: "CRITICAL", complexity: "M", deliverable: "Project Shell & Config", acceptanceCriteria: ["Struktur folder rapi", "Styling responsive aktif"], testing: ["Smoke test di 3 resolusi layar"] },
+        { id: "TASK-002", title: "Implementasi Modul Interaktif Utama", description: "Pengembangan komponen inti dan logika state interaktif sesuai spesifikasi.", phase: "Phase 2: Core Features", priority: "HIGH", complexity: "L", deliverable: "Interactive Core Component", acceptanceCriteria: ["Input tervalidasi", "Feedback visual muncul"], testing: ["Pengujian interaksi pengguna"] },
+        { id: "TASK-003", title: "Pengujian Kualitas & Optimasi Tampilan", description: "Audit tampilan antarmuka, verifikasi kriteria penerimaan, dan optimasi performa.", phase: "Phase 3: QA & Polish", priority: "MEDIUM", complexity: "S", deliverable: "QA Validation Report", acceptanceCriteria: ["Zero visual glitch", "Semua tombol fungsional"], testing: ["Cross-browser checklist"] },
+      ];
+
+  // Features Cards HTML
+  const featureCardsHtml = features.map((f, i) => `
+    <div class="feature-card p-5 sm:p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between" data-scope="${f.scope}">
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <span class="px-2.5 py-0.5 rounded-md bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300 border border-zinc-700">${escapeHtml(f.id)}</span>
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              f.scope === "MVP" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+            }">${escapeHtml(f.scope)}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              f.priority === "CRITICAL" ? "bg-red-500/10 text-red-400 border border-red-500/30" :
+              f.priority === "HIGH" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
+              "bg-zinc-800 text-zinc-400 border border-zinc-700"
+            }">${escapeHtml(f.priority)}</span>
           </div>
-          <h3 class="text-base font-bold text-white mb-2">${f.name.replace(/"/g, '&quot;')}</h3>
-          <p class="text-xs text-zinc-400 leading-relaxed">${(f.description || "Fitur terintegrasi.").replace(/"/g, '&quot;')}</p>
         </div>
+        <h3 class="text-sm sm:text-base font-bold text-white mb-2 leading-snug">${escapeHtml(f.name)}</h3>
+        <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
+      </div>
+      <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+        <span>Req: ${escapeHtml(f.reqs.join(", "))}</span>
+        <span class="text-zinc-400">Fitur #${i + 1}</span>
+      </div>
+    </div>
   `).join("\n");
 
+  // Tasks Cards HTML
+  const taskCardsHtml = tasks.map((t, i) => `
+    <div class="task-card p-4 sm:p-5 rounded-2xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between" data-task-id="${escapeHtml(t.id)}">
+      <div>
+        <div class="flex items-start justify-between gap-3 mb-2.5">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" onchange="toggleTaskDone('${escapeHtml(t.id)}', this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-800 accent-emerald-500 cursor-pointer">
+            <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300 border border-zinc-700">${escapeHtml(t.id)}</span>
+          </label>
+          <div class="flex items-center gap-1.5 flex-wrap justify-end">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">${escapeHtml(t.phase)}</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+              t.priority === "CRITICAL" ? "bg-red-500/10 text-red-400 border border-red-500/30" :
+              t.priority === "HIGH" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
+              "bg-zinc-800 text-zinc-400"
+            }">${escapeHtml(t.priority)}</span>
+          </div>
+        </div>
+        <h4 class="task-title text-xs sm:text-sm font-bold text-white mb-1.5 transition leading-snug">${escapeHtml(t.title)}</h4>
+        <p class="text-[11px] text-zinc-400 leading-relaxed mb-3">${escapeHtml(t.description)}</p>
+
+        <div class="p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 mb-3 text-[11px]">
+          <span class="font-bold text-zinc-300 block mb-1">Deliverable:</span>
+          <span class="font-mono text-zinc-400">${escapeHtml(t.deliverable)}</span>
+        </div>
+
+        <div class="space-y-1 mb-2">
+          <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Acceptance Criteria:</span>
+          ${t.acceptanceCriteria.map((ac) => `
+            <div class="flex items-start gap-1.5 text-[11px] text-zinc-300">
+              <span class="text-emerald-400 font-bold shrink-0">✓</span>
+              <span>${escapeHtml(ac)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+        <span>Complexity: ${escapeHtml(t.complexity)}</span>
+        <span>Task #${i + 1}</span>
+      </div>
+    </div>
+  `).join("\n");
+
+  // DOMAIN-SPECIFIC INTERACTIVE COMPONENT
+  let interactiveDemoSectionHtml = "";
+
+  if (isBooking) {
+    interactiveDemoSectionHtml = `
+      <!-- DOMAIN DEMO: Mini Soccer / Booking Reservation System -->
+      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Booking Engine · State Connected
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold text-white">Sistem Reservasi & Jadwal Interaktif</h3>
+            <p class="text-xs text-zinc-400 mt-1">Pilih arena/lapangan, tentukan tanggal & slot jam, serta hitung total biaya secara real-time.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-mono text-zinc-300">Jadwal Realtime</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Step 1 & 2: Pilih Lapangan & Slot -->
+          <div class="lg:col-span-2 space-y-6">
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2.5">1. Pilih Lapangan / Arena:</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="court-selector">
+                <button onclick="selectCourt('Lapangan A - Rumput Sintetis FIFA', 350000, this)" class="court-btn p-3.5 rounded-2xl border border-white bg-zinc-800 text-left transition cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan A</div>
+                  <div class="text-[11px] text-zinc-400">Rumput Sintetis FIFA</div>
+                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 350.000/jam</div>
+                </button>
+                <button onclick="selectCourt('Lapangan B - Indoor Pro Vinyl', 300000, this)" class="court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan B</div>
+                  <div class="text-[11px] text-zinc-400">Indoor Vinyl Pro</div>
+                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 300.000/jam</div>
+                </button>
+                <button onclick="selectCourt('Lapangan VIP - Rooftop Arena', 500000, this)" class="court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
+                  <div class="text-xs font-bold text-white">Lapangan VIP</div>
+                  <div class="text-[11px] text-zinc-400">Rooftop + AC Lounge</div>
+                  <div class="mt-2 text-xs font-mono font-bold text-emerald-400">Rp 500.000/jam</div>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <label class="text-xs font-bold text-zinc-300">2. Pilih Tanggal & Slot Jam Tersedia:</label>
+                <input type="date" id="booking-date" value="${new Date().toISOString().split("T")[0]}" class="px-2.5 py-1 rounded-xl bg-zinc-950 border border-zinc-700 text-xs font-mono text-white outline-none">
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="slot-selector">
+                <button onclick="toggleSlot('08:00 - 10:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">08:00 - 10:00</span>
+                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia</span>
+                </button>
+                <button onclick="toggleSlot('16:00 - 18:00', this)" class="slot-btn p-2.5 rounded-xl border border-white bg-zinc-800 text-center transition cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">16:00 - 18:00</span>
+                  <span class="block text-[10px] text-emerald-400 font-semibold">Dipilih</span>
+                </button>
+                <button onclick="toggleSlot('19:00 - 21:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">19:00 - 21:00</span>
+                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia (Prime)</span>
+                </button>
+                <button onclick="toggleSlot('21:00 - 23:00', this)" class="slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
+                  <span class="block text-xs font-mono font-bold text-white">21:00 - 23:00</span>
+                  <span class="block text-[10px] text-emerald-400 font-semibold">Tersedia</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs font-bold text-zinc-300 block mb-2">3. Layanan Tambahan (Add-ons):</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('referee', 100000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
+                  <div class="text-[11px]">
+                    <div class="font-bold text-white">Wasit Resmi</div>
+                    <div class="text-zinc-400">+Rp 100.000</div>
+                  </div>
+                </label>
+                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('photo', 150000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
+                  <div class="text-[11px]">
+                    <div class="font-bold text-white">Dokumentasi / Foto</div>
+                    <div class="text-zinc-400">+Rp 150.000</div>
+                  </div>
+                </label>
+                <label class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" onchange="toggleAddon('water', 30000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-emerald-500">
+                  <div class="text-[11px]">
+                    <div class="font-bold text-white">Air Mineral Galon</div>
+                    <div class="text-zinc-400">+Rp 30.000</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Ringkasan & Konfirmasi -->
+          <div class="rounded-2xl bg-zinc-950 border border-zinc-800 p-5 flex flex-col justify-between">
+            <div>
+              <h4 class="text-sm font-bold text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Reservasi</h4>
+              <div class="space-y-2.5 text-xs">
+                <div class="flex justify-between text-zinc-400">
+                  <span>Lapangan:</span>
+                  <span id="summary-court" class="font-semibold text-white">Lapangan A</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Tanggal:</span>
+                  <span id="summary-date" class="font-mono text-white">${new Date().toISOString().split("T")[0]}</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Slot Jam:</span>
+                  <span id="summary-slot" class="font-mono text-emerald-400 font-bold">16:00 - 18:00 (2 Jam)</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Durasi:</span>
+                  <span id="summary-duration" class="text-white">2 Jam</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Layanan Tambahan:</span>
+                  <span id="summary-addons" class="text-white font-mono">Rp 0</span>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-zinc-800">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-zinc-400">Total Biaya:</span>
+                  <span id="summary-total" class="text-lg font-mono font-bold text-white">Rp 700.000</span>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1">Pembayaran aman dengan simulasi verifikasi otomatis.</p>
+              </div>
+            </div>
+
+            <button onclick="confirmBooking()" class="mt-6 w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-lg cursor-pointer">
+              Konfirmasi & Buat Pesanan
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (isNews) {
+    interactiveDemoSectionHtml = `
+      <!-- DOMAIN DEMO: Portal Berita / Media / Culinary Blog -->
+      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
+        <div class="pb-6 mb-6 border-b border-zinc-800">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-[10px] font-mono font-bold text-red-400 animate-pulse">
+              ● BREAKING NEWS
+            </span>
+            <span class="text-xs text-zinc-300 font-medium truncate">Eksplorasi tren dan liputan khusus terbaru hari ini telah dirilis</span>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="text-lg sm:text-xl font-bold text-white">Feed Berita & Artikel Interaktif</h3>
+              <p class="text-xs text-zinc-400 mt-1">Uji filter kategori, pencarian artikel, dan pembaca modal interaktif.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" id="news-search" oninput="filterArticles(this.value)" placeholder="Cari artikel berita..." class="px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none w-48 focus:border-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-6 text-xs select-none">
+          <button onclick="filterCategory('all', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-white text-black font-bold transition">Semua Topik</button>
+          <button onclick="filterCategory('rekomendasi', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Rekomendasi</button>
+          <button onclick="filterCategory('ulasan', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Ulasan & Review</button>
+          <button onclick="filterCategory('eksplorasi', this)" class="cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition">Eksplorasi Khusus</button>
+        </div>
+
+        <!-- Articles Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5" id="articles-grid">
+          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="rekomendasi">
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-3">
+                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Rekomendasi</span>
+                <span class="text-zinc-500 font-mono">4 min baca</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Menjelajahi Cita Rasa Otentik: Destinasi Kuliner Legendaris</h4>
+              <p class="text-xs text-zinc-400 leading-relaxed">Ulasan mendalam mengenai warisan resep turun-temurun dan rahasia racikan bumbu khas daerah.</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+              <span class="text-[11px] text-zinc-500 font-mono">Oleh Tim Redaksi</span>
+              <button onclick="openArticle('Menjelajahi Cita Rasa Otentik: Destinasi Kuliner Legendaris')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
+            </div>
+          </div>
+
+          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="ulasan">
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-3">
+                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Ulasan</span>
+                <span class="text-zinc-500 font-mono">6 min baca</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Review Komprehensif: Standar Pelayanan dan Pengalaman Rasa</h4>
+              <p class="text-xs text-zinc-400 leading-relaxed">Analisis objektif tentang kebersihan, kenyamanan suasana, dan perbandingan harga menu.</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+              <span class="text-[11px] text-zinc-500 font-mono">Oleh Kontributor</span>
+              <button onclick="openArticle('Review Komprehensif: Standar Pelayanan dan Pengalaman Rasa')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
+            </div>
+          </div>
+
+          <div class="article-item p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between" data-category="eksplorasi">
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-3">
+                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold">Eksplorasi</span>
+                <span class="text-zinc-500 font-mono">5 min baca</span>
+              </div>
+              <h4 class="text-sm font-bold text-white mb-2 leading-snug">Inovasi Tren Baru: Perpaduan Resep Tradisional & Sentuhan Modern</h4>
+              <p class="text-xs text-zinc-400 leading-relaxed">Bagaimana generasi baru meredefinisi sajian klasik dengan teknik penyajian masa kini.</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+              <span class="text-[11px] text-zinc-500 font-mono">Oleh Redaktur Senior</span>
+              <button onclick="openArticle('Inovasi Tren Baru: Perpaduan Resep Tradisional & Sentuhan Modern')" class="text-xs text-white font-bold hover:underline">Baca Selengkapnya →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (isCommerce) {
+    interactiveDemoSectionHtml = `
+      <!-- DOMAIN DEMO: E-Commerce Store & Shopping Cart Simulator -->
+      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Shopping Cart Engine
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold text-white">Katalog Produk & Transaksi Interaktif</h3>
+            <p class="text-xs text-zinc-400 mt-1">Uji penambahan produk, kalkulasi keranjang, dan proses checkout simulasi.</p>
+          </div>
+          <button onclick="openCartModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-xs font-bold transition shadow-sm cursor-pointer">
+            <span>🛒 Keranjang</span>
+            <span id="cart-badge" class="px-1.5 py-0.2 rounded-full bg-black text-white text-[10px] font-mono font-bold">0</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #1</div>
+              <h4 class="text-sm font-bold text-white mb-1">Paket Signature Spesial</h4>
+              <p class="text-xs text-zinc-400 mb-2">Pilihan utama dengan kualitas premium dan garansi kepuasan.</p>
+              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 185.000</div>
+            </div>
+            <button onclick="addToCart('Paket Signature Spesial', 185000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
+              + Tambah ke Keranjang
+            </button>
+          </div>
+
+          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #2</div>
+              <h4 class="text-sm font-bold text-white mb-1">Paket Komplit Eksklusif</h4>
+              <p class="text-xs text-zinc-400 mb-2">Varian lengkap dengan bonus item pelengkap.</p>
+              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 275.000</div>
+            </div>
+            <button onclick="addToCart('Paket Komplit Eksklusif', 275000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
+              + Tambah ke Keranjang
+            </button>
+          </div>
+
+          <div class="p-5 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="h-32 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-zinc-500 text-xs mb-3">Item Preview #3</div>
+              <h4 class="text-sm font-bold text-white mb-1">Edisi Terbatas Kolektor</h4>
+              <p class="text-xs text-zinc-400 mb-2">Stok terbatas dengan sertifikat nomor seri.</p>
+              <div class="text-sm font-mono font-bold text-emerald-400 mb-3">Rp 450.000</div>
+            </div>
+            <button onclick="addToCart('Edisi Terbatas Kolektor', 450000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition cursor-pointer">
+              + Tambah ke Keranjang
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (isDashboard) {
+    interactiveDemoSectionHtml = `
+      <!-- DOMAIN DEMO: Dashboard & Admin Panel Simulator -->
+      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-zinc-800">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Admin Monitoring Console
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold text-white">Panel Metrik & Manajemen Data</h3>
+            <p class="text-xs text-zinc-400 mt-1">Pantau statistik operasional, kelola tabel data, dan simulasikan aksi admin.</p>
+          </div>
+          <button onclick="addNewAdminRecord()" class="px-4 py-2 rounded-xl bg-white text-black text-xs font-bold transition shadow-sm cursor-pointer">
+            + Tambah Data Baru
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <span class="text-[11px] text-zinc-400 font-medium">Total Aktivitas</span>
+            <div class="text-xl font-black font-mono text-white mt-1">2,845</div>
+            <span class="text-[10px] text-emerald-400 font-mono">↑ 14% dari minggu lalu</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <span class="text-[11px] text-zinc-400 font-medium">Pengguna Aktif</span>
+            <div class="text-xl font-black font-mono text-white mt-1">1,210</div>
+            <span class="text-[10px] text-emerald-400 font-mono">Online saat ini: 42</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <span class="text-[11px] text-zinc-400 font-medium">Penyelesaian Task</span>
+            <div class="text-xl font-black font-mono text-white mt-1">94.8%</div>
+            <span class="text-[10px] text-zinc-400 font-mono">Zero Critical Blockers</span>
+          </div>
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <span class="text-[11px] text-zinc-400 font-medium">Uptime Layanan</span>
+            <div class="text-xl font-black font-mono text-white mt-1">99.98%</div>
+            <span class="text-[10px] text-emerald-400 font-mono">Status Sistem Prima</span>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-zinc-950 border border-zinc-800 overflow-hidden">
+          <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <span class="text-xs font-bold text-white">Log Transaksi & Pengguna Terkini</span>
+            <span class="text-[11px] font-mono text-zinc-400" id="admin-table-count">3 baris data</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-zinc-900/60 text-zinc-400 font-mono text-[11px] border-b border-zinc-800">
+                <tr>
+                  <th class="p-3">ID</th>
+                  <th class="p-3">Entitas</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3">Waktu</th>
+                  <th class="p-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800/80 font-mono text-[11px]" id="admin-table-body">
+                <tr>
+                  <td class="p-3 text-zinc-400">#REC-001</td>
+                  <td class="p-3 font-bold text-white">Sinkronisasi Database Pengguna</td>
+                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BERHASIL</span></td>
+                  <td class="p-3 text-zinc-400">10:42 WIB</td>
+                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-001 valid!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
+                </tr>
+                <tr>
+                  <td class="p-3 text-zinc-400">#REC-002</td>
+                  <td class="p-3 font-bold text-white">Verifikasi Modul API Gateway</td>
+                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BERHASIL</span></td>
+                  <td class="p-3 text-zinc-400">09:15 WIB</td>
+                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-002 valid!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
+                </tr>
+                <tr>
+                  <td class="p-3 text-zinc-400">#REC-003</td>
+                  <td class="p-3 font-bold text-white">Audit Security & Token Expiry</td>
+                  <td class="p-3"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">IN REVIEW</span></td>
+                  <td class="p-3 text-zinc-400">08:00 WIB</td>
+                  <td class="p-3 text-right"><button onclick="alert('Audit log #REC-003 in progress!')" class="text-zinc-300 hover:text-white underline">Detail</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Default interactive web application
+    interactiveDemoSectionHtml = `
+      <!-- DOMAIN DEMO: Interactive Web App Workflow Simulator -->
+      <div class="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6 sm:p-8 backdrop-blur-md">
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-zinc-800">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Sandbox Workflow Tester
+            </div>
+            <h3 class="text-base sm:text-lg font-bold text-white">Simulasi Interaksi Aplikasi</h3>
+            <p class="text-xs text-zinc-400">Uji eksekusi antarmuka dan penanganan state sesuai alur fitur proyek.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[10px] font-mono text-zinc-300">Sandbox Ready</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <label class="text-xs font-bold text-zinc-300 block mb-2">Simulasi Masukan / Aksi Pengguna:</label>
+            <input id="sample-input" type="text" placeholder="Masukkan judul catatan atau aksi..." class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+            <button id="add-btn" class="mt-3 w-full py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition cursor-pointer">
+              Eksekusi Aksi Simulasi
+            </button>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-zinc-300">Daftar Aktivitas Realtime (<span id="count">0</span>)</span>
+              <button id="clear-btn" class="text-[10px] text-zinc-400 hover:text-white transition cursor-pointer">Bersihkan</button>
+            </div>
+            <ul id="item-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
+              <li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada aksi dieksekusi. Ketik di sebelah kiri untuk menguji.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   return `<!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${title} · V4 Interactive Blueprint Prototype</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .task-done { text-decoration: line-through; opacity: 0.6; }
+    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
   </style>
 </head>
 <body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
-  <!-- Navigation Bar -->
-  <header class="border-b border-zinc-800/80 bg-zinc-950/80 sticky top-0 z-50 backdrop-blur-md">
-    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-sm">
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-md shrink-0">
           ${title.charAt(0).toUpperCase()}
         </div>
-        <span class="font-bold tracking-tight text-white text-sm sm:text-base">${title}</span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold tracking-tight text-white text-sm sm:text-base truncate">${title}</span>
+            <span class="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">${primaryType}</span>
+          </div>
+        </div>
       </div>
-      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-400 font-medium">
-        <a href="#features" class="hover:text-white transition">Fitur</a>
-        <a href="#interactive" class="hover:text-white transition">Demo Interaktif</a>
-        <a href="#about" class="hover:text-white transition">Tentang</a>
-      </nav>
-      <div class="flex items-center gap-3">
-        <button id="cta-btn" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition">
-          Mulai Sekarang
+
+      <nav class="hidden md:flex items-center gap-5 text-xs text-zinc-400 font-semibold">
+        <a href="#interactive-app" class="hover:text-white transition">Demo Aplikasi</a>
+        <a href="#features" class="hover:text-white transition">Fitur (${features.length})</a>
+        <a href="#tasks" class="hover:text-white transition">Tasks (${tasks.length})</a>
+        <button onclick="togglePrdModal(true)" class="hover:text-white transition flex items-center gap-1 cursor-pointer">
+          <span>Spesifikasi PRD</span>
+          <span class="px-1.5 py-0.2 rounded bg-zinc-800 text-[10px] font-mono text-zinc-300">V4</span>
         </button>
+      </nav>
+
+      <div class="flex items-center gap-2.5 shrink-0">
+        <button onclick="togglePrdModal(true)" class="px-3 py-1.5 rounded-xl border border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition cursor-pointer">
+          📑 PRD & Arsitektur
+        </button>
+        <a href="#interactive-app" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-sm">
+          Coba Demo
+        </a>
       </div>
     </div>
   </header>
 
   <!-- Hero Section -->
   <main class="flex-1">
-    <section class="max-w-6xl mx-auto px-6 py-16 sm:py-24 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/60 text-[11px] font-mono text-zinc-300 mb-6">
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/80 text-[11px] font-mono text-zinc-300 mb-6 shadow-xs">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        Live Prototype Sandbox · V4 Engine
+        <span>100% Traceable Prototype · PRD & Tasks Connected</span>
       </div>
-      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white max-w-3xl mx-auto leading-tight">
+
+      <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white max-w-4xl mx-auto leading-tight">
         ${title}
       </h1>
-      <p class="text-zinc-400 text-sm sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+
+      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
         ${desc}
       </p>
+
+      <!-- Key Stats Bar -->
+      <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Primary Type</span>
+          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block truncate">${primaryType}</span>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Fitur Terdaftar</span>
+          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block">${features.length} Total (${mvpCount} MVP)</span>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Task Terjadwal</span>
+          <span class="text-xs sm:text-sm font-bold text-emerald-400 mt-0.5 block">${tasks.length} Actionable</span>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+          <span class="text-[10px] text-zinc-400 uppercase font-mono block">Stack Inti</span>
+          <span class="text-xs sm:text-sm font-bold text-white mt-0.5 block truncate">${frontendTech.split("/")[0].trim()}</span>
+        </div>
+      </div>
+
       <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#interactive" class="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition shadow-sm">
-          Coba Demo Interaktif
+        <a href="#interactive-app" class="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold transition shadow-sm">
+          ▶ Coba Demo Interaktif
         </a>
         <a href="#features" class="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-semibold transition">
-          Jelajahi Fitur
+          Lihat Semua Fitur (${features.length})
+        </a>
+        <a href="#tasks" class="px-5 py-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-semibold transition">
+          Roadmap Task (${tasks.length})
         </a>
       </div>
     </section>
 
-    <!-- Features Section -->
-    <section id="features" class="border-t border-zinc-800/80 bg-zinc-950/40 py-16">
-      <div class="max-w-6xl mx-auto px-6">
-        <div class="text-center mb-12">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Komponen & Arsitektur Fitur</h2>
-          <p class="text-xs text-zinc-400 mt-2">Daftar kapabilitas utama yang diturunkan dari blueprint proyek.</p>
+    <!-- Interactive Application Demo Section -->
+    <section id="interactive-app" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-8">
+          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Simulasi Fungsional Aplikasi</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-1">Implementasi visual interaktif sesuai domain spesifikasi proyek Anda.</p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-${featureCards}
+        ${interactiveDemoSectionHtml}
+      </div>
+    </section>
+
+    <!-- ALL FEATURES SECTION -->
+    <section id="features" class="py-16 border-t border-zinc-800">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-mono text-zinc-400 mb-1">
+              <span>DAFTAR LENGKAP FITUR</span>
+              <span>•</span>
+              <span class="text-white font-bold">${features.length} Fitur Teridentifikasi</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Arsitektur & Spesifikasi Fitur</h2>
+            <p class="text-xs text-zinc-400 mt-1">Seluruh kapabilitas yang dirumuskan dalam PRD dengan prioritas dan ruang lingkup.</p>
+          </div>
+
+          <!-- Feature Filter Tabs -->
+          <div class="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-semibold select-none">
+            <button onclick="filterFeatures('all', this)" class="feat-filter-btn px-3 py-1 rounded-lg bg-white text-black transition">Semua (${features.length})</button>
+            <button onclick="filterFeatures('MVP', this)" class="feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition">MVP (${mvpCount})</button>
+            <button onclick="filterFeatures('POST-MVP', this)" class="feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition">Post-MVP (${postMvpCount})</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="features-container">
+          ${featureCardsHtml}
         </div>
       </div>
     </section>
 
-    <!-- Interactive Sandbox Section -->
-    <section id="interactive" class="py-16">
-      <div class="max-w-4xl mx-auto px-6">
-        <div class="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 backdrop-blur-xs">
-          <div class="flex items-center justify-between pb-4 mb-6 border-b border-zinc-800">
-            <div>
-              <h3 class="text-base font-bold text-white">Live Prototype State Test</h3>
-              <p class="text-xs text-zinc-400">Uji interaksi JavaScript murni di dalam isolasi sandbox.</p>
+    <!-- ALL TASKS & ROADMAP SECTION -->
+    <section id="tasks" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+          <div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-mono text-zinc-400 mb-1">
+              <span>ROADMAP IMPLEMENTASI TEKNIS</span>
+              <span>•</span>
+              <span class="text-emerald-400 font-bold">${tasks.length} Actionable Tasks</span>
             </div>
-            <span class="px-2.5 py-1 rounded-lg bg-zinc-800 text-[10px] font-mono text-zinc-300">Sandbox OK</span>
+            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Task Implementation & Traceability</h2>
+            <p class="text-xs text-zinc-400 mt-1">Centang task pada daftar di bawah untuk menguji kemajuan penyelesaian secara realtime.</p>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <label class="text-xs font-bold text-zinc-300 block mb-2">Simulasi Input / Interaksi</label>
-              <input id="sample-input" type="text" placeholder="Ketik sesuatu..." class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-white">
-              <button id="add-btn" class="mt-3 w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition">
-                Simpan Item Simulasi
-              </button>
+          <!-- Realtime Task Progress Bar Simulator -->
+          <div class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 sm:w-72">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="text-zinc-400 font-medium">Progress Simulasi:</span>
+              <span id="task-progress-label" class="font-mono font-bold text-white">0 / ${tasks.length} (0%)</span>
             </div>
-
-            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-zinc-300">Daftar Data (<span id="count">0</span>)</span>
-                <button id="clear-btn" class="text-[10px] text-zinc-400 hover:text-white transition">Bersihkan</button>
-              </div>
-              <ul id="item-list" class="flex-1 space-y-1.5 overflow-y-auto max-h-36 pr-1 text-xs text-zinc-400">
-                <li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada data ditambahkan.</li>
-              </ul>
+            <div class="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+              <div id="task-progress-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%;"></div>
             </div>
           </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="tasks-container">
+          ${taskCardsHtml}
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Footer -->
-  <footer id="about" class="border-t border-zinc-800/80 py-8 bg-black text-center text-xs text-zinc-500">
-    <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <p>© ${new Date().getFullYear()} ${title} · Generated with Antigravity AI Engine</p>
-      <div class="flex items-center gap-4 text-zinc-400">
-        <span>Self-contained</span>
-        <span>•</span>
-        <span>No Server Required</span>
-        <span>•</span>
-        <span>Zero Dependency</span>
+  <!-- PRD & ARCHITECTURE MODAL EXPLORER -->
+  <div id="prd-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl max-h-[85vh] rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col overflow-hidden shadow-2xl">
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80 shrink-0">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-white">Spesifikasi Lengkap PRD & Arsitektur</h3>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300">V4 Traceable</span>
+          </div>
+          <p class="text-xs text-zinc-400 mt-0.5">Dokumen persyaratan produk dan fondasi teknis yang telah diverifikasi.</p>
+        </div>
+        <button onclick="togglePrdModal(false)" class="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer">
+          ✕
+        </button>
       </div>
+
+      <!-- Modal Tabs -->
+      <div class="flex items-center gap-2 px-5 py-2 border-b border-zinc-800 bg-zinc-950 text-xs font-semibold overflow-x-auto shrink-0 select-none">
+        <button onclick="switchPrdTab('tab-overview', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl bg-white text-black transition">Overview & Goals</button>
+        <button onclick="switchPrdTab('tab-stories', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">User Stories & Persona</button>
+        <button onclick="switchPrdTab('tab-requirements', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">Functional & NFR</button>
+        <button onclick="switchPrdTab('tab-architecture', this)" class="prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition">Tech Architecture</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-zinc-300">
+        <!-- TAB 1: Overview & Goals -->
+        <div id="tab-overview" class="prd-tab-panel space-y-5">
+          <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-1">Problem Statement:</span>
+            <p class="text-sm font-medium text-white leading-relaxed">${problemStatement}</p>
+          </div>
+
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Tujuan & Sasaran Solusi (Goals):</span>
+            <div class="space-y-2">
+              ${goals.map((g, i) => `
+                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
+                  <span class="w-5 h-5 rounded-md bg-zinc-800 text-white font-mono font-bold flex items-center justify-center text-[10px] shrink-0">${i + 1}</span>
+                  <span class="text-xs text-zinc-200">${escapeHtml(g)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: User Stories & Target Persona -->
+        <div id="tab-stories" class="prd-tab-panel hidden space-y-5">
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Target Pengguna (Audience Persona):</span>
+            <div class="flex flex-wrap gap-2">
+              ${targetUsers.map((u) => `
+                <span class="px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-semibold text-white">👤 ${escapeHtml(u)}</span>
+              `).join("")}
+            </div>
+          </div>
+
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">User Stories:</span>
+            <div class="space-y-2.5">
+              ${userStories.map((s, i) => `
+                <div class="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
+                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">US-0${i + 1}</span>
+                  <p class="text-xs text-zinc-200 leading-relaxed">${escapeHtml(s)}</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: Functional & Non-Functional Requirements -->
+        <div id="tab-requirements" class="prd-tab-panel hidden space-y-5">
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Persyaratan Fungsional (FR):</span>
+            <div class="space-y-2">
+              ${(functionalReqs.length > 0 ? functionalReqs : ["Modul autentikasi dan manajemen sesi", "Modul katalog data dan pencarian dinamis", "Modul formulir transaksi dengan validasi otomatis"]).map((fr, i) => `
+                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
+                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">FR-${String(i + 1).padStart(2, "0")}</span>
+                  <span class="text-xs text-zinc-200">${escapeHtml(fr)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-zinc-400 block mb-2">Persyaratan Non-Fungsional (NFR):</span>
+            <div class="space-y-2">
+              ${nonFunctionalReqs.map((nfr, i) => `
+                <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5">
+                  <span class="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-mono font-bold text-zinc-300">NFR-${String(i + 1).padStart(2, "0")}</span>
+                  <span class="text-xs text-zinc-200">${escapeHtml(nfr)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Tech Architecture -->
+        <div id="tab-architecture" class="prd-tab-panel hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Frontend Layer:</span>
+              <span class="text-sm font-bold text-white block">${frontendTech}</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Backend & API:</span>
+              <span class="text-sm font-bold text-white block">${backendTech}</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Database & ORM:</span>
+              <span class="text-sm font-bold text-white block">${databaseTech}</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span class="text-[10px] font-mono text-zinc-400 uppercase block mb-1">Authentication:</span>
+              <span class="text-sm font-bold text-white block">${authTech}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-zinc-800 bg-zinc-950/80 flex items-center justify-end">
+        <button onclick="togglePrdModal(false)" class="px-5 py-2 rounded-xl bg-white text-black text-xs font-bold transition hover:bg-zinc-200 cursor-pointer">
+          Tutup Spesifikasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="text-zinc-300 font-semibold">${title}</span>
+        <span>·</span>
+        <span>Engine V4 Verified</span>
+      </div>
+      <p>© ${new Date().getFullYear()} ${title} · Seluruh PRD, ${features.length} Fitur & ${tasks.length} Task Terintegrasi</p>
     </div>
   </footer>
 
+  <!-- Scripts -->
   <script>
-    const input = document.getElementById('sample-input');
-    const addBtn = document.getElementById('add-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const list = document.getElementById('item-list');
-    const countEl = document.getElementById('count');
-    const ctaBtn = document.getElementById('cta-btn');
-    let items = [];
-
-    function renderItems() {
-      countEl.textContent = items.length;
-      if (items.length === 0) {
-        list.innerHTML = '<li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada data ditambahkan.</li>';
-        return;
+    // PRD Modal Toggle
+    function togglePrdModal(show) {
+      const modal = document.getElementById('prd-modal');
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
       }
-      list.innerHTML = items.map((it, idx) => \`
-        <li class="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs animate-fadeIn">
-          <span>\${it}</span>
-          <span class="text-[10px] text-zinc-500 font-mono">#\${idx + 1}</span>
-        </li>
-      \`).join('');
     }
 
-    addBtn.addEventListener('click', () => {
-      const val = input.value.trim();
-      if (!val) return;
-      items.push(val);
-      input.value = '';
-      renderItems();
-    });
+    // PRD Modal Tab Switcher
+    function switchPrdTab(tabId, btn) {
+      document.querySelectorAll('.prd-tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+      document.querySelectorAll('.prd-tab-btn').forEach(b => {
+        b.className = 'prd-tab-btn px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white transition';
+      });
+      btn.className = 'prd-tab-btn px-3 py-1.5 rounded-xl bg-white text-black transition';
+    }
 
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        addBtn.click();
+    // Features Filter Tab
+    function filterFeatures(scope, btn) {
+      const cards = document.querySelectorAll('.feature-card');
+      cards.forEach(card => {
+        if (scope === 'all' || card.getAttribute('data-scope') === scope) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      document.querySelectorAll('.feat-filter-btn').forEach(b => {
+        b.className = 'feat-filter-btn px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition';
+      });
+      btn.className = 'feat-filter-btn px-3 py-1 rounded-lg bg-white text-black transition';
+    }
+
+    // Task Checklist Progress Simulator
+    let completedTasks = new Set();
+    const totalTasksCount = ${tasks.length};
+
+    function toggleTaskDone(taskId, checkbox) {
+      const card = checkbox.closest('.task-card');
+      const title = card.querySelector('.task-title');
+      if (checkbox.checked) {
+        completedTasks.add(taskId);
+        title.classList.add('task-done');
+        card.classList.add('border-emerald-500/50', 'bg-emerald-950/20');
+      } else {
+        completedTasks.delete(taskId);
+        title.classList.remove('task-done');
+        card.classList.remove('border-emerald-500/50', 'bg-emerald-950/20');
       }
-    });
+      updateTaskProgress();
+    }
 
-    clearBtn.addEventListener('click', () => {
-      items = [];
-      renderItems();
-    });
+    function updateTaskProgress() {
+      const count = completedTasks.size;
+      const pct = totalTasksCount > 0 ? Math.round((count / totalTasksCount) * 100) : 0;
+      document.getElementById('task-progress-label').textContent = count + ' / ' + totalTasksCount + ' (' + pct + '%)';
+      document.getElementById('task-progress-bar').style.width = pct + '%';
+    }
 
-    ctaBtn.addEventListener('click', () => {
-      alert('Prototype siap! Anda dapat mengedit HTML langsung pada tab Code.');
-    });
+    // Domain Specific: Booking Logic
+    let selectedCourtName = 'Lapangan A';
+    let selectedCourtPrice = 350000;
+    let selectedSlots = ['16:00 - 18:00'];
+    let addonsTotal = 0;
+
+    function selectCourt(name, price, btn) {
+      selectedCourtName = name;
+      selectedCourtPrice = price;
+      document.querySelectorAll('.court-btn').forEach(b => {
+        b.className = 'court-btn p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
+      });
+      btn.className = 'court-btn p-3.5 rounded-2xl border border-white bg-zinc-800 text-left transition cursor-pointer';
+      document.getElementById('summary-court').textContent = name.split(' - ')[0];
+      recalcBookingTotal();
+    }
+
+    function toggleSlot(slotText, btn) {
+      if (selectedSlots.includes(slotText)) {
+        if (selectedSlots.length > 1) {
+          selectedSlots = selectedSlots.filter(s => s !== slotText);
+          btn.className = 'slot-btn p-2.5 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer';
+          btn.querySelector('span:last-child').textContent = 'Tersedia';
+          btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-semibold';
+        } else {
+          alert('Minimal harus memilih 1 slot jam.');
+        }
+      } else {
+        selectedSlots.push(slotText);
+        btn.className = 'slot-btn p-2.5 rounded-xl border border-white bg-zinc-800 text-center transition cursor-pointer';
+        btn.querySelector('span:last-child').textContent = 'Dipilih';
+        btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-semibold';
+      }
+      document.getElementById('summary-slot').textContent = selectedSlots.join(', ');
+      document.getElementById('summary-duration').textContent = (selectedSlots.length * 2) + ' Jam';
+      recalcBookingTotal();
+    }
+
+    function toggleAddon(type, price, checkbox) {
+      if (checkbox.checked) {
+        addonsTotal += price;
+      } else {
+        addonsTotal -= price;
+      }
+      document.getElementById('summary-addons').textContent = 'Rp ' + addonsTotal.toLocaleString('id-ID');
+      recalcBookingTotal();
+    }
+
+    function recalcBookingTotal() {
+      const hours = selectedSlots.length * 2;
+      const subtotal = (selectedCourtPrice / 2) * hours;
+      const grandTotal = subtotal + addonsTotal;
+      const el = document.getElementById('summary-total');
+      if (el) el.textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
+    }
+
+    function confirmBooking() {
+      const bookingCode = '#BKG-' + Math.floor(100000 + Math.random() * 900000);
+      alert('Reservasi Berhasil Dibuat!\\n\\nKode Booking: ' + bookingCode + '\\nLapangan: ' + selectedCourtName + '\\nJadwal: ' + selectedSlots.join(', ') + '\\nStatus: TERKONFIRMASI');
+    }
+
+    // Domain Specific: News Filter & Reader
+    function filterCategory(cat, btn) {
+      const items = document.querySelectorAll('.article-item');
+      items.forEach(it => {
+        if (cat === 'all' || it.getAttribute('data-category') === cat) {
+          it.style.display = 'flex';
+        } else {
+          it.style.display = 'none';
+        }
+      });
+      document.querySelectorAll('.cat-pill').forEach(b => {
+        b.className = 'cat-pill px-3 py-1.5 rounded-xl bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800 font-semibold transition';
+      });
+      btn.className = 'cat-pill px-3 py-1.5 rounded-xl bg-white text-black font-bold transition';
+    }
+
+    function filterArticles(keyword) {
+      const q = keyword.toLowerCase();
+      document.querySelectorAll('.article-item').forEach(it => {
+        const text = it.textContent.toLowerCase();
+        it.style.display = text.includes(q) ? 'flex' : 'none';
+      });
+    }
+
+    function openArticle(title) {
+      alert('Membaca Artikel:\\n\\n' + title + '\\n\\nArtikel dimuat secara lengkap di reader sandbox.');
+    }
+
+    // Domain Specific: Cart
+    let cartCount = 0;
+    function addToCart(name, price) {
+      cartCount++;
+      const el = document.getElementById('cart-badge');
+      if (el) el.textContent = cartCount;
+      alert('✓ ' + name + ' berhasil ditambahkan ke keranjang!');
+    }
+
+    function openCartModal() {
+      if (cartCount === 0) {
+        alert('Keranjang Anda masih kosong. Silakan tambahkan produk terlebih dahulu.');
+      } else {
+        alert('Keranjang Belanja: ' + cartCount + ' item.\\nTotal telah terhitung. Siap melanjutkan ke checkout!');
+      }
+    }
+
+    // Domain Specific: Admin Record
+    function addNewAdminRecord() {
+      const title = prompt('Masukkan nama aktivitas atau log baru:');
+      if (!title) return;
+      const tbody = document.getElementById('admin-table-body');
+      if (!tbody) return;
+      const tr = document.createElement('tr');
+      const id = '#REC-' + Math.floor(100 + Math.random() * 900);
+      tr.innerHTML = '<td class="p-3 text-zinc-400">' + id + '</td><td class="p-3 font-bold text-white">' + title + '</td><td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">BARU</span></td><td class="p-3 text-zinc-400">Baru saja</td><td class="p-3 text-right"><button onclick="alert(\\'Audit log valid!\\')" class="text-zinc-300 hover:text-white underline">Detail</button></td>';
+      tbody.prepend(tr);
+      alert('Data aktivitas baru berhasil ditambahkan ke tabel monitoring!');
+    }
+
+    // Default Interactive Sandbox Demo
+    const sampleInput = document.getElementById('sample-input');
+    const addSampleBtn = document.getElementById('add-btn');
+    const clearSampleBtn = document.getElementById('clear-btn');
+    const sampleList = document.getElementById('item-list');
+    const sampleCountEl = document.getElementById('count');
+    let sampleItems = [];
+
+    if (addSampleBtn && sampleInput) {
+      addSampleBtn.addEventListener('click', () => {
+        const val = sampleInput.value.trim();
+        if (!val) return;
+        sampleItems.push(val);
+        sampleInput.value = '';
+        renderSampleItems();
+      });
+
+      sampleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addSampleBtn.click();
+      });
+    }
+
+    if (clearSampleBtn) {
+      clearSampleBtn.addEventListener('click', () => {
+        sampleItems = [];
+        renderSampleItems();
+      });
+    }
+
+    function renderSampleItems() {
+      if (!sampleCountEl || !sampleList) return;
+      sampleCountEl.textContent = sampleItems.length;
+      if (sampleItems.length === 0) {
+        sampleList.innerHTML = '<li class="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 italic text-[11px]">Belum ada aksi dieksekusi.</li>';
+        return;
+      }
+      sampleList.innerHTML = sampleItems.map((it, idx) => '<li class="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 flex items-center justify-between text-xs"><span>' + it + '</span><span class="text-[10px] text-zinc-500 font-mono">#' + (idx + 1) + '</span></li>').join('');
+    }
   </script>
 </body>
 </html>`;
