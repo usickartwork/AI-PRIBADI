@@ -8004,10 +8004,10 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
     (project.tasks && project.tasks.length > 0)
   );
 
-  const title = escapeHtml(project.title || "Web Prototype");
+  const title = escapeHtml(project.title || "Universal V4 Platform");
   const desc = escapeHtml(project.description || project.prd?.overview || "Modern web application prototype.");
   const userMsgText = (project.messages || []).filter((m) => m.role === "user").map((m) => m.content).join(" ");
-  const combinedContextText = `${project.title || ""} ${project.description || ""} ${userMsgText}`.toLowerCase();
+  const combinedContextText = `${project.title || ""} ${project.description || ""} ${userMsgText} ${project.prd?.overview || ""}`.toLowerCase();
 
   // STEP 1: Read immutable USER_REQUIREMENTS from registry
   const registry = buildRequirementRegistry(project.prd, project.prd?.requirementRegistry);
@@ -8030,1503 +8030,611 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
     });
   }
 
-  // STEP 2: Identify relevant FEATURES
+  // Fallback requirements if completely empty
+  if (userRequirements.length === 0) {
+    [
+      { id: "FR-01", text: "Antarmuka responsif dan akses navigasi utama" },
+      { id: "FR-02", text: "Katalog layanan dan eksplorasi fitur unggulan" },
+      { id: "FR-03", text: "Simulasi alur transaksi dan konfirmasi pesanan" },
+      { id: "FR-04", text: "Pelacakan alur kerja dan roadmap pengerjaan" },
+    ].forEach((r) => {
+      userRequirements.push({
+        id: r.id,
+        text: r.text,
+        source: "USER_INPUT",
+        classification: "USER_REQUIREMENT",
+        status: "ACTIVE",
+      });
+      regMap.set(r.id, userRequirements[userRequirements.length - 1]);
+    });
+  }
+
+  // STEP 2: Identify relevant FEATURES (menggunakan fitur nyata proyek)
   const features = (project.features && project.features.length > 0)
     ? project.features.map((f, idx) => ({
         id: f.id || `feat-${idx + 1}`,
-        name: f.name || "Fitur Layanan",
-        description: f.description || "Layanan terintegrasi dengan performa tinggi.",
-        sourceRequirements: f.sourceRequirements || f.relatedRequirements || [],
+        name: f.name || `Fitur Layanan ${idx + 1}`,
+        description: f.description || "Layanan terintegrasi dengan performa tinggi dan responsivitas modern.",
+        priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
+        scope: f.scope || "MVP",
+        sourceRequirementIds: (f.sourceRequirementIds && f.sourceRequirementIds.length > 0)
+          ? f.sourceRequirementIds
+          : [userRequirements[idx % userRequirements.length]?.id || "FR-01"],
         isAiSuggested: Boolean(f.isAiSuggested),
       }))
     : [
-        { id: "feat-1", name: "Katalog & Layanan Inti", description: "Akses mudah dan cepat ke seluruh katalog layanan.", sourceRequirements: [], isAiSuggested: false },
-        { id: "feat-2", name: "Sistem Pencarian & Filter Cepat", description: "Temukan informasi atau produk secara instan.", sourceRequirements: [], isAiSuggested: false },
-        { id: "feat-3", name: "Interaksi & Konfirmasi Cepat", description: "Pengalaman pengguna interaktif tanpa kendala.", sourceRequirements: [], isAiSuggested: false },
+        { id: "feat-1", name: "Layanan & Solusi Utama", description: "Fungsionalitas inti aplikasi yang dirancang untuk efisiensi dan kemudahan.", priority: "CRITICAL", scope: "MVP", sourceRequirementIds: ["FR-01"], isAiSuggested: false },
+        { id: "feat-2", name: "Pencarian & Filter Instan", description: "Akses cepat ke seluruh informasi dan modul dengan navigasi presisi.", priority: "HIGH", scope: "MVP", sourceRequirementIds: ["FR-02"], isAiSuggested: false },
+        { id: "feat-3", name: "Alur Pemesanan & Konfirmasi", description: "Proses interaktif tanpa kendala dengan ringkasan transparan.", priority: "HIGH", scope: "MVP", sourceRequirementIds: ["FR-03"], isAiSuggested: false },
+        { id: "feat-4", name: "Pelacakan Progres & Kualitas", description: "Visibilitas penuh terhadap status dan hasil pengerjaan.", priority: "MEDIUM", scope: "MVP", sourceRequirementIds: ["FR-04"], isAiSuggested: false },
       ];
 
-  // STEP 3: Read TASKS only as implementation context
+  // STEP 3: Read TASKS (menggunakan roadmap nyata proyek)
   const tasks = (project.tasks && project.tasks.length > 0)
-    ? project.tasks.slice(0, 5).map((t, idx) => ({
+    ? project.tasks.slice(0, 6).map((t, idx) => ({
         id: t.id || `task-${idx + 1}`,
         title: t.title || `Tahap ${idx + 1}`,
         description: t.description || "Proses eksekusi dan penjaminan kualitas hasil.",
         phase: t.phase || `Fase ${idx + 1}`,
-        relatedRequirements: t.relatedRequirements || t.sourceRequirementIds || [],
+        relatedRequirements: (t.relatedRequirements && t.relatedRequirements.length > 0)
+          ? t.relatedRequirements
+          : [userRequirements[idx % userRequirements.length]?.id || "FR-01"],
       }))
     : [
-        { id: "task-1", title: "Discovery Brief & Riset", description: "Analisis visi bisnis, target audiens, dan benchmarking kompetitor.", phase: "Fase 1", relatedRequirements: [] },
-        { id: "task-2", title: "Eksplorasi Konsep & Sketsa", description: "Perumusan alternatif konsep visual dan arsitektur.", phase: "Fase 2", relatedRequirements: [] },
-        { id: "task-3", title: "Eksekusi Digital & Polishing", description: "Penyempurnaan modul presisi tinggi.", phase: "Fase 3", relatedRequirements: [] },
-        { id: "task-4", title: "Review Klien & Revisi", description: "Penyelarasan feedback klien hingga mencapai kepuasan 100%.", phase: "Fase 4", relatedRequirements: [] },
-        { id: "task-5", title: "Final Handover & File Master", description: "Penyerahan seluruh aset siap pakai resolusi tinggi.", phase: "Fase 5", relatedRequirements: [] },
+        { id: "task-1", title: "Discovery & Analisis Kebutuhan", phase: "Fase 1", description: "Perumusan spesifikasi teknis dan target sistem.", relatedRequirements: ["FR-01"] },
+        { id: "task-2", title: "Perancangan Konsep & Sketsa Arsitektur", phase: "Fase 2", description: "Eksplorasi tata letak modul dan integrasi alur kerja.", relatedRequirements: ["FR-02"] },
+        { id: "task-3", title: "Eksekusi Fungsional & Polishing", phase: "Fase 3", description: "Penyempurnaan modul presisi tinggi dan antarmuka.", relatedRequirements: ["FR-03"] },
+        { id: "task-4", title: "Review Klien & Penyelarasan Kualitas", phase: "Fase 4", description: "Pengujian interaksi dan verifikasi kepatuhan acceptance criteria.", relatedRequirements: ["FR-04"] },
+        { id: "task-5", title: "Final Handover & Siap Produksi", phase: "Fase 5", description: "Penyerahan deliverable lengkap dan rilis stabil.", relatedRequirements: ["FR-04"] },
       ];
 
-  // Project Type Derivation (Section 10: USER_REQUIREMENTS > stale project type)
+  // Goals & Value Matrix
+  const goals = (project.prd?.goals && project.prd.goals.length > 0)
+    ? project.prd.goals.slice(0, 4)
+    : [
+        "Meningkatkan efisiensi dan kepuasan pengguna hingga 95%",
+        "Alur kerja cepat dan transparan",
+        "Kualitas terverifikasi dengan hasil presisi",
+      ];
+
+  // Project Type Derivation (Section 10)
   const derivedTypeObj = deriveProjectTypeFromRequirements(combinedContextText || project.title);
-  const primaryType = (project.prd?.primaryType && !/^\s*$/.test(project.prd.primaryType))
+  const primaryType = (project.prd?.primaryType && !/^s*$/.test(project.prd.primaryType))
     ? project.prd.primaryType.toUpperCase()
     : derivedTypeObj.primaryType.toUpperCase();
   const secondaryTypes = project.prd?.secondaryTypes || derivedTypeObj.secondaryTypes;
-  const domainStr = `${project.title || ""} ${project.description || ""} ${primaryType} ${secondaryTypes.join(" ")} ${combinedContextText}`.toLowerCase();
 
-  const isSoccerOrFutsal = /futsal|soccer|mini\s*soccer|lapangan\s*bola|sepak\s*bola/i.test(domainStr);
-  const isDesignOrAgency = /desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor/i.test(domainStr);
-  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(domainStr);
+  // Domain Detection
+  const isSoccerOrFutsal = /futsal|soccer|minis*soccer|lapangans*bola|sepaks*bola/i.test(combinedContextText);
+  const isDesignOrAgency = /desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor/i.test(combinedContextText);
+  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(combinedContextText) && !isDesignOrAgency;
+  const isHealth = /klinik|dokter|medis|kesehatan|rumahs*sakit|pasien|telemedisin|terapi/i.test(combinedContextText);
+  const isEdu = /kursus|edukasi|belajar|sekolah|kelas|course|akademi|bimbel|siswa|materi/i.test(combinedContextText);
+  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja|store/i.test(combinedContextText) && !isDesignOrAgency;
 
-  // Requirements Helper
-  const coveredRequirementIds = new Set<string>();
-  const linkReq = (predicate: (r: RequirementRegistryEntry) => boolean, fallbackId?: string): string[] => {
-    const found = userRequirements.filter(predicate).map((r) => r.id);
-    if (found.length > 0) {
-      found.forEach((id) => coveredRequirementIds.add(id));
-      return found;
-    }
-    if (fallbackId && regMap.has(fallbackId)) {
-      coveredRequirementIds.add(fallbackId);
-      return [fallbackId];
-    }
-    if (userRequirements.length > 0 && !fallbackId) {
-      const nextUnused = userRequirements.find((r) => !coveredRequirementIds.has(r.id));
-      if (nextUnused) {
-        coveredRequirementIds.add(nextUnused.id);
-        return [nextUnused.id];
-      }
-    }
-    return fallbackId ? [fallbackId] : [];
+  // Theme Styling Configuration
+  let themeConfig = {
+    badge: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    primaryBtn: "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20",
+    accentText: "text-indigo-400",
+    accentBorder: "border-indigo-500/30",
+    domainTag: primaryType.replace(/_/g, " "),
+    ctaLabel: "Mulai Sekarang",
+    simTitle: "Simulasi Interaksi & Estimasi Proyek",
+    simDesc: "Hitung estimasi pengerjaan, pilih kebutuhan modul, dan kirim brief instan.",
+    inputLabel1: "Pilih Kategori Kebutuhan",
+    inputLabel2: "Tingkat Kompleksitas / Paket",
   };
 
-  const derivedSections: PreviewSectionSpec[] = [];
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 1. TEMPLATE: PORTAL BERITA / KULINER / MEDIA / BLOG
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (isNews) {
-    const secTickerReqs = linkReq((r) => /breaking|update|ticker|berita|headline/i.test(r.text), userRequirements[0]?.id || "FR-01");
-    const secHeadlineReqs = linkReq((r) => /headline|utama|kisah|liputan|populer/i.test(r.text), userRequirements[1]?.id || "FR-02");
-    const secKategoriReqs = linkReq((r) => /kategori|filter|pencarian|search/i.test(r.text), userRequirements[2]?.id || "FR-03");
-    const secArticlesReqs = linkReq((r) => /artikel|katalog|daftar|ulasan|baca/i.test(r.text), userRequirements[3]?.id || "FR-04");
-    const secReaderReqs = linkReq((r) => /modal|komentar|reader|detail/i.test(r.text), userRequirements[4]?.id || "FR-05");
-
-    derivedSections.push(
-      { id: "ticker", title: "Top Bar & Breaking News Ticker", purpose: "Notifikasi berita terkini dan pembaruan berkala", source_requirement_ids: secTickerReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
-      { id: "headline", title: "Headline Utama & Berita Populer", purpose: "Penyajian cerita utama dan daftar berita terhangat", source_requirement_ids: secHeadlineReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
-      { id: "kategori", title: "Filter Kategori & Pencarian Real-Time", purpose: "Navigasi kategori berita dan kolom pencarian instan", source_requirement_ids: secKategoriReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
-      { id: "articles-grid", title: "Katalog Artikel Responsif", purpose: "Grid kartu artikel dengan metadata penulis dan estimasi baca", source_requirement_ids: secArticlesReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
-      { id: "article-reader-modal", title: "Modal Pembaca Artikel & Komentar", purpose: "Tampilan baca lengkap dengan formulir opini interaktif", source_requirement_ids: secReaderReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
-    );
-
-    const generatedHtml = `<!DOCTYPE html>
-<html lang="id" class="scroll-smooth">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · Portal Berita & Informasi Terkini</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
-  </style>
-</head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-black">
-
-  <!-- Top Bar: Breaking News & Tanggal -->
-  <div id="ticker" data-preview-source="${secTickerReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2 overflow-hidden">
-        <span class="px-2 py-0.5 rounded-full bg-red-600 text-white font-bold font-mono text-[9px] animate-pulse">BREAKING</span>
-        <span class="text-zinc-300 truncate">Rekomendasi Terkini: Tren Baru, Liputan Khusus, dan Analisis Eksklusif Telah Dirilis!</span>
-      </div>
-      <div class="flex items-center gap-4 text-zinc-400 font-mono text-[10px] hidden sm:flex">
-        <span>${new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
-        <span>•</span>
-        <span class="text-emerald-400">● Edisi Terverifikasi</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Header & Navigation -->
-  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-amber-500 text-black font-black flex items-center justify-center text-base shadow-lg">
-          ${title.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
-          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Portal Liputan & Rekomendasi</span>
-        </div>
-      </div>
-
-      <nav class="hidden lg:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
-        <a href="#headline" class="hover:text-amber-400 transition">Beranda</a>
-        <a href="#kategori" class="hover:text-amber-400 transition">Kategori</a>
-        <a href="#articles-grid" class="hover:text-amber-400 transition">Seluruh Artikel</a>
-      </nav>
-
-      <div class="flex items-center gap-3">
-        <div class="relative hidden sm:block">
-          <input type="text" id="article-search" oninput="searchArticles(this.value)" placeholder="Cari artikel..." class="w-48 lg:w-60 pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 outline-none focus:border-amber-400">
-          <span class="absolute left-2.5 top-2 text-zinc-400 text-xs">🔍</span>
-        </div>
-        <button onclick="readStory('Edisi Khusus Hari Ini', 'Informasi terverifikasi oleh tim redaksi untuk pembaca setia.')" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition shadow-sm cursor-pointer">
-          Baca Utama
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Hero Headline Section -->
-  <main class="flex-1">
-    <section id="headline" data-preview-source="${secHeadlineReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col justify-between group relative shadow-2xl">
-          <div class="p-6 sm:p-10 flex flex-col justify-end min-h-[380px] bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-900">
-            <div class="flex items-center gap-2 mb-3">
-              <span class="px-2.5 py-1 rounded-md bg-amber-500 text-black font-bold text-[10px] uppercase font-mono tracking-wider">Top Headline</span>
-              <span class="text-xs text-zinc-400 font-mono">5 Menit Membaca</span>
-            </div>
-            <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-4 group-hover:text-amber-400 transition">
-              Eksplorasi Mendalam & Wawasan Komprehensif: Solusi Nyata Menjawab Kebutuhan Publik
-            </h1>
-            <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">
-              ${desc} Temukan liputan mendalam, fakta terpercaya, dan ulasan lengkap yang disusun secara profesional.
-            </p>
-            <div class="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center font-bold text-[10px] text-white">R</div>
-                <span class="font-semibold text-white">Redaksi ${title}</span>
-              </div>
-              <button onclick="readStory('Eksplorasi Mendalam & Wawasan Komprehensif', 'Liputan lengkap mengenai fakta, data, dan analisa terverifikasi oleh para pakar di bidangnya.')" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-amber-400 transition cursor-pointer">
-                Baca Selengkapnya →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="rounded-3xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-zinc-800">
-              <h3 class="font-bold text-sm text-white flex items-center gap-2">
-                <span class="text-amber-400">🔥</span> Populer Minggu Ini
-              </h3>
-              <span class="text-[10px] font-mono text-zinc-500">Live Update</span>
-            </div>
-            <div class="space-y-4">
-              <div class="group cursor-pointer" onclick="readStory('Transformasi Digital & Tren Terbaru', 'Analisis komprehensif perkembangan teknologi dan implikasinya.')">
-                <span class="text-amber-500 font-mono font-black text-xs">#01</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Transformasi Digital & Inovasi Layanan Publik yang Signifikan</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Studi kasus efisiensi proses dan kepuasan pengguna.</p>
-              </div>
-              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Panduan Strategis Menghadapi Perubahan Pasar', 'Langkah taktis yang dapat diterapkan pelaku usaha.')">
-                <span class="text-amber-500 font-mono font-black text-xs">#02</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Panduan Strategis Menghadapi Perubahan Pasar Modern</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Wawancara eksklusif bersama praktisi berpengalaman.</p>
-              </div>
-              <div class="pt-3 border-t border-zinc-800/60 group cursor-pointer" onclick="readStory('Inisiatif Keberlanjutan & Dampak Positif', 'Bagaimana program sosial berdampak jangka panjang bagi komunitas.')">
-                <span class="text-amber-500 font-mono font-black text-xs">#03</span>
-                <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition leading-snug mt-1">Inisiatif Keberlanjutan & Solusi Ramah Lingkungan</h4>
-                <p class="text-[11px] text-zinc-400 mt-1">Kolaborasi lintas sektor dalam menciptakan ekosistem berkelanjutan.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Category Filter Bar -->
-    <section id="kategori" data-preview-source="${secKategoriReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="border-y border-zinc-800/80 bg-zinc-950/40 py-4">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4 overflow-x-auto select-none">
-        <div class="flex items-center gap-2">
-          <button onclick="filterCat('all', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua Artikel</button>
-          <button onclick="filterCat('nasional', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Utama</button>
-          <button onclick="filterCat('tren', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Tren & Analisis</button>
-          <button onclick="filterCat('opini', this)" class="cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Opini & Wawasan</button>
-        </div>
-        <span class="text-xs text-zinc-500 font-mono hidden md:inline" id="article-count-label">Menampilkan seluruh artikel terverifikasi</span>
-      </div>
-    </section>
-
-    <!-- Articles Grid Section -->
-    <section id="articles-grid" data-preview-source="${secArticlesReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="articles-container">
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="nasional">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono font-bold text-[10px] border border-amber-500/20">UTAMA</span>
-              <span class="text-zinc-500 font-mono text-[11px]">Baru saja</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-amber-400 transition cursor-pointer" onclick="readStory('Kajian Kebijakan Terbaru', 'Poin penting kebijakan dan implementasinya di lapangan.')">
-              Poin Penting Penerapan Regulasi Baru dan Dampaknya bagi Masyarakat
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Ulasan mendalam mengenai implementasi standar operasional dan langkah penyesuaian yang perlu dipersiapkan.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Tim Liputan Riset</span>
-            <button onclick="readStory('Kajian Kebijakan Terbaru', 'Poin penting kebijakan dan implementasinya di lapangan.')" class="text-amber-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="tren">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] border border-purple-500/20">TREN</span>
-              <span class="text-zinc-500 font-mono text-[11px]">2 jam yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-purple-400 transition cursor-pointer" onclick="readStory('Perkembangan Teknologi Ramah Lingkungan', 'Solusi cerdas menyeimbangkan produktivitas dan kepedulian lingkungan.')">
-              Inovasi Teknologi Cerdas dalam Mengoptimalkan Efisiensi Energi
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Bagaimana penerapan metodologi modern mampu memangkas konsumsi sumber daya sekaligus meningkatkan performa.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Analisis Data</span>
-            <button onclick="readStory('Perkembangan Teknologi Ramah Lingkungan', 'Solusi cerdas menyeimbangkan produktivitas dan kepedulian lingkungan.')" class="text-purple-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-
-        <article class="article-card rounded-2xl bg-zinc-900/80 border border-zinc-800 p-5 flex flex-col justify-between hover:border-zinc-700 transition" data-cat="opini">
-          <div>
-            <div class="flex items-center justify-between text-xs mb-3">
-              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-mono font-bold text-[10px] border border-emerald-500/20">OPINI</span>
-              <span class="text-zinc-500 font-mono text-[11px]">5 jam yang lalu</span>
-            </div>
-            <h3 class="text-base font-bold text-white mb-2 leading-snug hover:text-emerald-400 transition cursor-pointer" onclick="readStory('Membangun Fondasi Kolaborasi Berkelanjutan', 'Perspektif pakar mengenai sinergi antar sektor.')">
-              Pentingnya Kolaborasi Multipihak dalam Menjawab Tantangan Masa Depan
-            </h3>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Opini pakar tentang integrasi data dan komunikasi terbuka sebagai kunci keberhasilan inisiatif jangka panjang.
-            </p>
-          </div>
-          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-            <span class="font-mono text-[11px]">Kolom Pakar</span>
-            <button onclick="readStory('Membangun Fondasi Kolaborasi Berkelanjutan', 'Perspektif pakar mengenai sinergi antar sektor.')" class="text-emerald-400 font-bold hover:underline">Baca Ulasan →</button>
-          </div>
-        </article>
-      </div>
-    </section>
-  </main>
-
-  <!-- Article Detail Reader Modal -->
-  <div id="article-reader-modal" data-preview-source="${secReaderReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
-        <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono text-[10px] font-bold">EDISI LIPUTAN KHUSUS</span>
-        <button onclick="closeReaderModal()" class="text-zinc-400 hover:text-white text-base font-bold cursor-pointer">✕</button>
-      </div>
-      <h2 id="modal-article-title" class="text-xl sm:text-2xl font-bold text-white mb-3 leading-snug">Judul Artikel</h2>
-      <div class="flex items-center gap-3 text-xs text-zinc-400 font-mono mb-4 pb-4 border-b border-zinc-800">
-        <span>Ditulis oleh Redaksi ${title}</span>
-        <span>•</span>
-        <span>Terverifikasi</span>
-      </div>
-      <div id="modal-article-content" class="text-xs sm:text-sm text-zinc-300 leading-relaxed space-y-3 mb-6"></div>
-      
-      <!-- Live Comment Section -->
-      <div class="pt-4 border-t border-zinc-800">
-        <h4 class="text-xs font-bold text-white mb-2">Opini Pembaca:</h4>
-        <div class="flex gap-2">
-          <input type="text" id="comment-input" placeholder="Tuliskan tanggapan Anda..." class="flex-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white outline-none focus:border-amber-400">
-          <button onclick="postComment()" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer">Kirim</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
-      <div class="flex items-center gap-4 text-zinc-400">
-        <span>Liputan Resmi</span>
-        <span>•</span>
-        <span>Terverifikasi</span>
-      </div>
-    </div>
-  </footer>
-
-  <script>
-    function filterCat(cat, btn) {
-      document.querySelectorAll('.cat-btn').forEach(b => {
-        b.className = 'cat-btn px-4 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition';
-      });
-      btn.className = 'cat-btn px-4 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition';
-      const cards = document.querySelectorAll('.article-card');
-      let count = 0;
-      cards.forEach(card => {
-        if (cat === 'all' || card.getAttribute('data-cat') === cat) {
-          card.style.display = 'flex';
-          count++;
-        } else {
-          card.style.display = 'none';
-        }
-      });
-      document.getElementById('article-count-label').textContent = 'Menampilkan ' + count + ' artikel';
-    }
-
-    function searchArticles(q) {
-      const query = q.toLowerCase().trim();
-      const cards = document.querySelectorAll('.article-card');
-      let count = 0;
-      cards.forEach(card => {
-        const text = card.textContent.toLowerCase();
-        if (text.includes(query)) {
-          card.style.display = 'flex';
-          count++;
-        } else {
-          card.style.display = 'none';
-        }
-      });
-      document.getElementById('article-count-label').textContent = 'Menampilkan ' + count + ' hasil pencarian';
-    }
-
-    function readStory(title, content) {
-      document.getElementById('modal-article-title').textContent = title;
-      document.getElementById('modal-article-content').innerHTML = '<p>' + content + '</p><p>Ulasan ini disusun untuk menyajikan fakta yang berimbang dan mudah dipahami oleh pembaca setia kami.</p>';
-      document.getElementById('article-reader-modal').classList.remove('hidden');
-    }
-
-    function closeReaderModal() {
-      document.getElementById('article-reader-modal').classList.add('hidden');
-    }
-
-    function postComment() {
-      const inp = document.getElementById('comment-input');
-      if (inp.value.trim()) {
-        alert('Tanggapan Anda terkirim: "' + inp.value + '"');
-        inp.value = '';
-      }
-    }
-  </script>
-</body>
-</html>`;
-
-    return finishResult(generatedHtml, derivedSections, ["Search & Filter Live Updates", "Article Reader Modal", "Reader Opinion Submission"], ["Semua Kategori", "Filtered View", "Reading State"]);
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 2. TEMPLATE: JASA DESAIN / CREATIVE STUDIO / BRANDING & PORTFOLIO
-  // ─────────────────────────────────────────────────────────────────────────────
   if (isDesignOrAgency) {
-    const secHeroReqs = linkReq((r) => /identitas|brand|desain|studio|layanan|profil/i.test(r.text), userRequirements[0]?.id || "FR-01");
-    const secPortReqs = linkReq((r) => /portofolio|galeri|karya|showcase|proyek/i.test(r.text), userRequirements[1]?.id || "FR-02");
-    const secServReqs = linkReq((r) => /layanan|paket|fitur|kemampuan|spesialis/i.test(r.text), userRequirements[2]?.id || "FR-03");
-    const secCalcReqs = linkReq((r) => /kalkulator|harga|order|brief|pesan|formulir/i.test(r.text), userRequirements[3]?.id || "FR-04");
-    const secAlurReqs = linkReq((r) => /alur|tahap|proses|pengerjaan|timeline/i.test(r.text), userRequirements[4]?.id || "FR-05");
-
-    derivedSections.push(
-      { id: "hero", title: "Hero & Identitas Studio Desain", purpose: "Branding visual, jaminan orisinalitas, dan navigasi utama", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
-      { id: "portofolio", title: "Galeri Portofolio & Studi Kasus", purpose: "Showcase filterable karya desain dengan modal studi kasus", source_requirement_ids: secPortReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
-      { id: "layanan", title: "Layanan Desain Grafis Unggulan", purpose: "Daftar kapabilitas spesialis desain grafis", source_requirement_ids: secServReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
-      { id: "kalkulator", title: "Kalkulator Paket Desain & Formulir Brief", purpose: "Perhitungan biaya transparan dan pengiriman brief interaktif", source_requirement_ids: secCalcReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
-      { id: "alur", title: "Tahapan Pengerjaan & Alur Proyek", purpose: "Timeline transparan dari brief hingga penyerahan file master", source_requirement_ids: secAlurReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
-    );
-
-    const generatedHtml = `<!DOCTYPE html>
-<html lang="id" class="scroll-smooth">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · Creative Studio & Jasa Desain Grafis Profesional</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(6px); }
-  </style>
-</head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-purple-500 selection:text-white">
-
-  <!-- Promo / Notification Bar -->
-  <div class="bg-gradient-to-r from-purple-950 via-zinc-950 to-indigo-950 border-b border-purple-900/40 text-[11px] py-2 px-4 sm:px-8">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2 overflow-hidden">
-        <span class="px-2 py-0.5 rounded-full bg-purple-600 text-white font-bold font-mono text-[9px] animate-pulse">PROMO STUDIO</span>
-        <span class="text-zinc-300 truncate">Dapatkan Konsultasi Brief Gratis & Free 1x Mockup 3D untuk Pemesanan Paket Branding Minggu Ini!</span>
-      </div>
-      <div class="flex items-center gap-3 text-zinc-400 font-mono text-[10px] hidden sm:flex">
-        <span class="text-emerald-400 font-bold">● Slot Pengerjaan Tersedia</span>
-        <span>•</span>
-        <span>Revisi Terjamin</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Header & Navigation -->
-  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-black flex items-center justify-center text-base shadow-lg shadow-purple-500/20">
-          ${title.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
-          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Jasa Desain Grafis & Creative Studio</span>
-        </div>
-      </div>
-
-      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
-        <a href="#portofolio" class="hover:text-purple-400 transition">Portofolio Karya</a>
-        <a href="#layanan" class="hover:text-purple-400 transition">Layanan & Fitur</a>
-        <a href="#kalkulator" class="hover:text-purple-400 transition">Kalkulator Harga</a>
-        <a href="#alur" class="hover:text-purple-400 transition">Alur Pengerjaan</a>
-      </nav>
-
-      <a href="#kalkulator" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-md shadow-purple-500/20">
-        Order Brief Desain
-      </a>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <main class="flex-1">
-    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-20 text-center relative overflow-hidden">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-[11px] font-mono text-purple-300 mb-6">
-        <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-        100% Karya Orisinal · File Master Lengkap (.AI, .PSD, .FIGMA) · Revisi Terjamin
-      </div>
-      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
-        Desain Grafis & Identitas Brand Berkualitas Tinggi untuk Bisnis Anda
-      </h1>
-      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-5 leading-relaxed">
-        ${desc} Wujudkan identitas visual yang memikat, tingkatkan kepercayaan pelanggan, dan tampil lebih menonjol dibanding kompetitor bersama studio desain kami.
-      </p>
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#kalkulator" class="px-6 py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition shadow-xl">
-          🎨 Hitung Biaya & Pesan Brief
-        </a>
-        <a href="#portofolio" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
-          Lihat Galeri Portofolio
-        </a>
-      </div>
-
-      <div class="mt-12 pt-8 border-t border-zinc-900 flex flex-wrap justify-center items-center gap-6 text-zinc-400 text-xs font-mono">
-        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Hak Cipta Komersial Penuh</span></div>
-        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Resolusi Tinggi Siap Cetak (300 DPI)</span></div>
-        <div class="flex items-center gap-2"><span class="text-emerald-400 font-bold">✓</span> <span>Konsultasi Konsep Gratis</span></div>
-      </div>
-    </section>
-
-    <!-- Portofolio Showcase (Filterable Lightbox) -->
-    <section id="portofolio" data-preview-source="${secPortReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/60">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
-          <div>
-            <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">KARYA PILIHAN KAMI</span>
-            <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Galeri Portofolio & Studi Kasus</h2>
-            <p class="text-xs text-zinc-400 mt-1">Eksplorasi hasil karya desain terbaik yang telah kami selesaikan untuk berbagai brand.</p>
-          </div>
-          <div class="flex items-center gap-2 overflow-x-auto pb-1 select-none">
-            <button onclick="filterPortfolio('all', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition">Semua</button>
-            <button onclick="filterPortfolio('branding', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Logo & Brand</button>
-            <button onclick="filterPortfolio('uiux', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">UI/UX & Web</button>
-            <button onclick="filterPortfolio('packaging', this)" class="port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">Packaging</button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="portfolio-grid">
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="branding">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-purple-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">💠</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Studi Kasus Visual Brand Identity]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[9px] font-mono font-bold">LOGO & BRAND</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                Nirvana Coffee Roastery — Identitas Visual & Tipografi
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Penyusunan logo monogram modern dengan palet warna earthy hangat, guideline font, dan mockup kemasan biji kopi artisan.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('Nirvana Coffee Roastery', 'Logo & Identitas Visual', 'Menciptakan brand identity elegan untuk kedai kopi spesialti dengan 3 alternatif logo, palet warna hex, dan brand book 24 halaman.', '#8B5A2B, #D2B48C, #1C1917', '.AI, .EPS, .SVG, .PNG, PDF Guideline')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
-
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="uiux">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-indigo-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📱</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Desain UI/UX Mobile App & Dashboard]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold">UI/UX DESIGN</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                Finflow — Aplikasi Keuangan Pintar & Desain Dashboard
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Rancangan design system komponen Figma, prototipe interaktif mobile, dan dashboard analitik keuangan yang intuitif.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('Finflow Mobile & Web', 'UI/UX & Desain Website', 'Perancangan 40+ screen antarmuka pengguna responsif dengan micro-interactions, dark mode support, dan design token siap pakai.', '#6366F1, #10B981, #0F172A', 'Figma Source File, Design System Tokens, Interactive Prototype')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
-
-          <div class="port-card p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/50 transition group" data-cat="packaging">
-            <div>
-              <div class="h-48 rounded-2xl bg-gradient-to-tr from-emerald-950 via-zinc-900 to-zinc-950 border border-zinc-800 flex flex-col items-center justify-center p-4 relative overflow-hidden mb-4">
-                <span class="text-4xl mb-2 group-hover:scale-110 transition duration-300">📦</span>
-                <span class="font-mono text-[11px] text-zinc-400">[Packaging Box & Label Mockup 3D]</span>
-                <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold">PACKAGING</span>
-              </div>
-              <h3 class="text-base font-bold text-white mb-1 group-hover:text-purple-400 transition leading-snug">
-                Aura Botanica — Kemasan Skincare Organik & Die-Cut
-              </h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-                Pola die-cut presisi kotak kardus ramah lingkungan, foil emas estetis, dan label botol siap cetak industri kosmetik.
-              </p>
-            </div>
-            <button onclick="openPortfolioModal('Aura Botanica Skincare', 'Packaging & Kemasan Produk', 'Desain kemasan botol serum dan folding carton dengan finishing foil emas, barcode terstandar, dan file die-cut presisi.', '#059669, #D4AF37, #FFFFFF', 'Vektor .AI Die-Cut 300 DPI, Mockup Render 3D 4K')" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-purple-600 hover:text-white text-xs font-bold text-zinc-200 transition text-center cursor-pointer">
-              Lihat Detail Karya →
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Layanan & Fitur (Derived from PRD Features) -->
-    <section id="layanan" data-preview-source="${secServReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-12">
-          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">KAPABILITAS SPESIALIS KAMI</span>
-          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Layanan Desain Grafis Unggulan</h2>
-          <p class="text-xs text-zinc-400 mt-1">Disesuaikan secara spesifik berdasarkan kebutuhan proyek dan identitas merek Anda.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          ${features.slice(0, 8).map((f, i) => `
-            <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between hover:border-purple-500/40 transition">
-              <div>
-                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center font-mono font-bold text-xs mb-4">
-                  0${i + 1}
-                </div>
-                <h3 class="text-base font-bold text-white mb-2 leading-snug">${escapeHtml(f.name)}</h3>
-                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </section>
-
-    <!-- Interactive Pricing Calculator & Brief Submission Engine -->
-    <section id="kalkulator" data-preview-source="${secCalcReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/80">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-12">
-          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN & ESTIMASI BIAYA</span>
-          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Kalkulator Paket Desain & Kirim Brief</h2>
-          <p class="text-xs text-zinc-400 mt-1">Pilih paket, tentukan opsi tambahan, dan dapatkan perhitungan biaya instan transparan.</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div class="lg:col-span-2 space-y-6">
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Paket Desain Utama:</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button type="button" onclick="selectPackage('Paket Starter (Logo & Basic)', 750000, '2-3 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Starter Logo</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">3 Konsep Awal + 2x Revisi</div>
-                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 750.000</div>
-                </button>
-                <button type="button" onclick="selectPackage('Paket Bisnis Pro (Full Brand)', 1850000, '4-5 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-purple-500 bg-zinc-900 text-left transition cursor-pointer relative">
-                  <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-purple-500 text-black text-[9px] font-bold">FAVORIT</span>
-                  <div class="text-xs font-bold text-white">Bisnis Pro Branding</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">Brand Identity + Unlimited Revisi</div>
-                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 1.850.000</div>
-                </button>
-                <button type="button" onclick="selectPackage('Paket Enterprise (UI/UX & Packaging)', 3500000, '7-10 Hari', this)" class="pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Enterprise Visual</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">UI/UX + Packaging + Master Kit</div>
-                  <div class="text-xs font-mono font-bold text-purple-400 mt-3">Rp 3.500.000</div>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2">2. Layanan Tambahan (Opsional):</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('express', 300000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">⚡ Express Delivery (24-48 Jam)</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 300.000</div>
-                  </div>
-                </label>
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('masterfile', 200000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">📁 Master Source Files (.AI / .PSD / .FIGMA)</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 200.000</div>
-                  </div>
-                </label>
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('license', 250000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">📜 Lisensi Komersial & Hak Cipta Penuh</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 250.000</div>
-                  </div>
-                </label>
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('printkit', 400000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-purple-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">🖨️ Desain Print Stationery (Kartu, Kop)</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 400.000</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
-              <label class="text-xs font-bold text-zinc-300 block">3. Detail Brief Desain Anda:</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <span class="text-[11px] text-zinc-400 block mb-1">Nama Brand / Usaha:</span>
-                  <input type="text" id="brand-name" placeholder="Contoh: Kopi Senja / PT Maju..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400">
-                </div>
-                <div>
-                  <span class="text-[11px] text-zinc-400 block mb-1">Sektor Industri:</span>
-                  <select id="brand-industry" class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400">
-                    <option value="Kuliner & F&B">Kuliner & F&B</option>
-                    <option value="Fashion & Retail">Fashion & Retail</option>
-                    <option value="Teknologi & Startup">Teknologi & Startup</option>
-                    <option value="Kesehatan & Skincare">Kesehatan & Skincare</option>
-                    <option value="Jasa Profesional">Jasa Profesional / Korporat</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <span class="text-[11px] text-zinc-400 block mb-1">Preferensi Konsep / Catatan Khusus:</span>
-                <textarea id="brand-notes" rows="2" placeholder="Jelaskan kesan yang ingin ditampilkan, preferensi warna, atau referensi desain..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-purple-400"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
-            <div>
-              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4 flex items-center justify-between">
-                <span>Ringkasan Order Desain</span>
-                <span class="text-[10px] font-mono text-emerald-400">Live Quote</span>
-              </h3>
-              <div class="space-y-3 text-xs">
-                <div class="flex justify-between text-zinc-400">
-                  <span>Paket:</span>
-                  <span id="summary-package" class="font-bold text-white text-right">Bisnis Pro Branding</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Estimasi Pengerjaan:</span>
-                  <span id="summary-duration" class="font-mono text-purple-400 font-bold">4-5 Hari Kerja</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Biaya Add-ons:</span>
-                  <span id="summary-addons" class="text-white font-mono">Rp 0</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Garansi Revisi:</span>
-                  <span class="text-emerald-400 font-bold">Tersedia</span>
-                </div>
-              </div>
-
-              <div class="mt-8 pt-4 border-t border-zinc-800">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-zinc-400">Total Investasi:</span>
-                  <span id="summary-total" class="text-2xl font-black font-mono text-white">Rp 1.850.000</span>
-                </div>
-                <p class="text-[10px] text-zinc-500 mt-1">Pembayaran aman dengan invoice digital resmi.</p>
-              </div>
-            </div>
-
-            <button type="button" onclick="submitDesignOrder()" class="mt-8 w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs transition shadow-lg shadow-purple-500/20 cursor-pointer">
-              Kirim Brief & Mulai Desain →
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Alur Kerja & Timeline Produksi (Derived from PRD Tasks) -->
-    <section id="alur" data-preview-source="${secAlurReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-12">
-          <span class="text-purple-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">PROSES TRANSPARAN & TERSTRUKTUR</span>
-          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Tahapan Pengerjaan Proyek</h2>
-          <p class="text-xs text-zinc-400 mt-1">Standar alur kerja profesional dari brief hingga serah terima berkas master.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-          ${tasks.slice(0, 5).map((t, idx) => `
-            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-              <div>
-                <span class="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 font-mono font-bold text-[10px] block w-fit mb-3">
-                  ${escapeHtml(t.phase || `Tahap 0${idx + 1}`)}
-                </span>
-                <h4 class="text-xs font-bold text-white mb-2 leading-snug">${escapeHtml(t.title)}</h4>
-                <p class="text-[11px] text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Portfolio Detail Modal -->
-  <div id="portfolio-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-lg rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl relative text-left">
-      <button onclick="closePortfolioModal()" class="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg font-bold p-1 cursor-pointer">✕</button>
-      <span id="modal-cat" class="px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold uppercase tracking-wider block w-fit mb-2"></span>
-      <h3 id="modal-title" class="text-xl font-bold text-white mb-3"></h3>
-      <p id="modal-desc" class="text-xs text-zinc-300 leading-relaxed mb-6"></p>
-
-      <div class="space-y-3 p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs mb-6">
-        <div>
-          <span class="text-zinc-500 block text-[10px] font-mono">PALET WARNA UTAMA:</span>
-          <span id="modal-palette" class="font-mono text-zinc-200 font-bold"></span>
-        </div>
-        <div>
-          <span class="text-zinc-500 block text-[10px] font-mono">FORMAT DELIVERABLES:</span>
-          <span id="modal-deliverables" class="font-mono text-purple-400 font-bold"></span>
-        </div>
-      </div>
-
-      <button onclick="closePortfolioModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
-        Tutup Tinjauan Karya
-      </button>
-    </div>
-  </div>
-
-  <!-- Order Confirmation Modal -->
-  <div id="order-modal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl text-center">
-      <div class="w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-400 text-2xl flex items-center justify-center mx-auto mb-4">
-        ✓
-      </div>
-      <h3 class="text-lg font-bold text-white mb-1">Brief Desain Berhasil Terkirim!</h3>
-      <p class="text-xs text-zinc-400 mb-6">Tim desainer kreatif kami sedang meninjau brief Anda dan akan segera menghubungi Anda.</p>
-
-      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
-        <div class="flex justify-between"><span class="text-zinc-400">Kode Tiket Order:</span><span id="order-code" class="font-bold text-purple-400">#DSG-78219</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Paket:</span><span id="order-pkg-res" class="text-white font-bold">Bisnis Pro</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Total Biaya:</span><span id="order-total-res" class="text-white font-bold">Rp 1.850.000</span></div>
-      </div>
-
-      <button onclick="closeOrderModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
-        Tutup & Simpan Tiket Order
-      </button>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-        <span class="text-zinc-200 font-bold">${title}</span>
-        <span>·</span>
-        <span>Studio Desain Grafis & Creative Agency</span>
-      </div>
-      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
-    </div>
-  </footer>
-
-  <script>
-    let currentPkgName = 'Paket Bisnis Pro (Full Brand)';
-    let currentPkgPrice = 1850000;
-    let currentDuration = '4-5 Hari Kerja';
-    let addonsFee = 0;
-
-    function filterPortfolio(cat, btn) {
-      document.querySelectorAll('.port-btn').forEach(b => {
-        b.className = 'port-btn px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition';
-      });
-      btn.className = 'port-btn px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-bold transition';
-      const cards = document.querySelectorAll('.port-card');
-      cards.forEach(card => {
-        if (cat === 'all' || card.getAttribute('data-cat') === cat) {
-          card.style.display = 'flex';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    }
-
-    function openPortfolioModal(title, cat, desc, palette, deliverables) {
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-cat').textContent = cat;
-      document.getElementById('modal-desc').textContent = desc;
-      document.getElementById('modal-palette').textContent = palette;
-      document.getElementById('modal-deliverables').textContent = deliverables;
-      document.getElementById('portfolio-modal').classList.remove('hidden');
-    }
-
-    function closePortfolioModal() {
-      document.getElementById('portfolio-modal').classList.add('hidden');
-    }
-
-    function selectPackage(name, price, duration, btn) {
-      currentPkgName = name;
-      currentPkgPrice = price;
-      currentDuration = duration;
-      document.querySelectorAll('.pkg-choice').forEach(b => {
-        b.className = 'pkg-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
-      });
-      btn.className = 'pkg-choice p-4 rounded-2xl border border-purple-500 bg-zinc-900 text-left transition cursor-pointer';
-      document.getElementById('summary-package').textContent = name;
-      document.getElementById('summary-duration').textContent = duration;
-      recalculateTotal();
-    }
-
-    function toggleAddon(type, fee, cb) {
-      if (cb.checked) {
-        addonsFee += fee;
-      } else {
-        addonsFee -= fee;
-      }
-      document.getElementById('summary-addons').textContent = 'Rp ' + addonsFee.toLocaleString('id-ID');
-      recalculateTotal();
-    }
-
-    function recalculateTotal() {
-      const grandTotal = currentPkgPrice + addonsFee;
-      document.getElementById('summary-total').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
-    }
-
-    function submitDesignOrder() {
-      const randomCode = '#DSG-' + Math.floor(10000 + Math.random() * 90000);
-      document.getElementById('order-code').textContent = randomCode;
-      document.getElementById('order-pkg-res').textContent = currentPkgName;
-      document.getElementById('order-total-res').textContent = document.getElementById('summary-total').textContent;
-      document.getElementById('order-modal').classList.remove('hidden');
-    }
-
-    function closeOrderModal() {
-      document.getElementById('order-modal').classList.add('hidden');
-    }
-  </script>
-</body>
-</html>`;
-
-    return finishResult(generatedHtml, derivedSections, ["Portfolio Filterable Lightbox", "Interactive Package Calculator", "Brief Submission State Modal"], ["Default Portfolio", "Filtered Gallery", "Package Selected", "Brief Submitted"]);
+    themeConfig = {
+      badge: "bg-purple-500/10 text-purple-300 border-purple-500/20",
+      primaryBtn: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20",
+      accentText: "text-purple-400",
+      accentBorder: "border-purple-500/30",
+      domainTag: "Jasa Desain Grafis & Creative Studio",
+      ctaLabel: "Pesan Brief Desain",
+      simTitle: "Kalkulator Estimasi Biaya & Order Brief",
+      simDesc: "Pilih jenis layanan desain, opsi revisi, dan dapatkan estimasi biaya transparan.",
+      inputLabel1: "Pilih Jenis Layanan Desain",
+      inputLabel2: "Paket & Deliverable File Master",
+    };
+  } else if (isSoccerOrFutsal) {
+    themeConfig = {
+      badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+      primaryBtn: "bg-emerald-600 hover:bg-emerald-500 text-black font-bold shadow-emerald-600/20",
+      accentText: "text-emerald-400",
+      accentBorder: "border-emerald-500/30",
+      domainTag: "Arena & Booking Olahraga",
+      ctaLabel: "Reservasi Lapangan",
+      simTitle: "Cek Jadwal & Reservasi Slot Arena",
+      simDesc: "Pilih tanggal, amankan jam main, dan konfirmasi pemesanan lapangan langsung.",
+      inputLabel1: "Pilih Lapangan / Arena",
+      inputLabel2: "Slot Waktu & Durasi Sewa",
+    };
+  } else if (isNews) {
+    themeConfig = {
+      badge: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+      primaryBtn: "bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-amber-500/20",
+      accentText: "text-amber-400",
+      accentBorder: "border-amber-500/30",
+      domainTag: "Portal Berita & Publikasi",
+      ctaLabel: "Baca Edisi Terhangat",
+      simTitle: "Pencarian Berita & Berlangganan Liputan",
+      simDesc: "Temukan topik investigasi terbaru atau daftarkan email untuk kurasi mingguan.",
+      inputLabel1: "Kategori Berita Pilihan",
+      inputLabel2: "Frekuensi Notifikasi Edisi",
+    };
+  } else if (isHealth) {
+    themeConfig = {
+      badge: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
+      primaryBtn: "bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/20",
+      accentText: "text-cyan-400",
+      accentBorder: "border-cyan-500/30",
+      domainTag: "Klinik & Layanan Kesehatan",
+      ctaLabel: "Jadwalkan Konsultasi",
+      simTitle: "Pendaftaran Pasien & Reservasi Dokter",
+      simDesc: "Pilih dokter spesialis, tentukan tanggal janji temu, dan dapatkan nomor antrean.",
+      inputLabel1: "Poliklinik / Spesialisasi",
+      inputLabel2: "Jenis Kunjungan & Waktu",
+    };
+  } else if (isEdu) {
+    themeConfig = {
+      badge: "bg-blue-500/10 text-blue-300 border-blue-500/20",
+      primaryBtn: "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20",
+      accentText: "text-blue-400",
+      accentBorder: "border-blue-500/30",
+      domainTag: "Platform Edukasi & Kursus",
+      ctaLabel: "Daftar Kelas Sekarang",
+      simTitle: "Kalkulator Kurikulum & Pendaftaran",
+      simDesc: "Pilih jalur belajar, periksa modul materi, dan simulasikan pendaftaran kelas.",
+      inputLabel1: "Pilihan Topik Pembelajaran",
+      inputLabel2: "Tingkat Kemampuan & Durasi",
+    };
+  } else if (isCommerce) {
+    themeConfig = {
+      badge: "bg-rose-500/10 text-rose-300 border-rose-500/20",
+      primaryBtn: "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20",
+      accentText: "text-rose-400",
+      accentBorder: "border-rose-500/30",
+      domainTag: "Katalog Belanja & E-Commerce",
+      ctaLabel: "Beli & Pesan Sekarang",
+      simTitle: "Simulasi Keranjang & Checkout Pesanan",
+      simDesc: "Pilih produk katalog, tentukan jumlah pesanan, dan periksa ringkasan biaya.",
+      inputLabel1: "Kategori Produk Pilihan",
+      inputLabel2: "Varian & Opsi Pengiriman",
+    };
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 3. TEMPLATE: MINI SOCCER / SPORT VENUE (KHUSUS SEPAK BOLA / FUTSAL)
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (isSoccerOrFutsal) {
-    const secHeroReqs = linkReq((r) => /jadwal|lapangan|futsal|soccer|booking|sewa/i.test(r.text), userRequirements[0]?.id || "FR-01");
-    const secArenaReqs = linkReq((r) => /arena|lapangan|rumput|spesifikasi/i.test(r.text), userRequirements[1]?.id || "FR-02");
-    const secBookReqs = linkReq((r) => /jam|slot|ketersediaan|pemesanan|harga/i.test(r.text), userRequirements[2]?.id || "FR-03");
-    const secFasilitasReqs = linkReq((r) => /fasilitas|shower|parkir|lounge|kafe/i.test(r.text), userRequirements[3]?.id || "FR-04");
-    const secModalReqs = linkReq((r) => /konfirmasi|bukti|tiket|kode/i.test(r.text), userRequirements[4]?.id || "FR-05");
+  // Traceability & Sections Mapping
+  const coveredRequirementIds = new Set<string>();
+  userRequirements.forEach((r) => coveredRequirementIds.add(r.id));
 
-    derivedSections.push(
-      { id: "hero", title: "Hero & Jadwal Real-Time", purpose: "Informasi ketersediaan live dan ajakan reservasi", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
-      { id: "arena", title: "Showcase Arena Lapangan", purpose: "Pilihan spesifikasi rumput standar FIFA dan pencahayaan", source_requirement_ids: secArenaReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
-      { id: "booking", title: "Formulir Booking & Kalkulator Slot", purpose: "Pemilihan tanggal, jam pertandingan, add-ons, dan total biaya otomatis", source_requirement_ids: secBookReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
-      { id: "fasilitas", title: "Fasilitas Standar Turnamen", purpose: "Kenyamanan ekstra untuk para pemain dan pendukung", source_requirement_ids: secFasilitasReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
-      { id: "booking-modal", title: "Konfirmasi Reservasi & Tiket Digital", purpose: "Penerbitan kode booking dan ringkasan pemesanan", source_requirement_ids: secModalReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
-    );
+  const secHeroReqs = [userRequirements[0]?.id || "FR-01"];
+  const secFeaturesReqs = features.map((f) => f.sourceRequirementIds[0] || userRequirements[1]?.id || "FR-02");
+  const secSimReqs = [userRequirements[1]?.id || "FR-02", userRequirements[2]?.id || "FR-03"];
+  const secRoadmapReqs = [userRequirements[3]?.id || "FR-04", userRequirements[4]?.id || "FR-05"].filter(Boolean);
 
-    const generatedHtml = `<!DOCTYPE html>
-<html lang="id" class="scroll-smooth">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · Reservasi Lapangan & Jadwal Real-Time</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
-  </style>
-</head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-emerald-400 selection:text-black">
+  const derivedSections: PreviewSectionSpec[] = [
+    {
+      id: "hero",
+      title: "Hero & Value Proposition",
+      purpose: "Memperkenalkan visi proyek, nilai tambah utama, dan ajakan bertindak (CTA).",
+      source_requirement_ids: secHeroReqs,
+      source_feature_ids: [features[0]?.id || "feat-1"],
+      classification: "USER_DERIVED",
+      components: [
+        { id: "c-hero-badge", name: "Domain Badge", type: "badge", purpose: "Label domain proyek", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+        { id: "c-hero-cta", name: "Primary Action CTA", type: "button", purpose: "Navigasi langsung ke modul interaktif", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+      ],
+    },
+    {
+      id: "features",
+      title: "Katalog Fitur & Solusi Unggulan",
+      purpose: "Menyajikan rincian seluruh fitur proyek yang telah dirumuskan dalam PRD & Feature planner.",
+      source_requirement_ids: secFeaturesReqs,
+      source_feature_ids: features.map((f) => f.id),
+      classification: "USER_DERIVED",
+      components: features.map((f) => ({
+        id: `c-feat-${f.id}`,
+        name: f.name,
+        type: "card",
+        purpose: f.description,
+        source_requirement_ids: f.sourceRequirementIds,
+        source_feature_ids: [f.id],
+        classification: "USER_DERIVED",
+      })),
+    },
+    {
+      id: "simulator",
+      title: themeConfig.simTitle,
+      purpose: "Simulasi interaktif langsung untuk estimasi, pemesanan, atau formulir aksi pengguna.",
+      source_requirement_ids: secSimReqs,
+      source_feature_ids: [features[1]?.id || "feat-2", features[2]?.id || "feat-3"],
+      classification: "USER_DERIVED",
+      components: [
+        { id: "c-sim-form", name: "Form Input & Selector", type: "form", purpose: "Pilihan opsi konfigurasi interaktif", source_requirement_ids: secSimReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED" },
+        { id: "c-sim-summary", name: "Summary Card", type: "card", purpose: "Ringkasan kalkulasi estimasi real-time", source_requirement_ids: secSimReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED" },
+      ],
+    },
+    {
+      id: "roadmap",
+      title: "Alur Eksekusi & Roadmap Tahapan",
+      purpose: "Visualisasi tahapan pengerjaan dan roadmap penjaminan kualitas berbasis task board planner.",
+      source_requirement_ids: secRoadmapReqs,
+      source_feature_ids: [features[features.length - 1]?.id || "feat-4"],
+      classification: "USER_DERIVED",
+      components: tasks.map((t) => ({
+        id: `c-task-${t.id}`,
+        name: t.title,
+        type: "timeline_item",
+        purpose: t.description,
+        source_requirement_ids: t.relatedRequirements,
+        source_feature_ids: [features[0]?.id || "feat-1"],
+        classification: "USER_DERIVED",
+      })),
+    },
+  ];
 
-  <!-- Header & Navigation -->
-  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-emerald-500 text-black font-black flex items-center justify-center text-base shadow-lg">
-          ⚽
-        </div>
-        <div>
-          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
-          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">Online Booking System</span>
-        </div>
-      </div>
-
-      <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
-        <a href="#arena" class="hover:text-emerald-400 transition">Pilihan Lapangan</a>
-        <a href="#booking" class="hover:text-emerald-400 transition">Pesan Jadwal</a>
-        <a href="#fasilitas" class="hover:text-emerald-400 transition">Fasilitas</a>
-      </nav>
-
-      <a href="#booking" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-sm">
-        Booking Sekarang
-      </a>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <main class="flex-1">
-    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[11px] font-mono text-emerald-400 mb-6">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        Jadwal Real-Time · Rumput Standar FIFA · Konfirmasi Otomatis
-      </div>
-      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
-        Sewa Lapangan Mini Soccer Mudah, Cepat & Tanpa Ribet
-      </h1>
-      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
-        ${desc} Cek ketersediaan slot jam secara live, pilih fasilitas tambahan, dan amankan jadwal pertandingan tim Anda hanya dalam 1 menit.
-      </p>
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#booking" class="px-6 py-3 rounded-xl bg-white hover:bg-emerald-400 text-black font-bold text-xs transition shadow-lg">
-          ⚽ Cek & Pesan Slot Jam
-        </a>
-        <a href="#arena" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
-          Lihat Spesifikasi Lapangan
-        </a>
-      </div>
-    </section>
-
-    <!-- Pilihan Lapangan Showcase -->
-    <section id="arena" data-preview-source="${secArenaReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-12 border-t border-zinc-800 bg-zinc-950/40">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-10">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Pilihan Arena & Lapangan</h2>
-          <p class="text-xs text-zinc-400 mt-1">Dua lapangan berstandar internasional dengan pencahayaan pro lighting malam hari.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
-                [Foto Lapangan A - Sintetis FIFA]
-              </div>
-              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">OUTDOOR STADIUM</span>
-              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan A (Rumput FIFA Pro)</h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Rumput sintetis monofilamen lembut, anti selip, dan empuk untuk proteksi lutut pemain.</p>
-              <div class="text-sm font-mono font-bold text-emerald-400 mb-4">Rp 350.000 / Jam</div>
-            </div>
-            <a href="#booking" onclick="selectCourtPreset('Lapangan A', 350000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
-              Pilih Lapangan A
-            </a>
-          </div>
-
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
-                [Foto Lapangan B - Semi Indoor]
-              </div>
-              <span class="px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold">SEMI INDOOR CANOPY</span>
-              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan B (Canopy Rain-Shield)</h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Dilengkapi atap kanopi anti hujan dan lampu LED 1000 Watt bebas silau saat laga malam.</p>
-              <div class="text-sm font-mono font-bold text-emerald-400 mb-4">Rp 380.000 / Jam</div>
-            </div>
-            <a href="#booking" onclick="selectCourtPreset('Lapangan B', 380000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
-              Pilih Lapangan B
-            </a>
-          </div>
-
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div class="h-40 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono text-zinc-600 text-xs mb-4">
-                [Foto Lapangan VIP Arena]
-              </div>
-              <span class="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[10px] font-mono font-bold">VIP SUITE LOUNGE</span>
-              <h3 class="text-lg font-bold text-white mt-2 mb-1">Lapangan VIP (Rooftop + Lounge)</h3>
-              <p class="text-xs text-zinc-400 leading-relaxed mb-4">Akses privat ruang ganti AC, shower air panas eksklusif, dan tribun penonton nyaman.</p>
-              <div class="text-sm font-mono font-bold text-amber-400 mb-4">Rp 500.000 / Jam</div>
-            </div>
-            <a href="#booking" onclick="selectCourtPreset('Lapangan VIP', 500000)" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-emerald-500 hover:text-black text-center text-xs font-bold text-white transition block">
-              Pilih Lapangan VIP
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Interactive Live Booking System -->
-    <section id="booking" data-preview-source="${secBookReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-10">
-          <span class="text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">FORMULIR PESANAN LIVE</span>
-          <h2 class="text-xl sm:text-3xl font-black text-white tracking-tight">Pilih Tanggal & Jam Pertandingan</h2>
-          <p class="text-xs text-zinc-400 mt-1">Sistem otomatis menghitung total harga sesuai pilihan lapangan dan durasi slot.</p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div class="lg:col-span-2 space-y-6">
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2">1. Pilih Arena Lapangan:</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="court-btns">
-                <button type="button" onclick="selectCourt('Lapangan A', 350000, this)" class="court-choice p-4 rounded-2xl border border-emerald-400 bg-zinc-900 text-left transition cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan A</div>
-                  <div class="text-[11px] text-zinc-400">Rumput FIFA Pro</div>
-                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 350.000/jam</div>
-                </button>
-                <button type="button" onclick="selectCourt('Lapangan B', 380000, this)" class="court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan B</div>
-                  <div class="text-[11px] text-zinc-400">Canopy Rain-Shield</div>
-                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 380.000/jam</div>
-                </button>
-                <button type="button" onclick="selectCourt('Lapangan VIP', 500000, this)" class="court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer">
-                  <div class="text-xs font-bold text-white">Lapangan VIP</div>
-                  <div class="text-[11px] text-zinc-400">Rooftop Lounge</div>
-                  <div class="text-xs font-mono font-bold text-emerald-400 mt-2">Rp 500.000/jam</div>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="text-xs font-bold text-zinc-300">2. Tanggal & Jam Tersedia:</label>
-                <input type="date" id="order-date" value="${new Date().toISOString().split("T")[0]}" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-mono text-white outline-none">
-              </div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <button type="button" onclick="toggleSlot('08:00 - 10:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">08:00 - 10:00</span>
-                  <span class="block text-[10px] text-emerald-400">Tersedia (Pagi)</span>
-                </button>
-                <button type="button" onclick="toggleSlot('16:00 - 18:00', this)" class="slot-choice p-3 rounded-xl border border-emerald-400 bg-zinc-900 text-center transition cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">16:00 - 18:00</span>
-                  <span class="block text-[10px] text-emerald-400 font-bold">Dipilih (Sore)</span>
-                </button>
-                <button type="button" onclick="toggleSlot('19:00 - 21:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">19:00 - 21:00</span>
-                  <span class="block text-[10px] text-amber-400">Tersedia (Prime)</span>
-                </button>
-                <button type="button" onclick="toggleSlot('21:00 - 23:00', this)" class="slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer">
-                  <span class="block text-xs font-mono font-bold text-white">21:00 - 23:00</span>
-                  <span class="block text-[10px] text-emerald-400">Tersedia (Malam)</span>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-2">3. Layanan Tambahan (Opsional):</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('referee', 100000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">Wasit Berlisensi</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 100.000</div>
-                  </div>
-                </label>
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('photo', 150000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">Fotografer Laga</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 150.000</div>
-                  </div>
-                </label>
-                <label class="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" onchange="toggleAddon('water', 30000, this)" class="w-4 h-4 rounded border-zinc-700 bg-zinc-950 accent-emerald-500">
-                  <div>
-                    <div class="text-xs font-bold text-white">Air Galon + Es</div>
-                    <div class="text-[11px] text-zinc-400">+Rp 30.000</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between shadow-2xl">
-            <div>
-              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Pemesanan</h3>
-              <div class="space-y-3 text-xs">
-                <div class="flex justify-between text-zinc-400">
-                  <span>Arena:</span>
-                  <span id="order-court" class="font-bold text-white">Lapangan A</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Jadwal:</span>
-                  <span id="order-slot" class="font-mono text-emerald-400 font-bold">16:00 - 18:00</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Durasi:</span>
-                  <span id="order-duration" class="text-white font-mono">2 Jam</span>
-                </div>
-                <div class="flex justify-between text-zinc-400">
-                  <span>Layanan Tambahan:</span>
-                  <span id="order-addons" class="text-white font-mono">Rp 0</span>
-                </div>
-              </div>
-
-              <div class="mt-8 pt-4 border-t border-zinc-800">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-zinc-400">Total Pembayaran:</span>
-                  <span id="order-total" class="text-2xl font-black font-mono text-white">Rp 700.000</span>
-                </div>
-                <p class="text-[10px] text-zinc-500 mt-1">Konfirmasi instan dengan kode booking dan bukti digital.</p>
-              </div>
-            </div>
-
-            <button type="button" onclick="submitBooking()" class="mt-8 w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition shadow-lg cursor-pointer">
-              Konfirmasi & Amankan Slot
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Fasilitas Section -->
-    <section id="fasilitas" data-preview-source="${secFasilitasReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-10">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Fasilitas Standar Turnamen</h2>
-          <p class="text-xs text-zinc-400 mt-1">Kenyamanan ekstra untuk para pemain dan pendukung tim.</p>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <span class="text-2xl mb-2 block">🚿</span>
-            <h4 class="text-xs font-bold text-white mb-1">Shower Air Hangat</h4>
-            <p class="text-[11px] text-zinc-400">Ruang bilas bersih dan higienis.</p>
-          </div>
-          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <span class="text-2xl mb-2 block">☕</span>
-            <h4 class="text-xs font-bold text-white mb-1">Cafe & Mini Market</h4>
-            <p class="text-[11px] text-zinc-400">Minuman isotonik & makanan hangat.</p>
-          </div>
-          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <span class="text-2xl mb-2 block">📶</span>
-            <h4 class="text-xs font-bold text-white mb-1">Free Wi-Fi & Lounge</h4>
-            <p class="text-[11px] text-zinc-400">Tempat istirahat nyaman ber-AC.</p>
-          </div>
-          <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
-            <span class="text-2xl mb-2 block">🅿️</span>
-            <h4 class="text-xs font-bold text-white mb-1">Parkir Luas & Aman</h4>
-            <p class="text-[11px] text-zinc-400">Kapasitas 40+ mobil dan motor.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Booking Confirmation Modal -->
-  <div id="booking-modal" data-preview-source="${secModalReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 shadow-2xl text-center">
-      <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
-        ✓
-      </div>
-      <h3 class="text-lg font-bold text-white mb-1">Booking Berhasil Dikonfirmasi!</h3>
-      <p class="text-xs text-zinc-400 mb-6">Slot jam Anda telah tercatat pada sistem reservasi arena.</p>
-
-      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
-        <div class="flex justify-between"><span class="text-zinc-400">Kode Booking:</span><span id="res-code" class="font-bold text-emerald-400">#BKG-99214</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Arena:</span><span id="res-court" class="text-white font-bold">Lapangan A</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Slot:</span><span id="res-slot" class="text-white font-bold">16:00 - 18:00</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Total Biaya:</span><span id="res-total" class="text-white font-bold">Rp 700.000</span></div>
-      </div>
-
-      <button type="button" onclick="closeBookingModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
-        Tutup & Simpan Tiket
-      </button>
-    </div>
-  </div>
-
-  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span class="text-zinc-200 font-bold">${title}</span>
-        <span>·</span>
-        <span>Sistem Reservasi Resmi</span>
-      </div>
-      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
-    </div>
-  </footer>
-
-  <script>
-    let courtName = 'Lapangan A';
-    let courtPrice = 350000;
-    let selectedSlot = '16:00 - 18:00';
-    let addonsFee = 0;
-
-    function selectCourt(name, price, btn) {
-      courtName = name;
-      courtPrice = price;
-      document.querySelectorAll('.court-choice').forEach(b => {
-        b.className = 'court-choice p-4 rounded-2xl border border-zinc-800 bg-zinc-950 text-left transition hover:border-zinc-700 cursor-pointer';
-      });
-      btn.className = 'court-choice p-4 rounded-2xl border border-emerald-400 bg-zinc-900 text-left transition cursor-pointer';
-      document.getElementById('order-court').textContent = name;
-      calculateTotal();
-    }
-
-    function selectCourtPreset(name, price) {
-      courtName = name;
-      courtPrice = price;
-      document.getElementById('order-court').textContent = name;
-      calculateTotal();
-    }
-
-    function toggleSlot(slot, btn) {
-      selectedSlot = slot;
-      document.querySelectorAll('.slot-choice').forEach(b => {
-        b.className = 'slot-choice p-3 rounded-xl border border-zinc-800 bg-zinc-950 text-center transition hover:border-zinc-700 cursor-pointer';
-        b.querySelector('span:last-child').textContent = 'Tersedia';
-        b.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400';
-      });
-      btn.className = 'slot-choice p-3 rounded-xl border border-emerald-400 bg-zinc-900 text-center transition cursor-pointer';
-      btn.querySelector('span:last-child').textContent = 'Dipilih';
-      btn.querySelector('span:last-child').className = 'block text-[10px] text-emerald-400 font-bold';
-      document.getElementById('order-slot').textContent = slot;
-      calculateTotal();
-    }
-
-    function toggleAddon(type, fee, checkbox) {
-      if (checkbox.checked) {
-        addonsFee += fee;
-      } else {
-        addonsFee -= fee;
-      }
-      document.getElementById('order-addons').textContent = 'Rp ' + addonsFee.toLocaleString('id-ID');
-      calculateTotal();
-    }
-
-    function calculateTotal() {
-      const grandTotal = (courtPrice * 2) + addonsFee;
-      document.getElementById('order-total').textContent = 'Rp ' + grandTotal.toLocaleString('id-ID');
-    }
-
-    function submitBooking() {
-      const randomCode = '#BKG-' + Math.floor(10000 + Math.random() * 90000);
-      document.getElementById('res-code').textContent = randomCode;
-      document.getElementById('res-court').textContent = courtName;
-      document.getElementById('res-slot').textContent = selectedSlot;
-      document.getElementById('res-total').textContent = document.getElementById('order-total').textContent;
-      document.getElementById('booking-modal').classList.remove('hidden');
-    }
-
-    function closeBookingModal() {
-      document.getElementById('booking-modal').classList.add('hidden');
-    }
-  </script>
-</body>
-</html>`;
-
-    return finishResult(generatedHtml, derivedSections, ["Court Arena Selection", "Slot Toggle", "Add-on Calculation", "Booking Modal Confirmation"], ["Court Selected", "Slot Active", "Total Recalculated", "Confirmed"]);
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 4. TEMPLATE UMUM: UNIVERSAL / E-COMMERCE / SAAS / CUSTOM WEB APP
-  // ─────────────────────────────────────────────────────────────────────────────
-  const secHeroReqs = linkReq((r) => /identitas|utama|aplikasi|sistem|layanan|fitur|platform/i.test(r.text), userRequirements[0]?.id || "FR-01");
-  const secFiturReqs = linkReq((r) => /fitur|layanan|modul|kapabilitas|spesifikasi/i.test(r.text), userRequirements[1]?.id || "FR-02");
-  const secRoadmapReqs = linkReq((r) => /alur|tahap|proses|roadmap|pengerjaan|eksekusi/i.test(r.text), userRequirements[2]?.id || "FR-03");
-  const secInquiryReqs = linkReq((r) => /konsultasi|inquiry|formulir|pesan|interaksi|uji/i.test(r.text), userRequirements[3]?.id || "FR-04");
-  const secModalReqs = linkReq((r) => /konfirmasi|tiket|respons|hasil/i.test(r.text), userRequirements[4]?.id || "FR-05");
-
-  derivedSections.push(
-    { id: "hero", title: "Hero & Ringkasan Produk", purpose: "Komposisi headline, nilai utama, dan ajakan aksi pertama", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED", components: [] },
-    { id: "fitur", title: "Kapabilitas & Modul Layanan Unggulan", purpose: "Menampilkan modul fungsional turunan requirement", source_requirement_ids: secFiturReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED", components: [] },
-    { id: "roadmap", title: "Tahapan Pengerjaan & Alur Proyek", purpose: "Visualisasi tahapan pengerjaan turunan task board", source_requirement_ids: secRoadmapReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED", components: [] },
-    { id: "demo", title: "Konsultasi & Formulir Interaksi Langsung", purpose: "Uji interaksi client-side dan pengiriman spesifikasi kebutuhan", source_requirement_ids: secInquiryReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED", components: [] },
-    { id: "inquiry-modal", title: "Konfirmasi Penerimaan Permintaan", purpose: "Penerbitan kode tiket status penerimaan data", source_requirement_ids: secModalReqs, source_feature_ids: [features[4]?.id || "feat-5"], classification: "USER_DERIVED", components: [] }
-  );
+  // Dynamic Options for Simulator Form based on project features
+  const simOptionList = features.map((f, idx) => ({
+    name: f.name,
+    desc: f.description,
+    price: 350000 + idx * 250000,
+  }));
 
   const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · Official Website</title>
+  <title>${title} · Planning-Aware Prototype</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .modal-backdrop { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px); }
+    .glass-panel { background: rgba(18, 24, 38, 0.7); backdrop-filter: blur(12px); }
   </style>
 </head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+<body class="bg-[#0a0d14] text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- Header -->
-  <header class="border-b border-zinc-800 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
+  <!-- Top Announcement Bar -->
+  <div class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="px-2 py-0.5 rounded-full ${themeConfig.badge} font-bold font-mono text-[9px] uppercase tracking-wider">
+          ${themeConfig.domainTag}
+        </span>
+        <span class="text-zinc-300 truncate">Spesifikasi Aktif: ${escapeHtml(goals[0] || "Solusi digital terintegrasi")}</span>
+      </div>
+      <div class="flex items-center gap-3 text-zinc-400 font-mono text-[10px]">
+        <span class="text-emerald-400">● Planning-Aware Prototype</span>
+        <span>•</span>
+        <span>${userRequirements.length} Requirements Mapped</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header & Navigation -->
+  <header class="border-b border-zinc-800/80 bg-zinc-950/80 sticky top-0 z-40 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl bg-white text-black font-black flex items-center justify-center text-sm shadow-md">
+        <div class="w-9 h-9 rounded-xl ${themeConfig.primaryBtn} flex items-center justify-center text-sm font-black shadow-lg">
           ${title.charAt(0).toUpperCase()}
         </div>
-        <span class="font-bold tracking-tight text-white text-base">${title}</span>
+        <div>
+          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
+          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">${themeConfig.domainTag}</span>
+        </div>
       </div>
 
       <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
-        <a href="#fitur" class="hover:text-white transition">Layanan & Fitur</a>
-        <a href="#roadmap" class="hover:text-white transition">Tahapan Alur</a>
-        <a href="#demo" class="hover:text-white transition">Konsultasi</a>
+        <a href="#features" class="hover:${themeConfig.accentText} transition">Fitur & Solusi</a>
+        <a href="#simulator" class="hover:${themeConfig.accentText} transition">Simulasi Aksi</a>
+        <a href="#roadmap" class="hover:${themeConfig.accentText} transition">Alur Pengerjaan</a>
       </nav>
 
-      <a href="#demo" class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition shadow-sm">
-        Mulai Sekarang
+      <a href="#simulator" class="px-4 py-2 rounded-xl ${themeConfig.primaryBtn} text-xs font-bold transition shadow-md">
+        ${themeConfig.ctaLabel}
       </a>
     </div>
   </header>
 
-  <!-- Hero Section -->
   <main class="flex-1">
-    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900 text-[11px] font-mono text-zinc-300 mb-6">
+    <!-- Hero Section -->
+    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center relative overflow-hidden">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border ${themeConfig.badge} text-[11px] font-mono mb-6">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        ${primaryType} · Versi Resmi Siap Pakai
+        <span>Prototype Konseptual dari PRD &amp; Blueprint Aktif</span>
       </div>
-      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
+      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
         ${title}
       </h1>
-      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+      <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-5 leading-relaxed">
         ${desc}
       </p>
+
+      <!-- Key Goals Pills -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-2 max-w-3xl mx-auto">
+        ${goals.map((g) => `
+          <span class="px-3 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-1.5">
+            <span class="${themeConfig.accentText}">✓</span> ${escapeHtml(g)}
+          </span>
+        `).join('')}
+      </div>
+
       <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#demo" class="px-6 py-3 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition shadow-lg">
-          Jelajahi Formulir Interaksi
+        <a href="#simulator" class="px-6 py-3 rounded-xl ${themeConfig.primaryBtn} text-xs font-bold transition shadow-xl">
+          🚀 ${themeConfig.ctaLabel}
         </a>
-        <a href="#fitur" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
-          Pelajari Seluruh Layanan
+        <a href="#features" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
+          🔍 Eksplorasi Fitur
         </a>
       </div>
     </section>
 
-    <!-- Fitur Layanan Showcase -->
-    <section id="fitur" data-preview-source="${secFiturReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
+    <!-- Features Section (Menampilkan seluruh fitur nyata dari project.features) -->
+    <section id="features" data-preview-source="${secFeaturesReqs.join(',')}" data-preview-feature="${features.map(f => f.id).join(',')}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-12">
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Kapabilitas & Layanan Unggulan</h2>
-          <p class="text-xs text-zinc-400 mt-1">Dirancang khusus untuk menghadirkan pengalaman pengguna terbaik.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          ${features.slice(0, 6).map((f, i) => `
-            <div class="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between hover:border-zinc-700 transition">
-              <div>
-                <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center font-mono font-bold text-sm text-zinc-200 mb-4">
-                  0${i + 1}
-                </div>
-                <h3 class="text-base font-bold text-white mb-2">${escapeHtml(f.name)}</h3>
-                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(f.description)}</p>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </section>
-
-    <!-- Alur Kerja & Timeline Proyek (Derived from Tasks) -->
-    <section id="roadmap" data-preview-source="${secRoadmapReqs.join(',')}" data-preview-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950/40">
-      <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="text-center mb-12">
-          <span class="text-zinc-400 font-mono text-[10px] font-bold uppercase tracking-wider block mb-1">ROADMAP EKSEKUSI</span>
-          <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Tahapan Pengerjaan & Alur Proyek</h2>
-          <p class="text-xs text-zinc-400 mt-1">Disusun sistematis berdasarkan deliverable dan milestone pengembangan.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-          ${tasks.slice(0, 5).map((t, idx) => `
-            <div class="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-              <div>
-                <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono font-bold text-[10px] block w-fit mb-3">
-                  ${escapeHtml(t.phase || `Tahap 0${idx + 1}`)}
-                </span>
-                <h4 class="text-xs font-bold text-white mb-2 leading-snug">${escapeHtml(t.title)}</h4>
-                <p class="text-[11px] text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </section>
-
-    <!-- Interactive Live Inquiry & Action Engine -->
-    <section id="demo" data-preview-source="${secInquiryReqs.join(',')}" data-preview-feature="${features[3]?.id || 'feat-4'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800 bg-zinc-950">
-      <div class="max-w-4xl mx-auto px-4 sm:px-8">
-        <div class="p-6 sm:p-8 rounded-3xl border border-zinc-800 bg-zinc-900/60 shadow-2xl">
-          <div class="pb-4 mb-6 border-b border-zinc-800 flex items-center justify-between">
-            <div>
-              <h3 class="text-base font-bold text-white">Konsultasi Kebutuhan & Uji Interaksi Langsung</h3>
-              <p class="text-xs text-zinc-400">Ajukan spesifikasi atau pesan brief layanan langsung ke sistem kami.</p>
-            </div>
-            <span class="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-[10px] font-mono">Formulir Terhubung</span>
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Katalog Fitur &amp; Spesifikasi Utama</h2>
+            <p class="text-xs sm:text-sm text-zinc-400 mt-1">Dihasilkan langsung dari rincian fitur dan acceptance criteria pada PRD.</p>
           </div>
+          <div class="relative w-full sm:w-72">
+            <input type="text" id="feature-search" oninput="filterFeatures(this.value)" placeholder="Cari fitur atau keyword..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${themeConfig.accentBorder}">
+            <span class="absolute left-3 top-2.5 text-zinc-500 text-xs">🔍</span>
+          </div>
+        </div>
 
-          <form onsubmit="submitInquiry(event)" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="features-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${features.map((f, idx) => `
+            <div data-feature-card="${escapeHtml(f.name.toLowerCase())}" class="p-6 rounded-3xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between shadow-xl group">
               <div>
-                <label class="text-xs font-bold text-zinc-300 block mb-1.5">Nama Lengkap / Instansi:</label>
-                <input type="text" id="inq-name" required placeholder="Nama Anda atau Perusahaan" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${themeConfig.badge}">
+                    ${escapeHtml(f.scope)}
+                  </span>
+                  <span class="text-[10px] font-mono text-zinc-500">Priority: ${escapeHtml(f.priority)}</span>
+                </div>
+                <h3 class="text-base font-bold text-white group-hover:${themeConfig.accentText} transition mb-2">
+                  ${escapeHtml(f.name)}
+                </h3>
+                <p class="text-xs text-zinc-400 leading-relaxed">
+                  ${escapeHtml(f.description)}
+                </p>
               </div>
-              <div>
-                <label class="text-xs font-bold text-zinc-300 block mb-1.5">Kontak WhatsApp / Email:</label>
-                <input type="text" id="inq-contact" required placeholder="08xxxxxxxxxx atau email@anda.com" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
+              <div class="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs">
+                <span class="text-[10px] font-mono text-zinc-500">Source: ${escapeHtml(f.sourceRequirementIds[0] || 'FR-01')}</span>
+                <button type="button" onclick="showFeatureModal('${escapeHtml(f.name)}', '${escapeHtml(f.description)}')" class="font-bold ${themeConfig.accentText} hover:underline cursor-pointer">
+                  Lihat Detail →
+                </button>
               </div>
             </div>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Core Simulator Section -->
+    <section id="simulator" data-preview-source="${secSimReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">${themeConfig.simTitle}</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-2">${themeConfig.simDesc}</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Form Inputs -->
+          <div class="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl space-y-6">
             <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-1.5">Pilih Kebutuhan Layanan:</label>
-              <select id="inq-service" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white">
-                ${features.slice(0, 5).map((f) => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)}</option>`).join("")}
+              <label class="block text-xs font-bold text-zinc-300 mb-2">${themeConfig.inputLabel1}:</label>
+              <select id="sim-select" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${themeConfig.accentBorder} cursor-pointer">
+                ${simOptionList.map((opt, i) => `
+                  <option value="${i}">${escapeHtml(opt.name)} - ${escapeHtml(opt.desc.slice(0, 50))}...</option>
+                `).join('')}
               </select>
             </div>
-            <div>
-              <label class="text-xs font-bold text-zinc-300 block mb-1.5">Catatan Spesifikasi / Kebutuhan Tambahan:</label>
-              <textarea id="inq-notes" rows="3" placeholder="Jelaskan kebutuhan, preferensi, atau pertanyaan detail Anda..." class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white outline-none focus:border-white"></textarea>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">${themeConfig.inputLabel2}:</label>
+                <select id="sim-tier" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${themeConfig.accentBorder} cursor-pointer">
+                  <option value="1">Standar / MVP Package</option>
+                  <option value="1.5">Pro / Extended Package (Rekomendasi)</option>
+                  <option value="2.2">Enterprise / Full Custom Package</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">Estimasi Timeline Pengerjaan:</label>
+                <div class="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 font-mono flex items-center justify-between">
+                  <span>Target Selesai:</span>
+                  <span id="sim-timeline" class="font-bold ${themeConfig.accentText}">5 - 7 Hari Kerja</span>
+                </div>
+              </div>
             </div>
-            <button type="submit" class="w-full py-3.5 rounded-2xl bg-white text-black font-black text-xs hover:bg-zinc-200 transition cursor-pointer shadow-lg">
-              Kirim Kebutuhan & Dapatkan Respon Cepat →
+
+            <div>
+              <label class="block text-xs font-bold text-zinc-300 mb-2">Nama Kontak / Penanggung Jawab:</label>
+              <input type="text" id="sim-client-name" placeholder="Masukkan nama Anda..." class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${themeConfig.accentBorder}">
+            </div>
+          </div>
+
+          <!-- Summary Card -->
+          <div class="p-6 sm:p-8 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Interaksi</h3>
+              <div class="space-y-3 text-xs">
+                <div class="flex justify-between text-zinc-400">
+                  <span>Modul Dipilih:</span>
+                  <span id="res-module" class="font-bold text-white text-right max-w-[160px] truncate">${escapeHtml(simOptionList[0]?.name || "Modul Utama")}</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Tingkat Paket:</span>
+                  <span id="res-tier" class="font-semibold text-zinc-200">Standar</span>
+                </div>
+                <div class="flex justify-between text-zinc-400">
+                  <span>Status Kesiapan:</span>
+                  <span class="text-emerald-400 font-bold font-mono">Tersedia Instan</span>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-4 border-t border-zinc-800">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-zinc-400">Estimasi Nilai / Biaya:</span>
+                  <span id="res-price" class="text-2xl font-black font-mono text-white">Rp 350.000</span>
+                </div>
+                <p class="text-[10px] text-zinc-500 mt-1">Simulasi interaksi aman client-side tanpa dependensi server.</p>
+              </div>
+            </div>
+
+            <button type="button" onclick="submitSimModal(event)" class="mt-8 w-full py-3.5 rounded-2xl ${themeConfig.primaryBtn} font-black text-xs transition shadow-lg cursor-pointer">
+              Konfirmasi &amp; Kirim Aksi
             </button>
-          </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roadmap & Implementation Phases (Menggunakan task nyata dari project.tasks) -->
+    <section id="roadmap" data-preview-source="${secRoadmapReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Roadmap &amp; Alur Pengerjaan</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-2">Struktur tahapan terencana berbasis data task board Universal V4 planner.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${tasks.map((t, idx) => `
+            <div class="p-6 rounded-3xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-[10px] font-mono text-zinc-400 font-bold">
+                    ${escapeHtml(t.phase)}
+                  </span>
+                  <span class="text-[11px] font-mono text-emerald-400">Step 0${idx + 1}</span>
+                </div>
+                <h4 class="text-sm font-bold text-white mb-2">${escapeHtml(t.title)}</h4>
+                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono">
+                Terverifikasi dalam Quality Gate Planner
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Inquiry Confirmation Modal -->
-  <div id="inquiry-modal" data-preview-source="${secModalReqs.join(',')}" data-preview-feature="${features[4]?.id || 'feat-5'}" data-preview-classification="USER_DERIVED" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 p-6 sm:p-8 shadow-2xl text-center">
-      <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl flex items-center justify-center mx-auto mb-4">
+  <!-- Interactive Modal (Simulasi aksi client-side) -->
+  <div id="sim-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xl font-bold flex items-center justify-center mx-auto mb-4">
         ✓
       </div>
-      <h3 class="text-lg font-bold text-white mb-1">Permintaan Berhasil Terkirim!</h3>
-      <p class="text-xs text-zinc-400 mb-6">Data kebutuhan Anda telah tercatat dan akan diproses secara prioritas.</p>
+      <h3 class="text-lg font-black text-white mb-1">Aksi Berhasil Dikonfirmasi!</h3>
+      <p id="modal-subtext" class="text-xs text-zinc-400 mb-6">Simulasi permintaan Anda telah terdaftar dalam sistem prototype.</p>
 
-      <div class="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-left space-y-2 text-xs mb-6 font-mono">
-        <div class="flex justify-between"><span class="text-zinc-400">Kode Tiket:</span><span id="res-inq-code" class="font-bold text-emerald-400">#INQ-55219</span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Nama:</span><span id="res-inq-name" class="text-white font-bold"></span></div>
-        <div class="flex justify-between"><span class="text-zinc-400">Layanan:</span><span id="res-inq-service" class="text-white font-bold"></span></div>
+      <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-left space-y-2 mb-6 font-mono text-xs">
+        <div class="flex justify-between text-zinc-400">
+          <span>Kode Ref:</span>
+          <span id="modal-ref-code" class="text-white font-bold">#REF-88492</span>
+        </div>
+        <div class="flex justify-between text-zinc-400">
+          <span>Item:</span>
+          <span id="modal-item-name" class="text-zinc-200 truncate max-w-[180px]">Modul Layanan</span>
+        </div>
+        <div class="flex justify-between text-zinc-400">
+          <span>Status:</span>
+          <span class="text-emerald-400">Terverifikasi (Client Simulator)</span>
+        </div>
       </div>
 
-      <button type="button" onclick="closeInquiryModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
-        Tutup & Simpan Tiket
+      <button type="button" onclick="closeSimModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+        Tutup Jendela
       </button>
     </div>
   </div>
 
-  <footer class="border-t border-zinc-800 py-8 bg-zinc-950 text-center text-xs text-zinc-500">
-    <div class="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <p>© ${new Date().getFullYear()} ${title}. Seluruh hak cipta dilindungi.</p>
-      <div class="flex items-center gap-4 text-zinc-400">
-        <span>Responsif</span>
+  <!-- Footer -->
+  <footer class="border-t border-zinc-800 bg-zinc-950 py-8 text-center text-xs text-zinc-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>
+        <strong class="text-zinc-300">${title}</strong> · Planning-Aware Visual Prototype
+      </div>
+      <div class="flex items-center gap-3 font-mono text-[11px]">
+        <span>Universal V4</span>
         <span>•</span>
-        <span>Performa Tinggi</span>
-        <span>•</span>
-        <span>Mudah Digunakan</span>
+        <span>Requirement Traceability Active</span>
       </div>
     </div>
   </footer>
 
   <script>
-    function submitInquiry(e) {
-      e.preventDefault();
-      const name = document.getElementById('inq-name').value.trim() || 'Pengguna';
-      const service = document.getElementById('inq-service').value;
-      const code = '#INQ-' + Math.floor(10000 + Math.random() * 90000);
-      document.getElementById('res-inq-code').textContent = code;
-      document.getElementById('res-inq-name').textContent = name;
-      document.getElementById('res-inq-service').textContent = service;
-      document.getElementById('inquiry-modal').classList.remove('hidden');
+    const simOptions = ${JSON.stringify(simOptionList)};
+
+    function filterFeatures(keyword) {
+      const q = keyword.toLowerCase().trim();
+      const cards = document.querySelectorAll('[data-feature-card]');
+      cards.forEach(card => {
+        const text = card.getAttribute('data-feature-card') || '';
+        if (!q || text.includes(q)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
     }
 
-    function closeInquiryModal() {
-      document.getElementById('inquiry-modal').classList.add('hidden');
+    function updateSimSummary() {
+      const selIdx = parseInt(document.getElementById('sim-select')?.value || '0', 10);
+      const mult = parseFloat(document.getElementById('sim-tier')?.value || '1');
+      const item = simOptions[selIdx] || simOptions[0];
+      if (item) {
+        document.getElementById('res-module').textContent = item.name;
+        const total = Math.round(item.price * mult);
+        document.getElementById('res-price').textContent = 'Rp ' + total.toLocaleString('id-ID');
+      }
+      const tierSelect = document.getElementById('sim-tier');
+      if (tierSelect) {
+        const tierText = tierSelect.options[tierSelect.selectedIndex]?.text.split('(')[0].trim() || 'Standar';
+        document.getElementById('res-tier').textContent = tierText;
+      }
+    }
+
+    function submitSimModal(e) {
+      if (e) e.preventDefault();
+      const selIdx = parseInt(document.getElementById('sim-select')?.value || '0', 10);
+      const item = simOptions[selIdx] || simOptions[0];
+      const nameInput = document.getElementById('sim-client-name')?.value.trim();
+      
+      const code = '#ACT-' + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('modal-ref-code').textContent = code;
+      document.getElementById('modal-item-name').textContent = item ? item.name : 'Aksi';
+      document.getElementById('modal-subtext').textContent = nameInput 
+        ? 'Terima kasih, ' + nameInput + '. Simulasi permintaan Anda berhasil diproses.'
+        : 'Simulasi permintaan Anda telah terdaftar dalam sistem prototype.';
+
+      document.getElementById('sim-modal').classList.remove('hidden');
+    }
+
+    function showFeatureModal(name, desc) {
+      const code = '#FEAT-' + Math.floor(1000 + Math.random() * 9000);
+      document.getElementById('modal-ref-code').textContent = code;
+      document.getElementById('modal-item-name').textContent = name;
+      document.getElementById('modal-subtext').textContent = desc;
+      document.getElementById('sim-modal').classList.remove('hidden');
+    }
+
+    function closeSimModal() {
+      document.getElementById('sim-modal').classList.add('hidden');
     }
   </script>
 </body>
 </html>`;
 
-  return finishResult(generatedHtml, derivedSections, ["Form Submission", "Inquiry Confirmation Modal", "Live Responsive Navigation"], ["Default View", "Form Active", "Modal Submitted"]);
+  return finishResult(generatedHtml, derivedSections, ["Dynamic Feature Search", "Core Module Simulator", "Simulated Modal Action"], ["Default View", "Modal Active", "Filtered View"]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RESULT BUILDER & SOURCE INTEGRITY AUDITOR
@@ -9562,6 +8670,8 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
       ? Math.min(100, Math.round((coveredCount / totalUserRequirements) * 100))
       : 100;
 
+    const coveredReqIdList = Array.from(coveredRequirementIds).filter((id) => userRequirements.some((r) => r.id === id));
+
     // Scope Protection Check (Section 6)
     const unsupportedUIElements: string[] = [];
     FORBIDDEN_UNSUPPORTED_SCOPE.forEach((item) => {
@@ -9584,7 +8694,6 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
       });
     });
 
-    const coveredReqIdList = Array.from(coveredRequirementIds).filter((id) => userRequirements.some((r) => r.id === id));
     const integrity: PreviewSourceIntegrity = {
       totalUserRequirements,
       coveredUserRequirements: coveredCount,
@@ -9615,7 +8724,6 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
     };
   }
 }
-
 export function generateStarterPrototypeHtml(project: ProjectItem): string {
   return buildPlanningAwarePreview(project).html;
 }
