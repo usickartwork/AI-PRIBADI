@@ -1736,12 +1736,16 @@ export function analyzeAndOptimizeTasks(
       6: unsourced.map((x) => mk("UNSOURCED_ENTITY", "-", entityLabel(x), "sourceRequirementIds", "minimal 1 ID requirement atau origin AI-derived", `[] (origin=${String(x.origin)})`, "Entity tanpa source requirement")),
       7: typeOk ? [] : [mk("PROJECT_TYPE_MISMATCH", "-", "PRD", "primaryType", expectedPrimary, generatedPrimary || "(none)", "Primary type tidak sesuai requirement aktual")],
       8: stackOk ? [] : [mk("STACK_MODE_MISMATCH", "-", "ARCHITECTURE", "stackMode", "PARTIALLY_SPECIFIED atau AI_RECOMMENDED", String(mode), "USER_SPECIFIED padahal masih ada alternatif/rekomendasi AI")],
+      9: unauthorizedScopeLeaks.map((x) => mk("UNSUPPORTED_SCOPE_INJECTION", (x.sourceRequirementIds || [])[0] || "-", entityLabel(x), "origin", "AI_SUGGESTED", String(x.origin), "Unrequested scope injection tanpa sumber user requirement")),
+      10: semanticMismatches.map((t) => mk("TRACEABILITY_SEMANTIC_MISMATCH", (t.sourceRequirementIds || [])[0] || "-", entityLabel(t), "sourceRequirementIds", "Semantically matching FR", (t.sourceRequirementIds || []).join(", "), "Ketidaksesuaian semantik antara task dan requirement")),
+      11: duplicateRequirements.map((id) => mk("DUPLICATE_REQUIREMENT_BLOCK", id, "NFR", "id", "Unique canonical entry", id, "Duplikasi blok requirement")),
     };
     checks.forEach((c) => {
+      const vList = lists[c.checkNumber] || [];
       c.violations = c.passed
         ? []
-        : lists[c.checkNumber].length > 0
-        ? lists[c.checkNumber]
+        : vList.length > 0
+        ? vList
         : [mk("CHECK_FAILED", "-", `CHECK ${c.checkNumber}`, "-", "PASS", "FAIL", c.detail)];
     });
     return checks;
