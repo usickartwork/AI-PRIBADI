@@ -92,8 +92,24 @@ async function sendViaResend(apiKey: string, toEmail: string, subject: string, h
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailOptions) {
-  const gmailUser = process.env.GMAIL_USER?.trim();
-  const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim();
+  const gmailUser = (
+    process.env.GMAIL_USER ||
+    process.env.GMAIL_EMAIL ||
+    process.env.SMTP_USER ||
+    process.env.EMAIL_USER ||
+    "usick.artwork@gmail.com"
+  )?.trim();
+
+  const gmailPass = (
+    process.env.GMAIL_APP_PASSWORD ||
+    process.env.GMAIL_PASSWORD ||
+    process.env.GMAIL_PASS ||
+    process.env.SMTP_PASS ||
+    process.env.SMTP_PASSWORD ||
+    process.env.EMAIL_PASS ||
+    process.env.EMAIL_PASSWORD ||
+    "djrsvftujahcelgn"
+  )?.trim();
   const resendKey = process.env.RESEND_API_KEY?.trim();
 
   if (!resendKey && (!gmailUser || !gmailPass)) {

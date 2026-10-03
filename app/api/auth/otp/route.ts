@@ -48,6 +48,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, otp: st
     from: `"Usick AI" <${cleanUser}>`,
     to: toEmail,
     subject: `Kode Verifikasi OTP: ${otp} - Usick AI`,
+    text: `Halo,\n\nBerikut kode verifikasi OTP Anda untuk pendaftaran akun Usick AI:\n\n${otp}\n\nKode ini berlaku selama 5 menit. Masukkan kode ini pada aplikasi untuk menyelesaikan pendaftaran Anda.\n\nSalam,\nTim Usick AI Intelligence`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
         <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
@@ -177,8 +178,24 @@ export async function POST(request: Request) {
       const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = Date.now() + 5 * 60 * 1000; // 5 Menit
 
-      const gmailUser = process.env.GMAIL_USER?.trim();
-      const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim();
+      const gmailUser = (
+        process.env.GMAIL_USER ||
+        process.env.GMAIL_EMAIL ||
+        process.env.SMTP_USER ||
+        process.env.EMAIL_USER ||
+        "usick.artwork@gmail.com"
+      )?.trim();
+
+      const gmailPass = (
+        process.env.GMAIL_APP_PASSWORD ||
+        process.env.GMAIL_PASSWORD ||
+        process.env.GMAIL_PASS ||
+        process.env.SMTP_PASS ||
+        process.env.SMTP_PASSWORD ||
+        process.env.EMAIL_PASS ||
+        process.env.EMAIL_PASSWORD ||
+        "djrsvftujahcelgn"
+      )?.trim();
       const resendKey = process.env.RESEND_API_KEY?.trim();
 
       if (!resendKey && (!gmailUser || !gmailPass)) {
