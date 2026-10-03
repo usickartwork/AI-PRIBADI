@@ -250,13 +250,22 @@ export type QualityGateResult = {
   stackDecisionLog?: StackDecisionEntry[];
 };
 
-// EXPORT GATE (Universal V4 Section 42): allowed only when all quality gates pass without critical violations.
-export function isSourceExportAllowed(gate?: QualityGateResult): boolean {
+// EXPORT GATE (Universal V4 Section 48): allowed only when all quality gates pass without critical violations.
+export function isSourceExportAllowed(
+  gate?: QualityGateResult,
+  features?: ProjectFeature[],
+  tasks?: ProjectTask[]
+): boolean {
   if (!gate) return true;
+  if (gate.sourceIntegrity === "FAIL") return false;
   const s = gate.sourceIntegrityState;
   if (s) {
+    if (s.status === "FAIL") return false;
     if (s.finalValidationCompleted !== true) return false;
     if (s.remainingViolations > 0) return false;
+  }
+  if (gate.sourceIntegrityChecks && gate.sourceIntegrityChecks.some((c) => !c.passed)) {
+    return false;
   }
   if (gate.designQualityGate && gate.designQualityGate.some((dq) => dq.severity === "CRITICAL" && !dq.passed)) {
     return false;
@@ -266,6 +275,13 @@ export function isSourceExportAllowed(gate?: QualityGateResult): boolean {
   }
   if (gate.checks && gate.checks.some((c) => !c.passed && c.name.toLowerCase().includes("critical"))) {
     return false;
+  }
+  if (tasks && tasks.length > 0) {
+    if (tasks.some((t) => !t.acceptanceCriteria || t.acceptanceCriteria.length === 0)) return false;
+    if (tasks.some((t) => !t.testing || t.testing.length === 0)) return false;
+  }
+  if (features && features.length > 0) {
+    if (features.some((f) => f.origin === "AI_SUGGESTED" && (f.isMvp || f.scope === "MVP"))) return false;
   }
   return true;
 }
@@ -433,6 +449,8 @@ export type TraceabilityRow = {
   requirementId: string;
   featureId: string;
   taskIds: string[];
+  acceptanceCriteria?: string[];
+  tests?: string[];
   classification: RequirementSource;
 };
 
@@ -1750,11 +1768,24 @@ export function buildTraceabilityMatrix(
 ): TraceabilityRow[] {
   return registry.map((r) => {
     const featIds = features.filter((f) => (f.sourceRequirementIds || []).indexOf(r.id) !== -1).map((f) => f.id);
-    const taskIds = tasks.filter((t) => (t.sourceRequirementIds || []).indexOf(r.id) !== -1).map((t) => t.id);
+    const matchedTasks = tasks.filter((t) => (t.sourceRequirementIds || []).indexOf(r.id) !== -1);
+    const taskIds = matchedTasks.map((t) => t.id);
+    const acList: string[] = [];
+    const testList: string[] = [];
+    matchedTasks.forEach((t) => {
+      (t.acceptanceCriteria || []).forEach((_, idx) => {
+        acList.push(`AC-${t.id.replace("TASK-", "")}.${idx + 1}`);
+      });
+      (t.testing || []).forEach((_, idx) => {
+        testList.push(`TEST-${t.id.replace("TASK-", "")}.${idx + 1}`);
+      });
+    });
     return {
       requirementId: r.id,
       featureId: featIds.length > 0 ? featIds.join(", ") : "-",
       taskIds,
+      acceptanceCriteria: acList,
+      tests: testList,
       classification: r.classification,
     };
   });
@@ -1966,12 +1997,12 @@ export function analyzeAndOptimizeTasks(
 
     const missing = userReqs.filter((r) => !classifiedLocked.some((cr) => cr.id === r.id));
     const classDrift = classifiedLocked.filter((cr) => regMap.get(cr.id)?.classification !== cr.source);
-    const noFeature = lockedFeatures.length === 0
-      ? []
-      : userReqs.filter((r) => !lockedFeatures.some((f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1));
-    const noTask = tasksArr.length === 0
-      ? []
-      : userReqs.filter((r) => !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1));
+    const noFeature = userReqs.filter(
+      (r) => !lockedFeatures.some((f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1)
+    );
+    const noTask = userReqs.filter(
+      (r) => !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)
+    );
     const aiMandatory = lockedFeatures.filter(featureMandatoryAi);
     const aiLeak = lineageItems.filter(
       (x) => x.origin === "AI_SUGGESTED" && (x.sourceRequirementIds || []).some((id) => isUserClass(regMap.get(id)?.classification))
@@ -2207,7 +2238,7 @@ export function analyzeAndOptimizeTasks(
         let coveringFeature: ProjectFeature | undefined = lockedFeatures.find(
           (f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1
         );
-        if (lockedFeatures.length > 0 && !coveringFeature) {
+        if (!coveringFeature) {
           let best: ProjectFeature | undefined;
           let bestScore = 0;
           for (const f of lockedFeatures) {
@@ -2223,8 +2254,10 @@ export function analyzeAndOptimizeTasks(
             best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
             coveringFeature = best;
           } else {
+            const featNum = lockedFeatures.length + 1;
+            const stubId = `FEAT-${String(featNum).padStart(3, "0")}`;
             const stub: ProjectFeature = {
-              id: `FEAT-${r.id}`,
+              id: stubId,
               name: clip(r.text, 70),
               description: r.text,
               priority: "HIGH",
@@ -2246,7 +2279,7 @@ export function analyzeAndOptimizeTasks(
         }
 
         const tasksArr = Array.from(taskMap.values());
-        if (tasksArr.length > 0 && !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)) {
+        if (!tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)) {
           let best: ProjectTask | undefined;
           let bestScore = 0;
           for (const t of tasksArr) {
@@ -2262,7 +2295,8 @@ export function analyzeAndOptimizeTasks(
             best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
             best.source = best.origin;
           } else {
-            const stubId = `TASK-${r.id}`;
+            const taskNum = taskMap.size + 1;
+            const stubId = `TASK-${String(taskNum).padStart(3, "0")}`;
             const featLabel = coveringFeature ? `${coveringFeature.id} — ${coveringFeature.name}` : "";
             taskMap.set(stubId, {
               id: stubId,
@@ -2271,7 +2305,7 @@ export function analyzeAndOptimizeTasks(
               status: "backlog",
               feature: coveringFeature?.name,
               relatedFeature: featLabel || undefined,
-              phase: "Phase — Source Coverage",
+              phase: "Phase 2 — Core Capabilities",
               priority: "HIGH",
               source: "USER_REQUIREMENT",
               origin: "USER_REQUIREMENT",
@@ -2279,9 +2313,19 @@ export function analyzeAndOptimizeTasks(
               relatedRequirements: [r.id],
               dependencies: [],
               dependencyType: "NONE",
-              subtasks: [`${stubId}.1: Implementasi perilaku sesuai requirement ${r.id}`, `${stubId}.2: Verifikasi hasil terhadap requirement ${r.id}`],
-              acceptanceCriteria: [`Perilaku sistem sesuai requirement ${r.id}: ${r.text}`],
-              testing: [`Uji skenario yang memverifikasi requirement ${r.id}`],
+              subtasks: [
+                `${stubId}.1: Implementasi komponen antarmuka dan alur interaksi ${clip(r.text, 50)}`,
+                `${stubId}.2: Validasi logika bisnis, error handling dan sanitasi input`,
+                `${stubId}.3: Uji integrasi dan verifikasi fungsional requirement ${r.id}`,
+              ],
+              acceptanceCriteria: [
+                `Sistem berhasil mengeksekusi fungsionalitas requirement ${r.id}: ${r.text}`,
+                `Input divalidasi dengan aman dan state aplikasi diperbarui dengan benar`,
+              ],
+              testing: [
+                `Unit/Integration Test: Validasi fungsional logic requirement ${r.id}`,
+                `E2E / QA Test: Verifikasi alur user end-to-end tanpa error`,
+              ],
               parallelizable: "NO",
             });
           }
@@ -2620,8 +2664,13 @@ export function analyzeAndOptimizeTasks(
       }
     }
 
-    // PASS 9 — Sanitize unrealistic guarantees (Final V4 Addition & Patch)
-    if (task.acceptanceCriteria) {
+    // PASS 9 — Acceptance Criteria & Testing Strategy (Section 8 & 48)
+    if (!task.acceptanceCriteria || task.acceptanceCriteria.length === 0) {
+      task.acceptanceCriteria = [
+        `Fungsionalitas ${task.title} tervalidasi berjalan tanpa error`,
+        `Input dan alur data terverifikasi sesuai spesifikasi`,
+      ];
+    } else {
       task.acceptanceCriteria = task.acceptanceCriteria.map((ac) =>
         ac
           .replace(/100%\s*(aman|secure|akurat|accurate)/gi, "Tervalidasi sesuai spesifikasi dan penanganan error tuntas")
@@ -2630,6 +2679,13 @@ export function analyzeAndOptimizeTasks(
           .replace(/impossible to hack/gi, "Enkripsi dan validasi otorisasi terproteksi")
           .replace(/perfect performance|kinerja sempurna/gi, "Performa teroptimasi dan terukur")
       );
+    }
+
+    if (!task.testing || task.testing.length === 0) {
+      task.testing = [
+        `Unit / Integration Test: Validasi logika ${task.title}`,
+        `Manual QA: Verifikasi alur user end-to-end`,
+      ];
     }
 
     return task;
@@ -6131,13 +6187,15 @@ ${(prd?.risks && prd.risks.length > 0 ? prd.risks : [
 ${(() => {
   const matrix = activeProject.traceabilityMatrix || activeProject.prd?.traceabilityMatrix || [];
   if (matrix.length > 0) {
-    let md = "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n";
+    let md = "| Requirement | Feature | Task | Acceptance Criteria | Test | Classification |\n|---|---|---|---|---|---|\n";
     matrix.forEach((row: TraceabilityRow) => {
-      md += `| ${row.requirementId} | ${row.featureId} | ${row.taskIds.join(", ") || "-"} | ${row.classification} |\n`;
+      const acStr = (row.acceptanceCriteria && row.acceptanceCriteria.length > 0) ? row.acceptanceCriteria.join(", ") : "-";
+      const testStr = (row.tests && row.tests.length > 0) ? row.tests.join(", ") : "-";
+      md += `| ${row.requirementId} | ${row.featureId} | ${(row.taskIds || []).join(", ") || "-"} | ${acStr} | ${testStr} | ${row.classification} |\n`;
     });
     return md.trim();
   }
-  return "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n| - | - | - | - |";
+  return "| Requirement | Feature | Task | Acceptance Criteria | Test | Classification |\n|---|---|---|---|---|---|\n| - | - | - | - | - | - |";
 })()}
 
 ---
@@ -6339,7 +6397,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         <tr>
           <th>Requirement</th>
           <th>Feature</th>
-          <th>Tasks</th>
+          <th>Task</th>
+          <th>Acceptance Criteria</th>
+          <th>Test</th>
           <th>Classification</th>
         </tr>
       </thead>
@@ -6348,7 +6408,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           <tr>
             <td><strong>${row.requirementId}</strong></td>
             <td>${row.featureId}</td>
-            <td>${row.taskIds.join(", ") || "-"}</td>
+            <td>${(row.taskIds || []).join(", ") || "-"}</td>
+            <td>${(row.acceptanceCriteria || []).join(", ") || "-"}</td>
+            <td>${(row.tests || []).join(", ") || "-"}</td>
             <td><span class="badge">${row.classification}</span></td>
           </tr>
         `).join("")}
@@ -8152,6 +8214,8 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                           <th className="py-2 px-3 font-semibold">Requirement</th>
                           <th className="py-2 px-3 font-semibold">Feature</th>
                           <th className="py-2 px-3 font-semibold">Tasks</th>
+                          <th className="py-2 px-3 font-semibold">AC</th>
+                          <th className="py-2 px-3 font-semibold">Test</th>
                           <th className="py-2 px-3 font-semibold">Classification</th>
                         </tr>
                       </thead>
@@ -8160,7 +8224,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                           <tr key={idx} className={isDark ? "hover:bg-zinc-900/40" : "hover:bg-zinc-50"}>
                             <td className="py-2 px-3 font-semibold">{row.requirementId}</td>
                             <td className="py-2 px-3 text-zinc-400">{row.featureId}</td>
-                            <td className="py-2 px-3 text-zinc-300">{row.taskIds.join(", ") || "-"}</td>
+                            <td className="py-2 px-3 text-zinc-300">{(row.taskIds || []).join(", ") || "-"}</td>
+                            <td className="py-2 px-3 text-zinc-400">{(row.acceptanceCriteria || []).join(", ") || "-"}</td>
+                            <td className="py-2 px-3 text-zinc-400">{(row.tests || []).join(", ") || "-"}</td>
                             <td className="py-2 px-3">
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
                                 row.classification === "USER_REQUIREMENT" || row.classification === "USER_CONSTRAINT"
