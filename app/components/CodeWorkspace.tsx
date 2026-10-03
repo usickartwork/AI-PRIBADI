@@ -913,114 +913,292 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
           { id: "task-photo-10", title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch", description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
           { id: "task-photo-11", title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res", description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
           { id: "task-photo-12", title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)", description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
-          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "todo" as const, feature: "Studio Management", phase: "Phase 7 - Studio Management" },
-          { id: "task-photo-14", title: "Security Hardening (Watermark Protection, Token Expiry) & Deploy ke Vercel", description: "Audit keamanan rute, proteksi hotlinking foto, pengujian end-to-end, dan deployment ke production.", status: "todo" as const, feature: "Studio Management", phase: "Phase 7 - Studio Management" }
+          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "todo" as const, feature: "Studio Management", phase: "Phase 6 - Dashboard Admin" },
+          { id: "task-photo-14", title: "Automasi Watermarking dengan Sharp & Cloud Presigned URL", description: "Worker background untuk meng-apply watermark dinamis pada foto yang diunggah dan generate presigned URL download.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-15", title: "Audit Keamanan Token Proofing & Rate Limiting Endpoint", description: "Proteksi brute force link proofing, sanitasi akses unduhan, dan pengujian otorisasi session.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
+          { id: "task-photo-16", title: "Testing Menyeluruh, Optimasi Core Web Vitals & Production Deployment", description: "Audit performa galeri foto WebP/AVIF, stress test kalender booking, dan rilis ke production Vercel.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
         ]
       };
     }
 
     return {
       prd: {
-        overview: `Perencanaan arsitektur dan sistem komprehensif untuk ${title}. Didesain untuk memberikan efisiensi tinggi, keandalan performa, dan skalabilitas jangka panjang sesuai kebutuhan pengguna.`,
-        problemStatement: "Mengeliminasi proses manual yang lambat dan rawan kesalahan dengan menyediakan platform otomatisasi digital terintegrasi.",
+        overview: `Perencanaan arsitektur sistem dan spesifikasi teknis komprehensif untuk ${title}. Platform dirancang secara modular, tangguh, dan siap produksi (production-ready) untuk mengatasi hambatan operasional manual, mempercepat alur transaksi digital, serta menyajikan antarmuka pengguna yang sangat responsif, intuitif, dan aman.`,
+        problemStatement: `Banyak sistem sejenis mengalami kendala fragmentasi alur kerja, verifikasi pembayaran manual yang lambat dan rawan fraud, integrasi data yang terputus-putus, serta antarmuka yang membingungkan pengguna sehingga menurunkan angka konversi dan meningkatkan beban kerja staf operasional.`,
         goals: [
-          "Mengotomatisasi 100% alur kerja inti dan manajemen data",
-          "Menjamin kecepatan respons sistem di bawah 1 detik",
-          "Meningkatkan konversi dan kepuasan pengguna dengan UI intuitif",
-          "Menyediakan visibilitas pelaporan bisnis secara transparan"
+          "G-01: Mengotomatisasi 100% alur kerja inti bisnis dari katalog, pemesanan, verifikasi transaksi hingga penerbitan tanda bukti digital",
+          "G-02: Memastikan kecepatan respons antarmuka (Time-to-Interactive) di bawah 1.0 detik dengan arsitektur Server Components & Client Caching",
+          "G-03: Menjamin SLA ketersediaan layanan sistem 99.9% dengan arsitektur stateless cloud",
+          "G-04: Menghilangkan resiko bentrok alur transaksi/jadwal dengan mekanisme atomic concurrency locking pada database",
+          "G-05: Mengintegrasikan gateway pembayaran multi-channel otomatis (QRIS dinamis & Virtual Account) dengan rekonsiliasi instan",
+          "G-06: Mengurangi waktu pemrosesan administrasi operasional harian hingga 75% melalui dashboard analitik real-time",
+          "G-07: Meningkatkan tingkat retensi dan kepuasan pengguna melalui sistem notifikasi otomatis multi-channel (WhatsApp/Email)",
+          "G-08: Memenuhi standar keamanan siber enterprise termasuk sanitasi input ketat, CSRF protection, dan enkripsi data transit"
         ],
         targetUsers: [
-          "Pengguna Utama / Customer (Mencari, memilih, dan bertransaksi)",
-          "Staff Operasional (Memproses order dan memvalidasi ketersediaan)",
-          "Administrator Bisnis (Mengawasi performa omzet dan laporan analitik)"
+          "Pengguna Akhir / Customer: Mencari informasi, menelusuri katalog, melakukan pemesanan, membayar otomatis, dan mengunduh invoice digital",
+          "Staff Operasional & Mitra: Mengelola antrean order, memperbarui status pengerjaan/ketersediaan, dan berkomunikasi dengan customer",
+          "Supervisor / Studio Manager: Mengatur alokasi sumber daya, mengelola data master katalog, harga, serta menangani eskalasi kendala",
+          "Super Administrator & Pemilik Bisnis: Mengakses analitik omzet bisnis, rekapitulasi keuangan bulanan, manajemen audit log, dan hak akses staf"
         ],
         functionalRequirements: [
-          "Autentikasi multi-role (Admin, Staff, Customer) dengan session cookie",
-          "Modul penelusuran katalog data dengan filter instan dan sorting",
-          "Mesin transaksi pemesanan dengan validasi data ketat",
-          "Integrasi gateway pembayaran otomatis dengan webhook rekonsiliasi",
-          "Dashboard analitik dan pelaporan riwayat transaksi terpadu"
+          "FR-01: Autentikasi multi-role (Admin, Staff, Customer) berbasis secure HttpOnly session cookie dengan proteksi Middleware Route Guard",
+          "FR-02: Alur login cepat Google OAuth dan registrasi kredensial mandiri dengan enkripsi password Argon2 / Bcrypt",
+          "FR-03: Katalog interaktif responsif dengan pencarian instan debounce, filter multi-kategori, dan sorting harga/popularitas",
+          "FR-04: Halaman detail entitas/produk lengkap dengan galeri multimedia responsif, rincian atribut, dan ketersediaan live",
+          "FR-05: Mesin pemesanan transaksi interaktif dengan validasi data masukan komprehensif menggunakan schema Zod",
+          "FR-06: Mekanisme penguncian sementara (temporary holding lock) selama 15 menit saat checkout guna mencegah overbooking / race-condition",
+          "FR-07: Integrasi payment gateway multi-metode (QRIS dinamis, BCA/Mandiri/BRI Virtual Account, E-Wallet) via Midtrans / Xendit",
+          "FR-08: Endpoint webhook server-to-server dengan verifikasi cryptographic signature payload untuk rekonsiliasi status pembayaran instan",
+          "FR-09: Generator invoice digital PDF otomatis dengan nomor seri unik, QR verifikasi, dan rincian breakdown pajak/diskon",
+          "FR-10: Layanan pengiriman notifikasi instan WhatsApp Gateway & Email transaksional untuk konfirmasi pesanan dan status invoice",
+          "FR-11: Portal dashboard pengguna untuk melacak riwayat transaksi, status pengerjaan, dan tombol unduh rekap berkas",
+          "FR-12: Panel administrasi data master (CRUD) dengan pagination dinamis, sorting, dan modal input data mutakhir",
+          "FR-13: Visualisasi analitik dashboard admin: grafik tren omzet harian/bulanan, rasio konversi, dan metrik performa operasional",
+          "FR-14: Fitur ekspor laporan transaksi komprehensif ke format CSV dan Microsoft Excel untuk kebutuhan pembukuan akuntansi",
+          "FR-15: Modul rating kepuasan, form review bintang 1-5, dan catatan masukan customer pasca transaksi selesai",
+          "FR-16: Audit logging keamanan sistem yang mencatat setiap aktivitas mutasi data krusial beserta metadata IP & User-Agent"
         ],
         nonFunctionalRequirements: [
-          "Waktu muat halaman < 1.2s dan query latency < 200ms",
-          "Enkripsi data transit TLS 1.3 dan hashing password standar industri",
-          "Desain responsif mobile-first memenuhi standar aksesibilitas WCAG 2.1 AA",
-          "Arsitektur stateless siap horizontal scaling"
+          "NFR-01 (Performa): First Contentful Paint < 0.8s, Largest Contentful Paint < 1.5s, dan skor Core Web Vitals > 90 pada pengujian Lighthouse",
+          "NFR-02 (Latensi API): Query database PostgreSQL dioptimalkan dengan B-Tree index sehingga p95 query latency < 150ms",
+          "NFR-03 (Keamanan): Enkripsi seluruh lalu lintas data menggunakan TLS 1.3, proteksi SQL Injection via parameterized ORM, serta Content-Security-Policy ketat",
+          "NFR-04 (Skalabilitas): Arsitektur stateless siap horizontal scaling di Vercel Edge Network / Docker container",
+          "NFR-05 (Aksesibilitas): Memenuhi standar internasional WCAG 2.1 Level AA dengan navigasi keyboard lengkap dan rasio kontras visual tinggi",
+          "NFR-06 (Reliabilitas): Target uptime sistem 99.9% didukung strategi graceful fallback error boundary saat terjadi gangguan layanan pihak ketiga",
+          "NFR-07 (Integritas Data): Menggunakan transaksi database ACID dengan isolation level READ COMMITTED untuk mencegah anomali data keuangan",
+          "NFR-08 (Responsivitas UI): Desain adaptif fluid-layout untuk layar mobile smartphone (360px+), tablet, hingga layar desktop ultrawide"
         ]
       },
       features: [
         {
           id: "feat-1",
-          name: "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
-          description: `Autentikasi multi-peran aman dengan proteksi session cookie dan route guard untuk ${title}.`,
+          name: "Sistem Autentikasi Terpadu & Manajemen Hak Akses (RBAC)",
+          description: `Sistem otentikasi multi-peran tingkat enterprise yang mengisolasi wewenang Customer, Staff, dan Administrator secara ketat untuk ${title}.`,
           priority: "High" as const,
-          subFeatures: ["Registrasi & Login dengan email atau Google OAuth", "Role-based Access Control (Admin, Staff, User)", "Reset sandi aman dan update profil pengguna"],
-          dependencies: ["Database Setup", "Session Cookie Provider"]
+          subFeatures: [
+            "Registrasi & Login aman dengan email/password atau login instan Google OAuth",
+            "Role-based Access Control (RBAC) middleware untuk proteksi rute halaman privat",
+            "Session management dengan HttpOnly, SameSite, Secure cookie dan auto-refresh token",
+            "Alur reset kata sandi mandiri via token email terenkripsi berbatas waktu 30 menit",
+            "Audit log riwayat login dan deteksi aktivitas mencurigakan"
+          ],
+          dependencies: ["Database Supabase Auth", "Middleware Next.js"]
         },
         {
           id: "feat-2",
-          name: "Katalog Interaktif & Penelusuran Real-Time",
-          description: "Menampilkan daftar item, layanan, dan status ketersediaan secara dinamis dengan filter instan.",
+          name: "Katalog Interaktif, Instant Search & Filter Multi-Kategori",
+          description: "Pusat eksplorasi data visual interaktif dengan performa pencarian kilat dan sistem filter kategori berjenjang.",
           priority: "High" as const,
-          subFeatures: ["Pencarian cerdas dengan debounce search", "Filter multi-kategori dan sorting harga", "Indikator status live ketersediaan stok atau jadwal"],
-          dependencies: ["Skema Database"]
+          subFeatures: [
+            "Pencarian instan real-time dengan debounce delay 250ms dan pencocokan teks toleran typo",
+            "Filter multi-kriteria: kategori utama, rentang harga, rating, dan status ketersediaan live",
+            "Mode tampilan kartu responsif (Grid View dan List View) dengan skeleton loading",
+            "Sistem caching katalog di sisi klien (Client Cache SWR) untuk navigasi instan tanpa loading ulang"
+          ],
+          dependencies: ["Skema Database Items/Services"]
         },
         {
           id: "feat-3",
-          name: "Manajemen Transaksi & Booking Engine",
-          description: "Mesin pemesanan transaksi dengan validasi integritas data dan pencegahan jadwal bentrok.",
+          name: "Core Engine Pemrosesan Transaksi & Reservasi Real-Time",
+          description: "Mesin transaksi terintegrasi dengan validasi skema ketat Zod dan proteksi bentrok ketersediaan.",
           priority: "High" as const,
-          subFeatures: ["Formulir data transaksi dengan validasi ketat Zod", "Mekanisme reservasi slot sementara 10 menit saat checkout", "Kalkulasi rincian biaya dan kode unik"],
+          subFeatures: [
+            "Formulir transaksi interaktif multi-step dengan validasi integritas data di sisi klien & server",
+            "Mekanisme holding lock 15 menit pada database untuk mencegah pemesanan ganda (race-condition)",
+            "Kalkulator otomatis rincian harga, potongan kupon diskon, kalkulasi biaya admin, dan kode unik",
+            "Penyimpanan draf transaksi otomatis sehingga data pengguna tidak hilang jika koneksi terputus"
+          ],
           dependencies: ["Katalog Interaktif", "Autentikasi Pengguna"]
         },
         {
           id: "feat-4",
-          name: "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
-          description: "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
+          name: "Integrasi Gateway Pembayaran Otomatis & Rekonsiliasi Webhook",
+          description: "Sistem penerimaan pembayaran digital otomatis multi-channel dengan verifikasi server-to-server.",
           priority: "High" as const,
-          subFeatures: ["Dukungan QRIS dinamis dan Virtual Account", "Webhook endpoint aman dengan verifikasi signature payload", "Penerbitan kuitansi & invoice digital terenkripsi"],
-          dependencies: ["Manajemen Transaksi"]
+          subFeatures: [
+            "Penerbitan QRIS dinamis otomatis yang langsung dapat dipindai aplikasi mobile banking / e-wallet",
+            "Pembuatan nomor Virtual Account (BCA, Mandiri, BRI, BNI, Permata) dengan batas waktu bayar",
+            "Endpoint webhook /api/webhook/payment dengan validasi HMAC SHA512 signature",
+            "Auto-update status transaksi seketika (real-time transition dari pending menjadi settlement)"
+          ],
+          dependencies: ["Engine Transaksi", "Payment Gateway API"]
         },
         {
           id: "feat-5",
-          name: "Dashboard Pengelola, Analitik & Pelaporan",
-          description: "Panel kendali pusat untuk memantau performa bisnis, omzet, dan manajemen operasional harian.",
+          name: "Pusat Notifikasi Terjadwal & Distribusi Dokumen Digital",
+          description: "Modul komunikasi otomatis kepada pengguna untuk update status pesanan dan penerbitan faktur digital.",
           priority: "Medium" as const,
-          subFeatures: ["Visualisasi grafik omzet harian, mingguan, dan bulanan", "Tabel manajemen data master (CRUD)", "Fitur ekspor rekap laporan transaksi ke format CSV / PDF"],
-          dependencies: ["Autentikasi RBAC Admin", "Skema Payments"]
+          subFeatures: [
+            "Notifikasi konfirmasi sukses dan rincian transaksi otomatis via WhatsApp API (Fonnte/Waba)",
+            "Pengiriman email transaksional dengan lampiran bukti pembayaran resmi",
+            "Generator faktur digital PDF instan dengan barcode verifikasi integritas transaksi",
+            "Panel riwayat notifikasi langsung di dalam akun pengguna"
+          ],
+          dependencies: ["Integrasi Payment Gateway"]
         },
         {
           id: "feat-6",
-          name: "Pusat Notifikasi Real-Time & Riwayat Transaksi",
-          description: "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
+          name: "Dashboard Pengelola, Visualisasi Analitik & BI",
+          description: "Panel kendali terpusat bagi pimpinan dan staf operasional untuk memantau performa harian dan tren bisnis.",
+          priority: "High" as const,
+          subFeatures: [
+            "Visualisasi grafik tren omzet harian, mingguan, dan bulanan berbasis diagram garis & batang",
+            "Kartu ringkasan KPI: Total Pendapatan, Transaksi Sukses, Tingkat Konversi, dan Order Pending",
+            "Tabel data transaksi master dengan sorting kolom, pencarian nama pelanggan, dan filter status",
+            "Fitur unduh laporan rekapitulasi keuangan periodik ke berkas Microsoft Excel (.xlsx) dan CSV"
+          ],
+          dependencies: ["Autentikasi RBAC Admin", "Skema Database Transaksi"]
+        },
+        {
+          id: "feat-7",
+          name: "Manajemen Data Master (CRUD) & Alokasi Sumber Daya",
+          description: "Antarmuka administrasi lengkap untuk menambah, mengubah, menonaktifkan, atau mengarsipkan item dan layanan.",
           priority: "Medium" as const,
-          subFeatures: ["Notifikasi bukti bayar via WhatsApp API / Email", "Halaman riwayat transaksi pengguna dengan tombol unduh PDF", "Modul ulasan dan feedback pengguna"],
-          dependencies: ["Payment Gateway"]
+          subFeatures: [
+            "Modal input/edit data master dengan upload berkas gambar media dan validasi tipe berkas",
+            "Manajemen stok atau slot kuota ketersediaan harian secara dinamis",
+            "Fitur bulk action (hapus/update status massal) untuk efisiensi pengelolaan data dalam jumlah besar",
+            "Riwayat perubahan data (audit trail) untuk melacak operator yang melakukan penyuntingan"
+          ],
+          dependencies: ["Dashboard Pengelola"]
+        },
+        {
+          id: "feat-8",
+          name: "Modul Feedback Pengguna, Ulasan & Customer Support",
+          description: "Fasilitas interaksi purna-jual untuk mengumpulkan ulasan kualitas dan memberikan saluran bantuan pelanggan.",
+          priority: "Low" as const,
+          subFeatures: [
+            "Form ulasan kepuasan bintang 1-5 dan testimoni teks pasca transaksi selesai",
+            "Widget tombol bantuan cepat terhubung ke WhatsApp customer service dengan template pesan otomatis",
+            "Halaman Frequently Asked Questions (FAQ) interaktif dengan fitur accordion",
+            "Moderasi review di sisi admin sebelum ditampilkan pada showcase publik"
+          ],
+          dependencies: ["Engine Transaksi"]
         }
       ],
       architecture: {
-        frontend: "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons",
+        frontend: "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons, Framer Motion",
         backend: "Next.js Route Handlers & Server Actions, Zod Schema Validation",
-        database: "PostgreSQL (Supabase) dengan RLS",
-        auth: "Supabase Auth / NextAuth dengan session cookie",
-        storage: "Supabase Storage / Cloudflare R2",
-        api: "REST API & Server Actions dengan Zod validation",
-        thirdParty: ["Midtrans / Xendit (Payment Gateway)", "Fonnte (WhatsApp Gateway)"],
-        deployment: "Vercel",
-        security: "HTTPS, Rate limiting, Webhook signature verification",
-        dataSchema: `CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE NOT NULL, name VARCHAR(100) NOT NULL, role VARCHAR(20) DEFAULT 'customer', phone VARCHAR(30), created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE items (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title VARCHAR(200) NOT NULL, description TEXT, price NUMERIC(12,2) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE orders (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, total_amount NUMERIC(12,2) NOT NULL, status VARCHAR(30) DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW());\n\nCREATE TABLE payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), order_id UUID REFERENCES orders(id) ON DELETE CASCADE, amount NUMERIC(12,2) NOT NULL, method VARCHAR(50) NOT NULL, status VARCHAR(30) DEFAULT 'unpaid', paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());`
+        database: "PostgreSQL (Supabase / Neon) dengan Row Level Security (RLS) & B-Tree Indexes",
+        auth: "Supabase Auth / NextAuth dengan secure HttpOnly session cookie & JWT",
+        storage: "Supabase Storage / Cloudflare R2 untuk penyimpanan aset gambar & dokumen PDF",
+        api: "RESTful API Endpoints & Server Actions dengan validasi payload Zod ketat",
+        thirdParty: [
+          "Midtrans / Xendit (Payment Gateway QRIS & VA)",
+          "Fonnte / Twilio (WhatsApp API Gateway)",
+          "Resend (Email Transaksional)",
+          "PDFKit / Puppeteer (Server-side PDF Invoice Generator)"
+        ],
+        deployment: "Vercel (Edge Network) dengan automated CI/CD pipeline",
+        security: "HTTPS TLS 1.3, Rate limiting middleware, Webhook HMAC signature verification, Database RLS policies",
+        dataSchema: `CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  role VARCHAR(30) DEFAULT 'customer', -- 'customer', 'staff', 'admin'
+  phone VARCHAR(30),
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE items_services (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  slug VARCHAR(150) UNIQUE NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL,
+  price NUMERIC(12,2) NOT NULL,
+  image_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE orders_bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number VARCHAR(50) UNIQUE NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  item_id UUID REFERENCES items_services(id) ON DELETE RESTRICT,
+  quantity INT DEFAULT 1,
+  subtotal NUMERIC(12,2) NOT NULL,
+  tax_amount NUMERIC(12,2) DEFAULT 0,
+  total_amount NUMERIC(12,2) NOT NULL,
+  status VARCHAR(30) DEFAULT 'pending', -- 'pending', 'paid', 'processing', 'completed', 'cancelled'
+  booking_date DATE,
+  time_slot VARCHAR(50),
+  hold_expires_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders_bookings(id) ON DELETE CASCADE,
+  payment_method VARCHAR(50) NOT NULL, -- 'qris', 'bank_transfer', 'virtual_account'
+  payment_status VARCHAR(30) DEFAULT 'unpaid', -- 'unpaid', 'paid', 'expired', 'failed'
+  amount NUMERIC(12,2) NOT NULL,
+  gateway_transaction_id VARCHAR(120),
+  gateway_response JSONB,
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID REFERENCES orders_bookings(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  rating INT CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT,
+  is_approved BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE activity_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  action VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id UUID,
+  details JSONB,
+  ip_address VARCHAR(50),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_orders_user ON orders_bookings(user_id);
+CREATE INDEX idx_orders_status ON orders_bookings(status);
+CREATE INDEX idx_payments_order ON payments(order_id);
+CREATE INDEX idx_items_category ON items_services(category_id);`
       },
-      userFlow: `1. Landing Page -> 2. Autentikasi Pengguna -> 3. Penelusuran Katalog & Pemilihan Layanan -> 4. Formulir Data Transaksi -> 5. Pembayaran Otomatis QRIS / VA -> 6. Validasi Webhook & Konfirmasi Sukses -> 7. Penerbitan Invoice & Dashboard Riwayat`,
+      userFlow: `1. Landing Page -> 2. Penelusuran Katalog & Filter Layanan -> 3. Halaman Detail Item & Pengecekan Ketersediaan -> 4. Formulir Data Transaksi (Validasi Zod) -> 5. Penguncian Slot Sementara (Hold 15 Menit) -> 6. Checkout & Pembayaran Otomatis (QRIS / VA) -> 7. Verifikasi Webhook Server-to-Server -> 8. Penerbitan Faktur PDF & Notifikasi WhatsApp -> 9. Eksekusi Layanan oleh Staff -> 10. Dashboard Riwayat Pengguna & Ulasan Bintang`,
       tasks: [
-        { id: "t-1", title: "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", description: "Inisialisasi Next.js 15 App Router, Tailwind CSS, TypeScript, dan env variables.", status: "todo" as const, feature: "Setup", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-2", title: "Desain Skema Database & Migrasi Relasional", description: "Membuat tabel users, items, transactions, payments, dan foreign keys.", status: "todo" as const, feature: "Setup", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-3", title: "Implementasi Autentikasi & Session Middleware", description: "Membangun login, register, session cookie, dan middleware proteksi rute.", status: "todo" as const, feature: "Auth", phase: "Phase 2 - Autentikasi" },
-        { id: "t-4", title: "Pembuatan Master Layout & Navigasi Responsif", description: "Membangun App Shell, Navbar, Sidebar, modal wrapper, dan tema.", status: "todo" as const, feature: "UI", phase: "Phase 3 - Frontend Core" },
-        { id: "t-5", title: "Katalog Interaktif & Penelusuran Real-Time", description: "Menampilkan kartu data, filter multi-kategori, dan instant search bar.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
-        { id: "t-6", title: "Alur Formulir Transaksi & Validasi Schema", description: "Validasi data input menggunakan Zod dan penyiapan payload pesanan.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
-        { id: "t-7", title: "Integrasi Payment Gateway & Webhook Listener", description: "Menghubungkan API payment gateway dan endpoint webhook verifikasi.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
-        { id: "t-8", title: "Dashboard Admin: Manajemen Data & Laporan", description: "Tabel CRUD master data dan visualisasi grafik penjualan.", status: "todo" as const, feature: "Dashboard", phase: "Phase 6 - Dashboard Admin" },
-        { id: "t-9", title: "Testing Menyeluruh, Optimasi Performa & Rilis", description: "Uji end-to-end, audit keamanan header, dan deployment ke production.", status: "todo" as const, feature: "QA", phase: "Phase 7 - QA & Deployment" }
+        { id: "t-01", title: "Setup Inisialisasi Proyek, Konfigurasi Lingkungan & Tooling", description: "Inisialisasi Next.js 15 App Router, TypeScript, Tailwind CSS, ESLint, Prettier, dan file konfigurasi environment variables (.env.example).", status: "todo" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-02", title: "Desain Skema Database Relasional PostgreSQL, DDL & Indexes", description: "Menulis skrip DDL SQL untuk tabel users, categories, items_services, orders_bookings, payments, reviews, dan audit logs beserta foreign keys dan B-Tree indexes.", status: "todo" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-03", title: "Implementasi Sistem Autentikasi Pengguna & Session Middleware", description: "Membangun endpoint login, register, hash password Argon2/Bcrypt, session cookie HttpOnly aman, dan middleware route guard Next.js untuk proteksi rute.", status: "todo" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
+        { id: "t-04", title: "Modul Manajemen Profil Pengguna, Reset Password & Role Guard", description: "Halaman edit profil pengguna, avatar upload, alur lupa password via email token terenkripsi, dan pembagian hak akses (Customer, Staff, Admin).", status: "todo" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
+        { id: "t-05", title: "Pembuatan Master Layout, Design System & App Shell Responsif", description: "Membangun komponen Navbar, Sidebar navigasi, modal wrapper, alert toast, dan layout adaptif responsif dark/light mode yang konsisten.", status: "todo" as const, feature: "Frontend Core", phase: "Phase 3 - Frontend Core" },
+        { id: "t-06", title: "Halaman Penelusuran Katalog, Instant Debounce Search & Filter", description: "Menampilkan kartu data dinamis dengan instant search bar (debounce 250ms), multi-filter kategori, urutan harga, dan pagination/infinite scroll.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
+        { id: "t-07", title: "Halaman Detail Entitas/Layanan dengan Visual Showcase", description: "Membangun tampilan detail item dengan galeri gambar responsif, deskripsi mendalam, accordion spesifikasi teknis, dan indikator status ketersediaan live.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
+        { id: "t-08", title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking", description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
+        { id: "t-09", title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan", description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
+        { id: "t-10", title: "Integrasi Gateway Pembayaran Digital (QRIS Dinamis & Virtual Account)", description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
+        { id: "t-11", title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order", description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
+        { id: "t-12", title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp", description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).", status: "todo" as const, feature: "Notifikasi", phase: "Phase 5 - Integrasi" },
+        { id: "t-13", title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis", description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.", status: "todo" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
+        { id: "t-14", title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel", description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.", status: "todo" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
+        { id: "t-15", title: "Testing Menyeluruh End-to-End, Error Boundary & Logging", description: "Pengujian skenario alur dari registrasi, penelusuran, checkout holding lock, pembayaran webhook sampai invoice, serta pengujian error boundary.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
+        { id: "t-16", title: "Security Hardening, Optimasi Core Web Vitals & Deploy ke Production", description: "Audit header keamanan (CSP, X-Frame-Options), optimasi kompresi gambar Next.js Image, audit performa Lighthouse, dan rilis production ke Vercel.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
       ]
     };
   };
@@ -1057,15 +1235,8 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
       textToSend.includes("Berikut klarifikasi kebutuhan") ||
       /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend);
 
-    let stageTimer1: NodeJS.Timeout | null = null;
-    let stageTimer2: NodeJS.Timeout | null = null;
-    let stageTimer3: NodeJS.Timeout | null = null;
-
     if (isAnsweringQuestions) {
       setEstafetStage("prd");
-      stageTimer1 = setTimeout(() => setEstafetStage("features"), 1800);
-      stageTimer2 = setTimeout(() => setEstafetStage("architecture"), 3600);
-      stageTimer3 = setTimeout(() => setEstafetStage("tasks"), 5400);
     } else {
       setEstafetStage("idle");
     }
@@ -1110,132 +1281,59 @@ PERHATIAN KRUSIAL TENTANG TOPIK:
 - DILARANG KERAS menggunakan istilah umum atau contoh template seperti "items", "venues", atau "COba"!
 ${domain.isPhotography ? `- KHUSUS PROYEK FOTOGRAFI: Wajib mencakup Showcase Portofolio Masonry dengan EXIF data kamera/lensa, Kalender Booking Sesi Photoshoot (Studio & Outdoor), Pilihan Paket Foto (Wedding, Prewedding, Portrait, Event) & Add-ons (MUA, extra hours, album cetak), Client Proofing Portal ber-watermark untuk seleksi foto klien, High-Res Digital Delivery / Cloud ZIP Download, Pembayaran Bertahap (DP 50% & Pelunasan), dan Skema DDL SQL nyata dengan tabel photographers, photo_packages, shoot_bookings, client_galleries, gallery_photos, retouch_requests, invoices.` : ""}
 
-ATURAN KERJA & WORKFLOW (IKUTI SECARA KETAT):
-Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
-- Berikan kesimpulan singkat & profesional (1-2 paragraf) bahwa seluruh spesifikasi teknis telah dirumuskan secara estafet (Tahap 1: PRD, Tahap 2: Fitur, Tahap 3: User Flow & Arsitektur Database, Tahap 4: Actionable Tasks).
-- WAJIB MENYERTAKAN BLOK BLUEPRINT LENGKAP, SANGAT DETAIL, DAN KOMPREHENSIF (JANGAN PERNAH MEMBERIKAN DATA MINIMALIS ATAU SEDIKIT) di akhir respon menggunakan format persis berikut:
+ATURAN KEDALAMAN & KELENGKAPAN OUTPUT (WAJIB DIIKUTI SECARA KETAT):
+1. PRD HARUS SANGAT PANJANG, LENGKAP & MENDALAM:
+   - overview: 2-3 paragraf kaya konteks dan berbobot.
+   - problemStatement: uraian detail pain points nyata yang diselesaikan.
+   - goals: MINIMAL 8 target terukur (G-01 s/d G-08).
+   - targetUsers: MINIMAL 4 persona lengkap dengan tanggung jawab dan kebutuhan.
+   - functionalRequirements: MINIMAL 16 requirement fungsional detail (FR-01 s/d FR-16).
+   - nonFunctionalRequirements: MINIMAL 8 requirement performa & keamanan (NFR-01 s/d NFR-08).
+2. FITUR WAJIB MINIMAL 8 SAMPAI 10 MODUL LENGKAP:
+   - Setiap fitur harus memiliki nama profesional, deskripsi mendalam, priority, 4-5 subFeatures detail, dan dependencies.
+3. USER FLOW WAJIB LENGKAP:
+   - 10-12 tahapan alur pengguna berkesinambungan dari awal hingga purna-jual.
+4. ARSITEKTUR & SQL DDL:
+   - Skema CREATE TABLE lengkap untuk 6-8 tabel relasional dengan tipe data, primary key gen_random_uuid(), foreign keys ON DELETE, dan CREATE INDEX.
+5. TASKS WAJIB MINIMAL 16 SAMPAI 20 ACTIONABLE DEVELOPMENT TASKS:
+   - Terbagi rapi ke dalam Phase 1 sampai Phase 7.
+   - Setiap task harus jelas apa yang dibangun dan bagaimana eksekusinya.
+DILARANG KERAS menghasilkan output ringkas atau minimalis! Pengguna menuntut arsitektur yang sangat kaya, komprehensif, dan siap produksi.
+
+FORMAT OUTPUT WAJIB:
+Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprint lengkap di akhir respon:
 
 <<<BLUEPRINT_JSON>>>
 {
   "prd": {
-    "overview": "Deskripsi mendalam 2-3 paragraf mengenai visi aplikasi, target pasar, value proposition utama, dan batasan ruang lingkup pengembangan...",
-    "problemStatement": "Uraian mendalam pain points pengguna dan inefisiensi nyata yang diselesaikan...",
-    "goals": [
-      "Target strategis 1 (misal: Mengotomatisasi 100% proses pemesanan & rekonsiliasi)",
-      "Target strategis 2 (misal: Menghilangkan double booking dengan status ketersediaan real-time)",
-      "Target strategis 3 (misal: Memangkas waktu checkout di bawah 60 detik)",
-      "Target strategis 4 (misal: Menyediakan visibilitas pelaporan pendapatan transparan)"
-    ],
-    "targetUsers": [
-      "Pengguna Utama (Karakteristik, kebiasaan, dan kebutuhan)",
-      "Pengelola / Mitra Bisnis (Kebutuhan operasional, manajemen stok/jadwal)",
-      "Administrator Sistem (Monitoring, manajemen pengguna, keuangan & log audit)"
-    ],
-    "functionalRequirements": [
-      "Autentikasi multi-role (Admin, Mitra, Customer) dengan proteksi sesi & reset kata sandi",
-      "Katalog & Penelusuran Real-time dengan filter kategori, harga, dan ketersediaan dinamis",
-      "Modul Pemesanan / Transaksi dengan penguncian slot waktu sementara (hold mechanism) untuk mencegah bentrok",
-      "Integrasi Gateway Pembayaran Otomatis dengan dukungan QRIS, Virtual Account, dan verifikasi instan via webhook",
-      "Sistem Notifikasi Transaksi real-time via WhatsApp/Email untuk bukti bayar dan konfirmasi",
-      "Dashboard Manajemen & Pelaporan dengan visualisasi omzet harian, mingguan, dan bulanan",
-      "Manajemen Profil Pengguna dan Riwayat Transaksi dengan opsi unduh invoice PDF",
-      "Audit Log & Keamanan Akses untuk melacak seluruh modifikasi data penting"
-    ],
-    "nonFunctionalRequirements": [
-      "Performa: Waktu muat halaman pertama < 1.2s dan respons API database < 200ms",
-      "Keamanan: Enkripsi transit TLS 1.3, hashing kata sandi Argon2/Bcrypt, sanitasi SQL injection & proteksi CSRF/CORS",
-      "Ketersediaan & Reliabilitas: Target uptime 99.9% dengan fallback handling",
-      "Skalabilitas: Arsitektur stateless siap horizontal scaling pada traffic tinggi",
-      "Responsivitas: Antarmuka adaptif mobile-first, tablet, dan desktop",
-      "Aksesibilitas: Memenuhi standar WCAG 2.1 AA dengan navigasi keyboard dan kontras rasio ramah mata"
-    ]
+    "overview": "...",
+    "problemStatement": "...",
+    "goals": ["G-01...", "G-02...", "G-03...", "G-04...", "G-05...", "G-06...", "G-07...", "G-08..."],
+    "targetUsers": ["...", "...", "...", "..."],
+    "functionalRequirements": ["FR-01...", "FR-02...", "FR-03...", "FR-04...", "FR-05...", "FR-06...", "FR-07...", "FR-08...", "FR-09...", "FR-10...", "FR-11...", "FR-12...", "FR-13...", "FR-14...", "FR-15...", "FR-16..."],
+    "nonFunctionalRequirements": ["NFR-01...", "NFR-02...", "NFR-03...", "NFR-04...", "NFR-05...", "NFR-06...", "NFR-07...", "NFR-08..."]
   },
   "features": [
     {
-      "name": "Sistem Autentikasi & Manajemen Pengguna (RBAC)",
-      "description": "Autentikasi aman multi-peran (Admin, Staff, Customer) dengan session cookie dan proteksi route guard.",
+      "name": "...",
+      "description": "...",
       "priority": "High",
-      "subFeatures": [
-        "Login & Register dengan email atau Google OAuth",
-        "Role-based Access Control (RBAC) middleware",
-        "Manajemen profil pengguna & reset sandi via OTP/Email"
-      ]
-    },
-    {
-      "name": "Katalog Interaktif & Penelusuran Real-Time",
-      "description": "Menampilkan daftar item, layanan, atau ketersediaan slot waktu secara dinamis dengan filter interaktif.",
-      "priority": "High",
-      "subFeatures": [
-        "Pencarian instan dengan debounce search",
-        "Filter kategori multi-kriteria dan sorting harga/popularitas",
-        "Indikator status ketersediaan live"
-      ]
-    },
-    {
-      "name": "Manajemen Transaksi & Booking Engine",
-      "description": "Mesin pemesanan transaksi dengan validasi integritas data dan proteksi slot bentrok.",
-      "priority": "High",
-      "subFeatures": [
-        "Pemilihan tanggal & slot waktu interaktif",
-        "Mekanisme reservasi sementara 10 menit saat checkout",
-        "Perhitungan otomatis biaya, pajak, dan kode unik"
-      ]
-    },
-    {
-      "name": "Integrasi Payment Gateway & Rekonsiliasi Otomatis",
-      "description": "Pembayaran instan dengan verifikasi otomatis server-to-server webhook.",
-      "priority": "High",
-      "subFeatures": [
-        "Integrasi QRIS dinamis & Virtual Account",
-        "Webhook handler untuk update status order otomatis",
-        "Penerbitan invoice dan kuitansi digital otomatis"
-      ]
-    },
-    {
-      "name": "Dashboard Admin, Analitik & Pelaporan",
-      "description": "Panel pusat kendali untuk pengelola bisnis memantau metrik performa dan operasional harian.",
-      "priority": "Medium",
-      "subFeatures": [
-        "Visualisasi grafik pemasukan dan volume order",
-        "Export data transaksi ke format CSV / Excel",
-        "Manajemen operasional (tambah/edit jadwal, harga, atau inventaris)"
-      ]
-    },
-    {
-      "name": "Pusat Notifikasi & Riwayat Transaksi",
-      "description": "Notifikasi otomatis kepada pengguna saat terjadi perubahan status pesanan.",
-      "priority": "Medium",
-      "subFeatures": [
-        "Pengiriman notifikasi status via WhatsApp API / Email",
-        "Riwayat aktivitas & unduh invoice PDF",
-        "Rating & ulasan kepuasan pelanggan"
-      ]
+      "subFeatures": ["...", "...", "...", "..."],
+      "dependencies": ["..."]
     }
   ],
-  "userFlow": "1. Halaman Utama / Landing Page -> 2. Autentikasi / Registrasi Pengguna -> 3. Jelajahi Katalog & Pilih Slot Ketersediaan -> 4. Formulir Data Pemesan & Ringkasan Order -> 5. Checkout & Pembayaran Otomatis (QRIS / VA) -> 6. Validasi Webhook & Update Status Sukses -> 7. Penerbitan Invoice Digital & Notifikasi WhatsApp -> 8. Dashboard Riwayat Pengguna",
+  "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ... -> 5. ... -> 6. ... -> 7. ... -> 8. ... -> 9. ... -> 10. ...",
   "architecture": {
     "frontend": "Next.js 15 (App Router), React 19, Tailwind CSS, Lucide Icons, Framer Motion",
     "backend": "Next.js Route Handlers & Server Actions, Zod Schema Validation",
-    "database": "PostgreSQL (Supabase / Neon) dengan indexing optimal",
-    "auth": "Supabase Auth / NextAuth dengan JWT & secure HttpOnly cookie",
-    "storage": "Supabase Storage / Cloudflare R2 untuk aset foto & dokumen",
-    "deployment": "Vercel (Edge Network) dengan automated CI/CD pipeline",
-    "dataSchema": "CREATE TABLE users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) UNIQUE NOT NULL, name VARCHAR(100) NOT NULL, role VARCHAR(20) DEFAULT 'customer', phone VARCHAR(30), created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE venues (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), title VARCHAR(200) NOT NULL, description TEXT, price_per_hour NUMERIC(12,2) NOT NULL, image_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE bookings (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE CASCADE, venue_id UUID REFERENCES venues(id) ON DELETE CASCADE, start_time TIMESTAMPTZ NOT NULL, end_time TIMESTAMPTZ NOT NULL, status VARCHAR(30) DEFAULT 'pending', total_amount NUMERIC(12,2) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE, payment_method VARCHAR(50) NOT NULL, payment_status VARCHAR(30) DEFAULT 'unpaid', transaction_id VARCHAR(100), paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW());\\n\\nCREATE TABLE activity_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES users(id) ON DELETE SET NULL, action VARCHAR(100) NOT NULL, details JSONB, created_at TIMESTAMPTZ DEFAULT NOW());"
+    "database": "PostgreSQL (Supabase / Neon) dengan RLS & Indexes",
+    "auth": "Supabase Auth / NextAuth dengan secure HttpOnly session cookie",
+    "storage": "Supabase Storage / Cloudflare R2",
+    "deployment": "Vercel (Edge Network)",
+    "dataSchema": "CREATE TABLE ..."
   },
   "tasks": [
-    { "title": "Setup Inisialisasi Proyek & Konfigurasi Lingkungan", "description": "Inisialisasi Next.js 15 App Router, konfigurasi Tailwind CSS, ESLint, TypeScript, dan environment variables.", "status": "todo", "phase": "Phase 1 - Inisialisasi" },
-    { "title": "Desain & Migrasi Skema Database PostgreSQL", "description": "Menulis DDL tabel users, items, bookings, payments, logs, membuat foreign keys dan index pencarian.", "status": "todo", "phase": "Phase 1 - Inisialisasi" },
-    { "title": "Implementasi Sistem Autentikasi & Session Middleware", "description": "Membangun login, register, cookie session handling, dan middleware proteksi rute untuk RBAC.", "status": "todo", "phase": "Phase 2 - Autentikasi" },
-    { "title": "Pembuatan Master Layout, Navigasi & Design System", "description": "Membangun Navbar, Sidebar, modal wrapper, alert component, dan layout responsif dark/light mode.", "status": "todo", "phase": "Phase 3 - Frontend Core" },
-    { "title": "Halaman Katalog Utama & Fitur Penelusuran Interaktif", "description": "Menampilkan kartu item, pagination, filter multi-kategori, dan instant search bar.", "status": "todo", "phase": "Phase 3 - Frontend Core" },
-    { "title": "Komponen Kalender & Pemilihan Slot Waktu Real-Time", "description": "Membuat antarmuka interaktif pemilihan jadwal dengan pengecekan ketersediaan slot langsung.", "status": "todo", "phase": "Phase 4 - Modul Transaksi" },
-    { "title": "Alur Checkout, Validasi Pesanan & Formulir Data", "description": "Validasi form data pemesan menggunakan Zod, kalkulasi harga total, dan penyiapan order payload.", "status": "todo", "phase": "Phase 4 - Modul Transaksi" },
-    { "title": "Integrasi Gateway Pembayaran & Webhook Listener", "description": "Menghubungkan API payment gateway (QRIS/VA), membuat endpoint /api/webhook untuk verifikasi otomatis.", "status": "todo", "phase": "Phase 5 - Integrasi" },
-    { "title": "Penerbitan Invoice PDF & Pengiriman Notifikasi Otomatis", "description": "Membuat template invoice digital dan trigger pengiriman notifikasi konfirmasi sukses pesanan.", "status": "todo", "phase": "Phase 5 - Integrasi" },
-    { "title": "Dashboard Admin: Manajemen Data Master & Inventaris", "description": "Membangun tabel CRUD data master dengan modal tambah/edit dan optimasi mutasi data.", "status": "todo", "phase": "Phase 6 - Dashboard Admin" },
-    { "title": "Dashboard Admin: Analitik Pendapatan & Export Laporan", "description": "Visualisasi grafik performa penjualan dan fitur unduh laporan rekap transaksi (CSV/PDF).", "status": "todo", "phase": "Phase 6 - Dashboard Admin" },
-    { "title": "Testing End-to-End, Security Hardening & Optimasi Performa", "description": "Melakukan uji alur dari login sampai pembayaran, audit keamanan header, dan kompresi bundle.", "status": "todo", "phase": "Phase 7 - QA & Deployment" },
-    { "title": "Deployment Production ke Vercel & Monitoring", "description": "Konfigurasi domain kustom, DNS, environment variables production, dan setup monitoring error log.", "status": "todo", "phase": "Phase 7 - QA & Deployment" }
+    { "title": "...", "description": "...", "status": "todo", "phase": "Phase 1 - Inisialisasi", "feature": "Core" }
   ]
 }
 <<<END_BLUEPRINT_JSON>>>`;
@@ -1268,6 +1366,7 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
             ...updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           ],
           model: "novita:qwen/qwen3.8-flash",
+          max_tokens: 8192,
         }),
       });
 
@@ -1300,6 +1399,20 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
             const chunk = parsed.choices?.[0]?.delta?.content || "";
             if (chunk) {
               rawStream += chunk;
+
+              // Deteksi progres estafet berbasis bagian nyata yang sedang digenerate AI:
+              if (isAnsweringQuestions) {
+                if (rawStream.includes('"tasks"')) {
+                  setEstafetStage("tasks");
+                } else if (rawStream.includes('"architecture"') || rawStream.includes('"userFlow"')) {
+                  setEstafetStage("architecture");
+                } else if (rawStream.includes('"features"')) {
+                  setEstafetStage("features");
+                } else {
+                  setEstafetStage("prd");
+                }
+              }
+
               setProjects((prev) =>
                 prev.map((p) =>
                   p.id === projId
@@ -1316,10 +1429,6 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
           } catch {}
         }
       }
-
-      if (stageTimer1) clearTimeout(stageTimer1);
-      if (stageTimer2) clearTimeout(stageTimer2);
-      if (stageTimer3) clearTimeout(stageTimer3);
 
       if (isAnsweringQuestions) {
         setEstafetStage("completed");
@@ -1348,9 +1457,6 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
         }
       }
     } catch (err: unknown) {
-      if (stageTimer1) clearTimeout(stageTimer1);
-      if (stageTimer2) clearTimeout(stageTimer2);
-      if (stageTimer3) clearTimeout(stageTimer3);
       setEstafetStage("idle");
       console.error("Code AI error:", err);
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan saat memproses.";
@@ -1372,9 +1478,6 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
         )
       );
     } finally {
-      if (stageTimer1) clearTimeout(stageTimer1);
-      if (stageTimer2) clearTimeout(stageTimer2);
-      if (stageTimer3) clearTimeout(stageTimer3);
       setIsChatLoading(false);
     }
   };
@@ -1487,10 +1590,24 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
             updated.prd = {
               ...domainBlueprint.prd,
               ...blueprintData.prd,
+              goals: (Array.isArray(blueprintData.prd.goals) && blueprintData.prd.goals.length >= 6)
+                ? blueprintData.prd.goals
+                : domainBlueprint.prd.goals,
+              functionalRequirements: (Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length >= 10)
+                ? blueprintData.prd.functionalRequirements
+                : domainBlueprint.prd.functionalRequirements,
+              nonFunctionalRequirements: (Array.isArray(blueprintData.prd.nonFunctionalRequirements) && blueprintData.prd.nonFunctionalRequirements.length >= 5)
+                ? blueprintData.prd.nonFunctionalRequirements
+                : domainBlueprint.prd.nonFunctionalRequirements,
+              targetUsers: (Array.isArray(blueprintData.prd.targetUsers) && blueprintData.prd.targetUsers.length >= 3)
+                ? blueprintData.prd.targetUsers
+                : domainBlueprint.prd.targetUsers,
             };
+          } else {
+            updated.prd = domainBlueprint.prd;
           }
 
-          if (Array.isArray(blueprintData.features) && blueprintData.features.length > 0) {
+          if (Array.isArray(blueprintData.features) && blueprintData.features.length >= 6) {
             updated.features = blueprintData.features.map((f: any, idx: number) => ({
               id: "feat-" + (idx + 1),
               name: f.name || "Feature " + (idx + 1),
@@ -1500,10 +1617,11 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
               dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
             }));
           } else {
+            // Jika fitur dari LLM sedikit, gunakan fitur lengkap domain agar selalu kaya & mendalam
             updated.features = domainBlueprint.features;
           }
 
-          if (blueprintData.userFlow) {
+          if (blueprintData.userFlow && String(blueprintData.userFlow).length > 40) {
             updated.userFlow = String(blueprintData.userFlow);
           } else {
             updated.userFlow = domainBlueprint.userFlow;
@@ -1519,7 +1637,7 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
             updated.architecture = domainBlueprint.architecture;
           }
 
-          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length > 0) {
+          if (Array.isArray(blueprintData.tasks) && blueprintData.tasks.length >= 12) {
             updated.tasks = blueprintData.tasks.map((t: any, idx: number) => ({
               id: "task-" + (idx + 1) + "-" + Date.now(),
               title: t.title || "Task " + (idx + 1),
@@ -1529,6 +1647,7 @@ Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
               feature: t.feature || "Core",
             }));
           } else {
+            // Jika tasks dari LLM sedikit, gunakan 16 tasks komprehensif berfase dari blueprint domain
             updated.tasks = domainBlueprint.tasks;
           }
         } else if (!hasQuestions) {
@@ -1893,7 +2012,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       <span className={isDark ? "text-zinc-400" : "text-zinc-600"}>
                         {totalTasks} Tasks ({doneTasks} selesai)
                       </span>
-                      <span className={`font-semibold ${progress === 100 ? "text-emerald-500" : ""}`}>
+                      <span className={`font-semibold ${progress === 100 ? (isDark ? "text-white" : "text-black") : ""}`}>
                         {progress}%
                       </span>
                     </div>
@@ -1902,7 +2021,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`}>
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
-                          progress === 100 ? "bg-emerald-500" : isDark ? "bg-white" : "bg-black"
+                          isDark ? "bg-white" : "bg-black"
                         }`}
                         style={{ width: `${progress}%` }}
                       />
@@ -2241,7 +2360,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               <div className={`px-4 py-2 border-b text-[11px] flex items-center gap-1.5 shrink-0 ${
                 isDark ? "border-slate-800/60 bg-slate-900/40 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-600"
               }`}>
-                <span className="text-emerald-500 font-bold">✓</span>
+                <span className={`font-bold ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>✓</span>
                 <span>{displayFeatures.length} fitur dari rencana ini.</span>
               </div>
 
@@ -2347,7 +2466,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                         <div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Skema SQL DDL</span>
                           <pre className={`p-3 rounded-xl font-mono text-[10px] overflow-x-auto border ${
-                            isDark ? "bg-black/60 border-slate-800 text-emerald-400" : "bg-slate-900 border-slate-800 text-emerald-400"
+                            isDark ? "bg-black/60 border-zinc-800 text-zinc-300" : "bg-zinc-900 border-zinc-800 text-zinc-200"
                           }`}>
                             {displayArch.dataSchema}
                           </pre>
@@ -2440,8 +2559,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       }`}>
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-[10px] font-bold text-slate-400">TAHAP {i + 1}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                            isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-300" : "bg-zinc-600"}`} />
                             <span>Direncanakan</span>
                           </span>
                         </div>
@@ -2498,7 +2619,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                         <div className="space-y-1">
                           {(featureTasks.length > 0 ? featureTasks.slice(0, 3) : displayTasks.slice(i * 2, i * 2 + 3)).map((t, ti) => (
                             <div key={ti} className="text-[11px] text-slate-300 flex items-center gap-1.5 truncate">
-                              <span className="text-emerald-400 font-bold">✓</span>
+                              <span className={`font-bold ${isDark ? "text-zinc-300" : "text-zinc-600"}`}>✓</span>
                               <span className="truncate">{t.title}</span>
                             </div>
                           ))}
@@ -2619,8 +2740,12 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                               <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
                                 <div className="flex items-center gap-2">
                                   <span className="relative flex h-2.5 w-2.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                                      isDark ? "bg-zinc-400" : "bg-zinc-500"
+                                    }`}></span>
+                                    <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                                      isDark ? "bg-white" : "bg-black"
+                                    }`}></span>
                                   </span>
                                   <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
                                     Pipeline Estafet: Memproses Blueprint Proyek
@@ -2640,7 +2765,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                 <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
                                   estafetStage === "prd"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    : isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                 }`}>
                                   <div className="flex items-center gap-2">
                                     {estafetStage === "prd" ? (
@@ -2652,7 +2777,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                     )}
                                     <span>1. Merumuskan Dokumen PRD &amp; Analisis Kebutuhan</span>
                                   </div>
-                                  <span className="text-[11px]">
+                                  <span className={`text-[11px] font-semibold ${estafetStage === "prd" ? "text-zinc-500" : isDark ? "text-white" : "text-black"}`}>
                                     {estafetStage === "prd" ? "Sedang merumuskan..." : "Selesai ✓"}
                                   </span>
                                 </div>
@@ -2662,7 +2787,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                   estafetStage === "features"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
                                     : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"
-                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
@@ -2677,7 +2802,13 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                     )}
                                     <span>2. Memecah Modul &amp; Spesifikasi Fitur Terperinci</span>
                                   </div>
-                                  <span className="text-[11px]">
+                                  <span className={`text-[11px] font-semibold ${
+                                    estafetStage === "features"
+                                      ? "text-zinc-500"
+                                      : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"
+                                      ? isDark ? "text-white" : "text-black"
+                                      : "text-zinc-400 font-normal"
+                                  }`}>
                                     {estafetStage === "features" ? "Sedang memproses..." : estafetStage === "prd" ? "Menunggu giliran" : "Selesai ✓"}
                                   </span>
                                 </div>
@@ -2687,7 +2818,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                   estafetStage === "architecture"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
                                     : estafetStage === "tasks" || estafetStage === "completed"
-                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
@@ -2702,7 +2833,13 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                     )}
                                     <span>3. Merancang User Flow &amp; Arsitektur Database SQL</span>
                                   </div>
-                                  <span className="text-[11px]">
+                                  <span className={`text-[11px] font-semibold ${
+                                    estafetStage === "architecture"
+                                      ? "text-zinc-500"
+                                      : estafetStage === "tasks" || estafetStage === "completed"
+                                      ? isDark ? "text-white" : "text-black"
+                                      : "text-zinc-400 font-normal"
+                                  }`}>
                                     {estafetStage === "architecture" ? "Sedang menyusun..." : estafetStage === "prd" || estafetStage === "features" ? "Menunggu giliran" : "Selesai ✓"}
                                   </span>
                                 </div>
@@ -2712,7 +2849,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                   estafetStage === "tasks"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
                                     : estafetStage === "completed"
-                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
@@ -2727,7 +2864,13 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                     )}
                                     <span>4. Menyusun Actionable Development Tasks</span>
                                   </div>
-                                  <span className="text-[11px]">
+                                  <span className={`text-[11px] font-semibold ${
+                                    estafetStage === "tasks"
+                                      ? "text-zinc-500"
+                                      : estafetStage === "completed"
+                                      ? isDark ? "text-white" : "text-black"
+                                      : "text-zinc-400 font-normal"
+                                  }`}>
                                     {estafetStage === "tasks" ? "Sedang merangkum..." : estafetStage === "completed" ? "Selesai ✓" : "Menunggu giliran"}
                                   </span>
                                 </div>
@@ -2758,7 +2901,9 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                             }`}>
                               <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
                                 <div className="flex items-center gap-2">
-                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
+                                  <div className={`flex h-5 w-5 items-center justify-center rounded-full ${
+                                    isDark ? "bg-white text-black" : "bg-black text-white"
+                                  }`}>
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                     </svg>
@@ -2767,7 +2912,9 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                     Estafet Perencanaan Berhasil Diselesaikan!
                                   </span>
                                 </div>
-                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                  isDark ? "text-zinc-200 bg-zinc-800 border border-zinc-700" : "text-zinc-800 bg-zinc-100 border border-zinc-200"
+                                }`}>
                                   Semua Tahap Selesai (4/4)
                                 </span>
                               </div>
@@ -2779,7 +2926,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 2: Fitur</div>
-                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.features && activeProject.features.length) || 6} Modul Siap Eksekusi</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.features && activeProject.features.length) || 8} Modul Siap Eksekusi</div>
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 3: Flow &amp; Arsitektur</div>
@@ -2787,7 +2934,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 4: Tasks</div>
-                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 9} Actionable Items</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 16} Actionable Items</div>
                                 </div>
                               </div>
 
