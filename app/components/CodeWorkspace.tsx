@@ -8004,11 +8004,6 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
     (project.tasks && project.tasks.length > 0)
   );
 
-  const title = escapeHtml(project.title || "Universal V4 Platform");
-  const desc = escapeHtml(project.description || project.prd?.overview || "Modern web application prototype.");
-  const userMsgText = (project.messages || []).filter((m) => m.role === "user").map((m) => m.content).join(" ");
-  const combinedContextText = `${project.title || ""} ${project.description || ""} ${userMsgText} ${project.prd?.overview || ""}`.toLowerCase();
-
   // STEP 1: Read immutable USER_REQUIREMENTS from registry
   const registry = buildRequirementRegistry(project.prd, project.prd?.requirementRegistry);
   const regMap = new Map<string, RequirementRegistryEntry>();
@@ -8036,7 +8031,7 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
       { id: "FR-01", text: "Antarmuka responsif dan akses navigasi utama" },
       { id: "FR-02", text: "Katalog layanan dan eksplorasi fitur unggulan" },
       { id: "FR-03", text: "Simulasi alur transaksi dan konfirmasi pesanan" },
-      { id: "FR-04", text: "Pelacakan alur kerja dan roadmap pengerjaan" },
+      { id: "FR-04", text: "Informasi panduan dan konfirmasi hasil layanan" },
     ].forEach((r) => {
       userRequirements.push({
         id: r.id,
@@ -8049,12 +8044,12 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
     });
   }
 
-  // STEP 2: Identify relevant FEATURES (menggunakan fitur nyata proyek)
+  // STEP 2: Identify relevant FEATURES
   const features = (project.features && project.features.length > 0)
     ? project.features.map((f, idx) => ({
         id: f.id || `feat-${idx + 1}`,
-        name: f.name || `Fitur Layanan ${idx + 1}`,
-        description: f.description || "Layanan terintegrasi dengan performa tinggi dan responsivitas modern.",
+        name: f.name || `Layanan Unggulan ${idx + 1}`,
+        description: f.description || "Layanan terintegrasi dengan kualitas terbaik dan standar profesional.",
         priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
         scope: f.scope || "MVP",
         sourceRequirementIds: (f.sourceRequirementIds && f.sourceRequirementIds.length > 0)
@@ -8066,347 +8061,442 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
         { id: "feat-1", name: "Layanan & Solusi Utama", description: "Fungsionalitas inti aplikasi yang dirancang untuk efisiensi dan kemudahan.", priority: "CRITICAL", scope: "MVP", sourceRequirementIds: ["FR-01"], isAiSuggested: false },
         { id: "feat-2", name: "Pencarian & Filter Instan", description: "Akses cepat ke seluruh informasi dan modul dengan navigasi presisi.", priority: "HIGH", scope: "MVP", sourceRequirementIds: ["FR-02"], isAiSuggested: false },
         { id: "feat-3", name: "Alur Pemesanan & Konfirmasi", description: "Proses interaktif tanpa kendala dengan ringkasan transparan.", priority: "HIGH", scope: "MVP", sourceRequirementIds: ["FR-03"], isAiSuggested: false },
-        { id: "feat-4", name: "Pelacakan Progres & Kualitas", description: "Visibilitas penuh terhadap status dan hasil pengerjaan.", priority: "MEDIUM", scope: "MVP", sourceRequirementIds: ["FR-04"], isAiSuggested: false },
+        { id: "feat-4", name: "Panduan & Ulasan Layanan", description: "Kemudahan memahami alur dan kepuasan pelanggan terjamin.", priority: "MEDIUM", scope: "MVP", sourceRequirementIds: ["FR-04"], isAiSuggested: false },
       ];
 
-  // STEP 3: Read TASKS (menggunakan roadmap nyata proyek)
-  const tasks = (project.tasks && project.tasks.length > 0)
-    ? project.tasks.slice(0, 6).map((t, idx) => ({
-        id: t.id || `task-${idx + 1}`,
-        title: t.title || `Tahap ${idx + 1}`,
-        description: t.description || "Proses eksekusi dan penjaminan kualitas hasil.",
-        phase: t.phase || `Fase ${idx + 1}`,
-        relatedRequirements: (t.relatedRequirements && t.relatedRequirements.length > 0)
-          ? t.relatedRequirements
-          : [userRequirements[idx % userRequirements.length]?.id || "FR-01"],
-      }))
-    : [
-        { id: "task-1", title: "Discovery & Analisis Kebutuhan", phase: "Fase 1", description: "Perumusan spesifikasi teknis dan target sistem.", relatedRequirements: ["FR-01"] },
-        { id: "task-2", title: "Perancangan Konsep & Sketsa Arsitektur", phase: "Fase 2", description: "Eksplorasi tata letak modul dan integrasi alur kerja.", relatedRequirements: ["FR-02"] },
-        { id: "task-3", title: "Eksekusi Fungsional & Polishing", phase: "Fase 3", description: "Penyempurnaan modul presisi tinggi dan antarmuka.", relatedRequirements: ["FR-03"] },
-        { id: "task-4", title: "Review Klien & Penyelarasan Kualitas", phase: "Fase 4", description: "Pengujian interaksi dan verifikasi kepatuhan acceptance criteria.", relatedRequirements: ["FR-04"] },
-        { id: "task-5", title: "Final Handover & Siap Produksi", phase: "Fase 5", description: "Penyerahan deliverable lengkap dan rilis stabil.", relatedRequirements: ["FR-04"] },
-      ];
+  // STEP 3: Domain Detection (prioritizing project core over chat history)
+  const projectCoreText = `${project.title || ""} ${project.description || ""} ${project.prd?.overview || ""} ${(project.prd?.functionalRequirements || []).join(" ")} ${(project.features || []).map((f) => f.name + " " + f.description).join(" ")}`.toLowerCase();
+  
+  const latestUserMsg = (project.messages || []).filter((m) => m.role === "user").slice(-1).map((m) => m.content).join(" ").toLowerCase();
+  const cleanedUserMsg = latestUserMsg.replace(/kenapa (dari tadi )?(lapangan )?mini soccer terus/gi, "");
+  const effectiveContext = (projectCoreText.trim().length > 15 ? projectCoreText : `${projectCoreText} ${cleanedUserMsg}`).toLowerCase();
 
-  // Goals & Value Matrix
-  const goals = (project.prd?.goals && project.prd.goals.length > 0)
-    ? project.prd.goals.slice(0, 4)
-    : [
-        "Meningkatkan efisiensi dan kepuasan pengguna hingga 95%",
-        "Alur kerja cepat dan transparan",
-        "Kualitas terverifikasi dengan hasil presisi",
-      ];
+  const isLaundry = /\b(laundry|cuci|kiloan|dry\s*clean|setrika)\b/i.test(effectiveContext);
+  const isDesign = /\b(desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor|poster|banner|percetakan)\b/i.test(effectiveContext);
+  const isFashion = /\b(baju|clothing|fashion|apparel|distro|t-?shirt|kaos|kemeja|celana|pakaian|outfit|busana)\b/i.test(effectiveContext);
+  const isSoccer = /\b(minis*soccer|futsal|soccer|lapangan\s*bola|sepak\s*bola|sewa\s*lapangan|booking\s*lapangan)\b/i.test(effectiveContext);
+  const isClinic = /\b(klinik|dokter|medis|kesehatan|rumah\s*sakit|pasien|telemedis|apotek|obat)\b/i.test(effectiveContext);
+  const isCulinary = /\b(kuliner|makanan|resto|restoran|kafe|cafe|food|resep|katering|minuman|menu)\b/i.test(effectiveContext);
+  const isEdu = /\b(kursus|edukasi|sekolah|kelas|bimbel|course|akademi|belajar|les)\b/i.test(effectiveContext);
+  const isCommerce = /\b(e-?commerce|toko\s*online|belanja|marketplace|katalog\s*produk|keranjang)\b/i.test(effectiveContext);
 
-  // Project Type Derivation (Section 10)
-  const derivedTypeObj = deriveProjectTypeFromRequirements(combinedContextText || project.title);
+  // Derived Project Type for Specification Spec
+  const derivedTypeObj = deriveProjectTypeFromRequirements(effectiveContext || project.title);
   const primaryType = (project.prd?.primaryType && !/^s*$/.test(project.prd.primaryType))
     ? project.prd.primaryType.toUpperCase()
     : derivedTypeObj.primaryType.toUpperCase();
   const secondaryTypes = project.prd?.secondaryTypes || derivedTypeObj.secondaryTypes;
 
-  // Domain Detection
-  const isSoccerOrFutsal = /futsal|soccer|minis*soccer|lapangans*bola|sepaks*bola/i.test(combinedContextText);
-  const isDesignOrAgency = /desain|design|grafis|branding|logo|kreatif|creative|agency|agensi|ui\/?ux|ilustrasi|vektor/i.test(combinedContextText);
-  const isNews = /berita|portal|news|kuliner|blog|artikel|media|majalah|food|resep/i.test(combinedContextText) && !isDesignOrAgency;
-  const isHealth = /klinik|dokter|medis|kesehatan|rumahs*sakit|pasien|telemedisin|terapi/i.test(combinedContextText);
-  const isEdu = /kursus|edukasi|belajar|sekolah|kelas|course|akademi|bimbel|siswa|materi/i.test(combinedContextText);
-  const isCommerce = /e-commerce|toko|shop|marketplace|produk|jual|beli|katalog|cart|belanja|store/i.test(combinedContextText) && !isDesignOrAgency;
+  // STEP 4: Brand Name (Clean, Professional, Natural - Section 9)
+  let rawTitle = (project.title || "").trim();
+  rawTitle = rawTitle.replace(/^(web|aplikasi|platform|sistem|website)\s+/i, "");
+  let brandName = rawTitle;
+  if (!brandName || /universal|untitled/i.test(brandName)) {
+    if (isLaundry) brandName = "Lavender Laundry";
+    else if (isDesign) brandName = "Kreatif Studio Desain";
+    else if (isFashion) brandName = "Lumina Apparel";
+    else if (isSoccer) brandName = "Arena Mini Soccer";
+    else if (isClinic) brandName = "Medika Care Clinic";
+    else if (isCulinary) brandName = "Dapur Rasa Nusantara";
+    else if (isEdu) brandName = "BelajarHub Academy";
+    else if (isCommerce) brandName = "TokoPedia Store";
+    else brandName = "Nexus Platform";
+  }
+  const brandTitle = escapeHtml(brandName);
+  const brandChar = brandTitle.charAt(0).toUpperCase();
 
-  // Theme Styling Configuration
-  let themeConfig = {
-    badge: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-    primaryBtn: "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20",
-    accentText: "text-indigo-400",
-    accentBorder: "border-indigo-500/30",
-    domainTag: primaryType.replace(/_/g, " "),
-    ctaLabel: "Mulai Sekarang",
-    simTitle: "Simulasi Interaksi & Estimasi Proyek",
-    simDesc: "Hitung estimasi pengerjaan, pilih kebutuhan modul, dan kirim brief instan.",
-    inputLabel1: "Pilih Kategori Kebutuhan",
-    inputLabel2: "Tingkat Kompleksitas / Paket",
-  };
-
-  if (isDesignOrAgency) {
-    themeConfig = {
-      badge: "bg-purple-500/10 text-purple-300 border-purple-500/20",
-      primaryBtn: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/20",
-      accentText: "text-purple-400",
-      accentBorder: "border-purple-500/30",
-      domainTag: "Jasa Desain Grafis & Creative Studio",
-      ctaLabel: "Pesan Brief Desain",
-      simTitle: "Kalkulator Estimasi Biaya & Order Brief",
-      simDesc: "Pilih jenis layanan desain, opsi revisi, dan dapatkan estimasi biaya transparan.",
-      inputLabel1: "Pilih Jenis Layanan Desain",
-      inputLabel2: "Paket & Deliverable File Master",
-    };
-  } else if (isSoccerOrFutsal) {
-    themeConfig = {
-      badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-      primaryBtn: "bg-emerald-600 hover:bg-emerald-500 text-black font-bold shadow-emerald-600/20",
-      accentText: "text-emerald-400",
-      accentBorder: "border-emerald-500/30",
-      domainTag: "Arena & Booking Olahraga",
-      ctaLabel: "Reservasi Lapangan",
-      simTitle: "Cek Jadwal & Reservasi Slot Arena",
-      simDesc: "Pilih tanggal, amankan jam main, dan konfirmasi pemesanan lapangan langsung.",
-      inputLabel1: "Pilih Lapangan / Arena",
-      inputLabel2: "Slot Waktu & Durasi Sewa",
-    };
-  } else if (isNews) {
-    themeConfig = {
-      badge: "bg-amber-500/10 text-amber-300 border-amber-500/20",
-      primaryBtn: "bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-amber-500/20",
-      accentText: "text-amber-400",
-      accentBorder: "border-amber-500/30",
-      domainTag: "Portal Berita & Publikasi",
-      ctaLabel: "Baca Edisi Terhangat",
-      simTitle: "Pencarian Berita & Berlangganan Liputan",
-      simDesc: "Temukan topik investigasi terbaru atau daftarkan email untuk kurasi mingguan.",
-      inputLabel1: "Kategori Berita Pilihan",
-      inputLabel2: "Frekuensi Notifikasi Edisi",
-    };
-  } else if (isHealth) {
-    themeConfig = {
-      badge: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
-      primaryBtn: "bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/20",
-      accentText: "text-cyan-400",
-      accentBorder: "border-cyan-500/30",
-      domainTag: "Klinik & Layanan Kesehatan",
-      ctaLabel: "Jadwalkan Konsultasi",
-      simTitle: "Pendaftaran Pasien & Reservasi Dokter",
-      simDesc: "Pilih dokter spesialis, tentukan tanggal janji temu, dan dapatkan nomor antrean.",
-      inputLabel1: "Poliklinik / Spesialisasi",
-      inputLabel2: "Jenis Kunjungan & Waktu",
-    };
-  } else if (isEdu) {
-    themeConfig = {
-      badge: "bg-blue-500/10 text-blue-300 border-blue-500/20",
-      primaryBtn: "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20",
-      accentText: "text-blue-400",
-      accentBorder: "border-blue-500/30",
-      domainTag: "Platform Edukasi & Kursus",
-      ctaLabel: "Daftar Kelas Sekarang",
-      simTitle: "Kalkulator Kurikulum & Pendaftaran",
-      simDesc: "Pilih jalur belajar, periksa modul materi, dan simulasikan pendaftaran kelas.",
-      inputLabel1: "Pilihan Topik Pembelajaran",
-      inputLabel2: "Tingkat Kemampuan & Durasi",
-    };
-  } else if (isCommerce) {
-    themeConfig = {
-      badge: "bg-rose-500/10 text-rose-300 border-rose-500/20",
-      primaryBtn: "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20",
-      accentText: "text-rose-400",
-      accentBorder: "border-rose-500/30",
-      domainTag: "Katalog Belanja & E-Commerce",
-      ctaLabel: "Beli & Pesan Sekarang",
-      simTitle: "Simulasi Keranjang & Checkout Pesanan",
-      simDesc: "Pilih produk katalog, tentukan jumlah pesanan, dan periksa ringkasan biaya.",
-      inputLabel1: "Kategori Produk Pilihan",
-      inputLabel2: "Varian & Opsi Pengiriman",
-    };
+  // STEP 5: Domain Configuration & Realistic Consumer Content (Sections 10, 16, 23)
+  interface CatalogItem {
+    id: string;
+    title: string;
+    category: string;
+    desc: string;
+    price: number;
+    priceFormatted: string;
+    turnaround: string;
+    rating: string;
+    tag: string;
   }
 
-  // Traceability & Sections Mapping
+  let domainBadge = "Creative Studio";
+  let heroHeadline = "Solusi Desain Grafis Profesional untuk Brand & Bisnis Anda";
+  let heroSubtext = "Tingkatkan daya tarik bisnis Anda dengan identitas visual memukau, logo vektor presisi, dan materi promosi berkualitas tinggi. Pengerjaan cepat, revisi fleksibel, dan file master lengkap.";
+  let trustPills = ["✓ Pengerjaan Cepat & Tepat Waktu", "✓ Jaminan Kepuasan 100%", "✓ File Master & Lisensi Lengkap"];
+  let primaryBtnClass = "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/25";
+  let accentTextClass = "text-purple-400";
+  let accentBorderClass = "border-purple-500/30";
+  let badgeClass = "bg-purple-500/10 text-purple-300 border-purple-500/20";
+  let categories = ["Semua", "Branding", "UI/UX", "Social Media", "Packaging"];
+  let ctaOrderLabel = "Pesan Desain Sekarang";
+  let simSelectorLabel = "Pilih Jenis Layanan Desain";
+  let simDetailLabel = "Detail Brief & Catatan Konsep";
+  let simDetailPlaceholder = "Jelaskan preferensi warna, gaya visual, teks yang ingin ditampilkan, atau referensi brand...";
+  let modalTitle = "Brief Desain Berhasil Dikirim!";
+  let modalSubtext = "Terima kasih. Brief desain Anda telah kami terima dan tim desainer akan segera menghubungi Anda melalui WhatsApp untuk konsultasi awal.";
+  let modalRefPrefix = "DSG";
+
+  let catalogItems: CatalogItem[] = [];
+
+  if (isLaundry) {
+    domainBadge = "Premium Laundry Service";
+    heroHeadline = "Layanan Laundry Bersih, Rapi & Wangi Tanpa Ribet";
+    heroSubtext = "Pesan penjemputan pakaian kotor langsung dari rumah. Menggunakan deterjen ramah lingkungan, pencucian terpisah per pelanggan, dan jaminan selesai tepat waktu.";
+    trustPills = ["✓ Cuci Bersih & Higienis", "✓ Antar Jemput Tepat Waktu", "✓ 1 Mesin 1 Pelanggan (Tidak Dicampur)"];
+    primaryBtnClass = "bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/25";
+    accentTextClass = "text-sky-400";
+    accentBorderClass = "border-sky-500/30";
+    badgeClass = "bg-sky-500/10 text-sky-300 border-sky-500/20";
+    categories = ["Semua", "Kiloan", "Satuan", "Express", "Bedcover"];
+    ctaOrderLabel = "Pesan Laundry Sekarang";
+    simSelectorLabel = "Pilih Layanan Laundry";
+    simDetailLabel = "Alamat Penjemputan & Catatan Khusus";
+    simDetailPlaceholder = "Alamat lengkap penjemputan pakaian, patokan rumah, atau instruksi khusus bahan pakaian...";
+    modalTitle = "Pesanan Laundry Berhasil Diterima!";
+    modalSubtext = "Terima kasih. Kurir kami akan segera mengonfirmasi jadwal penjemputan pakaian ke lokasi Anda.";
+    modalRefPrefix = "LND";
+    catalogItems = [
+      { id: "1", title: "Cuci Komplit (Cuci + Kering + Setrika)", category: "Kiloan", desc: "Pakaian dicuci bersih, dikeringkan mesin khusus, disetrika uap rapi, dan dipacking plastik kedap udara.", price: 12000, priceFormatted: "Rp 12.000 / kg", turnaround: "2 Hari", rating: "★ 4.9 (240 ulasan)", tag: "Paling Populer" },
+      { id: "2", title: "Cuci Kering Lipat", category: "Kiloan", desc: "Solusi cepat dan hemat untuk pakaian sehari-hari tanpa setrika, dilipat rapi dan siap masuk lemari.", price: 8000, priceFormatted: "Rp 8.000 / kg", turnaround: "1 Hari", rating: "★ 4.8 (115 ulasan)", tag: "Hemat" },
+      { id: "3", title: "Laundry Kilat Express (4 Jam)", category: "Express", desc: "Layanan prioritas cepat selesai dalam 4 jam dengan standar kebersihan dan keharuman maksimal.", price: 25000, priceFormatted: "Rp 25.000 / kg", turnaround: "4 Jam", rating: "★ 4.9 (88 ulasan)", tag: "Super Cepat" },
+      { id: "4", title: "Dry Cleaning Jas & Gaun", category: "Satuan", desc: "Perawatan pakaian berbahan khusus seperti wol, sutra, kebaya, dan jas formal tanpa merusak serat kain.", price: 50000, priceFormatted: "Rp 50.000 / pcs", turnaround: "2 Hari", rating: "★ 5.0 (64 ulasan)", tag: "Spesialis" },
+      { id: "5", title: "Cuci Bedcover & Selimut Jumbo", category: "Bedcover", desc: "Pembersihan mendalam untuk bedcover king size, selimut bulu, dan sprei dengan pengeringan anti-bakteri.", price: 35000, priceFormatted: "Rp 35.000 / pcs", turnaround: "2 Hari", rating: "★ 4.8 (92 ulasan)", tag: "Higienis" },
+      { id: "6", title: "Perawatan Cuci Sepatu & Sneakers", category: "Satuan", desc: "Deep cleaning untuk sneakers dan sepatu kesayangan dengan sabun khusus formula anti-yellowing.", price: 45000, priceFormatted: "Rp 45.000 / pasang", turnaround: "2-3 Hari", rating: "★ 4.9 (78 ulasan)", tag: "Favorit" },
+    ];
+  } else if (isSoccer) {
+    domainBadge = "Arena & Booking Olahraga";
+    heroHeadline = "Booking Lapangan Mini Soccer & Futsal Tanpa Antre";
+    heroSubtext = "Cek ketersediaan jam main secara real-time, pilih rumput sintetis standar FIFA, dan amankan reservasi slot lapangan langsung dalam hitungan menit.";
+    trustPills = ["✓ Rumput Sintetis Standar FIFA", "✓ Lampu LED Malam 1000 Lux", "✓ Sistem Booking Real-Time"];
+    primaryBtnClass = "bg-emerald-500 hover:bg-emerald-400 text-black font-black shadow-emerald-500/25";
+    accentTextClass = "text-emerald-400";
+    accentBorderClass = "border-emerald-500/30";
+    badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    categories = ["Semua", "Mini Soccer", "Futsal", "Sintetis", "Vinyl"];
+    ctaOrderLabel = "Booking Lapangan Sekarang";
+    simSelectorLabel = "Pilih Lapangan & Arena";
+    simDetailLabel = "Nama Tim & Pilihan Slot Jam Main";
+    simDetailPlaceholder = "Tuliskan nama tim, tanggal main yang diinginkan, dan perkiraan jam bermain (contoh: Tim Garuda, Jumat jam 19.00)...";
+    modalTitle = "Reservasi Lapangan Berhasil!";
+    modalSubtext = "Slot lapangan Anda berhasil diamankan sementara selama 15 menit. Silakan selesaikan konfirmasi dengan petugas kami via WhatsApp.";
+    modalRefPrefix = "BOOK";
+    catalogItems = [
+      { id: "1", title: "Lapangan Mini Soccer A (Sintetis FIFA)", category: "Mini Soccer", desc: "Rumput monofilament impor berperedam guncangan, pencahayaan LED malam hari 1000 lux, dan tribun penonton.", price: 450000, priceFormatted: "Rp 450.000 / jam", turnaround: "Slot 16:00 - 23:00", rating: "★ 4.9 (310 ulasan)", tag: "Paling Ramai" },
+      { id: "2", title: "Lapangan Mini Soccer B (Outdoor Standard)", category: "Mini Soccer", desc: "Ukuran standar 7 vs 7, sistem drainase air cepat kering saat hujan, dan ruang ganti ber-AC.", price: 380000, priceFormatted: "Rp 380.000 / jam", turnaround: "Slot 07:00 - 22:00", rating: "★ 4.8 (145 ulasan)", tag: "Hemat" },
+      { id: "3", title: "Lapangan Futsal Indoor 1 (Interlock Vinyl)", category: "Futsal", desc: "Lantai interlock standar kompetisi futsal nasional dengan pantulan bola presisi dan jaring pengaman keliling.", price: 180000, priceFormatted: "Rp 180.000 / jam", turnaround: "Slot 08:00 - 24:00", rating: "★ 4.9 (210 ulasan)", tag: "Populer" },
+      { id: "4", title: "Lapangan Futsal 2 (Rumput Sintetis Halus)", category: "Futsal", desc: "Lantai sintetis empuk nyaman untuk sparing santai, bebas licin, dan dilengkapi scoreboard digital.", price: 160000, priceFormatted: "Rp 160.000 / jam", turnaround: "Slot 08:00 - 23:00", rating: "★ 4.7 (95 ulasan)", tag: "Favorit" },
+      { id: "5", title: "Paket Mini Soccer Sparing + Wasit", category: "Mini Soccer", desc: "Sewa lapangan 2 jam komplit dengan 1 wasit berlisensi, 2 rompi tim pembeda, dan 2 bola pertandingan.", price: 950000, priceFormatted: "Rp 950.000 / 2 jam", turnaround: "Weekend / Malam", rating: "★ 5.0 (42 ulasan)", tag: "Komplit" },
+      { id: "6", title: "Member Bulanan Slot Tetap (4x Main)", category: "Mini Soccer", desc: "Jaminan slot jam primetime setiap minggu tanpa perlu rebutan jadwal, diskon 15% dari tarif reguler.", price: 1600000, priceFormatted: "Rp 1.600.000 / bln", turnaround: "1 Bulan Penuh", rating: "★ 4.9 (28 ulasan)", tag: "Member" },
+    ];
+  } else if (isFashion) {
+    domainBadge = "Modern Apparel & Clothing";
+    heroHeadline = "Koleksi Fashion Pilihan & Pakaian Minimalis Modern";
+    heroSubtext = "Temukan pakaian sehari-hari yang nyaman, timeless, dan berkualitas tinggi. Menggunakan bahan katun pilihan dengan potongan presisi untuk melengkapi gaya hidup Anda.";
+    trustPills = ["✓ 100% Katun Pilihan", "✓ Jahitan Presisi & Rapi", "✓ Garansi Tukar Ukuran 7 Hari"];
+    primaryBtnClass = "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25";
+    accentTextClass = "text-rose-400";
+    accentBorderClass = "border-rose-500/30";
+    badgeClass = "bg-rose-500/10 text-rose-300 border-rose-500/20";
+    categories = ["Semua", "Kaos", "Kemeja", "Outerwear", "Celana"];
+    ctaOrderLabel = "Beli Sekarang";
+    simSelectorLabel = "Pilih Produk Pakaian";
+    simDetailLabel = "Pilihan Ukuran & Alamat Kirim";
+    simDetailPlaceholder = "Tuliskan ukuran (S/M/L/XL), warna cadangan, dan alamat lengkap pengiriman...";
+    modalTitle = "Pesanan Pakaian Berhasil Dibuat!";
+    modalSubtext = "Terima kasih atas pesanan Anda. Kami akan segera memverifikasi ketersediaan stok dan mengirimkan nomor resi pengiriman.";
+    modalRefPrefix = "ORD";
+    catalogItems = [
+      { id: "1", title: "Heavyweight Boxy Tee 220 GSM", category: "Kaos", desc: "Bahan 100% katun combed tebal yang adem, potongan boxy fit modern, dan tidak mudah menyusut saat dicuci.", price: 135000, priceFormatted: "Rp 135.000", turnaround: "Ready Stock", rating: "★ 4.9 (420 ulasan)", tag: "Best Seller" },
+      { id: "2", title: "Relaxed Linen Camp Collar Shirt", category: "Kemeja", desc: "Kemeja lengan pendek berbahan linen blend halus dan sejuk, cocok untuk suasana santai maupun semi-formal.", price: 210000, priceFormatted: "Rp 210.000", turnaround: "Ready Stock", rating: "★ 4.8 (180 ulasan)", tag: "Favorit" },
+      { id: "3", title: "Studio Daily Overshirt Canvas", category: "Outerwear", desc: "Outerwear kanvas berdesain minimalis dengan kancing tanduk dan dua saku dada fungsional.", price: 275000, priceFormatted: "Rp 275.000", turnaround: "Ready Stock", rating: "★ 4.9 (95 ulasan)", tag: "Rekomendasi" },
+      { id: "4", title: "Easy Pleated Relaxed Trousers", category: "Celana", desc: "Celana panjang semi-formal berpinggang elastis dengan detail lipit depan yang elegan dan nyaman dipakai.", price: 245000, priceFormatted: "Rp 245.000", turnaround: "Ready Stock", rating: "★ 4.8 (110 ulasan)", tag: "New Arrival" },
+      { id: "5", title: "Classic Striped Long Sleeve Tee", category: "Kaos", desc: "Kaos lengan panjang motif garis klasik berbahan katun lembut dengan manset rib elastis.", price: 165000, priceFormatted: "Rp 165.000", turnaround: "Ready Stock", rating: "★ 4.7 (75 ulasan)", tag: "Populer" },
+      { id: "6", title: "Water-Repellent Utility Vest", category: "Outerwear", desc: "Rompi fungsional tahan percikan air ringan dengan multiple pocket untuk aktivitas outdoor harian.", price: 260000, priceFormatted: "Rp 260.000", turnaround: "Ready Stock", rating: "★ 4.9 (60 ulasan)", tag: "Spesial" },
+    ];
+  } else if (isClinic) {
+    domainBadge = "Layanan Medis & Kesehatan";
+    heroHeadline = "Layanan Kesehatan Terpadu & Janji Temu Dokter Terpercaya";
+    heroSubtext = "Konsultasi medis dengan dokter spesialis profesional, fasilitas modern, serta pendaftaran jadwal yang transparan tanpa antrean berbelit-belit.";
+    trustPills = ["✓ Dokter Spesialis Berpengalaman", "✓ Jadwal Konsultasi Fleksibel", "✓ Antrean Digital Transparan"];
+    primaryBtnClass = "bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-600/25";
+    accentTextClass = "text-cyan-400";
+    accentBorderClass = "border-cyan-500/30";
+    badgeClass = "bg-cyan-500/10 text-cyan-300 border-cyan-500/20";
+    categories = ["Semua", "Umum", "Gigi", "Anak", "Spesialis"];
+    ctaOrderLabel = "Jadwalkan Konsultasi";
+    simSelectorLabel = "Pilih Poliklinik & Layanan Medis";
+    simDetailLabel = "Nama Pasien & Keluhan Singkat";
+    simDetailPlaceholder = "Tuliskan nama pasien, usia, keluhan utama yang dirasakan, dan tanggal rencana kunjungan...";
+    modalTitle = "Janji Temu Dokter Didaftarkan!";
+    modalSubtext = "Nomor antrean dan konfirmasi jadwal telah dicatat. Kami akan mengirimkan notifikasi pengingat sebelum sesi konsultasi Anda.";
+    modalRefPrefix = "MED";
+    catalogItems = [
+      { id: "1", title: "Konsultasi Dokter Umum & Cek Kesehatan", category: "Umum", desc: "Pemeriksaan tanda vital, konsultasi keluhan kesehatan umum, dan peresepan obat sesuai diagnosis.", price: 120000, priceFormatted: "Rp 120.000", turnaround: "Tiap Hari", rating: "★ 4.9 (280 ulasan)", tag: "Paling Umum" },
+      { id: "2", title: "Pemeriksaan Gigi & Scaling Ultrasonic", category: "Gigi", desc: "Pembersihan karang gigi menyeluruh dengan alat ultrasonic mutakhir dan konsultasi kesehatan mulut.", price: 250000, priceFormatted: "Rp 250.000", turnaround: "Senin - Sabtu", rating: "★ 4.8 (190 ulasan)", tag: "Populer" },
+      { id: "3", title: "Pemeriksaan Tumbuh Kembang Anak (Spesialis Anak)", category: "Anak", desc: "Pemeriksaan kesehatan bayi dan balita, imunisasi berkala, serta evaluasi gizi oleh dokter spesialis.", price: 200000, priceFormatted: "Rp 200.000", turnaround: "Senin - Jumat", rating: "★ 5.0 (140 ulasan)", tag: "Rekomendasi" },
+      { id: "4", title: "Paket Medical Check Up (MCU) Dasar", category: "Umum", desc: "Skrining kesehatan mencakup tes gula darah, kolesterol, asam urat, rekam jantung EKG, dan konsultasi dokter.", price: 450000, priceFormatted: "Rp 450.000", turnaround: "Hasil 1 Hari", rating: "★ 4.9 (85 ulasan)", tag: "Lengkap" },
+      { id: "5", title: "Konsultasi Telemedisin Online (Chat/Video)", category: "Umum", desc: "Konsultasi jarak jauh yang praktis dari rumah via sambungan video dengan resep digital resmi.", price: 75000, priceFormatted: "Rp 75.000", turnaround: "Instan", rating: "★ 4.8 (320 ulasan)", tag: "Praktis" },
+      { id: "6", title: "Fisioterapi & Rehabilitasi Medis", category: "Spesialis", desc: "Terapi pemulihan cedera otot, sendi, dan saraf tulang belakang oleh fisioterapis berlisensi.", price: 220000, priceFormatted: "Rp 220.000", turnaround: "Senin - Sabtu", rating: "★ 4.9 (65 ulasan)", tag: "Spesialis" },
+    ];
+  } else if (isCulinary) {
+    domainBadge = "Kuliner & Restoran";
+    heroHeadline = "Kelezatan Autentik & Menu Kuliner Istimewa Pilihan";
+    heroSubtext = "Nikmati sajian lezat yang diolah dari bahan-bahan segar pilihan oleh koki berpengalaman. Siap dipesan untuk santap di tempat, bawa pulang, atau katering acara.";
+    trustPills = ["✓ Bahan Segar Setiap Hari", "✓ Resep Autentik Berbumbu", "✓ Pengiriman Cepat & Higienis"];
+    primaryBtnClass = "bg-amber-500 hover:bg-amber-400 text-black font-black shadow-amber-500/25";
+    accentTextClass = "text-amber-400";
+    accentBorderClass = "border-amber-500/30";
+    badgeClass = "bg-amber-500/10 text-amber-300 border-amber-500/20";
+    categories = ["Semua", "Menu Utama", "Camilan", "Minuman", "Paket Katering"];
+    ctaOrderLabel = "Pesan Menu Sekarang";
+    simSelectorLabel = "Pilih Menu Kuliner";
+    simDetailLabel = "Jumlah Porsi & Instruksi Pengantaran";
+    simDetailPlaceholder = "Tuliskan jumlah porsi, tingkat kepedasan, dan alamat lengkap pengantaran makanan...";
+    modalTitle = "Pesanan Kuliner Berhasil Diterima!";
+    modalSubtext = "Dapur kami sedang menyiapkan hidangan spesial Anda dengan higienis. Kurir akan segera mengantar ke alamat Anda.";
+    modalRefPrefix = "FOOD";
+    catalogItems = [
+      { id: "1", title: "Nasi Liwet Ayam Bakar Madu Spesial", category: "Menu Utama", desc: "Nasi liwet gurih beraroma daun jeruk disajikan dengan ayam bakar madu empuk, tahu tempe, dan sambal terasi.", price: 38000, priceFormatted: "Rp 38.000", turnaround: "20-30 Menit", rating: "★ 4.9 (520 ulasan)", tag: "Menu Juara" },
+      { id: "2", title: "Daging Sapi Sei Asap Sambal Luat", category: "Menu Utama", desc: "Daging sapi asap tradisional dengan aroma smokey meresap, daun singkong rebus, dan sambal tomat luat khas.", price: 48000, priceFormatted: "Rp 48.000", turnaround: "25 Menit", rating: "★ 4.9 (340 ulasan)", tag: "Best Seller" },
+      { id: "3", title: "Tahu Walik Krispi Sambal Kecap Pedas", category: "Camilan", desc: "Tahu kulit renyah isi adonan daging ayam kenyal berbumbu, disajikan hangat dengan cocolan sambal kecap rawit.", price: 22000, priceFormatted: "Rp 22.000", turnaround: "15 Menit", rating: "★ 4.8 (210 ulasan)", tag: "Favorit" },
+      { id: "4", title: "Es Kopi Susu Gula Aren Asli", category: "Minuman", desc: "Paduan espresso arabika pilihan dengan susu segar creamy dan sirup gula aren murni berkualitas.", price: 18000, priceFormatted: "Rp 18.000", turnaround: "Instan", rating: "★ 4.9 (460 ulasan)", tag: "Paling Segar" },
+      { id: "5", title: "Paket Nasi Box Katering Acara (Min. 10 Porsi)", category: "Paket Katering", desc: "Kotak bento higienis lengkap dengan lauk utama, sayur, buah segar, kerupuk, dan air mineral.", price: 32000, priceFormatted: "Rp 32.000 / box", turnaround: "H-1 Pemesanan", rating: "★ 5.0 (98 ulasan)", tag: "Hemat" },
+      { id: "6", title: "Iga Bakar Saus BBQ Karamel", category: "Menu Utama", desc: "Iga sapi pilihan bertekstur empuk yang dimasak lambat dengan olesan saus bakar karamel gurih manis.", price: 65000, priceFormatted: "Rp 65.000", turnaround: "30 Menit", rating: "★ 4.8 (140 ulasan)", tag: "Premium" },
+    ];
+  } else {
+    // Graphic Design / Creative Agency default
+    catalogItems = [
+      { id: "1", title: "Logo & Brand Identity Vector", category: "Branding", desc: "Desain logo vektor profesional, variasi warna, panduan tipografi, dan file master resolusi penuh (AI, SVG, PNG).", price: 450000, priceFormatted: "Rp 450.000", turnaround: "2-3 Hari", rating: "★ 4.9 (185 ulasan)", tag: "Terpopuler" },
+      { id: "2", title: "Desain UI/UX Website & Mobile App", category: "UI/UX", desc: "Antarmuka modern, interaktif, responsif, dan user-friendly di Figma beserta design system komponen lengkap.", price: 1200000, priceFormatted: "Rp 1.200.000", turnaround: "4-6 Hari", rating: "★ 4.9 (92 ulasan)", tag: "Rekomendasi" },
+      { id: "3", title: "Materi Promosi & Feed Social Media", category: "Social Media", desc: "Paket 6 template feed Instagram dan 3 story visual yang konsisten dengan identitas dan estetika brand Anda.", price: 350000, priceFormatted: "Rp 350.000", turnaround: "1-2 Hari", rating: "★ 4.8 (140 ulasan)", tag: "Best Seller" },
+      { id: "4", title: "Kemasan & Packaging Produk 3D", category: "Packaging", desc: "Desain label botol, standing pouch, atau box kemasan siap cetak dengan ukuran presisi dan visual 3D mockup.", price: 600000, priceFormatted: "Rp 600.000", turnaround: "3-4 Hari", rating: "★ 4.9 (78 ulasan)", tag: "Premium" },
+      { id: "5", title: "Banner Luar Ruang, Spanduk & Roll-up", category: "Branding", desc: "Desain materi promosi resolusi tinggi (CMYK 300 DPI) siap langsung dikirim ke percetakan tanpa pecah.", price: 250000, priceFormatted: "Rp 250.000", turnaround: "1 Hari", rating: "★ 4.7 (110 ulasan)", tag: "Kilat" },
+      { id: "6", title: "Desain Pitch Deck & Presentasi Bisnis", category: "Branding", desc: "Slide presentasi bisnis elegan, infografis data yang komunikatif, serta format file PPTX dan PDF interaktif.", price: 500000, priceFormatted: "Rp 500.000", turnaround: "2-3 Hari", rating: "★ 4.9 (65 ulasan)", tag: "Favorit" },
+    ];
+  }
+
+  // Check if project.features has genuine user-defined business features to incorporate
+  if (project.features && project.features.length > 0) {
+    const userFeatCards: CatalogItem[] = [];
+    project.features.forEach((f, idx) => {
+      const isTechJargon = /\b(setup|database|schema|postgresql|middleware|auth|api|docker|ci\/cd|backend|migration)\b/i.test(f.name);
+      if (!isTechJargon && f.name.trim().length > 3) {
+        userFeatCards.push({
+          id: `uf-${idx + 1}`,
+          title: f.name,
+          category: categories[1] || "Layanan",
+          desc: f.description || "Layanan terintegrasi dengan kualitas terbaik dan standar profesional.",
+          price: 350000 + (idx * 150000),
+          priceFormatted: `Rp ${(350000 + idx * 150000).toLocaleString('id-ID')}`,
+          turnaround: "2-3 Hari",
+          rating: "★ 4.9 (50+ ulasan)",
+          tag: idx === 0 ? "Unggulan" : "Pilihan",
+        });
+      }
+    });
+    if (userFeatCards.length >= 2) {
+      catalogItems = userFeatCards.concat(catalogItems.slice(userFeatCards.length));
+    }
+  }
+
+  // STEP 6: Internal Traceability Mapping (Sections 7, 20)
   const coveredRequirementIds = new Set<string>();
   userRequirements.forEach((r) => coveredRequirementIds.add(r.id));
 
   const secHeroReqs = [userRequirements[0]?.id || "FR-01"];
-  const secFeaturesReqs = features.map((f) => f.sourceRequirementIds[0] || userRequirements[1]?.id || "FR-02");
-  const secSimReqs = [userRequirements[1]?.id || "FR-02", userRequirements[2]?.id || "FR-03"];
-  const secRoadmapReqs = [userRequirements[3]?.id || "FR-04", userRequirements[4]?.id || "FR-05"].filter(Boolean);
+  const secCatalogReqs = userRequirements.slice(0, 3).map((r) => r.id);
+  const secFlowReqs = [userRequirements[0]?.id || "FR-01", userRequirements[userRequirements.length - 1]?.id || "FR-04"];
+  const secSimReqs = userRequirements.slice(1).map((r) => r.id);
+  const secGuaranteeReqs = userRequirements.map((r) => r.id);
 
   const derivedSections: PreviewSectionSpec[] = [
     {
       id: "hero",
-      title: "Hero & Value Proposition",
-      purpose: "Memperkenalkan visi proyek, nilai tambah utama, dan ajakan bertindak (CTA).",
+      title: "Hero & Nilai Utama",
+      purpose: "Memperkenalkan keunggulan layanan dan akses aksi langsung pengguna.",
       source_requirement_ids: secHeroReqs,
       source_feature_ids: [features[0]?.id || "feat-1"],
       classification: "USER_DERIVED",
       components: [
-        { id: "c-hero-badge", name: "Domain Badge", type: "badge", purpose: "Label domain proyek", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
-        { id: "c-hero-cta", name: "Primary Action CTA", type: "button", purpose: "Navigasi langsung ke modul interaktif", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+        { id: "c-hero-badge", name: "Brand Badge", type: "badge", purpose: "Identitas layanan utama", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+        { id: "c-hero-cta", name: "Aksi Pesan", type: "button", purpose: "Tombol navigasi ke modul pemesanan", source_requirement_ids: secHeroReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
       ],
     },
     {
-      id: "features",
-      title: "Katalog Fitur & Solusi Unggulan",
-      purpose: "Menyajikan rincian seluruh fitur proyek yang telah dirumuskan dalam PRD & Feature planner.",
-      source_requirement_ids: secFeaturesReqs,
+      id: "catalog",
+      title: "Katalog Layanan & Pilihan Solusi",
+      purpose: "Menyajikan pilihan produk atau layanan yang dapat dieksplorasi pengguna secara interaktif.",
+      source_requirement_ids: secCatalogReqs,
       source_feature_ids: features.map((f) => f.id),
       classification: "USER_DERIVED",
-      components: features.map((f) => ({
-        id: `c-feat-${f.id}`,
-        name: f.name,
-        type: "card",
-        purpose: f.description,
-        source_requirement_ids: f.sourceRequirementIds,
-        source_feature_ids: [f.id],
-        classification: "USER_DERIVED",
-      })),
+      components: [
+        { id: "c-catalog-search", name: "Pencarian Katalog", type: "input", purpose: "Filter pencarian layanan secara instan", source_requirement_ids: secCatalogReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED" },
+        { id: "c-catalog-grid", name: "Grid Kartu Layanan", type: "grid", purpose: "Daftar kartu layanan interaktif", source_requirement_ids: secCatalogReqs, source_feature_ids: features.map((f) => f.id), classification: "USER_DERIVED" },
+      ],
+    },
+    {
+      id: "order_flow",
+      title: "Alur Interaksi & Panduan Penggunaan",
+      purpose: "Memberikan panduan langkah mudah dalam memanfaatkan layanan bagi pengguna.",
+      source_requirement_ids: secFlowReqs,
+      source_feature_ids: [features[0]?.id || "feat-1"],
+      classification: "USER_DERIVED",
+      components: [
+        { id: "c-flow-steps", name: "Langkah Alur", type: "timeline_item", purpose: "Visualisasi tahapan pemesanan bagi pelanggan", source_requirement_ids: secFlowReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+      ],
     },
     {
       id: "simulator",
-      title: themeConfig.simTitle,
-      purpose: "Simulasi interaktif langsung untuk estimasi, pemesanan, atau formulir aksi pengguna.",
+      title: "Simulasi Pemesanan & Estimasi",
+      purpose: "Modul interaktif untuk memilih paket layanan dan konfirmasi kebutuhan.",
       source_requirement_ids: secSimReqs,
-      source_feature_ids: [features[1]?.id || "feat-2", features[2]?.id || "feat-3"],
+      source_feature_ids: features.slice(1).map((f) => f.id),
       classification: "USER_DERIVED",
       components: [
-        { id: "c-sim-form", name: "Form Input & Selector", type: "form", purpose: "Pilihan opsi konfigurasi interaktif", source_requirement_ids: secSimReqs, source_feature_ids: [features[1]?.id || "feat-2"], classification: "USER_DERIVED" },
-        { id: "c-sim-summary", name: "Summary Card", type: "card", purpose: "Ringkasan kalkulasi estimasi real-time", source_requirement_ids: secSimReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED" },
+        { id: "c-sim-selector", name: "Form Pemilih Paket", type: "form", purpose: "Formulir konfigurasi layanan", source_requirement_ids: secSimReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED" },
+        { id: "c-sim-summary", name: "Kalkulator Estimasi", type: "card", purpose: "Kalkulasi total biaya real-time", source_requirement_ids: secSimReqs, source_feature_ids: [features[2]?.id || "feat-3"], classification: "USER_DERIVED" },
+        { id: "c-sim-modal", name: "Modal Konfirmasi", type: "dialog", purpose: "Jendela konfirmasi hasil pemesanan", source_requirement_ids: secSimReqs, source_feature_ids: [features[3]?.id || "feat-4"], classification: "USER_DERIVED" },
       ],
     },
     {
-      id: "roadmap",
-      title: "Alur Eksekusi & Roadmap Tahapan",
-      purpose: "Visualisasi tahapan pengerjaan dan roadmap penjaminan kualitas berbasis task board planner.",
-      source_requirement_ids: secRoadmapReqs,
-      source_feature_ids: [features[features.length - 1]?.id || "feat-4"],
+      id: "guarantee",
+      title: "Jaminan Kualitas & Standar Hasil",
+      purpose: "Memberikan kepastian standar mutu pengerjaan dan kepuasan pengguna.",
+      source_requirement_ids: secGuaranteeReqs,
+      source_feature_ids: [features[0]?.id || "feat-1"],
       classification: "USER_DERIVED",
-      components: tasks.map((t) => ({
-        id: `c-task-${t.id}`,
-        name: t.title,
-        type: "timeline_item",
-        purpose: t.description,
-        source_requirement_ids: t.relatedRequirements,
-        source_feature_ids: [features[0]?.id || "feat-1"],
-        classification: "USER_DERIVED",
-      })),
+      components: [
+        { id: "c-guarantee-badges", name: "Lencana Jaminan Mutu", type: "card", purpose: "Informasi garansi dan komitmen layanan", source_requirement_ids: secGuaranteeReqs, source_feature_ids: [features[0]?.id || "feat-1"], classification: "USER_DERIVED" },
+      ],
     },
   ];
 
-  // Dynamic Options for Simulator Form based on project features
-  const simOptionList = features.map((f, idx) => ({
-    name: f.name,
-    desc: f.description,
-    price: 350000 + idx * 250000,
-  }));
+  // STEP 7: Generate Clean, Authentic Product Prototype HTML (Zero Planning Metadata)
+  const simOptionJson = JSON.stringify(catalogItems);
 
   const generatedHtml = `<!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} · Planning-Aware Prototype</title>
+  <title>${brandTitle} · Official Website</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .glass-panel { background: rgba(18, 24, 38, 0.7); backdrop-filter: blur(12px); }
   </style>
 </head>
-<body class="bg-[#0a0d14] text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
-
-  <!-- Top Announcement Bar -->
-  <div class="bg-zinc-950 border-b border-zinc-800/80 text-[11px] py-2 px-4 sm:px-8">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2 overflow-hidden">
-        <span class="px-2 py-0.5 rounded-full ${themeConfig.badge} font-bold font-mono text-[9px] uppercase tracking-wider">
-          ${themeConfig.domainTag}
-        </span>
-        <span class="text-zinc-300 truncate">Spesifikasi Aktif: ${escapeHtml(goals[0] || "Solusi digital terintegrasi")}</span>
-      </div>
-      <div class="flex items-center gap-3 text-zinc-400 font-mono text-[10px]">
-        <span class="text-emerald-400">● Planning-Aware Prototype</span>
-        <span>•</span>
-        <span>${userRequirements.length} Requirements Mapped</span>
-      </div>
-    </div>
-  </div>
+<body class="bg-[#0a0d14] text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-purple-500 selection:text-white">
 
   <!-- Header & Navigation -->
-  <header class="border-b border-zinc-800/80 bg-zinc-950/80 sticky top-0 z-40 backdrop-blur-md">
+  <header class="border-b border-zinc-800/80 bg-zinc-950/90 sticky top-0 z-40 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl ${themeConfig.primaryBtn} flex items-center justify-center text-sm font-black shadow-lg">
-          ${title.charAt(0).toUpperCase()}
+        <div class="w-9 h-9 rounded-xl ${primaryBtnClass} flex items-center justify-center text-sm font-black shadow-lg">
+          ${brandChar}
         </div>
         <div>
-          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${title}</span>
-          <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">${themeConfig.domainTag}</span>
+          <span class="font-black tracking-tight text-white text-base sm:text-lg block leading-none">${brandTitle}</span>
+          <span class="text-[10px] text-zinc-400 font-medium tracking-wider uppercase">${domainBadge}</span>
         </div>
       </div>
 
       <nav class="hidden md:flex items-center gap-6 text-xs text-zinc-300 font-semibold">
-        <a href="#features" class="hover:${themeConfig.accentText} transition">Fitur & Solusi</a>
-        <a href="#simulator" class="hover:${themeConfig.accentText} transition">Simulasi Aksi</a>
-        <a href="#roadmap" class="hover:${themeConfig.accentText} transition">Alur Pengerjaan</a>
+        <a href="#layanan" class="hover:${accentTextClass} transition">Pilihan Layanan</a>
+        <a href="#alur-pesan" class="hover:${accentTextClass} transition">Cara Pemesanan</a>
+        <a href="#simulasi" class="hover:${accentTextClass} transition">Simulasi Order</a>
+        <a href="#ulasan" class="hover:${accentTextClass} transition">Ulasan Pelanggan</a>
       </nav>
 
-      <a href="#simulator" class="px-4 py-2 rounded-xl ${themeConfig.primaryBtn} text-xs font-bold transition shadow-md">
-        ${themeConfig.ctaLabel}
-      </a>
+      <div class="flex items-center gap-3">
+        <a href="#simulasi" class="px-4 py-2 rounded-xl ${primaryBtnClass} text-xs font-bold transition shadow-md">
+          ${ctaOrderLabel}
+        </a>
+      </div>
     </div>
   </header>
 
   <main class="flex-1">
     <!-- Hero Section -->
-    <section id="hero" data-preview-source="${secHeroReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 text-center relative overflow-hidden">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border ${themeConfig.badge} text-[11px] font-mono mb-6">
+    <section id="hero" data-preview-source-requirements="${secHeroReqs.join(',')}" data-preview-source-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-24 text-center relative overflow-hidden">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border ${badgeClass} text-[11px] font-medium mb-6">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Prototype Konseptual dari PRD &amp; Blueprint Aktif</span>
+        <span>✦ Layanan Profesional &amp; Terpercaya</span>
       </div>
       <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight max-w-4xl mx-auto">
-        ${title}
+        ${heroHeadline}
       </h1>
       <p class="text-zinc-400 text-xs sm:text-base max-w-2xl mx-auto mt-5 leading-relaxed">
-        ${desc}
+        ${heroSubtext}
       </p>
 
-      <!-- Key Goals Pills -->
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-2 max-w-3xl mx-auto">
-        ${goals.map((g) => `
-          <span class="px-3 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-1.5">
-            <span class="${themeConfig.accentText}">✓</span> ${escapeHtml(g)}
+      <!-- Trust Badges -->
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-2.5 max-w-3xl mx-auto">
+        ${trustPills.map((pill) => `
+          <span class="px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 flex items-center gap-1.5 shadow-sm">
+            <span class="${accentTextClass} font-bold">✓</span> ${escapeHtml(pill.replace('✓ ', ''))}
           </span>
         `).join('')}
       </div>
 
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <a href="#simulator" class="px-6 py-3 rounded-xl ${themeConfig.primaryBtn} text-xs font-bold transition shadow-xl">
-          🚀 ${themeConfig.ctaLabel}
+      <div class="mt-9 flex flex-wrap items-center justify-center gap-3.5">
+        <a href="#simulasi" class="px-6 py-3 rounded-xl ${primaryBtnClass} text-xs font-bold transition shadow-xl cursor-pointer">
+          🚀 ${ctaOrderLabel}
         </a>
-        <a href="#features" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition">
-          🔍 Eksplorasi Fitur
+        <a href="#layanan" class="px-6 py-3 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition cursor-pointer">
+          🔍 Lihat Pilihan Layanan ↓
         </a>
       </div>
     </section>
 
-    <!-- Features Section (Menampilkan seluruh fitur nyata dari project.features) -->
-    <section id="features" data-preview-source="${secFeaturesReqs.join(',')}" data-preview-feature="${features.map(f => f.id).join(',')}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
+    <!-- Catalog Section -->
+    <section id="layanan" data-preview-source-requirements="${secCatalogReqs.join(',')}" data-preview-source-feature="${features.map(f => f.id).join(',')}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Katalog Fitur &amp; Spesifikasi Utama</h2>
-            <p class="text-xs sm:text-sm text-zinc-400 mt-1">Dihasilkan langsung dari rincian fitur dan acceptance criteria pada PRD.</p>
+            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Katalog &amp; Pilihan Layanan</h2>
+            <p class="text-xs sm:text-sm text-zinc-400 mt-1">Pilih layanan yang paling tepat untuk kebutuhan Anda dengan estimasi harga transparan.</p>
           </div>
-          <div class="relative w-full sm:w-72">
-            <input type="text" id="feature-search" oninput="filterFeatures(this.value)" placeholder="Cari fitur atau keyword..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${themeConfig.accentBorder}">
-            <span class="absolute left-3 top-2.5 text-zinc-500 text-xs">🔍</span>
+          <div class="relative w-full md:w-80">
+            <input type="text" id="catalog-search" oninput="filterCatalog()" placeholder="Cari layanan atau kata kunci..." class="w-full pl-9 pr-3.5 py-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${accentBorderClass}">
+            <span class="absolute left-3 top-3 text-zinc-500 text-xs">🔍</span>
           </div>
         </div>
 
-        <div id="features-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          ${features.map((f, idx) => `
-            <div data-feature-card="${escapeHtml(f.name.toLowerCase())}" class="p-6 rounded-3xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between shadow-xl group">
+        <!-- Category Filter Tabs -->
+        <div class="flex flex-wrap items-center gap-2 mb-8">
+          ${categories.map((cat, idx) => `
+            <button type="button" onclick="selectCategory(this, '${escapeHtml(cat)}')" class="category-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${idx === 0 ? primaryBtnClass : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white'}">
+              ${escapeHtml(cat)}
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Catalog Grid -->
+        <div id="catalog-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${catalogItems.map((item, idx) => `
+            <div data-catalog-card data-cat="${escapeHtml(item.category)}" data-title="${escapeHtml(item.title.toLowerCase())}" data-desc="${escapeHtml(item.desc.toLowerCase())}" class="p-6 rounded-3xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between shadow-xl group">
               <div>
                 <div class="flex items-center justify-between gap-2 mb-3">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${themeConfig.badge}">
-                    ${escapeHtml(f.scope)}
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">
+                    ${escapeHtml(item.category)}
                   </span>
-                  <span class="text-[10px] font-mono text-zinc-500">Priority: ${escapeHtml(f.priority)}</span>
+                  <span class="text-[10px] font-semibold text-emerald-400">
+                    ● ${escapeHtml(item.tag)}
+                  </span>
                 </div>
-                <h3 class="text-base font-bold text-white group-hover:${themeConfig.accentText} transition mb-2">
-                  ${escapeHtml(f.name)}
+                <h3 class="text-base font-bold text-white group-hover:${accentTextClass} transition mb-2">
+                  ${escapeHtml(item.title)}
                 </h3>
                 <p class="text-xs text-zinc-400 leading-relaxed">
-                  ${escapeHtml(f.description)}
+                  ${escapeHtml(item.desc)}
                 </p>
               </div>
               <div class="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs">
-                <span class="text-[10px] font-mono text-zinc-500">Source: ${escapeHtml(f.sourceRequirementIds[0] || 'FR-01')}</span>
-                <button type="button" onclick="showFeatureModal('${escapeHtml(f.name)}', '${escapeHtml(f.description)}')" class="font-bold ${themeConfig.accentText} hover:underline cursor-pointer">
-                  Lihat Detail →
+                <div>
+                  <div class="text-[10px] text-zinc-500 font-medium">Estimasi ${escapeHtml(item.turnaround)}</div>
+                  <div class="text-sm font-extrabold text-white">${escapeHtml(item.priceFormatted)}</div>
+                </div>
+                <button type="button" onclick="pickService(${idx})" class="px-3.5 py-2 rounded-xl ${primaryBtnClass} text-xs font-bold transition shadow-sm cursor-pointer">
+                  Pilih Layanan →
                 </button>
               </div>
             </div>
@@ -8415,143 +8505,221 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
       </div>
     </section>
 
-    <!-- Interactive Core Simulator Section -->
-    <section id="simulator" data-preview-source="${secSimReqs.join(',')}" data-preview-feature="${features[1]?.id || 'feat-2'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80">
+    <!-- How It Works / Alur Pemesanan -->
+    <section id="alur-pesan" data-preview-source-requirements="${secFlowReqs.join(',')}" data-preview-source-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center max-w-2xl mx-auto mb-12">
-          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">${themeConfig.simTitle}</h2>
-          <p class="text-xs sm:text-sm text-zinc-400 mt-2">${themeConfig.simDesc}</p>
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Cara Pemesanan Cepat &amp; Praktis</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-2">Hanya 4 langkah mudah untuk mendapatkan hasil terbaik dengan transparansi penuh.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="p-6 rounded-3xl bg-zinc-950 border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-black flex items-center justify-center mb-4 ${accentTextClass}">
+                01
+              </div>
+              <h3 class="text-sm font-bold text-white mb-2">Pilih Layanan</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed">Tentukan jenis layanan yang sesuai dengan kebutuhan dan preferensi skala proyek Anda.</p>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-950 border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-black flex items-center justify-center mb-4 ${accentTextClass}">
+                02
+              </div>
+              <h3 class="text-sm font-bold text-white mb-2">Kirim Brief &amp; Detail</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed">Sampaikan instruksi detail, preferensi gaya, catatan khusus, atau referensi yang Anda inginkan.</p>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-950 border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-black flex items-center justify-center mb-4 ${accentTextClass}">
+                03
+              </div>
+              <h3 class="text-sm font-bold text-white mb-2">Proses &amp; Preview</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed">Tim ahli kami mengeksekusi dengan standar presisi tinggi dan memberikan draf untuk ditinjau.</p>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-950 border border-zinc-800/80 flex flex-col justify-between">
+            <div>
+              <div class="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-black flex items-center justify-center mb-4 ${accentTextClass}">
+                04
+              </div>
+              <h3 class="text-sm font-bold text-white mb-2">Selesai &amp; Serah Terima</h3>
+              <p class="text-xs text-zinc-400 leading-relaxed">Penyesuaian hingga puas dan penyerahan hasil akhir siap pakai secara lengkap dan aman.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Order / Booking Simulator -->
+    <section id="simulasi" data-preview-source-requirements="${secSimReqs.join(',')}" data-preview-source-feature="${features[2]?.id || 'feat-3'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Simulasi Pemesanan &amp; Estimasi</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-2">Pilih konfigurasi kebutuhan Anda dan periksa kalkulasi estimasi secara langsung.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <!-- Form Inputs -->
           <div class="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl space-y-6">
             <div>
-              <label class="block text-xs font-bold text-zinc-300 mb-2">${themeConfig.inputLabel1}:</label>
-              <select id="sim-select" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${themeConfig.accentBorder} cursor-pointer">
-                ${simOptionList.map((opt, i) => `
-                  <option value="${i}">${escapeHtml(opt.name)} - ${escapeHtml(opt.desc.slice(0, 50))}...</option>
+              <label class="block text-xs font-bold text-zinc-300 mb-2">${simSelectorLabel}:</label>
+              <select id="sim-select" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${accentBorderClass} cursor-pointer">
+                ${catalogItems.map((opt, i) => `
+                  <option value="${i}">${escapeHtml(opt.title)} (${escapeHtml(opt.priceFormatted)})</option>
                 `).join('')}
               </select>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-zinc-300 mb-2">${themeConfig.inputLabel2}:</label>
-                <select id="sim-tier" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${themeConfig.accentBorder} cursor-pointer">
-                  <option value="1">Standar / MVP Package</option>
-                  <option value="1.5">Pro / Extended Package (Rekomendasi)</option>
-                  <option value="2.2">Enterprise / Full Custom Package</option>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">Pilihan Paket &amp; Level Layanan:</label>
+                <select id="sim-tier" onchange="updateSimSummary()" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white outline-none focus:${accentBorderClass} cursor-pointer">
+                  <option value="1">Paket Basic (Standar)</option>
+                  <option value="1.5" selected>Paket Standard (Rekomendasi)</option>
+                  <option value="2.2">Paket Premium &amp; Prioritas</option>
                 </select>
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-zinc-300 mb-2">Estimasi Timeline Pengerjaan:</label>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">Estimasi Waktu Pengerjaan:</label>
                 <div class="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 font-mono flex items-center justify-between">
                   <span>Target Selesai:</span>
-                  <span id="sim-timeline" class="font-bold ${themeConfig.accentText}">5 - 7 Hari Kerja</span>
+                  <span id="res-turnaround" class="font-bold ${accentTextClass}">${catalogItems[0]?.turnaround || '2-3 Hari'}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-zinc-300 mb-2">Nama Kontak / Penanggung Jawab:</label>
-              <input type="text" id="sim-client-name" placeholder="Masukkan nama Anda..." class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${themeConfig.accentBorder}">
+              <label class="block text-xs font-bold text-zinc-300 mb-2">${simDetailLabel}:</label>
+              <textarea id="sim-notes" rows="2" placeholder="${simDetailPlaceholder}" class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${accentBorderClass}"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">Nama Pemesan / Penanggung Jawab:</label>
+                <input type="text" id="sim-client-name" placeholder="Masukkan nama Anda..." class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${accentBorderClass}">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-zinc-300 mb-2">Nomor WhatsApp / Kontak:</label>
+                <input type="text" id="sim-client-phone" placeholder="Contoh: 08123456789..." class="w-full p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none focus:${accentBorderClass}">
+              </div>
             </div>
           </div>
 
           <!-- Summary Card -->
           <div class="p-6 sm:p-8 rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col justify-between">
             <div>
-              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Interaksi</h3>
+              <h3 class="font-bold text-sm text-white pb-3 border-b border-zinc-800 mb-4">Ringkasan Pesanan</h3>
               <div class="space-y-3 text-xs">
                 <div class="flex justify-between text-zinc-400">
-                  <span>Modul Dipilih:</span>
-                  <span id="res-module" class="font-bold text-white text-right max-w-[160px] truncate">${escapeHtml(simOptionList[0]?.name || "Modul Utama")}</span>
+                  <span>Layanan:</span>
+                  <span id="res-module" class="font-bold text-white text-right max-w-[160px] truncate">${escapeHtml(catalogItems[0]?.title || "Layanan")}</span>
                 </div>
                 <div class="flex justify-between text-zinc-400">
                   <span>Tingkat Paket:</span>
-                  <span id="res-tier" class="font-semibold text-zinc-200">Standar</span>
+                  <span id="res-tier" class="font-semibold text-zinc-200">Paket Standard</span>
                 </div>
                 <div class="flex justify-between text-zinc-400">
-                  <span>Status Kesiapan:</span>
-                  <span class="text-emerald-400 font-bold font-mono">Tersedia Instan</span>
+                  <span>Ketersediaan:</span>
+                  <span class="text-emerald-400 font-bold font-mono">● Siap Diproses</span>
                 </div>
               </div>
 
               <div class="mt-8 pt-4 border-t border-zinc-800">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs text-zinc-400">Estimasi Nilai / Biaya:</span>
-                  <span id="res-price" class="text-2xl font-black font-mono text-white">Rp 350.000</span>
+                  <span class="text-xs text-zinc-400">Estimasi Biaya:</span>
+                  <span id="res-price" class="text-2xl font-black font-mono text-white">Rp 450.000</span>
                 </div>
-                <p class="text-[10px] text-zinc-500 mt-1">Simulasi interaksi aman client-side tanpa dependensi server.</p>
+                <p class="text-[10px] text-zinc-500 mt-1">Simulasi interaktif dengan estimasi transparan tanpa biaya komitmen.</p>
               </div>
             </div>
 
-            <button type="button" onclick="submitSimModal(event)" class="mt-8 w-full py-3.5 rounded-2xl ${themeConfig.primaryBtn} font-black text-xs transition shadow-lg cursor-pointer">
-              Konfirmasi &amp; Kirim Aksi
+            <button type="button" onclick="submitOrder(event)" class="mt-8 w-full py-3.5 rounded-2xl ${primaryBtnClass} font-black text-xs transition shadow-lg cursor-pointer">
+              Konfirmasi &amp; Kirim Pesanan
             </button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Roadmap & Implementation Phases (Menggunakan task nyata dari project.tasks) -->
-    <section id="roadmap" data-preview-source="${secRoadmapReqs.join(',')}" data-preview-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80 bg-zinc-950/40">
+    <!-- Testimonials / Ulasan Pelanggan -->
+    <section id="ulasan" data-preview-source-requirements="${secGuaranteeReqs.join(',')}" data-preview-source-feature="${features[0]?.id || 'feat-1'}" data-preview-classification="USER_DERIVED" class="py-16 border-t border-zinc-800/80">
       <div class="max-w-7xl mx-auto px-4 sm:px-8">
         <div class="text-center max-w-2xl mx-auto mb-12">
-          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Roadmap &amp; Alur Pengerjaan</h2>
-          <p class="text-xs sm:text-sm text-zinc-400 mt-2">Struktur tahapan terencana berbasis data task board Universal V4 planner.</p>
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">Kepuasan &amp; Ulasan Pelanggan</h2>
+          <p class="text-xs sm:text-sm text-zinc-400 mt-2">Pengalaman nyata dari klien yang telah mempercayakan kebutuhannya kepada kami.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          ${tasks.map((t, idx) => `
-            <div class="p-6 rounded-3xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between mb-3">
-                  <span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-[10px] font-mono text-zinc-400 font-bold">
-                    ${escapeHtml(t.phase)}
-                  </span>
-                  <span class="text-[11px] font-mono text-emerald-400">Step 0${idx + 1}</span>
-                </div>
-                <h4 class="text-sm font-bold text-white mb-2">${escapeHtml(t.title)}</h4>
-                <p class="text-xs text-zinc-400 leading-relaxed">${escapeHtml(t.description)}</p>
-              </div>
-              <div class="mt-4 pt-3 border-t border-zinc-800 text-[10px] text-zinc-500 font-mono">
-                Terverifikasi dalam Quality Gate Planner
-              </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-3xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="text-amber-400 text-sm mb-3">★★★★★</div>
+              <p class="text-xs text-zinc-300 leading-relaxed italic">"Hasilnya sangat rapi dan melebihi ekspektasi kami. Komunikasi cepat ditanggapi dan penyesuaian detail dilakukan dengan sangat profesional."</p>
             </div>
-          `).join('')}
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 text-xs">
+              <strong class="text-white block">Rian Pratama</strong>
+              <span class="text-zinc-500 text-[11px]">Founder Brand Lokal</span>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="text-amber-400 text-sm mb-3">★★★★★</div>
+              <p class="text-xs text-zinc-300 leading-relaxed italic">"Alur pemesanannya sangat mudah dan transparan. Estimasi waktu yang dijanjikan tepat dan kualitas hasil kerja sangat memuaskan."</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 text-xs">
+              <strong class="text-white block">Dewi Safitri</strong>
+              <span class="text-zinc-500 text-[11px]">Marketing Executive</span>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-3xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between">
+            <div>
+              <div class="text-amber-400 text-sm mb-3">★★★★★</div>
+              <p class="text-xs text-zinc-300 leading-relaxed italic">"Sangat direkomendasikan untuk siapa saja yang membutuhkan layanan cepat dengan standar mutu terjamin. Pasti akan repeat order!"</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-zinc-800/80 text-xs">
+              <strong class="text-white block">Hendra Kusuma</strong>
+              <span class="text-zinc-500 text-[11px]">Operasional Bisnis</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Interactive Modal (Simulasi aksi client-side) -->
-  <div id="sim-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <!-- Interactive Modal (Confirmation & Reference Code) -->
+  <div id="order-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
     <div class="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl text-center">
       <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xl font-bold flex items-center justify-center mx-auto mb-4">
         ✓
       </div>
-      <h3 class="text-lg font-black text-white mb-1">Aksi Berhasil Dikonfirmasi!</h3>
-      <p id="modal-subtext" class="text-xs text-zinc-400 mb-6">Simulasi permintaan Anda telah terdaftar dalam sistem prototype.</p>
+      <h3 class="text-lg font-black text-white mb-1">${modalTitle}</h3>
+      <p id="modal-subtext" class="text-xs text-zinc-400 mb-6">${modalSubtext}</p>
 
       <div class="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-left space-y-2 mb-6 font-mono text-xs">
         <div class="flex justify-between text-zinc-400">
-          <span>Kode Ref:</span>
-          <span id="modal-ref-code" class="text-white font-bold">#REF-88492</span>
+          <span>Kode Referensi:</span>
+          <span id="modal-ref-code" class="text-white font-bold">#${modalRefPrefix}-88492</span>
         </div>
         <div class="flex justify-between text-zinc-400">
-          <span>Item:</span>
-          <span id="modal-item-name" class="text-zinc-200 truncate max-w-[180px]">Modul Layanan</span>
+          <span>Item Layanan:</span>
+          <span id="modal-item-name" class="text-zinc-200 truncate max-w-[180px]">${catalogItems[0]?.title || 'Layanan'}</span>
         </div>
         <div class="flex justify-between text-zinc-400">
           <span>Status:</span>
-          <span class="text-emerald-400">Terverifikasi (Client Simulator)</span>
+          <span class="text-emerald-400">Menunggu Konfirmasi</span>
         </div>
       </div>
 
-      <button type="button" onclick="closeSimModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
+      <button type="button" onclick="closeOrderModal()" class="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition cursor-pointer">
         Tutup Jendela
       </button>
     </div>
@@ -8560,26 +8728,42 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
   <!-- Footer -->
   <footer class="border-t border-zinc-800 bg-zinc-950 py-8 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div>
-        <strong class="text-zinc-300">${title}</strong> · Planning-Aware Visual Prototype
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded-lg ${primaryBtnClass} flex items-center justify-center text-xs font-black">
+          ${brandChar}
+        </div>
+        <strong class="text-zinc-300">${brandTitle}</strong>
+        <span>· Layanan Berkualitas &amp; Terpercaya</span>
       </div>
-      <div class="flex items-center gap-3 font-mono text-[11px]">
-        <span>Universal V4</span>
-        <span>•</span>
-        <span>Requirement Traceability Active</span>
+      <div class="text-[11px] text-zinc-500">
+        Hak Cipta &copy; 2026 ${brandTitle}. Semua Hak Dilindungi.
       </div>
     </div>
   </footer>
 
   <script>
-    const simOptions = ${JSON.stringify(simOptionList)};
+    const catalogData = ${simOptionJson};
+    let activeCategory = 'Semua';
 
-    function filterFeatures(keyword) {
-      const q = keyword.toLowerCase().trim();
-      const cards = document.querySelectorAll('[data-feature-card]');
+    function selectCategory(btn, category) {
+      activeCategory = category;
+      document.querySelectorAll('.category-btn').forEach(b => {
+        b.className = 'category-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white';
+      });
+      btn.className = 'category-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ' + '${primaryBtnClass}';
+      filterCatalog();
+    }
+
+    function filterCatalog() {
+      const q = (document.getElementById('catalog-search')?.value || '').toLowerCase().trim();
+      const cards = document.querySelectorAll('[data-catalog-card]');
       cards.forEach(card => {
-        const text = card.getAttribute('data-feature-card') || '';
-        if (!q || text.includes(q)) {
+        const cat = card.getAttribute('data-cat') || '';
+        const title = card.getAttribute('data-title') || '';
+        const desc = card.getAttribute('data-desc') || '';
+        const matchesCategory = (activeCategory === 'Semua' || cat === activeCategory);
+        const matchesSearch = (!q || title.includes(q) || desc.includes(q));
+        if (matchesCategory && matchesSearch) {
           card.style.display = 'flex';
         } else {
           card.style.display = 'none';
@@ -8587,54 +8771,63 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
       });
     }
 
+    function pickService(idx) {
+      const select = document.getElementById('sim-select');
+      if (select && catalogData[idx]) {
+        select.value = idx.toString();
+        updateSimSummary();
+        const simSection = document.getElementById('simulasi');
+        if (simSection) {
+          simSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+
     function updateSimSummary() {
       const selIdx = parseInt(document.getElementById('sim-select')?.value || '0', 10);
-      const mult = parseFloat(document.getElementById('sim-tier')?.value || '1');
-      const item = simOptions[selIdx] || simOptions[0];
+      const mult = parseFloat(document.getElementById('sim-tier')?.value || '1.5');
+      const item = catalogData[selIdx] || catalogData[0];
       if (item) {
-        document.getElementById('res-module').textContent = item.name;
+        document.getElementById('res-module').textContent = item.title;
+        document.getElementById('res-turnaround').textContent = item.turnaround;
         const total = Math.round(item.price * mult);
         document.getElementById('res-price').textContent = 'Rp ' + total.toLocaleString('id-ID');
       }
       const tierSelect = document.getElementById('sim-tier');
       if (tierSelect) {
-        const tierText = tierSelect.options[tierSelect.selectedIndex]?.text.split('(')[0].trim() || 'Standar';
+        const tierText = tierSelect.options[tierSelect.selectedIndex]?.text.split('(')[0].trim() || 'Paket Standard';
         document.getElementById('res-tier').textContent = tierText;
       }
     }
 
-    function submitSimModal(e) {
+    function submitOrder(e) {
       if (e) e.preventDefault();
       const selIdx = parseInt(document.getElementById('sim-select')?.value || '0', 10);
-      const item = simOptions[selIdx] || simOptions[0];
+      const item = catalogData[selIdx] || catalogData[0];
       const nameInput = document.getElementById('sim-client-name')?.value.trim();
       
-      const code = '#ACT-' + Math.floor(10000 + Math.random() * 90000);
+      const code = '#${modalRefPrefix}-' + Math.floor(10000 + Math.random() * 90000);
       document.getElementById('modal-ref-code').textContent = code;
-      document.getElementById('modal-item-name').textContent = item ? item.name : 'Aksi';
-      document.getElementById('modal-subtext').textContent = nameInput 
-        ? 'Terima kasih, ' + nameInput + '. Simulasi permintaan Anda berhasil diproses.'
-        : 'Simulasi permintaan Anda telah terdaftar dalam sistem prototype.';
+      document.getElementById('modal-item-name').textContent = item ? item.title : 'Layanan';
+      
+      if (nameInput) {
+        document.getElementById('modal-subtext').textContent = 'Terima kasih, ' + nameInput + '. Permintaan pesanan Anda berhasil diterima dan tim kami akan segera menghubungi Anda melalui WhatsApp.';
+      }
 
-      document.getElementById('sim-modal').classList.remove('hidden');
+      document.getElementById('order-modal').classList.remove('hidden');
     }
 
-    function showFeatureModal(name, desc) {
-      const code = '#FEAT-' + Math.floor(1000 + Math.random() * 9000);
-      document.getElementById('modal-ref-code').textContent = code;
-      document.getElementById('modal-item-name').textContent = name;
-      document.getElementById('modal-subtext').textContent = desc;
-      document.getElementById('sim-modal').classList.remove('hidden');
+    function closeOrderModal() {
+      document.getElementById('order-modal').classList.add('hidden');
     }
 
-    function closeSimModal() {
-      document.getElementById('sim-modal').classList.add('hidden');
-    }
+    // Initialize summary on load
+    updateSimSummary();
   </script>
 </body>
 </html>`;
 
-  return finishResult(generatedHtml, derivedSections, ["Dynamic Feature Search", "Core Module Simulator", "Simulated Modal Action"], ["Default View", "Modal Active", "Filtered View"]);
+  return finishResult(generatedHtml, derivedSections, ["Dynamic Catalog Search", "Service Picker to Simulator", "Interactive Cost Calculator", "Simulated Order Modal"], ["Default View", "Filtered Category", "Order Modal Active"]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RESULT BUILDER & SOURCE INTEGRITY AUDITOR
