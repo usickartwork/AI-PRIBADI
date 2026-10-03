@@ -154,6 +154,8 @@ export type RequirementRegistryEntry = {
 };
 
 export type ProjectPRD = {
+  primaryType?: string;
+  secondaryTypes?: string[];
   overview?: string;
   problemStatement?: string;
   goals?: string[];
@@ -509,14 +511,15 @@ export const PROJECT_TYPE_RULES: { label: string; re: RegExp }[] = [
   { label: "E-commerce", re: /toko online|olshop|ecommerce|e-commerce|keranjang|checkout|jual beli|katalog produk|belanja/g },
   { label: "Marketplace", re: /marketplace|multi-vendor|multi vendor|banyak seller|multi toko/g },
   { label: "SaaS", re: /saas|software as a service|langganan|subscription|workspace|multi-tenant/g },
-  { label: "Dashboard / Admin", re: /dashboard|admin panel|panel admin|backoffice|crm|erp|kelola data|kpi/g },
-  { label: "CMS", re: /cms|content management|kelola konten/g },
+  { label: "Dashboard / Admin", re: /dashboard|admin|panel admin|halaman admin|backoffice|crm|erp|kelola data|kpi/g },
+  { label: "CMS", re: /cms|content management|kelola konten|mengelola konten|kelola berita|mengelola berita|manajemen konten/g },
   { label: "Education", re: /kursus|sekolah|lms|belajar|akademi|e-learning/g },
   { label: "Event", re: /event|acara|tiket|seminar|webinar|workshop/g },
   { label: "Community", re: /komunitas|forum|diskusi|sosial|social media|feed|follow/g },
   { label: "Blog / News", re: /blog|artikel|tulisan|berita|news|portal berita|majalah online/g },
-  { label: "Company Profile", re: /company profile|profil perusahaan|profil bisnis|tentang kami|layanan perusahaan/g },
-  { label: "Portfolio", re: /portfolio|portofolio|showcase|galeri karya/g },
+  { label: "Corporate / Business Website", re: /company profile|profil perusahaan|profil bisnis|tentang kami|layanan perusahaan|corporate|business website/g },
+  { label: "Portfolio", re: /portfolio|portofolio|showcase|galeri karya|karya saya/g },
+  { label: "Game", re: /game|permainan|gaming|arcade|rpg|game board|tebak tebakan|leaderboard game/g },
   { label: "Marketing Website", re: /landing page|promosi|brosur|one-page|one page/g },
   { label: "Service Business", re: /jasa |service business|bengkel|laundry|salon|klinik/g },
   { label: "Internal Tool", re: /internal tool|alat internal|operasional tim/g },
@@ -534,6 +537,144 @@ export function rankProjectTypes(text: string): { label: string; score: number }
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || a.order - b.order)
     .map(({ label, score }) => ({ label, score }));
+}
+
+// ── V4 Canonical Project Types & Universal Requirement Derivation ──
+export function canonicalProjectType(label?: string): string {
+  if (!label) return "CUSTOM WEB APPLICATION";
+  const upper = label.trim().toUpperCase();
+  if (upper === "BLOG / NEWS" || upper === "BLOG" || upper === "NEWS_PORTAL" || upper === "NEWS" || upper === "PORTAL BERITA") {
+    return "BLOG / NEWS";
+  }
+  if (upper === "BOOKING / RESERVATION" || upper === "BOOKING" || upper === "RESERVATION") {
+    return "BOOKING / RESERVATION";
+  }
+  if (upper === "E-COMMERCE" || upper === "ECOMMERCE" || upper === "E_COMMERCE" || upper === "TOKO ONLINE") {
+    return "E-COMMERCE";
+  }
+  if (upper === "MARKETPLACE") {
+    return "MARKETPLACE";
+  }
+  if (upper === "PORTFOLIO" || upper === "PORTOFOLIO") {
+    return "PORTFOLIO";
+  }
+  if (upper === "CORPORATE / BUSINESS WEBSITE" || upper === "COMPANY PROFILE" || upper === "COMPANY_PROFILE" || upper === "BUSINESS WEBSITE") {
+    return "CORPORATE / BUSINESS WEBSITE";
+  }
+  if (upper === "SAAS" || upper === "SOFTWARE AS A SERVICE") {
+    return "SAAS";
+  }
+  if (upper === "DASHBOARD / ADMIN" || upper === "DASHBOARD" || upper === "ADMIN_PANEL" || upper === "ADMIN") {
+    return "DASHBOARD / ADMIN";
+  }
+  if (upper === "GAME" || upper === "GAMING") {
+    return "GAME";
+  }
+  if (upper === "CMS" || upper === "CONTENT MANAGEMENT") {
+    return "CONTENT MANAGEMENT";
+  }
+  if (upper === "EDUCATION" || upper === "E-LEARNING") {
+    return "EDUCATION";
+  }
+  if (upper === "EVENT" || upper === "EVENT_PLATFORM") {
+    return "EVENT / TICKETING";
+  }
+  if (upper === "COMMUNITY" || upper === "SOCIAL_PLATFORM") {
+    return "COMMUNITY";
+  }
+  if (upper === "MARKETING WEBSITE" || upper === "LANDING_PAGE") {
+    return "MARKETING WEBSITE";
+  }
+  if (upper === "AI APPLICATION" || upper === "AI_APPLICATION" || upper === "AI_SAAS") {
+    return "AI APPLICATION";
+  }
+  if (upper === "INTERNAL TOOL" || upper === "INTERNAL_TOOL") {
+    return "INTERNAL TOOL";
+  }
+  if (upper === "DIRECTORY") {
+    return "DIRECTORY";
+  }
+  if (upper === "DOCUMENTATION") {
+    return "DOCUMENTATION";
+  }
+  if (upper === "MEMBERSHIP") {
+    return "MEMBERSHIP";
+  }
+  if (upper === "CONTENT PLATFORM" || upper === "CONTENT_PLATFORM") {
+    return "CONTENT PLATFORM";
+  }
+  if (upper === "SERVICE BUSINESS" || upper === "SERVICE_BUSINESS") {
+    return "SERVICE BUSINESS";
+  }
+  if (upper === "CUSTOM WEB APPLICATION" || upper === "CUSTOM_WEB_APPLICATION") {
+    return "CUSTOM WEB APPLICATION";
+  }
+  return upper;
+}
+
+export const SUPPORT_PROJECT_TYPES = new Set([
+  "DASHBOARD / ADMIN",
+  "CONTENT MANAGEMENT",
+  "INTERNAL TOOL",
+  "DOCUMENTATION",
+]);
+
+export function deriveProjectTypeFromRequirements(
+  requirements: { text: string; classification?: string }[] | string
+): { primaryType: string; secondaryTypes: string[] } {
+  const text = typeof requirements === "string"
+    ? requirements
+    : requirements
+        .filter((r) => !r.classification || r.classification === "USER_REQUIREMENT")
+        .map((r) => r.text)
+        .join(" ");
+
+  const ranked = rankProjectTypes(text);
+  if (ranked.length === 0) {
+    return {
+      primaryType: "CUSTOM WEB APPLICATION",
+      secondaryTypes: [],
+    };
+  }
+
+  const canonicalRanked: { canonical: string; score: number }[] = [];
+  const seen = new Set<string>();
+  for (const r of ranked) {
+    const c = canonicalProjectType(r.label);
+    if (!seen.has(c)) {
+      seen.add(c);
+      canonicalRanked.push({ canonical: c, score: r.score });
+    }
+  }
+
+  // V4 Rule: find the core domain type. Supporting functions (Admin, CMS, etc.) become secondaryTypes.
+  const firstNonSupport = canonicalRanked.find(
+    (item) => !SUPPORT_PROJECT_TYPES.has(item.canonical)
+  );
+
+  let primary: string;
+  const secondary: string[] = [];
+
+  if (firstNonSupport) {
+    primary = firstNonSupport.canonical;
+    for (const item of canonicalRanked) {
+      if (item.canonical !== primary && !secondary.includes(item.canonical)) {
+        secondary.push(item.canonical);
+      }
+    }
+  } else {
+    primary = canonicalRanked[0].canonical;
+    for (let i = 1; i < canonicalRanked.length; i++) {
+      if (!secondary.includes(canonicalRanked[i].canonical)) {
+        secondary.push(canonicalRanked[i].canonical);
+      }
+    }
+  }
+
+  return {
+    primaryType: primary,
+    secondaryTypes: secondary,
+  };
 }
 
 // REQUIREMENT INGESTION LOCK: registry entries already stored are authoritative (never rewritten);
@@ -680,6 +821,7 @@ export function normalizeStackMode(llmMode: unknown, detected: StackMode): Stack
 
 export type SourceIntegrityContext = {
   primaryType?: string;
+  secondaryTypes?: string[];
   stackMode?: StackMode;
   stackAlternatives?: string[];
   stackIsAiSuggested?: boolean;
@@ -700,6 +842,9 @@ export function analyzeAndOptimizeTasks(
   requirementRegistry: RequirementRegistryEntry[];
   classifiedRequirements: ClassifiedRequirement[];
   stackMode?: StackMode;
+  prd?: ProjectPRD;
+  primaryType?: string;
+  secondaryTypes?: string[];
 } {
   let repairedCount = 0;
   const taskMap = new Map<string, ProjectTask>();
@@ -841,11 +986,13 @@ export function analyzeAndOptimizeTasks(
       (x) => (x.sourceRequirementIds || []).length === 0 && !(x.origin && AI_DERIVED_CLASSES.indexOf(x.origin) !== -1)
     );
 
-    const reqText = userReqs.map((r) => r.text).join(" ");
-    const ranking = rankProjectTypes(reqText);
-    const primary = context?.primaryType;
-    const typeOk = !primary || ranking.length === 0 || primary === "Custom Web Application" ||
-      ranking.some((r) => r.label === primary && r.score >= ranking[0].score / 2);
+    const expectedProjectClassification = deriveProjectTypeFromRequirements(userReqs);
+    const expectedPrimary = canonicalProjectType(expectedProjectClassification.primaryType);
+    const currentPrimary = prd?.primaryType || context?.primaryType;
+    const generatedPrimary = canonicalProjectType(currentPrimary);
+    const isDefaultFallback = expectedPrimary === "CUSTOM WEB APPLICATION";
+    const typeMismatch = !isDefaultFallback && (generatedPrimary !== expectedPrimary);
+    const typeOk = !typeMismatch;
 
     const mode = correctedStackMode;
     const alts = context?.stackAlternatives || [];
@@ -895,7 +1042,7 @@ export function analyzeAndOptimizeTasks(
         checkNumber: 7,
         question: "Apakah project type sesuai dengan requirement sebenarnya?",
         passed: typeOk,
-        detail: typeOk ? `Primary type "${primary || "-"}" konsisten dengan requirement.` : `Primary type "${primary}" tidak sesuai; requirement mengarah ke "${ranking[0]?.label}".`,
+        detail: typeOk ? `Primary type "${generatedPrimary || expectedPrimary}" konsisten dengan requirement aktual.` : `Primary type "${generatedPrimary}" tidak sesuai; requirement mengarah ke "${expectedPrimary}".`,
       },
       {
         checkNumber: 8,
@@ -942,7 +1089,7 @@ export function analyzeAndOptimizeTasks(
         ...aiBlocking.map((t) => mk("AI_SUGGESTED_BLOCKING_DEPENDENCY", userIdsOf(t)[0] || "-", entityLabel(t), "dependencies", "tanpa dependency ke task AI_SUGGESTED", (t.dependencies || []).filter((d) => taskMap.get(d)?.origin === "AI_SUGGESTED").join(", "), "Task USER bergantung pada task AI_SUGGESTED")),
       ],
       6: unsourced.map((x) => mk("UNSOURCED_ENTITY", "-", entityLabel(x), "sourceRequirementIds", "minimal 1 ID requirement atau origin AI-derived", `[] (origin=${String(x.origin)})`, "Entity tanpa source requirement")),
-      7: typeOk ? [] : [mk("PROJECT_TYPE_MISMATCH", "-", "PRD", "primaryType", String(ranking[0]?.label), String(primary), "Primary type tidak sesuai requirement aktual")],
+      7: typeOk ? [] : [mk("PROJECT_TYPE_MISMATCH", "-", "PRD", "primaryType", expectedPrimary, generatedPrimary || "(none)", "Primary type tidak sesuai requirement aktual")],
       8: stackOk ? [] : [mk("STACK_MODE_MISMATCH", "-", "ARCHITECTURE", "stackMode", "PARTIALLY_SPECIFIED atau AI_RECOMMENDED", String(mode), "USER_SPECIFIED padahal masih ada alternatif/rekomendasi AI")],
     };
     checks.forEach((c) => {
@@ -1103,6 +1250,39 @@ export function analyzeAndOptimizeTasks(
         }
       }
     });
+
+    // (d) Project Type Mismatch Repair (V4 Section 5 & 8: repair PRD primaryType to expected primaryType)
+    const userReqsActive = registry.filter(
+      (r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE"
+    );
+    const expectedClassification = deriveProjectTypeFromRequirements(userReqsActive);
+    const expPrimary = canonicalProjectType(expectedClassification.primaryType);
+    const currPrimary = prd?.primaryType || context?.primaryType;
+    const genPrimary = canonicalProjectType(currPrimary);
+    if (expPrimary !== "CUSTOM WEB APPLICATION" && genPrimary !== expPrimary) {
+      if (prd) {
+        const oldPrimary = prd.primaryType;
+        prd.primaryType = expPrimary;
+        const secSet = new Set<string>();
+        if (oldPrimary && canonicalProjectType(oldPrimary) !== expPrimary) {
+          secSet.add(canonicalProjectType(oldPrimary));
+        }
+        (prd.secondaryTypes || []).forEach((st) => {
+          const c = canonicalProjectType(st);
+          if (c !== expPrimary) secSet.add(c);
+        });
+        expectedClassification.secondaryTypes.forEach((st) => {
+          const c = canonicalProjectType(st);
+          if (c !== expPrimary) secSet.add(c);
+        });
+        prd.secondaryTypes = Array.from(secSet);
+      }
+      if (context) {
+        context.primaryType = expPrimary;
+        context.secondaryTypes = prd?.secondaryTypes || expectedClassification.secondaryTypes;
+      }
+      repairedCount++;
+    }
   };
 
   // ── V4 SOURCE INTEGRITY REPAIR LOOP: CHECK → REPAIR (mutates actual data) → FINAL VALIDATION, max 3 iterations ──
@@ -1461,6 +1641,11 @@ export function analyzeAndOptimizeTasks(
     sourceIntegrityState,
   };
 
+  const activeUserReqs = registry.filter(
+    (r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE"
+  );
+  const finalExpectedClassification = deriveProjectTypeFromRequirements(activeUserReqs);
+
   return {
     tasks: optimizedTasks,
     qualityGate,
@@ -1468,6 +1653,9 @@ export function analyzeAndOptimizeTasks(
     requirementRegistry: registry,
     classifiedRequirements: classifiedLocked,
     stackMode: correctedStackMode,
+    prd,
+    primaryType: prd?.primaryType || canonicalProjectType(finalExpectedClassification.primaryType),
+    secondaryTypes: prd?.secondaryTypes || finalExpectedClassification.secondaryTypes,
   };
 }
 
@@ -1750,6 +1938,10 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     | "Community"
     | "Education"
     | "Event"
+    | "Game"
+    | "GAME"
+    | "Corporate / Business Website"
+    | "Content Management"
     | "Content Platform"
     | "AI Application"
     | "Internal Tool"
@@ -1792,24 +1984,12 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       messages.filter((m) => m.role === "user").map((m) => m.content).join(" ")
     ).toLowerCase();
 
-    // Universal Project Type Normalization (V4 Source Lock: type derived from actual requirements)
-    // PRIMARY = top-ranked requirement signal; Dashboard / Admin and CMS only become primary when clearly dominant.
-    const ranked = rankProjectTypes(combined);
-    const SUPPORT_TYPES = ["Dashboard / Admin", "CMS"];
-    if (ranked.length > 1 && SUPPORT_TYPES.indexOf(ranked[0].label) !== -1) {
-      const nextIdx = ranked.findIndex((r) => SUPPORT_TYPES.indexOf(r.label) === -1);
-      if (nextIdx > 0 && ranked[0].score < ranked[nextIdx].score + 2) {
-        const [supportItem] = ranked.splice(0, 1);
-        ranked.splice(nextIdx, 0, supportItem);
-      }
-    }
-    const rawCategories: string[] = ranked.map((r) => r.label);
-    if (rawCategories.length === 0) {
-      rawCategories.push("Custom Web Application");
-    }
-
-    // Deduplicate to ensure zero duplicate semantic labels
-    const categories: ProjectCategory[] = Array.from(new Set(rawCategories)) as ProjectCategory[];
+    // Universal Project Type Normalization (V4 Master Brief: derived from actual user requirements)
+    const derivedDomain = deriveProjectTypeFromRequirements(combined);
+    const primaryType = derivedDomain.primaryType;
+    const secondaryTypes = derivedDomain.secondaryTypes;
+    const isHybrid = secondaryTypes.length > 0;
+    const categories: ProjectCategory[] = Array.from(new Set([primaryType, ...secondaryTypes])) as ProjectCategory[];
 
     // Adaptive Complexity (V4 Section 7: SIMPLE, MODERATE, COMPLEX, ENTERPRISE)
     let complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE" = "SIMPLE";
@@ -1928,10 +2108,6 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       stackMode = "AI_RECOMMENDED";
     }
 
-    // Universal Project Classification (Source Lock: type derived from actual requirements)
-    const primaryType = categories[0] || "Custom Web Application";
-    const secondaryTypes = categories.slice(1, 4);
-    const isHybrid = secondaryTypes.length > 0;
 
     // User Constraints Awareness (V4 Section 8)
     const constraints: string[] = [];
@@ -2216,6 +2392,8 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
     if (domain.isPhotography) {
       return {
         prd: {
+          primaryType: domain.primaryType,
+          secondaryTypes: domain.secondaryTypes,
           overview: `Platform website komprehensif untuk studio fotografi profesional yang menggabungkan showcase portofolio interaktif resolusi tinggi, sistem reservasi jadwal pemotretan multi-fotografer & studio, portal client proofing eksklusif ber-watermark untuk seleksi foto, serta pengiriman hasil akhir foto resolusi tinggi secara digital dengan pembayaran bertahap (DP 50% & Pelunasan).`,
           problemStatement: `Fotografer dan studio foto sering menghadapi inefisiensi penjadwalan manual, double-booking sesi photoshoot, seleksi foto mentah yang berantakan via chat pesan instan, dan resiko finansial akibat penagihan pelunasan yang tidak terstruktur sebelum foto resolusi tinggi diserahkan.`,
           goals: [
@@ -2879,6 +3057,8 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
 
     return {
       prd: {
+        primaryType: domain.primaryType,
+        secondaryTypes: domain.secondaryTypes,
         overview: `Perencanaan arsitektur sistem dan spesifikasi teknis komprehensif untuk ${title}. Platform dirancang secara modular, tangguh, dan siap produksi (production-ready) untuk mengatasi hambatan operasional manual, mempercepat alur transaksi digital, serta menyajikan antarmuka pengguna yang sangat responsif, intuitif, dan aman.`,
         problemStatement: `Banyak sistem sejenis mengalami kendala fragmentasi alur kerja, verifikasi pembayaran manual yang lambat dan rawan fraud, integrasi data yang terputus-putus, serta antarmuka yang membingungkan pengguna sehingga menurunkan angka konversi dan meningkatkan beban kerja staf operasional.`,
         goals: [
@@ -4095,10 +4275,16 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         // ── V4 SOURCE LOCK: single pipeline = registry lock → lineage inheritance → integrity repair → matrix ──
         const runLockedAnalysis = (rawTasks: ProjectTask[]) => {
           const prdIn: ProjectPRD | undefined = updated.prd
-            ? { ...updated.prd, requirementRegistry: updated.prd.requirementRegistry || p.prd?.requirementRegistry }
+            ? {
+                ...updated.prd,
+                primaryType: updated.prd.primaryType || domain.primaryType,
+                secondaryTypes: updated.prd.secondaryTypes || domain.secondaryTypes,
+                requirementRegistry: updated.prd.requirementRegistry || p.prd?.requirementRegistry,
+              }
             : undefined;
           const res = analyzeAndOptimizeTasks(rawTasks, updated.features || [], prdIn, {
-            primaryType: domain.primaryType,
+            primaryType: prdIn?.primaryType || domain.primaryType,
+            secondaryTypes: prdIn?.secondaryTypes || domain.secondaryTypes,
             stackMode: updated.architecture?.stackMode,
             stackAlternatives: domain.stackAlternatives,
             stackIsAiSuggested: updated.architecture?.isAiSuggestedStack,
@@ -4121,6 +4307,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             );
             updated.prd = {
               ...prdIn,
+              primaryType: res.primaryType || res.prd?.primaryType || prdIn.primaryType,
+              secondaryTypes: res.secondaryTypes || res.prd?.secondaryTypes || prdIn.secondaryTypes,
               requirementRegistry: res.requirementRegistry,
               classifiedRequirements: res.classifiedRequirements,
               userDerived: { ...separation.userDerived, explicitNFR: prdIn.userDerived?.explicitNFR ?? [] },
@@ -4376,6 +4564,13 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     if (!activeProject) return;
     const prd = activeProject.prd;
     let text = `# PRD (Product Requirements Document) — ${activeProject.title}\n\n`;
+    if (prd?.primaryType) {
+      text += `**Primary Type:** ${prd.primaryType}\n`;
+      if (prd.secondaryTypes && prd.secondaryTypes.length > 0) {
+        text += `**Secondary Types:** ${prd.secondaryTypes.join(", ")}\n`;
+      }
+      text += `\n`;
+    }
     text += `## 1. Overview\n${prd?.overview || activeProject.description || "Perencanaan sistem project."}\n\n`;
     text += `## 2. Problem Statement\n${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}\n\n`;
     text += `## 3. Goals & Objectives\n${prd?.goals?.map((g, i) => `${i + 1}. ${g}`).join("\n") || "- Membangun sistem yang handal"}\n\n`;
@@ -4523,6 +4718,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
+- **Primary Type**: ${prd?.primaryType || domain.primaryType}
+- **Secondary Types**: ${(prd?.secondaryTypes || domain.secondaryTypes || []).join(", ") || "None"}
 - **Description**: ${prd?.overview || activeProject.description}
 - **Problem Statement**: ${prd?.problemStatement || "Menyelesaikan inefisiensi dan memberikan solusi digital terstruktur."}
 - **Key Goals**:
@@ -4735,7 +4932,8 @@ ${(() => {
 <body>
   <h1>${activeProject.title}</h1>
   <div class="meta">
-    <strong>Kategori:</strong> ${domain.categories.join(", ")} |
+    <strong>Primary Type:</strong> ${prd?.primaryType || domain.primaryType} |
+    <strong>Secondary Types:</strong> ${(prd?.secondaryTypes || domain.secondaryTypes || []).join(", ") || "None"} |
     <strong>Kompleksitas:</strong> ${arch?.complexityLevel || domain.complexity} |
     <strong>Stack Mode:</strong> ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")} |
     <strong>Source Integrity:</strong> ${activeProject.qualityGate?.sourceIntegrityState?.status || "N/A"} |
@@ -5401,9 +5599,21 @@ ${(() => {
                 ) : perencanaanMode === "prd" ? (
                   <>
                     <div>
-                      <h3 className="text-base font-bold tracking-tight mb-3">
+                      <h3 className="text-base font-bold tracking-tight mb-2">
                         PRD — Project Requirements Document
                       </h3>
+                      {displayPrd?.primaryType && (
+                        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <span className={`px-2 py-0.5 rounded-md font-mono font-bold border ${isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"}`}>
+                            Primary: {displayPrd.primaryType}
+                          </span>
+                          {displayPrd?.secondaryTypes && displayPrd.secondaryTypes.length > 0 && (
+                            <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] border ${isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-300"}`}>
+                              Secondary: {displayPrd.secondaryTypes.join(", ")}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <h4 className={`text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                         1. Overview
                       </h4>
@@ -5531,13 +5741,14 @@ ${(() => {
           )}
 
           {/* Right Area: Interactive Visual Mindmap Tree Canvas */}
-          <div className={`flex-1 overflow-auto p-8 sm:p-12 relative flex items-center ${
+          <div className={`flex-1 overflow-auto p-6 sm:p-10 relative ${
             isDark ? "bg-[#070a12]" : "bg-[#f8fafc]"
           }`}>
-            <div
-              className="flex items-center gap-0 transition-transform duration-200 origin-left select-none"
-              style={{ transform: `scale(${zoomLevel})` }}
-            >
+            <div className="min-w-max min-h-full flex items-center justify-start py-8">
+              <div
+                className="flex items-center gap-0 transition-transform duration-200 origin-top-left select-none"
+                style={{ transform: `scale(${zoomLevel})` }}
+              >
               {/* 1. Root Node (Project Name) */}
               <div className="flex flex-col items-center shrink-0 w-[200px]">
                 <div className={`w-full p-4 rounded-2xl border-2 text-center shadow-xl ${
@@ -5721,6 +5932,7 @@ ${(() => {
             </>
           )}
             </div>
+          </div>
 
             {/* Floating Zoom Controls (Bottom Left, matching screenshot) */}
             <div className={`absolute bottom-6 left-6 z-20 flex flex-col items-center rounded-xl p-1 border shadow-2xl backdrop-blur-md ${
@@ -6397,6 +6609,18 @@ ${(() => {
             <div className={`p-5 rounded-2xl border space-y-5 text-xs sm:text-sm leading-relaxed ${
               isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
             }`}>
+              {activeProject.prd.primaryType && (
+                <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border ${isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"}`}>
+                    Primary Type: {activeProject.prd.primaryType}
+                  </span>
+                  {activeProject.prd.secondaryTypes && activeProject.prd.secondaryTypes.length > 0 && (
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-mono border ${isDark ? "bg-zinc-900 text-zinc-300 border-zinc-800" : "bg-zinc-100 text-zinc-700 border-zinc-300"}`}>
+                      Secondary Types: {activeProject.prd.secondaryTypes.join(", ")}
+                    </span>
+                  )}
+                </div>
+              )}
               <div>
                 <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1">1. Project Overview</h4>
                 <p>{activeProject.prd.overview}</p>
