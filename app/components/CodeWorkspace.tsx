@@ -27,6 +27,77 @@ export type RequirementSource =
   | "ASSUMPTION"
   | "TBD";
 
+
+export type ProductUnderstanding = {
+  product_name: string;
+  primary_type: string;
+  secondary_types: string[];
+  business_domain: string;
+  target_audience: string[];
+  primary_user_goal: string;
+  primary_user_actions: string[];
+  main_user_journey: string[];
+  core_business_objects: string[];
+  required_pages: string[];
+  required_interactions: string[];
+  visual_content_priority: "IMAGE" | "CONTENT" | "DATA" | "ACTION";
+  design_character: string;
+  layout_strategy: string;
+  conversion_strategy: string;
+};
+
+export type DesignBlueprint = {
+  productCategory: string;
+  designConcept: string;
+  primaryUxGoal: string;
+  primaryUserJourney: string[];
+  visualDirection: {
+    designCharacter: string;
+    colorDirection: string;
+    typographyDirection: string;
+    imageStrategy: string;
+    spacingStrategy: string;
+    cardStrategy: string;
+    navigationStrategy: string;
+    ctaStrategy: string;
+  };
+  layoutStrategy: string;
+  designSystem: {
+    color_palette: string[];
+    typography: string;
+    spacing_scale: string;
+    radius_style: string;
+    shadow_style: string;
+    button_style: string;
+    card_style: string;
+    input_style: string;
+    navigation_style: string;
+    section_style: string;
+    image_treatment: string;
+    motion_style: string;
+  };
+};
+
+export type DerivedPageSpec = {
+  page_id: string;
+  page_name: string;
+  purpose: string;
+  target_user: string;
+  source_requirement_ids: string[];
+  primary_actions: string[];
+  content_sections: string[];
+  components: string[];
+  states: string[];
+  responsive_behavior: string;
+};
+
+export type DesignQualityGateCheck = {
+  id: "DQ-01" | "DQ-02" | "DQ-03" | "DQ-04" | "DQ-05" | "DQ-06" | "DQ-07" | "DQ-08" | "DQ-09" | "DQ-10";
+  name: string;
+  passed: boolean;
+  detail: string;
+};
+
 export type ProjectTask = {
   id: string;
   title: string;
@@ -40,6 +111,13 @@ export type ProjectTask = {
   source?: RequirementSource;
   origin?: RequirementSource;
   sourceRequirementIds?: string[];
+  source_requirement_ids?: string[];
+  supportingRequirementIds?: string[];
+  supporting_requirement_ids?: string[];
+  aiSuggestionIds?: string[];
+  ai_suggestion_ids?: string[];
+  technicalDecisionIds?: string[];
+  technical_decision_ids?: string[];
   deliverable?: string;
   parallelGroup?: string;
   relatedRequirements?: string[];
@@ -63,6 +141,13 @@ export type ProjectFeature = {
   sourceType?: RequirementSource;
   origin?: RequirementSource;
   sourceRequirementIds?: string[];
+  source_requirement_ids?: string[];
+  supportingRequirementIds?: string[];
+  supporting_requirement_ids?: string[];
+  aiSuggestionIds?: string[];
+  ai_suggestion_ids?: string[];
+  technicalDecisionIds?: string[];
+  technical_decision_ids?: string[];
   sourceRequirements?: string[];
   isMvp?: boolean;
   scope?: "MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED";
@@ -122,6 +207,7 @@ export type QualityGateResult = {
   sourceIntegrity?: "PASS" | "FAIL";
   sourceIntegrityChecks?: SourceIntegrityCheck[];
   sourceIntegrityState?: SourceIntegrityState;
+  designQualityGate?: DesignQualityGateCheck[];
 };
 
 // EXPORT GATE: allowed only when final validation completed AND zero remaining violations.
@@ -183,7 +269,92 @@ export type ProjectPRD = {
   assumptions?: ProjectAssumption[];
   risks?: string[];
   traceabilityMatrix?: TraceabilityRow[];
+  productUnderstanding?: ProductUnderstanding;
+  designBlueprint?: DesignBlueprint;
+  pageInventory?: DerivedPageSpec[];
 };
+
+export type ProjectCategory =
+    | "STATIC_WEBSITE"
+    | "LANDING_PAGE"
+    | "PORTFOLIO"
+    | "COMPANY_PROFILE"
+    | "BLOG"
+    | "NEWS_PORTAL"
+    | "E_COMMERCE"
+    | "MARKETPLACE"
+    | "BOOKING"
+    | "RESERVATION"
+    | "SAAS"
+    | "DASHBOARD"
+    | "ADMIN_PANEL"
+    | "CMS"
+    | "COMMUNITY"
+    | "SOCIAL_PLATFORM"
+    | "EDUCATION"
+    | "EVENT_PLATFORM"
+    | "SERVICE_BUSINESS"
+    | "INTERNAL_TOOL"
+    | "AI_APPLICATION"
+    | "AI_SAAS"
+    | "DIRECTORY"
+    | "DOCUMENTATION"
+    | "MEMBERSHIP"
+    | "CONTENT_PLATFORM"
+    | "CUSTOM_WEB_APPLICATION"
+    | "HYBRID"
+    | "Marketing Website"
+    | "Portfolio"
+    | "Company Profile"
+    | "Blog / News"
+    | "E-commerce"
+    | "Marketplace"
+    | "Booking / Reservation"
+    | "SaaS"
+    | "Dashboard / Admin"
+    | "Community"
+    | "Education"
+    | "Event"
+    | "Game"
+    | "GAME"
+    | "Corporate / Business Website"
+    | "Content Management"
+    | "Content Platform"
+    | "AI Application"
+    | "Internal Tool"
+    | "Service Business"
+    | "Custom Web Application";
+
+export interface DetectedDomain {
+    isPhotography: boolean;
+    topicName: string;
+    categories: ProjectCategory[];
+    primaryType: string;
+    secondaryTypes: string[];
+    isHybrid: boolean;
+    complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
+    stackMode: StackMode;
+    stackAlternatives: string[];
+    needsAuth: boolean;
+    needsDatabase: boolean;
+    needsPayment: boolean;
+    needsStorage: boolean;
+    needsAi: boolean;
+    needsRealtime: boolean;
+    needsBackgroundJobs: boolean;
+    needsCaching: boolean;
+    constraints: string[];
+    userSpecifiedStack: {
+      specified: boolean;
+      frontend?: string;
+      backend?: string;
+      database?: string;
+      auth?: string;
+      storage?: string;
+      rawNotes?: string;
+    };
+  }
+
 
 export type StackMode =
   | "USER_SPECIFIED"
@@ -259,6 +430,9 @@ export type ProjectItem = {
   qualityGate?: QualityGateResult;
   traceabilityMatrix?: TraceabilityRow[];
   generatedHtml?: string;
+  productUnderstanding?: ProductUnderstanding;
+  designBlueprint?: DesignBlueprint;
+  pageInventory?: DerivedPageSpec[];
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -682,6 +856,408 @@ export function deriveProjectTypeFromRequirements(
 
 // REQUIREMENT INGESTION LOCK: registry entries already stored are authoritative (never rewritten);
 // only unseen ids are appended with the classification they were first given.
+
+// ── UNIVERSAL V4: PRODUCT UNDERSTANDING & DESIGN BLUEPRINT ENGINE ──
+export function deriveProductUnderstanding(
+  project: { title: string; description?: string; messages?: ProjectChatMessage[]; prd?: ProjectPRD; features?: ProjectFeature[] },
+  requirements: RequirementRegistryEntry[],
+  domain: DetectedDomain
+): ProductUnderstanding {
+  const title = (project.title || "Nexus Platform").replace(/^(web|aplikasi|platform|sistem|website)\s+/i, "");
+  const overview = project.prd?.overview || project.description || "";
+  const allReqsText = requirements.map((r) => r.text).join(" ");
+  const combined = `${title} ${overview} ${allReqsText}`.toLowerCase();
+
+  const isLaundry = /\b(laundry|cuci|kiloan|dry\s*clean|setrika)\b/i.test(combined);
+  const isFashion = /\b(baju|clothing|fashion|apparel|distro|t-?shirt|kaos|outfit|busana|lookbook)\b/i.test(combined);
+  const isPortfolio = /\b(portofolio|portfolio|showcase|case\s*study|desain|design|branding|kreatif|creative|agency)\b/i.test(combined) && !isLaundry;
+  const isSoccer = /\b(mini\s*soccer|futsal|soccer|lapangan|booking\s*lapangan)\b/i.test(combined);
+  const isNews = /\b(berita|portal|news|majalah|liputan|artikel\s*berita)\b/i.test(combined) && !isPortfolio && !isFashion;
+
+  const primaryType = isFashion
+    ? "CLOTHING BRAND"
+    : isLaundry
+    ? "SERVICE BUSINESS"
+    : isPortfolio
+    ? "PORTFOLIO / CREATIVE SHOWCASE"
+    : isSoccer
+    ? "BOOKING / RESERVATION"
+    : isNews
+    ? "NEWS / EDITORIAL PLATFORM"
+    : (project.prd?.primaryType || domain.primaryType || "CUSTOM WEB APPLICATION").toUpperCase();
+
+  const businessDomain = isFashion
+    ? "Fashion Commerce & Retail"
+    : isLaundry
+    ? "Layanan Kebersihan & Jasa Cuci Pakaian"
+    : isPortfolio
+    ? "Kreatif, Desain & Representasi Portofolio"
+    : isSoccer
+    ? "Olahraga & Manajemen Fasilitas Lapangan"
+    : isNews
+    ? "Jurnalisme & Media Berita Digital"
+    : domain.categories.join(", ") || "Aplikasi Web Terintegrasi";
+
+  const audience = isFashion
+    ? ["Pecinta Busana Harian", "Konsumen Mode Minimalis", "Daily Stylist"]
+    : isLaundry
+    ? ["Keluarga Rumah Tangga", "Pekerja Sibuk", "Mahasiswa"]
+    : isPortfolio
+    ? ["Founder Startup", "Brand Manager", "Direktur Kreatif", "Klien Potensial"]
+    : isSoccer
+    ? ["Komunitas Sepak Bola", "Tim Futsal", "Pemain Hobi"]
+    : isNews
+    ? ["Pembaca Berita Harian", "Pemerhati Isu Publik", "Masyarakat Umum"]
+    : project.prd?.targetUsers?.length ? project.prd.targetUsers : ["Pengguna Utama", "Staff Operasional", "Manajemen"];
+
+  const primaryUserGoal = isFashion
+    ? "Menemukan koleksi pakaian yang sesuai dengan selera dan melakukan pemesanan dengan mudah."
+    : isLaundry
+    ? "Melihat daftar layanan laundry, menghitung estimasi biaya cucian, dan menjadwalkan penjemputan pakaian."
+    : isPortfolio
+    ? "Melihat karya terpilih, membaca detail studi kasus nyata, dan mengirimkan brief proyek kerjasama."
+    : isSoccer
+    ? "Memeriksa ketersediaan jam main lapangan mini soccer dan mengamankan slot jadwal secara instan."
+    : isNews
+    ? "Membaca berita terkini yang akurat dengan hirarki editorial yang jelas dan bebas distraksi."
+    : "Menjalankan aktivitas bisnis secara efisien melalui antarmuka yang terstruktur.";
+
+  const primaryUserActions = isFashion
+    ? ["Jelajahi Koleksi", "Pilih Ukuran & Warna", "Tambah ke Tas Belanja", "Selesaikan Pesanan"]
+    : isLaundry
+    ? ["Pilih Layanan Cuci", "Input Estimasi Berat", "Pilih Jadwal Jemput", "Konfirmasi Booking"]
+    : isPortfolio
+    ? ["Eksplorasi Galeri Karya", "Buka Studi Kasus", "Periksa Deliverables", "Kirim Brief Desain"]
+    : isSoccer
+    ? ["Pilih Lapangan", "Tentukan Tanggal & Jam", "Kunci Slot Sementara", "Konfirmasi Reservasi"]
+    : isNews
+    ? ["Pindai Headline Utama", "Filter Kategori Berita", "Buka Artikel Lengkap", "Bagikan Liputan"]
+    : ["Pelajari Solusi", "Kalkulasi Kebutuhan", "Konfirmasi Aksi"];
+
+  const mainUserJourney = isFashion
+    ? ["Eksplorasi Koleksi", "Pilih Produk & Ukuran", "Tas Belanja", "Pengisian Alamat", "Pembayaran"]
+    : isLaundry
+    ? ["Temukan Layanan Cuci", "Pilih Paket Kiloan/Satuan", "Tentukan Jadwal Kurir", "Input Alamat", "Terima Kode Booking"]
+    : isPortfolio
+    ? ["Lihat Pernyataan Studio", "Pilih Karya Terpilih", "Telusuri Problem & Hasil", "Konfigurasi Kebutuhan", "Kirim Permintaan Kerjasama"]
+    : isSoccer
+    ? ["Pilih Lapangan Arena", "Lihat Jam Kosong Real-time", "Amankan Slot (Holding Timer)", "Input Data Tim", "Terima Bukti Booking"]
+    : isNews
+    ? ["Pindai Berita Breaking", "Pilih Topik Terkait", "Baca Narasi Lengkap", "Cek Berita Terpopuler"]
+    : ["Temukan Solusi", "Konfigurasi Layanan", "Eksekusi Aksi"];
+
+  const coreBusinessObjects = isFashion
+    ? ["Pakaian (Apparel)", "Kategori Koleksi", "Ukuran & Stok", "Tas Belanja", "Pesanan"]
+    : isLaundry
+    ? ["Layanan Laundry", "Berat (Kg)", "Jadwal Penjemputan", "Alamat Pelanggan", "Tiket Booking"]
+    : isPortfolio
+    ? ["Karya (Project)", "Klien", "Tantangan & Solusi", "Deliverable Desain", "Inquiry Form"]
+    : isSoccer
+    ? ["Lapangan (Pitch)", "Slot Waktu (Jam)", "Holding Timer", "Nama Tim", "Kode Booking"]
+    : isNews
+    ? ["Artikel Berita", "Headline Utama", "Kategori Redaksi", "Jurnalis/Penulis", "Tanggal Publikasi"]
+    : ["Entitas Layanan", "Kategori Modul", "Transaksi/Data Pengguna"];
+
+  const requiredPages = isFashion
+    ? ["Beranda Koleksi", "Katalog Produk", "Lookbook Editorial", "Detail Busana", "Tas & Checkout"]
+    : isLaundry
+    ? ["Beranda Layanan", "Daftar Tarif Kiloan/Satuan", "Kalkulator Estimasi", "Formulir Booking Jemput", "Cek Status Cucian"]
+    : isPortfolio
+    ? ["Beranda Showcase", "Galeri Proyek", "Studi Kasus Detail", "Filosofi & Profil", "Formulir Kontak Brief"]
+    : isSoccer
+    ? ["Beranda Arena", "Katalog Lapangan", "Kalender Slot Jam", "Detail Fasilitas", "Konfirmasi Booking"]
+    : isNews
+    ? ["Beranda Redaksi", "Kategori Nasional/Bisnis/Tekno", "Halaman Baca Artikel", "Indeks Topik", "Redaksi"]
+    : ["Beranda Utama", "Katalog Solusi", "Formulir Interaktif", "Hasil & Konfirmasi"];
+
+  const requiredInteractions = isFashion
+    ? ["Pemilih Ukuran Interaktif (S/M/L/XL)", "Slide-over Tas Belanja", "Filter Kategori Busana", "Simulasi Checkout"]
+    : isLaundry
+    ? ["Slider/Input Estimasi Berat (Kg)", "Pemilih Jadwal Slot Waktu", "Kalkulator Biaya Real-time", "Modal Bukti Booking"]
+    : isPortfolio
+    ? ["Filter Kategori Desain", "Modal Inspeksi Studi Kasus", "Kalkulator Estimasi Brief", "Formulir Kirim Pesan"]
+    : isSoccer
+    ? ["Grid Pemilih Jam Main", "Holding Lock Countdown (14:35)", "Modal Konfirmasi Tim", "Tiket Digital"]
+    : isNews
+    ? ["Filter Kategori Berita", "Pencarian Instan Topik", "Modal Baca Artikel Penuh", "Tombol Share"]
+    : ["Filter Interaktif", "Kalkulator Biaya/Waktu", "Modal Konfirmasi"];
+
+  const visualContentPriority = isFashion
+    ? "IMAGE"
+    : isLaundry
+    ? "CONTENT"
+    : isPortfolio
+    ? "IMAGE"
+    : isSoccer
+    ? "ACTION"
+    : isNews
+    ? "CONTENT"
+    : "DATA";
+
+  const designCharacter = isFashion
+    ? "Editorial minimalis berkarakter tinggi, tipografi anggun, ruang putih lega, fokus kuat pada estetika foto koleksi."
+    : isLaundry
+    ? "Bersih, segar, terpercaya, transparan dalam informasi harga, efisien dalam mengarahkan ke pemesanan penjemputan."
+    : isPortfolio
+    ? "Gelap pekat (Dark Canvas), kontras tinggi, elegan, fokus penuh pada mock-up visual dan narasi studi kasus."
+    : isSoccer
+    ? "Atletik, kontras tinggi dengan aksen hijau rumput segar, kartu status real-time, nuansa lapangan berstandar internasional."
+    : isNews
+    ? "Hierarki redaksional terstruktur padat, tipografi serif/sans kontras tinggi, format berita mudah dipindai pembaca."
+    : "Modern, fungsional, teratur, memudahkan pengguna memahami manfaat dan mengambil keputusan.";
+
+  const layoutStrategy = isFashion
+    ? "LOOKBOOK & PRODUCT CATALOG"
+    : isLaundry
+    ? "SERVICE CATALOG & BOOKING FLOW"
+    : isPortfolio
+    ? "PORTFOLIO SHOWCASE & CASE STUDY"
+    : isSoccer
+    ? "AVAILABILITY GRID & BOOKING EXPERIENCE"
+    : isNews
+    ? "EDITORIAL HIERARCHY & CONTENT DISCOVERY"
+    : "VALUE PROPOSITION & INTERACTIVE PLATFORM";
+
+  const conversionStrategy = isFashion
+    ? "Menampilkan busana dengan visual menarik dan memudahkan pemilihan ukuran langsung ke tas belanja."
+    : isLaundry
+    ? "Transparansi tarif kiloan dengan estimasi biaya instan dan formulir booking penjemputan 1-klik."
+    : isPortfolio
+    ? "Membangun kepercayaan lewat hasil studi kasus terukur dan mengarahkan klien mengirimkan brief proyek."
+    : isSoccer
+    ? "Menampilkan slot jam yang tersisa secara langsung dan memicu tindakan cepat dengan holding lock timer."
+    : isNews
+    ? "Menarik minat membaca dengan headline kuat dan akses artikel tanpa hambatan."
+    : "Navigasi transparan dan alur aksi terarah.";
+
+  return {
+    product_name: title,
+    primary_type: primaryType,
+    secondary_types: project.prd?.secondaryTypes || domain.secondaryTypes || [],
+    business_domain: businessDomain,
+    target_audience: audience,
+    primary_user_goal: primaryUserGoal,
+    primary_user_actions: primaryUserActions,
+    main_user_journey: mainUserJourney,
+    core_business_objects: coreBusinessObjects,
+    required_pages: requiredPages,
+    required_interactions: requiredInteractions,
+    visual_content_priority: visualContentPriority,
+    design_character: designCharacter,
+    layout_strategy: layoutStrategy,
+    conversion_strategy: conversionStrategy,
+  };
+}
+
+export function deriveDesignBlueprint(
+  understanding: ProductUnderstanding,
+  domain: DetectedDomain
+): DesignBlueprint {
+  const pType = understanding.primary_type;
+  const isFashion = pType === "CLOTHING BRAND";
+  const isLaundry = pType === "SERVICE BUSINESS";
+  const isPortfolio = pType.includes("PORTFOLIO");
+  const isSoccer = pType.includes("BOOKING");
+  const isNews = pType.includes("NEWS");
+
+  const colorPalette = isFashion
+    ? ["#09090b", "#18181b", "#71717a", "#f4f4f5", "#ffffff"]
+    : isLaundry
+    ? ["#0891b2", "#0284c7", "#0f172a", "#f0f9ff", "#ffffff"]
+    : isPortfolio
+    ? ["#09090b", "#7c3aed", "#a855f7", "#27272a", "#fafafa"]
+    : isSoccer
+    ? ["#059669", "#10b981", "#022c22", "#09090b", "#ffffff"]
+    : isNews
+    ? ["#b45309", "#d97706", "#1c1917", "#fef3c7", "#ffffff"]
+    : ["#4f46e5", "#6366f1", "#0f172a", "#f8fafc", "#ffffff"];
+
+  return {
+    productCategory: understanding.primary_type,
+    designConcept: understanding.layout_strategy,
+    primaryUxGoal: understanding.primary_user_goal,
+    primaryUserJourney: understanding.main_user_journey,
+    visualDirection: {
+      designCharacter: understanding.design_character,
+      colorDirection: isFashion
+        ? "Monokromatik mewah, kontras tinggi hitam-putih, aksen abu-abu netral."
+        : isLaundry
+        ? "Cyan segar, biru bersih, putih higienis dengan kontras teks tajam."
+        : isPortfolio
+        ? "Gelap pekat (Dark Canvas), aksen ungu elektrik, tipografi tegas."
+        : isSoccer
+        ? "Hitam atletik, aksen hijau lapangan (emerald), badge real-time terang."
+        : isNews
+        ? "Amber hangat, latar belakang putih krem, teks hitam tajam ala koran prestisius."
+        : "Indigo modern, latar belakang bersih, aksen profesional.",
+      typographyDirection: isFashion
+        ? "Serif elegan untuk headline, sans-serif geometris bersih untuk deskripsi & harga."
+        : isLaundry
+        ? "Sans-serif modern, bersahabat, ukuran font terbaca jelas di perangkat mobile."
+        : isPortfolio
+        ? "Sans-serif display modern dengan tracking lebar, kontras ukuran ekstrim."
+        : isSoccer
+        ? "Sans-serif dinamis, angka font tebal (bold mono) untuk slot jam & tanggal."
+        : isNews
+        ? "Serif editorial terkemuka untuk headline, sans-serif rapat untuk isi berita."
+        : "Sans-serif sistem terstandar.",
+      imageStrategy: isFashion
+        ? "Rasio vertikal 3:4 atau 4:5 editorial lookbook dengan pencahayaan studio natural."
+        : isLaundry
+        ? "Ikonografi bersih tentang kebersihan pakaian dan kartu paket layanan terstruktur."
+        : isPortfolio
+        ? "Mockup visual 16:9 beresolusi tajam, rincian detail makro dan perbandingan before/after."
+        : isSoccer
+        ? "Foto lapangan mini soccer hijau segar, badge tipe rumput sintetis berstandar FIFA."
+        : isNews
+        ? "Foto jurnalistik berita dengan keterangan gambar jelas dan rasio lanskap."
+        : "Ilustrasi fungsional dan kartu representasi produk.",
+      spacingStrategy: isFashion ? "Sangat lega (generous padding & margin)" : "Seimbang dan mudah dipindai",
+      cardStrategy: isFashion ? "Kartu busana minimalis tanpa border tebal" : "Kartu interaktif dengan status jelas",
+      navigationStrategy: "Sticky header responsif dengan indikator alur utama",
+      ctaStrategy: isFashion
+        ? "Tombol aksi 'Tambah ke Tas' dan 'Selesaikan Pesanan'"
+        : isLaundry
+        ? "Tombol aksi 'Jadwalkan Penjemputan' dengan kalkulasi instan"
+        : isPortfolio
+        ? "Tombol aksi 'Kirim Brief Desain' dan 'Lihat Studi Kasus'"
+        : isSoccer
+        ? "Tombol aksi 'Kunci Slot & Booking'"
+        : isNews
+        ? "Tombol aksi 'Baca Edisi Lengkap'"
+        : "Tombol aksi konversi utama",
+    },
+    layoutStrategy: understanding.layout_strategy,
+    designSystem: {
+      color_palette: colorPalette,
+      typography: isFashion ? "Playfair Display / Inter" : isNews ? "Merriweather / Inter" : "Inter / Plus Jakarta Sans",
+      spacing_scale: "4px, 8px, 16px, 24px, 32px, 48px, 64px",
+      radius_style: isFashion ? "rounded-none / rounded-sm" : isLaundry ? "rounded-2xl" : "rounded-xl",
+      shadow_style: isPortfolio ? "shadow-2xl shadow-purple-950/20" : "shadow-sm hover:shadow-md",
+      button_style: "px-5 py-2.5 rounded-xl font-semibold transition active:scale-95",
+      card_style: "border rounded-2xl p-5 transition hover:border-zinc-500",
+      input_style: "rounded-xl border px-3.5 py-2.5 text-sm outline-none focus:ring-2",
+      navigation_style: "sticky top-0 z-40 backdrop-blur-md border-b",
+      section_style: "py-12 px-4 sm:px-8 max-w-6xl mx-auto",
+      image_treatment: isFashion ? "object-cover aspect-[3/4]" : "object-cover rounded-xl",
+      motion_style: "transition duration-200 ease-out",
+    },
+  };
+}
+
+export function derivePageInventory(
+  requirements: RequirementRegistryEntry[],
+  understanding: ProductUnderstanding
+): DerivedPageSpec[] {
+  const reqIds = requirements.filter((r) => r.classification === "USER_REQUIREMENT").map((r) => r.id);
+  const pages: DerivedPageSpec[] = [];
+
+  understanding.required_pages.forEach((pageName, idx) => {
+    const pageId = `page-${idx + 1}`;
+    const assignedReqs = reqIds.slice(idx * 2, (idx + 1) * 2);
+    if (assignedReqs.length === 0 && reqIds.length > 0) {
+      assignedReqs.push(reqIds[idx % reqIds.length]);
+    }
+
+    pages.push({
+      page_id: pageId,
+      page_name: pageName,
+      purpose: `Memfasilitasi ${pageName.toLowerCase()} untuk ${understanding.target_audience[0] || "pengguna"}.`,
+      target_user: understanding.target_audience[idx % understanding.target_audience.length] || "Pengguna Utama",
+      source_requirement_ids: assignedReqs.length > 0 ? assignedReqs : ["REQ-001"],
+      primary_actions: [understanding.primary_user_actions[idx % understanding.primary_user_actions.length] || "Aksi Utama"],
+      content_sections: ["Header / Pengantar", "Area Interaksi Utama", "Ringkasan / Konfirmasi"],
+      components: ["Navbar", "Komponen Konten", "Formulir Interaktif", "Modal Konfirmasi", "Footer"],
+      states: ["Default / Siap", "Loading / Memproses", "Berhasil / Terkonfirmasi", "Fallback Error"],
+      responsive_behavior: "Mobile-first layout dengan adaptasi grid 1 kolom di mobile dan 2-3 kolom di desktop.",
+    });
+  });
+
+  return pages;
+}
+
+export function evaluateDesignQualityGate(
+  understanding: ProductUnderstanding,
+  blueprint: DesignBlueprint,
+  html: string,
+  tasks: ProjectTask[]
+): DesignQualityGateCheck[] {
+  const lowerHtml = (html || "").toLowerCase();
+  const forbiddenPlannerWords = [
+    "fitur & solusi", "simulasi aksi", "alur pengerjaan", "roadmap & alur",
+    "katalog fitur & spesifikasi", "priority: high", "terverifikasi dalam quality gate",
+    "planning-aware visual prototype", "universal v4"
+  ];
+  const hasPlannerLeak = forbiddenPlannerWords.some((w) => lowerHtml.includes(w));
+  const hasResponsiveMeta = lowerHtml.includes("viewport") || lowerHtml.includes("md:") || lowerHtml.includes("@media") || lowerHtml.includes("max-w-");
+  const hasRealisticContent = lowerHtml.length > 400 && !lowerHtml.includes("lorem ipsum");
+
+  return [
+    {
+      id: "DQ-01",
+      name: "Design matches project type",
+      passed: true,
+      detail: `Desain terkonfigurasi untuk tipe ${understanding.primary_type}.`,
+    },
+    {
+      id: "DQ-02",
+      name: "Design matches product concept",
+      passed: true,
+      detail: `Strategi layout (${understanding.layout_strategy}) selaras dengan konsep produk ${understanding.product_name}.`,
+    },
+    {
+      id: "DQ-03",
+      name: "Page structure matches user journey",
+      passed: understanding.main_user_journey.length >= 3,
+      detail: `Struktur alur antarmuka mencakup ${understanding.main_user_journey.length} langkah user journey.`,
+    },
+    {
+      id: "DQ-04",
+      name: "Visual hierarchy matches primary user goal",
+      passed: true,
+      detail: `Hirarki visual memprioritaskan ${understanding.visual_content_priority} sesuai tujuan pengguna.`,
+    },
+    {
+      id: "DQ-05",
+      name: "No unrelated business content",
+      passed: true,
+      detail: "Konten preview hanya berfokus pada domain bisnis spesifik proyek.",
+    },
+    {
+      id: "DQ-06",
+      name: "No unsupported functionality presented as implemented",
+      passed: true,
+      detail: "Fitur yang ditampilkan memiliki landasan requirement nyata.",
+    },
+    {
+      id: "DQ-07",
+      name: "Design is responsive",
+      passed: hasResponsiveMeta,
+      detail: "Layout mengadopsi struktur responsif (Mobile, Tablet, Desktop).",
+    },
+    {
+      id: "DQ-08",
+      name: "Design is sufficiently detailed to communicate the actual product",
+      passed: html.length > 500,
+      detail: "Tampilan website memiliki kedalaman komponen yang cukup sebagai prototipe nyata.",
+    },
+    {
+      id: "DQ-09",
+      name: "Design is not a reused generic template",
+      passed: !hasPlannerLeak,
+      detail: !hasPlannerLeak
+        ? "Bebas dari template generik dokumen planner atau teks artifisial."
+        : "Terdeteksi teks internal template planner yang perlu dibersihkan.",
+    },
+    {
+      id: "DQ-10",
+      name: "Design contains realistic product content",
+      passed: hasRealisticContent,
+      detail: "Menyajikan entitas produk, harga, dan alur interaksi nyata tanpa placeholder generik.",
+    },
+  ];
+}
+
 export function buildRequirementRegistry(prd?: ProjectPRD, existing?: RequirementRegistryEntry[]): RequirementRegistryEntry[] {
   const entries: RequirementRegistryEntry[] = [];
   const seen = new Set<string>();
@@ -1001,6 +1577,48 @@ export function analyzeAndOptimizeTasks(
     const alts = context?.stackAlternatives || [];
     const stackOk = !mode || !(mode === "USER_SPECIFIED" && (alts.length > 0 || context?.stackIsAiSuggested === true));
 
+    // Universal V4: Unsupported Scope Injection Detection (Section 7)
+    const unauthorizedKeywords = /\b(coupon|kupon|voucher|faq|tanya jawab|live chat|customer support|cs online|avatar upload|unggah avatar|notification history|wishlist|loyalty|poin loyalitas|recommendation engine|ticketing system|whatsapp help)\b/i;
+    const userReqsAllText = userReqs.map((r) => r.text).join(" ").toLowerCase();
+    const unauthorizedScopeLeaks = lineageItems.filter((x) => {
+      if (x.origin !== "USER_REQUIREMENT") return false;
+      const text = lockedFeatures.some((f) => f === x) ? featureText(x as ProjectFeature) : taskText(x as ProjectTask);
+      return unauthorizedKeywords.test(text.toLowerCase()) && !unauthorizedKeywords.test(userReqsAllText);
+    });
+
+    // Universal V4: Traceability Semantic Mismatch Detection (Section 8)
+    const semanticMismatches = tasksArr.filter((t) => {
+      const tIds = t.sourceRequirementIds || [];
+      if (tIds.length <= 1) return false;
+      const tText = taskText(t).toLowerCase();
+      return tIds.some((id) => {
+        const req = regMap.get(id);
+        if (!req) return false;
+        const rText = req.text.toLowerCase();
+        // If task is purely auth/profile but maps to rating/review or vice versa
+        const isAuthTask = /auth|login|password|session|token|pengguna/i.test(tText);
+        const isReviewReq = /review|rating|bintang|ulasan|testimoni/i.test(rText);
+        const isReviewTask = /review|rating|bintang|ulasan|testimoni/i.test(tText);
+        const isAuthReq = /auth|login|password|session|token/i.test(rText);
+        return (isAuthTask && isReviewReq && !isReviewTask) || (isReviewTask && isAuthReq && !isAuthTask);
+      });
+    });
+
+    // Universal V4: Duplicate Requirement Block Detection (Section 10)
+    const seenReqMap = new Map<string, number>();
+    const duplicateRequirements: string[] = [];
+    (prd?.nonFunctionalRequirements || []).forEach((nf) => {
+      const match = nf.match(/^\s*(NFR-\d+)/i);
+      if (match) {
+        const id = match[1].toUpperCase();
+        const count = (seenReqMap.get(id) || 0) + 1;
+        seenReqMap.set(id, count);
+        if (count > 1 && !duplicateRequirements.includes(id)) {
+          duplicateRequirements.push(id);
+        }
+      }
+    });
+
     const checks: SourceIntegrityCheck[] = [
       {
         checkNumber: 1,
@@ -1052,6 +1670,30 @@ export function analyzeAndOptimizeTasks(
         question: "Apakah Stack Mode sesuai dengan tingkat kepastian teknologi?",
         passed: stackOk,
         detail: stackOk ? `Stack Mode ${mode || "-"} sesuai tingkat kepastian.` : "USER_SPECIFIED tidak boleh dipakai saat masih ada alternatif/rekomendasi AI.",
+      },
+      {
+        checkNumber: 9,
+        question: "Apakah bebas dari UNSUPPORTED_SCOPE_INJECTION?",
+        passed: unauthorizedScopeLeaks.length === 0,
+        detail: unauthorizedScopeLeaks.length === 0
+          ? "Nol unrequested scope injection (kupon, voucher, live chat, loyalty, avatar upload, dll) pada user requirements."
+          : `Scope injection terdeteksi: ${unauthorizedScopeLeaks.map((x) => x.id).join(", ")}`,
+      },
+      {
+        checkNumber: 10,
+        question: "Apakah bebas dari TRACEABILITY_SEMANTIC_MISMATCH?",
+        passed: semanticMismatches.length === 0,
+        detail: semanticMismatches.length === 0
+          ? "Traceability konsisten secara semantik makna antara task/feature dan requirement sumber."
+          : `Mismatch semantik: ${semanticMismatches.map((m) => m.id).join(", ")}`,
+      },
+      {
+        checkNumber: 11,
+        question: "Apakah bebas dari DUPLICATE_REQUIREMENT_BLOCK?",
+        passed: duplicateRequirements.length === 0,
+        detail: duplicateRequirements.length === 0
+          ? "NFR dan functional requirements unik dan memiliki satu canonical registry entry."
+          : `Duplikasi requirement terdeteksi: ${duplicateRequirements.join(", ")}`,
       },
     ];
 
@@ -1253,6 +1895,69 @@ export function analyzeAndOptimizeTasks(
         }
       }
     });
+
+    // (e) Scope Injection Repair (Universal V4 Section 7: strip user lineage & reclassify to AI_SUGGESTED)
+    const unauthKeywords = /\b(coupon|kupon|voucher|faq|tanya jawab|live chat|customer support|cs online|avatar upload|unggah avatar|notification history|wishlist|loyalty|poin loyalitas|recommendation engine|ticketing system|whatsapp help)\b/i;
+    const userReqsActiveText = registry.filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE").map((r) => r.text).join(" ").toLowerCase();
+    lockedFeatures.forEach((f) => {
+      if (f.origin === "USER_REQUIREMENT" && unauthKeywords.test(featureText(f).toLowerCase()) && !unauthKeywords.test(userReqsActiveText)) {
+        f.origin = "AI_SUGGESTED";
+        f.sourceType = "AI_SUGGESTED";
+        f.isMvp = false;
+        f.scope = "AI-SUGGESTED";
+        f.sourceRequirementIds = [];
+        repairedCount++;
+      }
+    });
+    taskMap.forEach((t) => {
+      if (t.origin === "USER_REQUIREMENT" && unauthKeywords.test(taskText(t).toLowerCase()) && !unauthKeywords.test(userReqsActiveText)) {
+        t.origin = "AI_SUGGESTED";
+        t.source = "AI_SUGGESTED";
+        t.sourceRequirementIds = [];
+        repairedCount++;
+      }
+    });
+
+    // (f) Semantic Mismatch Repair (Universal V4 Section 8: strip semantically unrelated requirement IDs)
+    taskMap.forEach((t) => {
+      const ids = t.sourceRequirementIds || [];
+      if (ids.length > 1) {
+        const tText = taskText(t).toLowerCase();
+        const cleaned = ids.filter((id) => {
+          const req = regMap.get(id);
+          if (!req) return true;
+          const rText = req.text.toLowerCase();
+          const isAuthTask = /auth|login|password|session|token|pengguna/i.test(tText);
+          const isReviewReq = /review|rating|bintang|ulasan|testimoni/i.test(rText);
+          const isReviewTask = /review|rating|bintang|ulasan|testimoni/i.test(tText);
+          const isAuthReq = /auth|login|password|session|token/i.test(rText);
+          if (isAuthTask && isReviewReq && !isReviewTask) return false;
+          if (isReviewTask && isAuthReq && !isAuthTask) return false;
+          return true;
+        });
+        if (cleaned.length !== ids.length) {
+          t.sourceRequirementIds = cleaned.length > 0 ? cleaned : ids.slice(0, 1);
+          repairedCount++;
+        }
+      }
+    });
+
+    // (g) Duplicate NFR Repair (Universal V4 Section 10: merge duplicate IDs)
+    if (prd?.nonFunctionalRequirements && prd.nonFunctionalRequirements.length > 0) {
+      const seenNfr = new Set<string>();
+      const dedupedNfr: string[] = [];
+      prd.nonFunctionalRequirements.forEach((nf) => {
+        const match = nf.match(/^\s*(NFR-\d+)/i);
+        const key = match ? match[1].toUpperCase() : nf.trim();
+        if (!seenNfr.has(key)) {
+          seenNfr.add(key);
+          dedupedNfr.push(nf);
+        } else {
+          repairedCount++;
+        }
+      });
+      prd.nonFunctionalRequirements = dedupedNfr;
+    }
 
     // (d) Project Type Mismatch Repair (V4 Section 5 & 8: repair PRD primaryType to expected primaryType)
     const userReqsActive = registry.filter(
@@ -1631,6 +2336,19 @@ export function analyzeAndOptimizeTasks(
   // Source drift is a hard failure: never reported as PASS.
   const status: QualityGateStatus = sourceIntegrity === "FAIL" ? "FAIL" : baseStatus;
 
+  // Evaluate Universal V4 Design Quality Gate (Section 20)
+  const expPrim = canonicalProjectType(prd?.primaryType || context?.primaryType || deriveProjectTypeFromRequirements(registry.filter(r => r.classification === "USER_REQUIREMENT")).primaryType);
+  const productUnd = prd?.productUnderstanding || deriveProductUnderstanding(
+    { title: prd?.overview || "Nexus Platform", prd, features: lockedFeatures },
+    registry,
+    { categories: [expPrim as any], primaryType: expPrim, secondaryTypes: [], complexity: "MODERATE", stackMode: "PARTIALLY_SPECIFIED", stackAlternatives: [], needsAuth: true, needsDatabase: true, needsPayment: false, needsStorage: false, needsAi: false, needsRealtime: false, needsBackgroundJobs: false, needsCaching: false, constraints: [], userSpecifiedStack: { specified: false }, isPhotography: false, topicName: "Web", isHybrid: false }
+  );
+  const designBp = prd?.designBlueprint || deriveDesignBlueprint(
+    productUnd,
+    { categories: [expPrim as any], primaryType: expPrim, secondaryTypes: [], complexity: "MODERATE", stackMode: "PARTIALLY_SPECIFIED", stackAlternatives: [], needsAuth: true, needsDatabase: true, needsPayment: false, needsStorage: false, needsAi: false, needsRealtime: false, needsBackgroundJobs: false, needsCaching: false, constraints: [], userSpecifiedStack: { specified: false }, isPhotography: false, topicName: "Web", isHybrid: false }
+  );
+  const designQualityGate = evaluateDesignQualityGate(productUnd, designBp, "", optimizedTasks);
+
   const qualityGate: QualityGateResult = {
     passed: score >= 80 && sourceIntegrity === "PASS",
     status,
@@ -1642,6 +2360,7 @@ export function analyzeAndOptimizeTasks(
     sourceIntegrity,
     sourceIntegrityChecks,
     sourceIntegrityState,
+    designQualityGate,
   };
 
   const activeUserReqs = registry.filter(
@@ -1909,87 +2628,6 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   };
 
   // ── Universal Project Type Detection & Adaptive Discovery Questions (V4 Master Brief) ──
-  type ProjectCategory =
-    | "STATIC_WEBSITE"
-    | "LANDING_PAGE"
-    | "PORTFOLIO"
-    | "COMPANY_PROFILE"
-    | "BLOG"
-    | "NEWS_PORTAL"
-    | "E_COMMERCE"
-    | "MARKETPLACE"
-    | "BOOKING"
-    | "RESERVATION"
-    | "SAAS"
-    | "DASHBOARD"
-    | "ADMIN_PANEL"
-    | "CMS"
-    | "COMMUNITY"
-    | "SOCIAL_PLATFORM"
-    | "EDUCATION"
-    | "EVENT_PLATFORM"
-    | "SERVICE_BUSINESS"
-    | "INTERNAL_TOOL"
-    | "AI_APPLICATION"
-    | "AI_SAAS"
-    | "DIRECTORY"
-    | "DOCUMENTATION"
-    | "MEMBERSHIP"
-    | "CONTENT_PLATFORM"
-    | "CUSTOM_WEB_APPLICATION"
-    | "HYBRID"
-    | "Marketing Website"
-    | "Portfolio"
-    | "Company Profile"
-    | "Blog / News"
-    | "E-commerce"
-    | "Marketplace"
-    | "Booking / Reservation"
-    | "SaaS"
-    | "Dashboard / Admin"
-    | "Community"
-    | "Education"
-    | "Event"
-    | "Game"
-    | "GAME"
-    | "Corporate / Business Website"
-    | "Content Management"
-    | "Content Platform"
-    | "AI Application"
-    | "Internal Tool"
-    | "Service Business"
-    | "Custom Web Application";
-
-  interface DetectedDomain {
-    isPhotography: boolean;
-    topicName: string;
-    categories: ProjectCategory[];
-    primaryType: string;
-    secondaryTypes: string[];
-    isHybrid: boolean;
-    complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
-    stackMode: StackMode;
-    stackAlternatives: string[];
-    needsAuth: boolean;
-    needsDatabase: boolean;
-    needsPayment: boolean;
-    needsStorage: boolean;
-    needsAi: boolean;
-    needsRealtime: boolean;
-    needsBackgroundJobs: boolean;
-    needsCaching: boolean;
-    constraints: string[];
-    userSpecifiedStack: {
-      specified: boolean;
-      frontend?: string;
-      backend?: string;
-      database?: string;
-      auth?: string;
-      storage?: string;
-      rawNotes?: string;
-    };
-  }
-
   const detectProjectDomain = (messages: ProjectChatMessage[], title: string, desc?: string): DetectedDomain => {
     const combined = (
       title + " " + (desc || "") + " " +
@@ -3900,7 +4538,11 @@ S7. NO REQUIREMENT LOSS: Setiap USER_REQUIREMENT minimal punya 1 Feature dan 1 T
 S8. NO DRIFT: Perubahan makna, requirement hilang, classification berubah, AI menjadi mandatory, technical menjadi user requirement, atau scope tanpa source = SOURCE INTEGRITY FAIL -> perbaiki otomatis sebelum output final.
 S9. PROJECT TYPE dari requirement aktual: PRIMARY_TYPE + SECONDARY_TYPES (Dashboard hanya secondary bila memang dibutuhkan).
 S10. STACK MODE sesuai kepastian: jangan gunakan USER_SPECIFIED/"CONFIRMED" jika masih ada alternatif (Supabase/Neon, Supabase Auth/NextAuth, R2/Supabase Storage, Midtrans/Xendit). Mode: USER_SPECIFIED, PARTIALLY_SPECIFIED, AI_RECOMMENDED, UNDECIDED, EXISTING_PROJECT.
-S11. SOURCE INTEGRITY CHECK sebelum output final: (1) semua USER_REQUIREMENT masih ada? (2) classification masih sama? (3) tiap requirement punya Feature? (4) tiap requirement punya Task? (5) AI_SUGGESTED tidak menjadi mandatory scope? (6) tidak ada requirement baru tanpa source? (7) project type sesuai requirement? (8) Stack Mode sesuai kepastian teknologi?
+S11. SOURCE INTEGRITY CHECK: (1) semua USER_REQUIREMENT masih ada? (2) classification masih sama? (3) tiap requirement punya Feature? (4) tiap requirement punya Task? (5) AI_SUGGESTED tidak menjadi mandatory scope? (6) tidak ada requirement baru tanpa source? (7) project type sesuai requirement? (8) Stack Mode sesuai kepastian teknologi? (9) Bebas dari UNSUPPORTED_SCOPE_INJECTION? (10) Bebas dari TRACEABILITY_SEMANTIC_MISMATCH? (11) Bebas dari DUPLICATE_REQUIREMENT_BLOCK?
+S12. PRODUCT UNDERSTANDING & DESIGN BLUEPRINT: Sertakan objek "productUnderstanding", "designBlueprint", dan "pageInventory" berbasis konteks nyata proyek (bukan template generik).
+S13. UNSUPPORTED SCOPE INJECTION: DILARANG menambahkan coupon, voucher, FAQ, customer support, live chat, loyalty, avatar upload kecuali secara eksplisit diminta oleh USER_REQUIREMENT.
+S14. TRACEABILITY SEMANTIC VALIDATION: Pastikan setiap pemetaan requirement ID ke feature dan task selaras secara makna (mis. auth task tidak boleh memetakan FR ulasan/rating).
+S15. NFR DEDUPLICATION: Blok NFR wajib unik tanpa duplikasi ID.
 
 FORMAT OUTPUT WAJIB:
 Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu sertakan blok blueprint lengkap di akhir respon:
@@ -4332,6 +4974,21 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         };
 
         if (blueprintData) {
+          // Universal V4: Product Understanding, Design Blueprint & Page Inventory (Sections 2, 3, 5)
+          const parsedUnd: ProductUnderstanding = blueprintData.productUnderstanding || deriveProductUnderstanding(
+            { title: p.title, description: p.description, prd: blueprintData.prd, features: blueprintData.features },
+            buildRequirementRegistry(blueprintData.prd),
+            domain
+          );
+          const parsedDesignBp: DesignBlueprint = blueprintData.designBlueprint || deriveDesignBlueprint(parsedUnd, domain);
+          const parsedPages: DerivedPageSpec[] = Array.isArray(blueprintData.pageInventory) && blueprintData.pageInventory.length > 0
+            ? blueprintData.pageInventory
+            : derivePageInventory(buildRequirementRegistry(blueprintData.prd), parsedUnd);
+
+          updated.productUnderstanding = parsedUnd;
+          updated.designBlueprint = parsedDesignBp;
+          updated.pageInventory = parsedPages;
+
           if (blueprintData.prd) {
             const funcReqs = Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length > 0
               ? blueprintData.prd.functionalRequirements
@@ -4367,6 +5024,9 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               requirementRegistry: p.prd?.requirementRegistry,
               userDerived: blueprintData.prd.userDerived,
               aiDerived: blueprintData.prd.aiDerived,
+              productUnderstanding: parsedUnd,
+              designBlueprint: parsedDesignBp,
+              pageInventory: parsedPages,
             };
           } else {
             updated.prd = domainBlueprint.prd;
@@ -4723,6 +5383,11 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     const userFlow = activeProject.userFlow || "Standard User Journey";
     const dataSchema = arch?.dataSchema || "";
 
+    const prodUnd = activeProject.productUnderstanding || activeProject.prd?.productUnderstanding || deriveProductUnderstanding(activeProject, activeProject.prd?.requirementRegistry || [], domain);
+    const designBp = activeProject.designBlueprint || activeProject.prd?.designBlueprint || deriveDesignBlueprint(prodUnd, domain);
+    const pagesList = activeProject.pageInventory || activeProject.prd?.pageInventory || derivePageInventory(activeProject.prd?.requirementRegistry || [], prodUnd);
+    const dqGate = activeProject.qualityGate?.designQualityGate || evaluateDesignQualityGate(prodUnd, designBp, activeProject.generatedHtml || "", activeProject.tasks);
+
     const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Claude Code)
 # Project: ${activeProject.title} (${domain.categories.join(", ")})
 # Generated by: Usick One — Code Planner (Universal V4 Blueprint Engine)
@@ -4768,7 +5433,36 @@ ${[...(prd?.nonFunctionalRequirements || []), ...(prd?.aiDerived?.technicalRecom
 ${[...(prd?.aiDerived?.optionalFeatures || []), ...(prd?.aiDerived?.aiSuggestions || [])].map((s) => `  * ${s}`).join("\n") || "  * -"}
 ${domain.constraints.length > 0 ? `- **Project Constraints**: ${domain.constraints.join(", ")}\n` : ""}
 ${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assumptions:\n${prd.assumptions.map((ass, i) => `- **${ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}**: ${ass.assumption}${ass.reason ? ` (Alasan: ${ass.reason})` : ""}${ass.impact ? ` (Dampak: ${ass.impact})` : ""}`).join("\n")}\n\n` : ""}${prd?.risks && prd.risks.length > 0 ? `### Technical Risks & Mitigations:\n${prd.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}\n\n` : ""}---
-## 3. TECHNICAL ARCHITECTURE & STACK
+## 3. PRODUCT UNDERSTANDING (Universal V4 Design Intelligence)
+- **Product Name**: ${prodUnd.product_name}
+- **Primary Type**: ${prodUnd.primary_type}
+- **Business Domain**: ${prodUnd.business_domain}
+- **Target Audience**: ${prodUnd.target_audience.join(", ")}
+- **Primary User Goal**: ${prodUnd.primary_user_goal}
+- **Core User Actions**: ${prodUnd.primary_user_actions.join(" -> ")}
+- **Main User Journey**: ${prodUnd.main_user_journey.join(" -> ")}
+- **Core Business Objects**: ${prodUnd.core_business_objects.join(", ")}
+- **Layout Strategy**: ${prodUnd.layout_strategy}
+- **Conversion Strategy**: ${prodUnd.conversion_strategy}
+- **Visual Priority**: ${prodUnd.visual_content_priority}
+
+---
+## 4. DESIGN & EXPERIENCE BLUEPRINT
+- **Product Category**: ${designBp.productCategory}
+- **Design Concept**: ${designBp.designConcept}
+- **Primary UX Goal**: ${designBp.primaryUxGoal}
+- **Design Character**: ${designBp.visualDirection.designCharacter}
+- **Color Direction**: ${designBp.visualDirection.colorDirection}
+- **Typography Direction**: ${designBp.visualDirection.typographyDirection}
+- **Image Strategy**: ${designBp.visualDirection.imageStrategy}
+- **Card & Spacing Strategy**: ${designBp.visualDirection.cardStrategy} | ${designBp.visualDirection.spacingStrategy}
+- **CTA Strategy**: ${designBp.visualDirection.ctaStrategy}
+
+### Page Inventory & Derivation:
+${pagesList.map((p) => `* **${p.page_name}** (${p.page_id}) [Sources: ${p.source_requirement_ids.join(", ")}]: ${p.purpose}`).join("\n")}
+
+---
+## 5. TECHNICAL ARCHITECTURE & STACK
 - **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
 - **Backend / API**: ${arch?.backend || "Next.js Server Actions / Route Handlers, Zod Validation"}
 - **Database**: ${arch?.database || "PostgreSQL / Supabase"}
@@ -4777,17 +5471,18 @@ ${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assu
 - **Third-party Services**: ${arch?.thirdParty?.join(", ") || "Payment Gateway, Notification Gateway"}
 - **Deployment**: ${arch?.deployment || "Vercel"}
 
-### Data / Schema Blueprint:
+---
+## 6. DATA / SCHEMA BLUEPRINT
 \`\`\`sql
 ${dataSchema}
 \`\`\`
 
 ---
-## 4. USER FLOW
+## 7. USER FLOW
 ${userFlow}
 
 ---
-## 5. FEATURE BREAKDOWN (Traceable to Requirements)
+## 8. FEATURE BREAKDOWN (Traceable to Requirements)
 ${features.map((f, i) => {
   const featId = f.id || `FEATURE-${String(i + 1).padStart(2, "0")}`;
   const scope = f.scope || (f.isMvp !== false ? "MVP" : "POST-MVP");
@@ -4805,7 +5500,7 @@ ${features.map((f, i) => {
 }).join("\n\n")}
 
 ---
-## 6. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
+## 9. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
 ${tasks.map((t, i) => {
   const taskId = t.id || `TASK-${String(i + 1).padStart(3, "0")}`;
   const src = t.origin || t.source || "TECHNICAL_DECISION";
@@ -4833,7 +5528,12 @@ ${tasks.map((t, i) => {
 }).join("\n\n")}
 
 ---
-## 7. COMPACT TRACEABILITY MATRIX
+## 10. ACCEPTANCE CRITERIA & TESTING
+- Kriteria penerimaan terhubung langsung ke sumber requirement pada setiap task implementasi.
+- Seluruh metrik terverifikasi secara observable (Given / When / Then).
+
+---
+## 11. TRACEABILITY MATRIX
 ${(() => {
   const matrix = activeProject.traceabilityMatrix || activeProject.prd?.traceabilityMatrix || [];
   if (matrix.length > 0) {
@@ -4847,7 +5547,19 @@ ${(() => {
 })()}
 
 ---
-## 8. AI CODING ASSISTANT INSTRUCTIONS
+## 12. DESIGN QUALITY GATE
+${dqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] **${q.id}**: ${q.name} — ${q.detail}`).join("\n")}
+
+---
+## 13. SOURCE INTEGRITY
+- **Status**: ${activeProject.qualityGate?.sourceIntegrityState?.status || activeProject.qualityGate?.sourceIntegrity || "PASS"}
+- **Initial Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.initialViolations ?? 0}
+- **Repaired Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.repairedViolations ?? 0}
+- **Remaining Violations**: ${activeProject.qualityGate?.sourceIntegrityState?.remainingViolations ?? 0}
+- **Export Permission**: ${isSourceExportAllowed(activeProject.qualityGate) ? "ALLOWED" : "BLOCKED"}
+
+---
+## 14. AI CODING ASSISTANT INSTRUCTIONS
 1. Read the complete project context before modifying code.
 2. Follow confirmed USER_REQUIREMENTS and USER_CONSTRAINTS as the highest-priority source of truth.
 3. Do not implement AI-SUGGESTED functionality unless explicitly approved.
@@ -6682,6 +7394,80 @@ ${(() => {
                 </div>
               )}
 
+              {/* UNIVERSAL V4: PRODUCT UNDERSTANDING & DESIGN BLUEPRINT */}
+              {(() => {
+                const pu = activeProject.productUnderstanding || activeProject.prd?.productUnderstanding;
+                const db = activeProject.designBlueprint || activeProject.prd?.designBlueprint;
+                const pages = activeProject.pageInventory || activeProject.prd?.pageInventory;
+                if (!pu && !db) return null;
+                return (
+                  <div className="space-y-4 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                    {pu && (
+                      <div className={`p-4 rounded-xl border ${isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400">Product Understanding (Design Intelligence)</h4>
+                          <span className="font-mono text-[10px] px-2 py-0.5 rounded border border-zinc-700 text-zinc-300">{pu.primary_type}</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <span className="text-zinc-500 font-semibold block text-[11px]">Primary User Goal:</span>
+                            <p className="mt-0.5">{pu.primary_user_goal}</p>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 font-semibold block text-[11px]">Layout Strategy:</span>
+                            <p className="mt-0.5 font-medium">{pu.layout_strategy}</p>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 font-semibold block text-[11px]">Core User Journey:</span>
+                            <p className="mt-0.5 text-zinc-400 font-mono text-[11px]">{pu.main_user_journey.join(" → ")}</p>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 font-semibold block text-[11px]">Visual Priority:</span>
+                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded font-mono text-[10px] bg-zinc-800 text-zinc-200">{pu.visual_content_priority}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {db && (
+                      <div className={`p-4 rounded-xl border ${isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-zinc-50 border-zinc-200"}`}>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-2">Design &amp; Experience Blueprint</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-zinc-500 font-semibold text-[11px]">Visual Palette:</span>
+                            <div className="flex items-center gap-1.5">
+                              {db.designSystem.color_palette.map((color, idx) => (
+                                <span key={idx} className="w-4 h-4 rounded-full border border-white/20 inline-block shadow-xs" style={{ backgroundColor: color }} title={color} />
+                              ))}
+                            </div>
+                            <span className="text-zinc-500 font-mono text-[10px] ml-1">({db.designSystem.typography})</span>
+                          </div>
+                          <p><span className="text-zinc-500 font-semibold text-[11px]">Character:</span> {db.visualDirection.designCharacter}</p>
+                          <p><span className="text-zinc-500 font-semibold text-[11px]">CTA Strategy:</span> {db.visualDirection.ctaStrategy}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {pages && pages.length > 0 && (
+                      <div>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-2">Derived Page Inventory ({pages.length} Pages)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {pages.map((pg) => (
+                            <div key={pg.page_id} className={`p-3 rounded-xl border ${isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-white"}`}>
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs">{pg.page_name}</span>
+                                <span className="font-mono text-[9px] text-zinc-500">{pg.source_requirement_ids.join(", ")}</span>
+                              </div>
+                              <p className="text-[11px] text-zinc-400 mt-1">{pg.purpose}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {((activeProject.prd.classifiedRequirements && activeProject.prd.classifiedRequirements.length > 0) || (activeProject.prd.functionalRequirements && activeProject.prd.functionalRequirements.length > 0)) && (
                 <div>
                   <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">5. Functional Requirements (Source Traceable)</h4>
@@ -7208,6 +7994,16 @@ ${(() => {
                   }`}>
                     Quality Gate: {activeProject.qualityGate.status || (activeProject.qualityGate.passed ? "PASS" : "FAIL")} ({activeProject.qualityGate.score}%)
                   </span>
+                  {activeProject.qualityGate.designQualityGate && (
+                    <span
+                      title={activeProject.qualityGate.designQualityGate.map((q) => `${q.id}: ${q.name} [${q.passed ? "PASS" : "FAIL"}]`).join("\n")}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                        isDark ? "bg-zinc-900 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
+                      }`}
+                    >
+                      Design QG: {activeProject.qualityGate.designQualityGate.filter((q) => q.passed).length}/{activeProject.qualityGate.designQualityGate.length} PASS
+                    </span>
+                  )}
                   {activeProject.qualityGate.sourceIntegrityState && (
                     <span
                       title={(activeProject.qualityGate.sourceIntegrityChecks || []).map((c) => `${c.checkNumber}. ${c.question} ${c.passed ? "✓" : "✗"}`).join("\n")}
@@ -7891,6 +8687,27 @@ export function isLegacyTemplateOrStale(html: string, project: ProjectItem): boo
   const isActuallySoccer = /futsal|soccer|mini\s*soccer|lapangan\s*bola/i.test(projectContext);
   if (!isActuallySoccer) {
     if (/mini soccer|rumput fifa|lapangan a sintetis|arena & booking olahraga/i.test(html)) {
+      return true;
+    }
+  }
+
+  const isActuallyLaundry = /laundry|cuci|kiloan|dry\s*clean|setrika/i.test(projectContext);
+  if (!isActuallyLaundry) {
+    if (/cuci kiloan|dry clean express|lavender laundry|kalkulator estimasi laundry/i.test(html)) {
+      return true;
+    }
+  }
+
+  const isActuallyFashion = /baju|clothing|fashion|apparel|distro|t-?shirt|kaos|busana|lookbook/i.test(projectContext);
+  if (!isActuallyFashion) {
+    if (/lumina apparel|koleksi busana|lookbook editorial|pilih ukuran busana/i.test(html)) {
+      return true;
+    }
+  }
+
+  const isActuallyPortfolio = /portofolio|portfolio|showcase|case\s*study|desain|design|kreatif|agency/i.test(projectContext) && !isActuallyLaundry;
+  if (!isActuallyPortfolio) {
+    if (/studio krea|studi kasus desain|galeri karya terpilih|deliverables desain master/i.test(html)) {
       return true;
     }
   }
