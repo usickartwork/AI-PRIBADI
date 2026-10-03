@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
+import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -498,7 +499,7 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"chats" | "code">("chats");
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">("chats");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -828,8 +829,8 @@ export default function Home() {
       const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
 
       if (deltaY < 80) {
-        // Swipe to right from anywhere on screen to slide open panel (nonaktif saat di halaman code)
-        if (deltaX > 45 && !sidebarOpen && activeView !== "code") {
+        // Swipe to right from anywhere on screen to slide open panel (hanya aktif di halaman chat)
+        if (deltaX > 45 && !sidebarOpen && activeView === "chats") {
           setSidebarOpen(true);
         }
         // Swipe to left to close panel when open
@@ -1700,6 +1701,24 @@ export default function Home() {
               <span>Code</span>
             </div>
 
+            {/* Schedule Feature Button */}
+            <div
+              onClick={() => {
+                setActiveView("schedule");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                activeView === "schedule"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>Schedule</span>
+            </div>
+
             <div
               onClick={() => setSettingsOpen(true)}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
@@ -1856,6 +1875,13 @@ export default function Home() {
       }`}>
         {activeView === "code" ? (
           <CodeWorkspace isDark={isDark} onClose={() => setActiveView("chats")} />
+        ) : activeView === "schedule" ? (
+          <ScheduleWorkspace
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            user={user}
+            setShowAuthModal={setShowAuthModal}
+          />
         ) : (
           <>
             {/* Top App Bar */}
