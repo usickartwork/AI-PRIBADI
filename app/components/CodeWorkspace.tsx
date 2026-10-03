@@ -310,6 +310,9 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [showCustomInput, setShowCustomInput] = useState<Record<string, boolean>>({});
 
+  // Estafet Blueprint Generation Pipeline State
+  const [estafetStage, setEstafetStage] = useState<"idle" | "prd" | "features" | "architecture" | "tasks" | "completed">("idle");
+
   const autoResizeChat = () => {
     const el = chatTextareaRef.current;
     if (!el) return;
@@ -400,35 +403,6 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
     } catch {}
   }, [projects]);
-
-  // Pastikan proyek yang belum memiliki PRD memiliki kartu pertanyaan klarifikasi interaktif
-  useEffect(() => {
-    setProjects((prev) => {
-      let changed = false;
-      const updated = prev.map((p) => {
-        if (
-          (!p.prd || !p.prd.overview) &&
-          p.messages.length <= 1 &&
-          p.messages[0]?.role === "assistant" &&
-          !p.messages[0]?.content?.includes("<<<QUESTIONS_JSON>>>")
-        ) {
-          changed = true;
-          const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(p.title, p.description);
-          return {
-            ...p,
-            messages: [
-              {
-                ...p.messages[0],
-                content: `${welcomeText}${questionsJson}`,
-              },
-            ],
-          };
-        }
-        return p;
-      });
-      return changed ? updated : prev;
-    });
-  }, []);
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
@@ -650,20 +624,26 @@ Sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silak
   const handleCreateProject = () => {
     if (!newTitle.trim()) return;
     const title = newTitle.trim();
-    const desc = newDesc.trim() || "Proyek perencanaan aplikasi dengan AI.";
-    const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(title, desc);
+    const desc = newDesc.trim();
 
+    const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
+
+Silakan ceritakan brief atau konsep website/aplikasi yang ingin Anda buat (misalnya: tujuan utama proyek, siapa target penggunanya, dan gambaran fitur atau alur yang Anda bayangkan).
+
+Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan beberapa pertanyaan spesifik untuk menyesuaikan PRD, modul fitur, user flow, arsitektur database, dan task board secara estafet!`;
+
+    const newProjId = "proj-" + Date.now();
     const newProj: ProjectItem = {
-      id: "proj-" + Date.now(),
+      id: newProjId,
       title,
-      description: desc,
+      description: desc || "Proyek perencanaan aplikasi dengan AI.",
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: [
         {
           id: "m-welcome",
           role: "assistant",
-          content: `${welcomeText}${questionsJson}`,
+          content: welcomeText,
           createdAt: Date.now(),
         },
       ],
@@ -676,6 +656,12 @@ Sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silak
     setShowNewModal(false);
     setNewTitle("");
     setNewDesc("");
+
+    if (desc) {
+      setTimeout(() => {
+        handleSendChatMessage(desc, newProj.id);
+      }, 350);
+    }
   };
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
@@ -1040,9 +1026,11 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
   };
 
   // ── Chat & Automatic Blueprint Generation ──────────────────────────────────────
-  const handleSendChatMessage = async (presetText?: string) => {
+  const handleSendChatMessage = async (presetText?: string, targetProjId?: string) => {
     const textToSend = (presetText || chatInput).trim();
-    if (!textToSend || !activeProject || isChatLoading) return;
+    const targetId = targetProjId || activeProjectId;
+    const currentProject = projects.find((p) => p.id === targetId) || activeProject;
+    if (!textToSend || !currentProject || isChatLoading) return;
 
     const userMsg: ProjectChatMessage = {
       id: "msg-" + Date.now(),
@@ -1051,8 +1039,8 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
       createdAt: Date.now(),
     };
 
-    const updatedMessages = [...activeProject.messages, userMsg];
-    const projId = activeProject.id;
+    const updatedMessages = [...currentProject.messages, userMsg];
+    const projId = currentProject.id;
 
     setProjects((prev) =>
       prev.map((p) =>
@@ -1064,10 +1052,57 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
     if (!presetText) setChatInput("");
     setIsChatLoading(true);
 
-    const domain = detectProjectDomain(updatedMessages, activeProject.title, activeProject.description);
+    const isAnsweringQuestions =
+      textToSend.includes("klarifikasi kebutuhan proyek") ||
+      textToSend.includes("Berikut klarifikasi kebutuhan") ||
+      /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend);
 
-    const systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
-Pengguna sedang mengembangkan ide project: "${domain.topicName}" (Nama project di workspace: "${activeProject.title}"). Deskripsi awal: "${activeProject.description || "N/A"}".
+    let stageTimer1: NodeJS.Timeout | null = null;
+    let stageTimer2: NodeJS.Timeout | null = null;
+    let stageTimer3: NodeJS.Timeout | null = null;
+
+    if (isAnsweringQuestions) {
+      setEstafetStage("prd");
+      stageTimer1 = setTimeout(() => setEstafetStage("features"), 1800);
+      stageTimer2 = setTimeout(() => setEstafetStage("architecture"), 3600);
+      stageTimer3 = setTimeout(() => setEstafetStage("tasks"), 5400);
+    } else {
+      setEstafetStage("idle");
+    }
+
+    const domain = detectProjectDomain(updatedMessages, currentProject.title, currentProject.description);
+
+    let systemPrompt = "";
+    if (!isAnsweringQuestions) {
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+Pengguna sedang mendiskusikan brief dan ide website untuk proyek: "${domain.topicName}" (Nama proyek: "${currentProject.title}").
+
+TUGAS UTAMA:
+1. Pahami brief pengguna, berikan respon ramah dan apresiasi ide tersebut (1-2 paragraf pendek) yang menggarisbawahi value proposition dan potensi utamanya.
+2. Ajukan 3 sampai 4 pertanyaan pilihan ganda yang SANGAT RELEVAN dan SPESIFIK sesuai brief untuk mengklarifikasi preferensi fitur, target pengguna, dan alur kerja utama.
+3. SERTAKAN BLOK PILIHAN GANDA INTERAKTIF di akhir respon menggunakan format persis berikut:
+
+<<<QUESTIONS_JSON>>>
+[
+  {
+    "id": "q1",
+    "question": "Pertanyaan spesifik sesuai brief 1?",
+    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
+  },
+  {
+    "id": "q2",
+    "question": "Pertanyaan spesifik sesuai brief 2?",
+    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
+  }
+]
+<<<END_QUESTIONS_JSON>>>
+
+PENTING:
+- DILARANG membuat blueprint PRD atau Task Board sekarang!
+- Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
+    } else {
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+Pengguna telah menjawab seluruh pertanyaan klarifikasi kebutuhan untuk proyek: "${domain.topicName}" (Nama project di workspace: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
 
 PERHATIAN KRUSIAL TENTANG TOPIK:
 - Pengguna mendiskusikan topik: "${domain.topicName}".
@@ -1076,32 +1111,8 @@ PERHATIAN KRUSIAL TENTANG TOPIK:
 ${domain.isPhotography ? `- KHUSUS PROYEK FOTOGRAFI: Wajib mencakup Showcase Portofolio Masonry dengan EXIF data kamera/lensa, Kalender Booking Sesi Photoshoot (Studio & Outdoor), Pilihan Paket Foto (Wedding, Prewedding, Portrait, Event) & Add-ons (MUA, extra hours, album cetak), Client Proofing Portal ber-watermark untuk seleksi foto klien, High-Res Digital Delivery / Cloud ZIP Download, Pembayaran Bertahap (DP 50% & Pelunasan), dan Skema DDL SQL nyata dengan tabel photographers, photo_packages, shoot_bookings, client_galleries, gallery_photos, retouch_requests, invoices.` : ""}
 
 ATURAN KERJA & WORKFLOW (IKUTI SECARA KETAT):
-
-FASE 1: REQUIREMENT DISCOVERY (Klarifikasi & Penggalian Kebutuhan):
-Jika pengguna baru memperkenalkan ide, menyapa, memberikan ide singkat, atau kebutuhan detail proyek belum jelas:
-- JANGAN langsung membuat PRD atau Task Board terburu-buru tanpa data yang cukup.
-- Berikan respon ramah & ringkas dalam bahasa Indonesia (1-2 paragraf pendek) yang mengapresiasi dan memetakan potensi ide tersebut.
-- Ajukan 2 sampai 4 pertanyaan krusial yang relevan untuk memperjelas kebutuhan (target pengguna, alur kerja utama, metode login/akses, atau sistem pembayaran).
-- SERTAKAN BLOK PILIHAN GANDA INTERAKTIF di akhir respon menggunakan format persis berikut:
-
-<<<QUESTIONS_JSON>>>
-[
-  {
-    "id": "q1",
-    "question": "Pertanyaan spesifik 1?",
-    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
-  },
-  {
-    "id": "q2",
-    "question": "Pertanyaan spesifik 2?",
-    "options": ["Opsi Pilihan A", "Opsi Pilihan B", "Opsi Pilihan C"]
-  }
-]
-<<<END_QUESTIONS_JSON>>>
-
-FASE 2: BLUEPRINT GENERATION (PRD, Arsitektur & Tasks yang KAYA, MENDALAM & LENGKAP):
-Jika pengguna sudah menjawab pertanyaan discovery, ATAU pengguna secara eksplisit meminta: "buatkan prd", "generate blueprint", "rancang arsitektur", "buatkan task", atau informasi sudah cukup:
-- Berikan kesimpulan singkat & profesional (1-2 paragraf) bahwa seluruh spesifikasi teknis telah selesai dirumuskan.
+Pengguna telah menjawab pertanyaan discovery dan siap masuk ke tahap Blueprint.
+- Berikan kesimpulan singkat & profesional (1-2 paragraf) bahwa seluruh spesifikasi teknis telah dirumuskan secara estafet (Tahap 1: PRD, Tahap 2: Fitur, Tahap 3: User Flow & Arsitektur Database, Tahap 4: Actionable Tasks).
 - WAJIB MENYERTAKAN BLOK BLUEPRINT LENGKAP, SANGAT DETAIL, DAN KOMPREHENSIF (JANGAN PERNAH MEMBERIKAN DATA MINIMALIS ATAU SEDIKIT) di akhir respon menggunakan format persis berikut:
 
 <<<BLUEPRINT_JSON>>>
@@ -1227,11 +1238,8 @@ Jika pengguna sudah menjawab pertanyaan discovery, ATAU pengguna secara eksplisi
     { "title": "Deployment Production ke Vercel & Monitoring", "description": "Konfigurasi domain kustom, DNS, environment variables production, dan setup monitoring error log.", "status": "todo", "phase": "Phase 7 - QA & Deployment" }
   ]
 }
-<<<END_BLUEPRINT_JSON>>>
-
-PENTING:
-- Pastikan format JSON valid tanpa syntax error.
-- Hasilkan blueprint yang KAYA, SPESIFIK SESUAI TOPIK PENGGUNA, DAN SIAP DIGUNAKAN SEBAGAI PROMPT AI CODING TOOL.`;
+<<<END_BLUEPRINT_JSON>>>`;
+    }
 
     const assistantMsgId = "ai-" + Date.now();
 
@@ -1309,12 +1317,41 @@ PENTING:
         }
       }
 
-      // Selesai streaming: pastikan ada konten dan sinkronkan ke state project
-      if (!rawStream.trim()) {
-        rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
+      if (stageTimer1) clearTimeout(stageTimer1);
+      if (stageTimer2) clearTimeout(stageTimer2);
+      if (stageTimer3) clearTimeout(stageTimer3);
+
+      if (isAnsweringQuestions) {
+        setEstafetStage("completed");
+        if (!rawStream.trim()) {
+          rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
+        }
+        parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
+      } else {
+        setEstafetStage("idle");
+        // Jika sedang fase diskusi brief, pastikan pertanyaan discovery ada di akhir respons
+        if (!rawStream.includes("<<<QUESTIONS_JSON>>>")) {
+          const { questionsJson } = generateInitialDiscoveryQuestions(currentProject.title, textToSend || currentProject.description);
+          rawStream = rawStream.trim() + questionsJson;
+          setProjects((prev) =>
+            prev.map((p) =>
+              p.id === projId
+                ? {
+                    ...p,
+                    messages: p.messages.map((m) =>
+                      m.id === assistantMsgId ? { ...m, content: rawStream } : m
+                    ),
+                  }
+                : p
+            )
+          );
+        }
       }
-      parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
     } catch (err: unknown) {
+      if (stageTimer1) clearTimeout(stageTimer1);
+      if (stageTimer2) clearTimeout(stageTimer2);
+      if (stageTimer3) clearTimeout(stageTimer3);
+      setEstafetStage("idle");
       console.error("Code AI error:", err);
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan saat memproses.";
       setProjects((prev) =>
@@ -1335,6 +1372,9 @@ PENTING:
         )
       );
     } finally {
+      if (stageTimer1) clearTimeout(stageTimer1);
+      if (stageTimer2) clearTimeout(stageTimer2);
+      if (stageTimer3) clearTimeout(stageTimer3);
       setIsChatLoading(false);
     }
   };
@@ -1412,10 +1452,9 @@ PENTING:
     const jsonStart = result.indexOf("<<<BLUEPRINT_JSON>>>");
     if (jsonStart !== -1) {
       const before = result.slice(0, jsonStart).trim();
-      result = (
-        before +
-        "\n\n> **Blueprint Proyek Telah Dibuat:** PRD, daftar fitur, arsitektur teknis, dan papan task board telah otomatis diperbarui pada tab di atas!"
-      );
+      result = before
+        ? `${before}\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`
+        : `Spesifikasi teknis dan blueprint proyek telah selesai dirumuskan secara estafet sesuai brief dan jawaban klarifikasi Anda.\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`;
     }
     return result;
   };
@@ -2518,6 +2557,16 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                 ? { cleanText: m.content, questions: [] }
                 : parseQuestionsFromText(rawClean);
 
+              const hasBlueprint =
+                !isUser &&
+                !isAssistantLoading &&
+                (rawClean.includes("Blueprint Proyek Telah") ||
+                  m.content.includes("<<<BLUEPRINT_JSON>>>") ||
+                  (Boolean(activeProject.prd?.overview) &&
+                    mIdx === activeProject.messages.length - 1 &&
+                    questions.length === 0 &&
+                    mIdx > 0));
+
               return (
                 <div key={m.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                   {!isUser && (
@@ -2544,15 +2593,15 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     <div className={`max-w-2xl rounded-2xl px-4 py-3 text-xs sm:text-[13px] leading-relaxed ${
                       isDark ? "bg-zinc-900 border border-zinc-800 text-zinc-200" : "bg-white border border-zinc-200 text-zinc-800 shadow-xs"
                     }`}>
-                      {(!m.content || !cleanText) && isAssistantLoading ? (
-                        /* Animasi Generate: Skeleton & Pulse Shimmer saat menunggu respons awal HANYA jika sedang loading */
+                      {(!m.content || !cleanText) && isAssistantLoading && estafetStage === "idle" ? (
+                        /* Animasi Diskusi Brief Awal: Skeleton & Pulse Shimmer saat menunggu respons */
                         <div className="py-1">
                           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-zinc-200/80 dark:border-zinc-800/80 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                             <span className="relative flex h-2 w-2">
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-600 dark:bg-zinc-200"></span>
                             </span>
-                            <span className="animate-pulse">Sedang menganalisis kebutuhan &amp; merumuskan blueprint proyek...</span>
+                            <span className="animate-pulse">Sedang menganalisis brief &amp; menyiapkan pertanyaan spesifikasi...</span>
                           </div>
                           <div className="space-y-2.5">
                             <div className="h-3 w-4/5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 animate-pulse" />
@@ -2562,13 +2611,137 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                         </div>
                       ) : (
                         <>
-                          {isAssistantLoading && (
+                          {/* Live Estafet Status Pipeline saat sedang memproses blueprint */}
+                          {isAssistantLoading && estafetStage !== "idle" && (
+                            <div className={`mb-3.5 p-3.5 rounded-2xl border transition-all ${
+                              isDark ? "bg-zinc-950/80 border-zinc-800/90" : "bg-zinc-50 border-zinc-200"
+                            }`}>
+                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                                <div className="flex items-center gap-2">
+                                  <span className="relative flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                  </span>
+                                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                    Pipeline Estafet: Memproses Blueprint Proyek
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium">
+                                  {estafetStage === "prd" && "Tahap 1 / 4"}
+                                  {estafetStage === "features" && "Tahap 2 / 4"}
+                                  {estafetStage === "architecture" && "Tahap 3 / 4"}
+                                  {estafetStage === "tasks" && "Tahap 4 / 4"}
+                                  {estafetStage === "completed" && "Selesai 4 / 4"}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5">
+                                {/* Tahap 1: PRD */}
+                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                  estafetStage === "prd"
+                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                    : "text-emerald-600 dark:text-emerald-400 font-medium"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {estafetStage === "prd" ? (
+                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                    ) : (
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                    <span>1. Merumuskan Dokumen PRD &amp; Analisis Kebutuhan</span>
+                                  </div>
+                                  <span className="text-[11px]">
+                                    {estafetStage === "prd" ? "Sedang merumuskan..." : "Selesai ✓"}
+                                  </span>
+                                </div>
+
+                                {/* Tahap 2: Fitur */}
+                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                  estafetStage === "features"
+                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                    : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    : "text-zinc-400"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {estafetStage === "features" ? (
+                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                    ) : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed" ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                    )}
+                                    <span>2. Memecah Modul &amp; Spesifikasi Fitur Terperinci</span>
+                                  </div>
+                                  <span className="text-[11px]">
+                                    {estafetStage === "features" ? "Sedang memproses..." : estafetStage === "prd" ? "Menunggu giliran" : "Selesai ✓"}
+                                  </span>
+                                </div>
+
+                                {/* Tahap 3: Flow & Arsitektur */}
+                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                  estafetStage === "architecture"
+                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                    : estafetStage === "tasks" || estafetStage === "completed"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    : "text-zinc-400"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {estafetStage === "architecture" ? (
+                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                    ) : estafetStage === "tasks" || estafetStage === "completed" ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                    )}
+                                    <span>3. Merancang User Flow &amp; Arsitektur Database SQL</span>
+                                  </div>
+                                  <span className="text-[11px]">
+                                    {estafetStage === "architecture" ? "Sedang menyusun..." : estafetStage === "prd" || estafetStage === "features" ? "Menunggu giliran" : "Selesai ✓"}
+                                  </span>
+                                </div>
+
+                                {/* Tahap 4: Tasks */}
+                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                  estafetStage === "tasks"
+                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                    : estafetStage === "completed"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                                    : "text-zinc-400"
+                                }`}>
+                                  <div className="flex items-center gap-2">
+                                    {estafetStage === "tasks" ? (
+                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                    ) : estafetStage === "completed" ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                    )}
+                                    <span>4. Menyusun Actionable Development Tasks</span>
+                                  </div>
+                                  <span className="text-[11px]">
+                                    {estafetStage === "tasks" ? "Sedang merangkum..." : estafetStage === "completed" ? "Selesai ✓" : "Menunggu giliran"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {isAssistantLoading && estafetStage === "idle" && (
                             <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-200/60 dark:border-zinc-800/60 text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
                               <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-600 dark:bg-zinc-200"></span>
                               </span>
-                              <span className="animate-pulse">AI sedang merancang spesifikasi &amp; blueprint proyek...</span>
+                              <span className="animate-pulse">AI sedang menganalisis brief proyek...</span>
                             </div>
                           )}
 
@@ -2576,6 +2749,99 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
 
                           {isAssistantLoading && (
                             <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-zinc-700 dark:bg-zinc-300 animate-pulse rounded-2xs" />
+                          )}
+
+                          {/* Kartu Ringkasan Estafet Selesai (Completed Estafet Summary Card) */}
+                          {hasBlueprint && (
+                            <div className={`mt-4 p-4 rounded-2xl border transition-all ${
+                              isDark ? "bg-zinc-950/70 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                            }`}>
+                              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                    Estafet Perencanaan Berhasil Diselesaikan!
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                  Semua Tahap Selesai (4/4)
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-[11px] mb-3">
+                                <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
+                                  <div className="text-zinc-400 text-[10px]">Tahap 1: PRD</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">100% Spesifikasi Lengkap</div>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
+                                  <div className="text-zinc-400 text-[10px]">Tahap 2: Fitur</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.features && activeProject.features.length) || 6} Modul Siap Eksekusi</div>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
+                                  <div className="text-zinc-400 text-[10px]">Tahap 3: Flow &amp; Arsitektur</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">User Flow &amp; DDL SQL Siap</div>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
+                                  <div className="text-zinc-400 text-[10px]">Tahap 4: Tasks</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 9} Actionable Items</div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveTab("mindmap");
+                                    setIsPerencanaanOpen(true);
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                                  }`}
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                  </svg>
+                                  <span>Buka Peta Rencana (Mindmap)</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("prd")}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                                    isDark ? "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200" : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700"
+                                  }`}
+                                >
+                                  <span>Buka Wiki PRD</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("tasks")}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                                    isDark ? "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200" : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700"
+                                  }`}
+                                >
+                                  <span>Buka Task Board</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={copyEverythingText}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                                    isDark ? "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200" : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700"
+                                  }`}
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  <span>Salin Master Context</span>
+                                </button>
+                              </div>
+                            </div>
                           )}
 
                           {/* Pertanyaan Discovery Interaktif: Pilih Semua Baru Kirim Sekaligus */}
