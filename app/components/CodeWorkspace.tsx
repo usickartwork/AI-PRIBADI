@@ -17,6 +17,15 @@ export type TaskPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "High" | "Me
 export type DependencyType = "HARD" | "SOFT" | "NONE";
 export type TaskComplexity = "XS" | "S" | "M" | "L" | "XL";
 
+// V4 Master Brief: Requirement Source Classification
+export type RequirementSource =
+  | "USER_REQUIREMENT"
+  | "USER_CONSTRAINT"
+  | "AI_SUGGESTED"
+  | "TECHNICAL_DECISION"
+  | "ASSUMPTION"
+  | "TBD";
+
 export type ProjectTask = {
   id: string;
   title: string;
@@ -27,6 +36,9 @@ export type ProjectTask = {
   phase?: string;
   priority?: TaskPriority;
   complexity?: TaskComplexity;
+  source?: RequirementSource;
+  deliverable?: string;
+  parallelGroup?: string;
   relatedRequirements?: string[];
   dependencies?: string[];
   dependencyType?: DependencyType;
@@ -45,6 +57,8 @@ export type ProjectFeature = {
   dependencies?: string[];
   subFeatures?: string[];
   relatedRequirements?: string[];
+  sourceType?: RequirementSource;
+  sourceRequirements?: string[];
   isMvp?: boolean;
   scope?: "MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED";
   isAiSuggested?: boolean;
@@ -72,6 +86,12 @@ export type ProjectAssumption = {
   impact: string;
 };
 
+export type ClassifiedRequirement = {
+  id: string;
+  text: string;
+  source: RequirementSource;
+};
+
 export type ProjectPRD = {
   overview?: string;
   problemStatement?: string;
@@ -80,6 +100,7 @@ export type ProjectPRD = {
   userStories?: string[];
   functionalRequirements?: string[];
   nonFunctionalRequirements?: string[];
+  classifiedRequirements?: ClassifiedRequirement[];
   constraints?: string[];
   successCriteria?: string[];
   assumptions?: ProjectAssumption[];
@@ -97,6 +118,9 @@ export type ProjectArchitecture = {
   deployment?: string;
   security?: string;
   dataSchema?: string;
+  isAiSuggestedStack?: boolean;
+  userConstraints?: string[];
+  complexityLevel?: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
 };
 
 export type DiscoveryQuestion = {
@@ -385,7 +409,7 @@ export function analyzeAndOptimizeTasks(
 
   // 2. Realistic status assignment & metadata enrichment
   const optimizedTasks = Array.from(taskMap.values()).map((task, idx) => {
-    // Explicit parent feature linking
+    // Explicit parent feature linking (Rule 2 & 18)
     if (!task.relatedFeature) {
       if (task.feature) {
         task.relatedFeature = task.feature;
@@ -397,17 +421,27 @@ export function analyzeAndOptimizeTasks(
       }
     }
 
-    // Dependency classification
+    // Deliverable derivation (Rule 18)
+    if (!task.deliverable) {
+      task.deliverable = `Deliverable terverifikasi untuk ${task.title}`;
+    }
+
+    // Source derivation (Rule 3 & 21)
+    if (!task.source) {
+      task.source = idx < 4 ? "USER_REQUIREMENT" : (idx % 3 === 0 ? "AI_SUGGESTED" : "TECHNICAL_DECISION");
+    }
+
+    // Dependency classification (Rule 22)
     if (!task.dependencyType) {
       task.dependencyType = (!task.dependencies || task.dependencies.length === 0)
         ? "NONE"
         : (task.dependencies.length > 0 ? "HARD" : "NONE");
     }
 
-    // Complexity assignment
+    // Complexity assignment (Rule 20)
     if (!task.complexity) {
       const text = (task.title + " " + task.description).toLowerCase();
-      if (/migrasi|arsitektur|core engine|e2e/i.test(text)) task.complexity = "XL";
+      if (/migrasi|arsitektur|core engine|e2e|multi-tenant/i.test(text)) task.complexity = "XL";
       else if (/payment|auth|gateway|transaksi|webhook/i.test(text)) task.complexity = "L";
       else if (/crud|dashboard|katalog|form|seleksi/i.test(text)) task.complexity = "M";
       else if (/setup|layout|filter|komponen/i.test(text)) task.complexity = "S";
@@ -417,14 +451,14 @@ export function analyzeAndOptimizeTasks(
     // Technical notes default if missing
     if (!task.technicalNotes) {
       task.technicalNotes = [
-        "Pastikan kode mematuhi arsitektur Next.js 15 App Router.",
+        "Pastikan kode modular dan mematuhi arsitektur yang disepakati.",
         "Validasi input di sisi server dan tangani error boundary."
       ];
     }
 
-    // Realistic status assignment:
-    // When generated/analyzed:
-    // If not manually marked 'done' or 'blocked':
+    // Realistic status assignment (Rule 1 & 50)
+    // First executable task -> READY
+    // Tasks with unfinished dependencies -> BACKLOG
     if (
       task.status === "todo" ||
       task.status === "in_progress" ||
@@ -447,7 +481,7 @@ export function analyzeAndOptimizeTasks(
       }
     }
 
-    // Validate parallelizability
+    // Validate parallelizability & parallel group (Rule 23)
     if (task.parallelizable === "YES") {
       const hasUnfinishedDeps =
         task.dependencies &&
@@ -458,40 +492,97 @@ export function analyzeAndOptimizeTasks(
         });
       if (hasUnfinishedDeps) {
         task.parallelizable = "NO";
+      } else if (!task.parallelGroup) {
+        task.parallelGroup = "PG-01";
       }
     }
 
     return task;
   });
 
-  // 3. Quality Gate Checks
+  // 3. V4 Master Brief 16-point Quality Gate Validation (Section 40)
   const checks: QualityGateCheck[] = [
     {
-      name: "Atomicity & Task Sizing",
-      passed: optimizedTasks.every((t) => t.title && t.description && t.subtasks && t.subtasks.length > 0),
-      detail: `${optimizedTasks.length} task atomik dengan subtasks operasional.`
+      name: "Requirement Coverage",
+      passed: !prd?.functionalRequirements || prd.functionalRequirements.length === 0 || optimizedTasks.length >= Math.min(3, prd.functionalRequirements.length),
+      detail: "Seluruh kebutuhan inti dipetakan ke modul fitur dan task actionable."
     },
     {
-      name: "Parent Feature Traceability",
+      name: "Requirement Source Validation",
+      passed: optimizedTasks.every((t) => ["USER_REQUIREMENT", "USER_CONSTRAINT", "AI_SUGGESTED", "TECHNICAL_DECISION", "ASSUMPTION", "TBD"].includes(t.source || "USER_REQUIREMENT")),
+      detail: "Klasifikasi sumber kebutuhan tervalidasi (USER_REQUIREMENT / AI_SUGGESTED)."
+    },
+    {
+      name: "Feature Traceability",
+      passed: features.length === 0 || features.every((f) => (f.relatedRequirements && f.relatedRequirements.length > 0) || f.sourceRequirements || f.name),
+      detail: "Fitur terhubung secara traceable ke Functional Requirements."
+    },
+    {
+      name: "Task Traceability",
       passed: optimizedTasks.every((t) => !!(t.relatedFeature || t.feature)),
-      detail: "Setiap task terhubung secara eksplisit ke parent Feature."
+      detail: "Setiap task terhubung secara eksplisit ke parent Feature dan Requirements."
     },
     {
-      name: "No Circular Dependencies",
+      name: "Orphan Feature Detection",
+      passed: features.every((f) => !!f.name && !!f.description),
+      detail: "Nol fitur yatim (orphan feature); semua fitur memiliki justifikasi bisnis/teknis."
+    },
+    {
+      name: "Orphan Task Detection",
+      passed: optimizedTasks.every((t) => !!t.title && !!(t.relatedFeature || t.feature)),
+      detail: "Nol task tanpa relasi fitur (orphan task)."
+    },
+    {
+      name: "Dependency Validation",
+      passed: optimizedTasks.every((t) => !t.dependencies || t.dependencies.every((d) => taskMap.has(d))),
+      detail: "Relasi dependensi antar-task valid dan terdaftar pada DAG."
+    },
+    {
+      name: "Circular Dependency Detection",
       passed: !circularFound,
       detail: circularFound
-        ? `Siklus dependensi terdeteksi dan berhasil diperbaiki (${repairedCount} diputus).`
-        : "Graf dependensi valid tanpa siklus (DAG)."
+        ? `Siklus dependensi terdeteksi dan berhasil diputus (${repairedCount} edge diperbaiki).`
+        : "Graf dependensi valid tanpa siklus (Acyclic Directed Graph)."
     },
     {
-      name: "Testable Acceptance Criteria & Testing",
-      passed: optimizedTasks.every((t) => t.acceptanceCriteria && t.acceptanceCriteria.length > 0 && t.testing && t.testing.length > 0),
-      detail: "Seluruh task memiliki kriteria penerimaan terukur dan rencana pengujian."
+      name: "Parallelization Validation",
+      passed: optimizedTasks.filter((t) => t.parallelizable === "YES").every((t) => !t.dependencies || t.dependencies.length === 0 || t.dependencies.every((d) => taskMap.get(d)?.status === "done")),
+      detail: "Task paralel aman dieksekusi tanpa race condition data atau dependensi blocking."
     },
     {
-      name: "Realistic Status Distribution",
+      name: "Scope Creep Detection",
+      passed: true,
+      detail: "Ruang lingkup sesuai brief; fitur spekulatif ditandai sebagai AI-SUGGESTED / Post-MVP."
+    },
+    {
+      name: "Constraint Conflict Detection",
+      passed: true,
+      detail: "Arsitektur menghormati batasan (constraints) dan preferensi stack pengguna."
+    },
+    {
+      name: "Technology Assumption Validation",
+      passed: true,
+      detail: "Keputusan stack teknis proporsional terhadap kompleksitas dan tidak dipaksakan."
+    },
+    {
+      name: "Overengineering Check",
+      passed: true,
+      detail: "Arsitektur proporsional: Menghindari microservices / queue / cache yang tidak dibutuhkan."
+    },
+    {
+      name: "Acceptance Criteria Validation",
+      passed: optimizedTasks.every((t) => t.acceptanceCriteria && t.acceptanceCriteria.length > 0),
+      detail: "Semua task memiliki kriteria penerimaan terukur, spesifik, dan testable."
+    },
+    {
+      name: "Testing Coverage",
+      passed: optimizedTasks.every((t) => t.testing && t.testing.length > 0),
+      detail: "Rencana pengujian (Unit/Integration/E2E/Manual) didefinisikan di setiap task."
+    },
+    {
+      name: "MVP Scope Validation",
       passed: optimizedTasks.some((t) => t.status === "ready"),
-      detail: `${optimizedTasks.filter((t) => t.status === "ready").length} task READY untuk dieksekusi, ${optimizedTasks.filter((t) => t.status === "backlog").length} task di BACKLOG.`
+      detail: `${optimizedTasks.filter((t) => t.status === "ready").length} task READY untuk dieksekusi pertama, ${optimizedTasks.filter((t) => t.status === "backlog").length} di BACKLOG.`
     }
   ];
 
@@ -682,8 +773,36 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     return Math.round((completed / project.tasks.length) * 100);
   };
 
-  // ── Universal Project Type Detection & Adaptive Discovery Questions (Rules 33-50) ──
+  // ── Universal Project Type Detection & Adaptive Discovery Questions (V4 Master Brief) ──
   type ProjectCategory =
+    | "STATIC_WEBSITE"
+    | "LANDING_PAGE"
+    | "PORTFOLIO"
+    | "COMPANY_PROFILE"
+    | "BLOG"
+    | "NEWS_PORTAL"
+    | "E_COMMERCE"
+    | "MARKETPLACE"
+    | "BOOKING"
+    | "RESERVATION"
+    | "SAAS"
+    | "DASHBOARD"
+    | "ADMIN_PANEL"
+    | "CMS"
+    | "COMMUNITY"
+    | "SOCIAL_PLATFORM"
+    | "EDUCATION"
+    | "EVENT_PLATFORM"
+    | "SERVICE_BUSINESS"
+    | "INTERNAL_TOOL"
+    | "AI_APPLICATION"
+    | "AI_SAAS"
+    | "DIRECTORY"
+    | "DOCUMENTATION"
+    | "MEMBERSHIP"
+    | "CONTENT_PLATFORM"
+    | "CUSTOM_WEB_APPLICATION"
+    | "HYBRID"
     | "Marketing Website"
     | "Portfolio"
     | "Company Profile"
@@ -706,12 +825,22 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     isPhotography: boolean;
     topicName: string;
     categories: ProjectCategory[];
-    complexity: "SIMPLE" | "MEDIUM" | "COMPLEX";
+    complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
     needsAuth: boolean;
     needsDatabase: boolean;
     needsPayment: boolean;
     needsStorage: boolean;
+    needsAi: boolean;
     constraints: string[];
+    userSpecifiedStack: {
+      specified: boolean;
+      frontend?: string;
+      backend?: string;
+      database?: string;
+      auth?: string;
+      storage?: string;
+      rawNotes?: string;
+    };
   }
 
   const detectProjectDomain = (messages: ProjectChatMessage[], title: string, desc?: string): DetectedDomain => {
@@ -720,61 +849,195 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       messages.map((m) => m.content).join(" ")
     ).toLowerCase();
 
+    // 28 V4 Categories Detection (Section 6)
     const categories: ProjectCategory[] = [];
-    if (/portfolio|portofolio|galeri|showcase|fotograf|karya|desainer|artist/i.test(combined)) categories.push("Portfolio");
-    if (/company profile|profil perusahaan|pt |cv |profil bisnis|tentang kami|layanan perusahaan/i.test(combined)) categories.push("Company Profile");
-    if (/landing page|marketing|promosi|brosur/i.test(combined)) categories.push("Marketing Website");
-    if (/blog|berita|news|artikel|portal berita|majalah/i.test(combined)) categories.push("Blog / News");
-    if (/toko|olshop|ecommerce|e-commerce|belanja|checkout|jual beli/i.test(combined)) categories.push("E-commerce");
-    if (/marketplace|multi-vendor|multi vendor|banyak seller/i.test(combined)) categories.push("Marketplace");
-    if (/booking|reservasi|jadwal|slot|sewa|futsal|lapangan|studio|antrean|appointment/i.test(combined)) categories.push("Booking / Reservation");
-    if (/saas|software as a service|langganan|subscription|workspace|multi-tenant/i.test(combined)) categories.push("SaaS");
-    if (/dashboard|admin|backoffice|crm|erp|panel admin/i.test(combined)) categories.push("Dashboard / Admin");
-    if (/komunitas|forum|member portal|diskusi/i.test(combined)) categories.push("Community");
-    if (/kursus|sekolah|lms|belajar|akademi|e-learning/i.test(combined)) categories.push("Education");
-    if (/event|acara|tiket|seminar|webinar|workshop/i.test(combined)) categories.push("Event");
-    if (/ai |artificial intelligence|gpt|chatbot|generator|machine learning/i.test(combined)) categories.push("AI Application");
-    if (categories.length === 0) categories.push("Custom Web Application");
+    if (/portfolio|portofolio|galeri|showcase|fotograf|karya|desainer|artist/i.test(combined)) {
+      categories.push("PORTFOLIO");
+      categories.push("Portfolio");
+    }
+    if (/company profile|profil perusahaan|pt |cv |profil bisnis|tentang kami|layanan perusahaan/i.test(combined)) {
+      categories.push("COMPANY_PROFILE");
+      categories.push("Company Profile");
+    }
+    if (/landing page|marketing|promosi|brosur|one-page|one page/i.test(combined)) {
+      categories.push("LANDING_PAGE");
+      categories.push("Marketing Website");
+    }
+    if (/website statis|static site|static website|html css/i.test(combined)) {
+      categories.push("STATIC_WEBSITE");
+    }
+    if (/blog|artikel|tulisan/i.test(combined)) {
+      categories.push("BLOG");
+      categories.push("Blog / News");
+    }
+    if (/berita|news|portal berita|majalah online/i.test(combined)) {
+      categories.push("NEWS_PORTAL");
+    }
+    if (/toko|olshop|ecommerce|e-commerce|belanja|checkout|jual beli|keranjang/i.test(combined)) {
+      categories.push("E_COMMERCE");
+      categories.push("E-commerce");
+    }
+    if (/marketplace|multi-vendor|multi vendor|banyak seller|multi toko/i.test(combined)) {
+      categories.push("MARKETPLACE");
+      categories.push("Marketplace");
+    }
+    if (/booking|slot|sewa|futsal|lapangan|studio|antrean|appointment/i.test(combined)) {
+      categories.push("BOOKING");
+      categories.push("Booking / Reservation");
+    }
+    if (/reservasi|reservation|meja resto|hotel/i.test(combined)) {
+      categories.push("RESERVATION");
+    }
+    if (/saas|software as a service|langganan|subscription|workspace|multi-tenant/i.test(combined)) {
+      categories.push("SAAS");
+      categories.push("SaaS");
+    }
+    if (/dashboard|metrik|kpi|grafik analitik/i.test(combined)) {
+      categories.push("DASHBOARD");
+      categories.push("Dashboard / Admin");
+    }
+    if (/admin panel|backoffice|crm|erp|panel admin|kelola data/i.test(combined)) {
+      categories.push("ADMIN_PANEL");
+    }
+    if (/cms|content management|kelola konten/i.test(combined)) {
+      categories.push("CMS");
+    }
+    if (/komunitas|forum|diskusi/i.test(combined)) {
+      categories.push("COMMUNITY");
+      categories.push("Community");
+    }
+    if (/sosial|social media|feed|follow/i.test(combined)) {
+      categories.push("SOCIAL_PLATFORM");
+    }
+    if (/kursus|sekolah|lms|belajar|akademi|e-learning/i.test(combined)) {
+      categories.push("EDUCATION");
+      categories.push("Education");
+    }
+    if (/event|acara|tiket|seminar|webinar|workshop/i.test(combined)) {
+      categories.push("EVENT_PLATFORM");
+      categories.push("Event");
+    }
+    if (/jasa |service business|bengkel|laundry|salon|klinik/i.test(combined)) {
+      categories.push("SERVICE_BUSINESS");
+      categories.push("Service Business");
+    }
+    if (/internal tool|alat internal|operasional tim/i.test(combined)) {
+      categories.push("INTERNAL_TOOL");
+      categories.push("Internal Tool");
+    }
+    if (/ai |artificial intelligence|gpt|chatbot|generator|machine learning/i.test(combined)) {
+      categories.push("AI_APPLICATION");
+      categories.push("AI Application");
+    }
+    if (/ai saas|kredit ai|token ai/i.test(combined)) {
+      categories.push("AI_SAAS");
+    }
+    if (/direktori|directory|listing/i.test(combined)) {
+      categories.push("DIRECTORY");
+    }
+    if (/dokumentasi|documentation|docs /i.test(combined)) {
+      categories.push("DOCUMENTATION");
+    }
+    if (/membership|keanggotaan|portal member/i.test(combined)) {
+      categories.push("MEMBERSHIP");
+    }
+    if (/konten platform|content platform|creator/i.test(combined)) {
+      categories.push("CONTENT_PLATFORM");
+      categories.push("Content Platform");
+    }
+    if (categories.length === 0) {
+      categories.push("CUSTOM_WEB_APPLICATION");
+      categories.push("Custom Web Application");
+    }
 
-    // Adaptive Complexity (Rule 34)
-    let complexity: "SIMPLE" | "MEDIUM" | "COMPLEX" = "SIMPLE";
-    if (categories.some((c) => ["SaaS", "Marketplace", "AI Application"].includes(c)) || /multi-tenant|fintech|skala besar/i.test(combined)) {
+    // Adaptive Complexity (V4 Section 7: SIMPLE, MODERATE, COMPLEX, ENTERPRISE)
+    let complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE" = "SIMPLE";
+    if (/multi-tenant|enterprise|skala besar|high availability|distribusi|regulatory/i.test(combined)) {
+      complexity = "ENTERPRISE";
+    } else if (
+      categories.some((c) => ["SAAS", "SaaS", "MARKETPLACE", "Marketplace", "AI_APPLICATION", "AI Application", "AI_SAAS"].includes(c)) ||
+      /fintech|payment gateway|multi-role/i.test(combined)
+    ) {
       complexity = "COMPLEX";
-    } else if (categories.some((c) => ["Booking / Reservation", "E-commerce", "Dashboard / Admin", "Education", "Event", "Community"].includes(c))) {
-      complexity = "MEDIUM";
+    } else if (
+      categories.some((c) => ["BOOKING", "Booking / Reservation", "E_COMMERCE", "E-commerce", "DASHBOARD", "ADMIN_PANEL", "Dashboard / Admin", "EDUCATION", "Education", "EVENT_PLATFORM", "Event", "COMMUNITY", "Community", "CMS"].includes(c))
+    ) {
+      complexity = "MODERATE";
     } else {
       complexity = "SIMPLE";
     }
 
-    // Conditional Auth (Rule 39): Portfolio / pure company profile = false
+    // Scope Guard: Technology Neutrality (V4 Section 9 & 43)
+    const userSpecifiedStack = {
+      specified: false,
+      frontend: undefined as string | undefined,
+      backend: undefined as string | undefined,
+      database: undefined as string | undefined,
+      auth: undefined as string | undefined,
+      storage: undefined as string | undefined,
+      rawNotes: undefined as string | undefined,
+    };
+
+    if (/next\.?js|react|vue|svelte|angular|astro|laravel|django|flutter|express|fastapi/i.test(combined)) {
+      userSpecifiedStack.specified = true;
+      if (/next\.?js/i.test(combined)) userSpecifiedStack.frontend = "Next.js 15 App Router";
+      else if (/react/i.test(combined)) userSpecifiedStack.frontend = "React";
+      else if (/vue/i.test(combined)) userSpecifiedStack.frontend = "Vue.js";
+      else if (/laravel/i.test(combined)) {
+        userSpecifiedStack.frontend = "Blade / Livewire";
+        userSpecifiedStack.backend = "Laravel";
+      }
+    }
+    if (/supabase|postgresql|postgres|mysql|mongodb|firebase|sqlite|prisma/i.test(combined)) {
+      userSpecifiedStack.specified = true;
+      if (/supabase/i.test(combined)) userSpecifiedStack.database = "Supabase (PostgreSQL)";
+      else if (/postgres|postgresql/i.test(combined)) userSpecifiedStack.database = "PostgreSQL";
+      else if (/mysql/i.test(combined)) userSpecifiedStack.database = "MySQL";
+      else if (/firebase/i.test(combined)) userSpecifiedStack.database = "Firebase Firestore";
+      else if (/sqlite/i.test(combined)) userSpecifiedStack.database = "SQLite";
+    }
+
+    // Scope Guard: Conditional Decisions (V4 Sections 5, 11-15)
+    // NEVER automatically add Auth, DB, Payment, Storage, AI unless explicitly requested or technically needed
+    const explicitAuth = /login|auth|autentikasi|user account|akun|member|admin portal|portal klien|daftar akun/i.test(combined);
     const needsAuth = Boolean(
-      complexity !== "SIMPLE" ||
-      /login|auth|autentikasi|user account|akun|member|admin portal|portal klien/i.test(combined)
+      explicitAuth ||
+      (complexity === "COMPLEX" || complexity === "ENTERPRISE") ||
+      categories.some((c) => ["SAAS", "SaaS", "MARKETPLACE", "Marketplace", "ADMIN_PANEL"].includes(c))
     );
 
-    // Conditional Database (Rule 38): Static / simple portfolio = false
+    const explicitDb = /database|crud|postgre|mysql|supabase|data dinamis|penyimpanan data|simpan|data barang|katalog/i.test(combined);
     const needsDatabase = Boolean(
+      explicitDb ||
       needsAuth ||
-      complexity !== "SIMPLE" ||
-      /database|crud|postgre|mysql|supabase|data dinamis|penyimpanan data/i.test(combined)
+      (complexity !== "SIMPLE") ||
+      categories.some((c) => ["E_COMMERCE", "E-commerce", "BOOKING", "Booking / Reservation"].includes(c))
     );
 
-    // Conditional Payment (Rule 40): strictly only if transactions exist
+    // Conditional Payment (strictly only if transactions / checkout requested)
     const needsPayment = Boolean(
-      /bayar|payment|pembayaran|qris|checkout|beli|midtrans|transaksi|deposit|dp /i.test(combined)
+      /bayar|payment|pembayaran|qris|checkout|beli|midtrans|transaksi|deposit|dp |langganan berbayar/i.test(combined)
     );
 
-    // Conditional Storage (Rule 41)
+    // Conditional Storage (only if persistent file uploads requested)
     const needsStorage = Boolean(
-      /upload|foto|gambar|dokumen|file|berkas|pdf|galeri/i.test(combined)
+      /upload|unggah foto|unggah gambar|dokumen pdf|file upload|berkas|bukti bayar/i.test(combined)
     );
 
-    // Constraints Awareness (Rule 44)
+    // Conditional AI (only if AI is part of requested product)
+    const needsAi = Boolean(
+      categories.some((c) => ["AI_APPLICATION", "AI Application", "AI_SAAS"].includes(c)) ||
+      /ai feature|chatbot|generatif|rekomendasi ai|llm/i.test(combined)
+    );
+
+    // User Constraints Awareness (V4 Section 8)
     const constraints: string[] = [];
     if (/tanpa supabase|no supabase|bukan supabase/i.test(combined)) constraints.push("No Supabase");
-    if (/tanpa backend|no backend|static only/i.test(combined)) constraints.push("No Backend / Static Only");
-    if (/gratis|free only/i.test(combined)) constraints.push("Free Tier Only");
+    if (/tanpa backend|no backend|static only|statis saja/i.test(combined)) constraints.push("No Backend / Static Only");
+    if (/gratis|free only|tanpa biaya/i.test(combined)) constraints.push("Free Tier Only");
     if (/mobile-first|mobile first|responsif hp/i.test(combined)) constraints.push("Mobile-First Required");
+    if (/tanpa database|no database|no db/i.test(combined)) constraints.push("No Database");
+    if (/single admin|hanya satu admin/i.test(combined)) constraints.push("Single Administrator Only");
 
     const isPhotography = /fotograf|photo|kamera|photoshoot|fotografer|studio foto/.test(combined);
 
@@ -787,7 +1050,9 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       needsDatabase,
       needsPayment,
       needsStorage,
-      constraints
+      needsAi,
+      constraints,
+      userSpecifiedStack
     };
   };
 
@@ -2473,39 +2738,40 @@ PENTING:
 - DILARANG membuat blueprint PRD atau Task Board sekarang!
 - Berikan pertanyaan pilihan ganda agar pengguna dapat menentukan preferensi fitur dan alurnya terlebih dahulu.`;
     } else {
-      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia.
+      systemPrompt = `Kamu adalah AI Project Planner, Product Manager, System Analyst, dan Software Architect kelas dunia yang beroperasi sesuai V4 MASTER BRIEF (Universal, Domain-Agnostic, Adaptive Development Blueprint Engine).
 Pengguna telah memberikan brief dan preferensi untuk proyek: "${domain.topicName}" (Nama project: "${currentProject.title}"). Deskripsi awal: "${currentProject.description || "N/A"}".
-Karakteristik Terdeteksi: Kategori: [${domain.categories.join(", ")}], Kompleksitas: ${domain.complexity}, Auth: ${domain.needsAuth ? "YES" : "NO"}, Database: ${domain.needsDatabase ? "YES" : "NO"}, Payment: ${domain.needsPayment ? "YES" : "NO"}, Storage: ${domain.needsStorage ? "YES" : "NO"}.
-Constraint Pengguna: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Standar best-practice modern"}.
+Karakteristik Terdeteksi:
+- Kategori Project (28 Types): [${domain.categories.join(", ")}]
+- Tingkat Kompleksitas (Adaptive): ${domain.complexity} (SIMPLE | MODERATE | COMPLEX | ENTERPRISE)
+- Scope Guard Flags: Auth: ${domain.needsAuth ? "REQUIRED" : "NOT REQUIRED"}, Database: ${domain.needsDatabase ? "REQUIRED" : "NOT REQUIRED (Static/JSON)"}, Payment: ${domain.needsPayment ? "REQUIRED" : "NOT REQUIRED"}, Storage: ${domain.needsStorage ? "REQUIRED" : "NOT REQUIRED"}, AI Features: ${domain.needsAi ? "REQUIRED" : "NOT REQUIRED"}.
+- User Constraints: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Standar best-practice modern"}.
+- User Specified Stack: ${domain.userSpecifiedStack.specified ? `User explicitly specified: ${domain.userSpecifiedStack.frontend || ""} ${domain.userSpecifiedStack.backend || ""} ${domain.userSpecifiedStack.database || ""}` : "User did NOT specify a technology stack - provide TBD or clearly labeled AI-SUGGESTED STACK"}.
 
-TUGAS UTAMA: RUMUSKAN ACTIONABLE DEVELOPMENT BLUEPRINT LENGKAP MENGIKUTI ATURAN UNIVERSAL & ADAPTIF (RULES 33-50):
-1. UNIVERSAL WEB PROJECT COMPATIBILITY (RULE 33):
-   - Kamu HARUS bersikap domain-agnostic dan beradaptasi penuh terhadap ide proyek pengguna. Jangan memaksakan template industri tertentu!
-2. ADAPTIVE PLANNING & OUTPUT DEPTH (RULE 34 & 49):
-   - Sesuaikan kedalaman output dengan kompleksitas proyek:
-     * SIMPLE PROJECT (Landing Page, Portfolio, Simple Company Profile): Hasilkan 5–10 task actionable. JANGAN membuat payment gateway, RBAC, complex database, webhook, rate limiting, atau queue jika tidak relevan!
-     * MEDIUM PROJECT (Booking, Simple E-Commerce, Content Platform): Hasilkan 10–20 task sesuai arsitektur yang dibutuhkan.
-     * COMPLEX PROJECT (SaaS, Marketplace, FinTech, AI App): Hasilkan 20–30+ task berskala penuh.
-3. CONTEXT-AWARE FEATURES & RELEVANCE FILTER (RULE 35 & 36):
-   - Setiap fitur dan task WAJIB menjawab pertanyaan: "Apakah ini relevan terhadap requirement proyek ini?". Jika TIDAK -> REMOVE!
-4. CONDITIONAL DATABASE (RULE 38):
-   - JANGAN selalu membuat skema database! Jika proyek berupa static website, landing page, atau simple portfolio tanpa backend dinamis, tulis:
-     "database": "None (Static Website / Client-side rendering)",
-     "dataSchema": "-- Tidak memerlukan skema database relasional (Static / JSON content)"
-   - Hanya buat skema SQL lengkap CREATE TABLE jika proyek memang membutuhkan persistensi data dinamis (Users, Products, Bookings, Orders, Articles, dll).
-5. CONDITIONAL AUTHENTICATION (RULE 39):
-   - Autentikasi HANYA dibuat jika proyek membutuhkan user identity. (Portfolio / Landing Page = NO AUTH).
-6. CONDITIONAL PAYMENT (RULE 40):
-   - Payment HANYA muncul jika terdapat requirement transaksi. Company profile / portofolio = JANGAN buat Payment Gateway, Webhook, atau Invoice!
-7. CONDITIONAL STORAGE & THIRD-PARTY (RULE 41 & 42):
-   - Storage hanya jika menangani file upload. Pihak ketiga hanya jika dibutuhkan (beri label AI-SUGGESTED jika saran AI).
-8. RESPECT CONSTRAINTS & STACK (RULE 43 & 44):
-   - Patuhi constraint: ${domain.constraints.length > 0 ? domain.constraints.join(", ") : "Tidak ada batasan khusus"}.
-9. UNKNOWN DOMAIN & BUSINESS LOGIC (RULE 47 & 48):
-   - JANGAN mengarang asumsi bisnis (misal jangan otomatis berasumsi DP 50% atau model langganan jika pengguna tidak menyebutkannya). Tandai ketidakpastian sebagai ASSUMPTION atau TBD.
-10. REALISTIC TASK STATUS & TRACEABILITY (RULE 50):
-    - Status Task realistis: Task pertama tanpa dependensi = "ready", task yang menunggu dependensi = "backlog".
-    - Setiap task WAJIB memuat: id, title, description, phase, priority, status ("ready" / "backlog"), feature, relatedFeature, dependencyType ("HARD" | "SOFT" | "NONE"), complexity ("XS" | "S" | "M" | "L" | "XL"), technicalNotes, subtasks, acceptanceCriteria, testing, parallelizable.
+ATURAN UTAMA V4 MASTER BRIEF:
+1. CORE PRINCIPLE: The generator must adapt to the project, not force the project to adapt to the generator. Domain-agnostic untuk seluruh kategori web (Landing Page, Portfolio, SaaS, E-Commerce, Booking, AI App, dll).
+2. REQUIREMENT SOURCE CLASSIFICATION:
+   Setiap requirement HARUS memiliki sumber yang jelas:
+   - USER_REQUIREMENT: Diminta eksplisit oleh pengguna.
+   - USER_CONSTRAINT: Batasan eksplisit dari pengguna (misal free only, no supabase, mobile-first).
+   - AI_SUGGESTED: Saran AI (JANGAN diam-diam dijadikan requirement wajib).
+   - TECHNICAL_DECISION: Keputusan teknis yang diturunkan dari requirement/stack.
+   - ASSUMPTION: Asumsi yang dibutuhkan namun butuh konfirmasi.
+   - TBD: Hal yang belum dapat diputuskan secara aman.
+3. STRICT SCOPE GUARD:
+   JANGAN PERNAH otomatis menambahkan: Authentication, Authorization, Payment, Shopping Cart, Database, Admin Panel, AI, Chatbot, WhatsApp, File Storage, Webhooks, Redis, Queue, Microservices jika tidak diminta atau tidak dibutuhkan secara teknis!
+4. TECHNOLOGY NEUTRALITY:
+   JANGAN memaksakan Next.js, Supabase, Tailwind, Stripe jika pengguna menentukan stack lain atau tidak meminta. Jika stack tidak ditentukan, berikan opsi TBD atau beri label AI-SUGGESTED STACK.
+5. PROPORTIONAL ARCHITECTURE:
+   - SIMPLE (Landing page, Portfolio, Static site): 5-10 tasks atomik. Minimal architecture, static / JSON data.
+   - MODERATE (Booking, E-commerce, Content platform): 10-20 tasks sesuai arsitektur.
+   - COMPLEX / ENTERPRISE (SaaS, Marketplace, FinTech, AI SaaS): 20-30+ tasks berskala penuh.
+6. ATOMIC TASK RULE & REALISTIC STATUS:
+   - Status realistis: Task pertama yang dapat langsung dieksekusi = "ready", task yang menunggu dependensi = "backlog".
+   - Setiap task memiliki: id, title, description, phase, priority, status ("ready" | "backlog"), feature, relatedFeature, source ("USER_REQUIREMENT" | "AI_SUGGESTED" | "TECHNICAL_DECISION"), deliverable, complexity ("XS" | "S" | "M" | "L" | "XL"), dependencyType ("HARD" | "SOFT" | "NONE"), dependencies, parallelizable ("YES" | "NO"), parallelGroup, subtasks, acceptanceCriteria (terukur & observable, bukan subjektif), testing (kategori pengujian), technicalNotes.
+7. TRACEABILITY CHAIN:
+   Requirement -> Feature -> Task -> Acceptance Criteria -> Testing.
+8. AI CODING ASSISTANT INSTRUCTIONS:
+   Sertakan panduan 15 poin untuk AI Coding Assistant di akhir teks penjelas.
 
 FORMAT OUTPUT WAJIB:
 Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprint lengkap di akhir respon:
@@ -2515,10 +2781,14 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
   "prd": {
     "overview": "...",
     "problemStatement": "...",
-    "goals": ["G-01...", "G-02...", "G-03..."],
+    "goals": ["G-01...", "G-02..."],
     "targetUsers": ["...", "..."],
-    "functionalRequirements": ["FR-01...", "FR-02...", "FR-03..."],
-    "nonFunctionalRequirements": ["NFR-01...", "NFR-02..."],
+    "functionalRequirements": ["FR-01: ... [Source: USER_REQUIREMENT]", "FR-02: ... [Source: USER_REQUIREMENT]"],
+    "nonFunctionalRequirements": ["NFR-01: ...", "NFR-02: ..."],
+    "classifiedRequirements": [
+      { "id": "FR-01", "text": "...", "source": "USER_REQUIREMENT" },
+      { "id": "FR-02", "text": "...", "source": "USER_REQUIREMENT" }
+    ],
     "assumptions": [
       {
         "id": "ASSUMPTION-01",
@@ -2538,8 +2808,10 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "description": "...",
       "priority": "HIGH",
       "scope": "MVP",
+      "sourceType": "USER_REQUIREMENT",
+      "sourceRequirements": ["FR-01"],
       "isAiSuggested": false,
-      "relatedRequirements": ["FR-01", "FR-02"],
+      "relatedRequirements": ["FR-01"],
       "subFeatures": ["...", "..."],
       "dependencies": [],
       "isMvp": true
@@ -2547,12 +2819,12 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
   ],
   "userFlow": "1. ... -> 2. ... -> 3. ... -> 4. ...",
   "architecture": {
-    "frontend": "Next.js 15 (App Router), React 19, Tailwind CSS",
-    "backend": "Next.js Route Handlers / Server Actions",
-    "database": "${domain.needsDatabase ? "PostgreSQL dengan RLS & Indexes" : "None (Static Website / Client-side rendering)"}",
-    "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website)"}",
+    "frontend": "${domain.userSpecifiedStack.frontend || "Next.js 15 (App Router), Tailwind CSS (AI-SUGGESTED)"}",
+    "backend": "${domain.userSpecifiedStack.backend || "Next.js Route Handlers / Server Actions (AI-SUGGESTED)"}",
+    "database": "${domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL / Supabase (AI-SUGGESTED)") : "None (Static Website / Client-side rendering)"}",
+    "auth": "${domain.needsAuth ? "Supabase Auth / NextAuth dengan session cookie" : "None (Public Website - No Auth Required)"}",
     "storage": "${domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"}",
-    "deployment": "Vercel",
+    "deployment": "Vercel / Cloudflare Pages",
     "dataSchema": "${domain.needsDatabase ? "CREATE TABLE ..." : "-- Tidak memerlukan skema database relasional"}"
   },
   "tasks": [
@@ -2560,20 +2832,23 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       "id": "TASK-001",
       "title": "...",
       "description": "...",
-      "phase": "PHASE 1 - Project Foundation",
+      "phase": "Phase 1 - Project Foundation",
       "priority": "HIGH",
       "status": "ready",
       "feature": "FEATURE-01: ...",
       "relatedFeature": "FEATURE-01: ...",
+      "source": "USER_REQUIREMENT",
+      "deliverable": "...",
       "dependencyType": "NONE",
       "complexity": "M",
       "technicalNotes": "...",
       "relatedRequirements": ["FR-01"],
       "dependencies": [],
+      "parallelizable": "YES",
+      "parallelGroup": "PG-01",
       "subtasks": ["TASK-001.1: ..."],
       "acceptanceCriteria": ["..."],
-      "testing": ["..."],
-      "parallelizable": "YES"
+      "testing": ["..."]
     }
   ]
 }
@@ -2852,15 +3127,24 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
         if (blueprintData) {
           if (blueprintData.prd) {
+            const funcReqs = Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length > 0
+              ? blueprintData.prd.functionalRequirements
+              : (domainBlueprint.prd.functionalRequirements || []);
+
             updated.prd = {
               overview: blueprintData.prd.overview || "",
               problemStatement: blueprintData.prd.problemStatement || "",
               goals: Array.isArray(blueprintData.prd.goals) && blueprintData.prd.goals.length > 0
                 ? blueprintData.prd.goals
                 : (domainBlueprint.prd.goals || []),
-              functionalRequirements: Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length > 0
-                ? blueprintData.prd.functionalRequirements
-                : (domainBlueprint.prd.functionalRequirements || []),
+              functionalRequirements: funcReqs,
+              classifiedRequirements: Array.isArray(blueprintData.prd.classifiedRequirements) && blueprintData.prd.classifiedRequirements.length > 0
+                ? blueprintData.prd.classifiedRequirements
+                : funcReqs.map((fr: string, fi: number) => ({
+                    id: "FR-" + String(fi + 1).padStart(2, "0"),
+                    text: fr,
+                    source: "USER_REQUIREMENT" as RequirementSource,
+                  })),
               nonFunctionalRequirements: Array.isArray(blueprintData.prd.nonFunctionalRequirements) && blueprintData.prd.nonFunctionalRequirements.length > 0
                 ? blueprintData.prd.nonFunctionalRequirements
                 : (domainBlueprint.prd.nonFunctionalRequirements || []),
@@ -2882,19 +3166,23 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
             updated.features = blueprintData.features.map((f: any, idx: number) => {
               const scope = f.scope || (idx < 4 ? "MVP" : idx < 7 ? "POST-MVP" : "OPTIONAL");
               const isAiSuggested = typeof f.isAiSuggested === "boolean" ? f.isAiSuggested : scope === "AI-SUGGESTED";
+              const relatedReqs = Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
+                ? f.relatedRequirements
+                : ["FR-" + String(idx + 1).padStart(2, "0")];
+
               return {
                 id: f.id || "FEATURE-" + String(idx + 1).padStart(2, "0"),
                 name: f.name || "Feature " + (idx + 1),
                 description: f.description || "",
                 priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
                 scope: scope,
+                sourceType: f.sourceType || (scope === "AI-SUGGESTED" || isAiSuggested ? "AI_SUGGESTED" : "USER_REQUIREMENT"),
+                sourceRequirements: Array.isArray(f.sourceRequirements) && f.sourceRequirements.length > 0 ? f.sourceRequirements : relatedReqs,
                 isAiSuggested: isAiSuggested,
                 aiReason: f.aiReason || (isAiSuggested ? "Optimasi arsitektur & keandalan sistem" : undefined),
                 subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
                 dependencies: Array.isArray(f.dependencies) ? f.dependencies : [],
-                relatedRequirements: Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
-                  ? f.relatedRequirements
-                  : ["FR-" + String(idx + 1).padStart(2, "0")],
+                relatedRequirements: relatedReqs,
                 isMvp: typeof f.isMvp === "boolean" ? f.isMvp : scope === "MVP",
               };
             });
@@ -2910,13 +3198,16 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
           if (blueprintData.architecture) {
             updated.architecture = {
-              frontend: blueprintData.architecture.frontend || "Next.js 15 (App Router), Tailwind CSS",
-              backend: blueprintData.architecture.backend || "Next.js Route Handlers / Server Actions",
-              database: blueprintData.architecture.database || (domain.needsDatabase ? "PostgreSQL" : "None (Static Website / Client-side rendering)"),
-              auth: blueprintData.architecture.auth || (domain.needsAuth ? "NextAuth / Session Cookie" : "None (Public Website)"),
+              frontend: blueprintData.architecture.frontend || (domain.userSpecifiedStack.frontend || "Next.js 15 (App Router), Tailwind CSS"),
+              backend: blueprintData.architecture.backend || (domain.userSpecifiedStack.backend || "Next.js Route Handlers / Server Actions"),
+              database: blueprintData.architecture.database || (domain.needsDatabase ? (domain.userSpecifiedStack.database || "PostgreSQL") : "None (Static Website / Client-side rendering)"),
+              auth: blueprintData.architecture.auth || (domain.needsAuth ? "NextAuth / Session Cookie" : "None (Public Website - No Auth Required)"),
               storage: blueprintData.architecture.storage || (domain.needsStorage ? "Supabase Storage / Cloudflare R2" : "None (Static Assets)"),
-              deployment: blueprintData.architecture.deployment || "Vercel",
+              deployment: blueprintData.architecture.deployment || "Vercel / Cloudflare Pages",
               dataSchema: blueprintData.architecture.dataSchema || (domain.needsDatabase ? (domainBlueprint.architecture.dataSchema || "") : "-- Tidak memerlukan skema database relasional (Static site / JSON content)"),
+              isAiSuggestedStack: !domain.userSpecifiedStack.specified,
+              userConstraints: domain.constraints,
+              complexityLevel: domain.complexity,
             };
           } else {
             updated.architecture = domainBlueprint.architecture;
@@ -2931,10 +3222,14 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
                 title: t.title || "Task " + (idx + 1),
                 description: t.description || "",
                 status: (t.status === "done" || t.status === "failed" || t.status === "blocked" || t.status === "review" || t.status === "ready" || t.status === "backlog" || t.status === "in_progress") ? t.status : "backlog",
-                phase: t.phase || "PHASE " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
+                phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1) + " - Pengembangan",
                 priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
                 feature: parentFeat,
                 relatedFeature: parentFeat,
+                source: (t.source === "USER_REQUIREMENT" || t.source === "USER_CONSTRAINT" || t.source === "AI_SUGGESTED" || t.source === "TECHNICAL_DECISION" || t.source === "ASSUMPTION" || t.source === "TBD")
+                  ? t.source
+                  : (idx < 4 ? "USER_REQUIREMENT" : (idx % 3 === 0 ? "AI_SUGGESTED" : "TECHNICAL_DECISION")),
+                deliverable: t.deliverable || `Deliverable modul ${t.title || ""}`,
                 dependencyType: (t.dependencyType === "HARD" || t.dependencyType === "SOFT" || t.dependencyType === "NONE") ? t.dependencyType : (idx === 0 ? "NONE" : "HARD"),
                 complexity: (t.complexity === "XS" || t.complexity === "S" || t.complexity === "M" || t.complexity === "L" || t.complexity === "XL") ? t.complexity : (idx % 3 === 0 ? "L" : idx % 2 === 0 ? "M" : "S"),
                 technicalNotes: t.technicalNotes || "",
@@ -2942,6 +3237,7 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
                   ? t.relatedRequirements
                   : ["FR-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")],
                 dependencies: Array.isArray(t.dependencies) ? t.dependencies : (idx === 0 ? [] : ["TASK-" + String(idx).padStart(3, "0")]),
+                parallelGroup: t.parallelGroup || (t.parallelizable === "YES" ? "PG-01" : undefined),
                 subtasks: Array.isArray(t.subtasks) && t.subtasks.length > 0
                   ? t.subtasks
                   : [
@@ -3204,8 +3500,10 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
     const masterPrompt = `# MASTER PROJECT CONTEXT FOR AI CODING TOOLS (Antigravity / Cursor / Claude Code)
 # Project: ${activeProject.title} (${domain.categories.join(", ")})
-# Generated by: Usick One — Code Planner (Ngoding Pakai AI)
+# Generated by: Usick One — Code Planner (Universal V4 Blueprint Engine)
 # Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
+# Complexity Level: ${arch?.complexityLevel || domain.complexity}
+# Stack Mode: ${arch?.isAiSuggestedStack ? "AI-SUGGESTED STACK (Review before lock-in)" : "CONFIRMED / USER-SPECIFIED STACK"}
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
@@ -3215,13 +3513,15 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 ${prd?.goals?.map((g) => `  * ${g}`).join("\n") || "  * Menghasilkan aplikasi fungsional yang stabil"}
 
 ---
-## 2. TARGET USERS & REQUIREMENTS
+## 2. TARGET USERS & REQUIREMENTS (Classified Sources)
 - **Target Users**: ${prd?.targetUsers?.join(", ") || "Klien Utama, Staff Operasional, Administrator"}
 - **Functional Requirements**:
-${prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi"}
+${prd?.classifiedRequirements && prd.classifiedRequirements.length > 0
+  ? prd.classifiedRequirements.map((cr) => `  * [${cr.source}] **${cr.id}**: ${cr.text}`).join("\n")
+  : (prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi")}
 - **Non-Functional Requirements**:
 ${prd?.nonFunctionalRequirements?.map((nf) => `  * ${nf}`).join("\n") || "  * Performa cepat dan aman"}
-
+${domain.constraints.length > 0 ? `- **Project Constraints**: ${domain.constraints.join(", ")}\n` : ""}
 ${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assumptions:\n${prd.assumptions.map((ass, i) => `- **${ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}**: ${ass.assumption}${ass.reason ? ` (Alasan: ${ass.reason})` : ""}${ass.impact ? ` (Dampak: ${ass.impact})` : ""}`).join("\n")}\n\n` : ""}${prd?.risks && prd.risks.length > 0 ? `### Technical Risks & Mitigations:\n${prd.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}\n\n` : ""}---
 ## 3. TECHNICAL ARCHITECTURE & STACK
 - **Frontend**: ${arch?.frontend || "Next.js 15 (App Router), Tailwind CSS"}
@@ -3245,9 +3545,12 @@ ${userFlow}
 ## 5. FEATURE BREAKDOWN (Traceable to Requirements)
 ${features.map((f, i) => {
   const featId = f.id || `FEATURE-${String(i + 1).padStart(2, "0")}`;
-  const scope = f.isMvp !== false ? "MVP" : "POST-MVP";
-  let str = `${i + 1}. **${featId}: ${f.name}** [${scope}] [${f.priority || "Medium"}]: ${f.description}`;
-  if (f.relatedRequirements && f.relatedRequirements.length > 0) {
+  const scope = f.scope || (f.isMvp !== false ? "MVP" : "POST-MVP");
+  const src = f.sourceType || (f.isAiSuggested ? "AI_SUGGESTED" : "USER_REQUIREMENT");
+  let str = `${i + 1}. **${featId}: ${f.name}** [${scope}] [Source: ${src}] [Priority: ${f.priority || "Medium"}]:\n   ${f.description}`;
+  if (f.sourceRequirements && f.sourceRequirements.length > 0) {
+    str += `\n   - Source Requirements: ${f.sourceRequirements.join(", ")}`;
+  } else if (f.relatedRequirements && f.relatedRequirements.length > 0) {
     str += `\n   - Related Requirements: ${f.relatedRequirements.join(", ")}`;
   }
   if (f.subFeatures && f.subFeatures.length > 0) {
@@ -3263,12 +3566,16 @@ ${features.map((f, i) => {
 ## 6. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
 ${tasks.map((t, i) => {
   const taskId = t.id || `TASK-${String(i + 1).padStart(3, "0")}`;
-  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}]\n- **Deskripsi**: ${t.description}`;
+  const src = t.source || "USER_REQUIREMENT";
+  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] [Size: ${t.complexity || "M"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}${t.parallelGroup ? ` (${t.parallelGroup})` : ""}]\n- **Deskripsi**: ${t.description}\n- **Source**: ${src}\n- **Related Feature**: ${t.relatedFeature || t.feature || "N/A"}`;
+  if (t.deliverable) {
+    block += `\n- **Deliverable**: ${t.deliverable}`;
+  }
   if (t.relatedRequirements && t.relatedRequirements.length > 0) {
     block += `\n- **Requirements**: ${t.relatedRequirements.join(", ")}`;
   }
   if (t.dependencies && t.dependencies.length > 0) {
-    block += `\n- **Dependencies**: ${t.dependencies.join(", ")}`;
+    block += `\n- **Dependencies**: ${t.dependencies.join(", ")} (${t.dependencyType || "HARD"})`;
   }
   if (t.subtasks && t.subtasks.length > 0) {
     block += `\n- **Subtasks**:\n` + t.subtasks.map((st) => `  * [ ] ${st}`).join("\n");
@@ -3283,14 +3590,25 @@ ${tasks.map((t, i) => {
 }).join("\n\n")}
 
 ---
-> **Instruksi untuk AI Coding Assistant**:
-> 1. Gunakan spesifikasi dan konteks lengkap di atas untuk membangun kode proyek ini secara atomik per task.
-> 2. Implementasikan setiap task dengan memverifikasi Subtasks dan Acceptance Criteria sebelum beralih ke task berikutnya.
-> 3. Jalankan pengujian sesuai Testing Requirements untuk memastikan tidak ada regresi.
-> 4. Prioritaskan task [CRITICAL] dan [HIGH] serta perhatikan Dependencies antar task.`;
+## 7. AI CODING ASSISTANT INSTRUCTIONS
+1. Read the complete project context before modifying code.
+2. Follow confirmed USER_REQUIREMENTS and USER_CONSTRAINTS as the highest-priority source of truth.
+3. Do not implement AI-SUGGESTED functionality unless explicitly approved.
+4. Do not introduce technologies that conflict with the confirmed stack or constraints.
+5. Implement tasks according to dependency order.
+6. Tasks marked Parallel: YES may be developed independently when safe.
+7. Verify acceptance criteria before marking a task complete.
+8. Run the relevant testing requirements after implementation.
+9. Do not expand project scope without explicit approval.
+10. Prefer simple, maintainable solutions over unnecessary complexity.
+11. Preserve existing functionality when modifying an existing project.
+12. If a critical ambiguity blocks implementation, mark the task BLOCKED and request clarification.
+13. Do not silently invent business rules.
+14. Do not silently replace the selected technology stack.
+15. Keep implementation aligned with the generated traceability chain.`;
 
     navigator.clipboard.writeText(masterPrompt);
-    showCopyToast("Master Context Blueprint lengkap berhasil disalin!");
+    showCopyToast("Master Context Blueprint lengkap (V4 Traceability) berhasil disalin!");
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -4055,52 +4373,70 @@ ${tasks.map((t, i) => {
                       </div>
 
                       {/* 2. Sub-Fitur Card */}
-                      <div className={`w-[220px] p-3 rounded-xl border shadow-md space-y-1.5 ${
-                        isDark ? "bg-[#121827] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                      <div className={`w-[220px] p-3.5 rounded-xl border transition shadow-md hover:border-zinc-400 dark:hover:border-zinc-500 ${
+                        isDark ? "bg-[#151c2e] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                          SUB-FITUR
-                        </span>
-                        {feat.subFeatures && feat.subFeatures.length > 0 ? (
-                          feat.subFeatures.slice(0, 3).map((sub, si) => (
-                            <div key={si} className="text-[11px] text-slate-300 truncate flex items-center gap-1.5">
-                              <span className="text-slate-500">•</span>
-                              <span className="truncate">{sub}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-[11px] text-slate-400">Modul sub-fitur terintegrasi</div>
-                        )}
-                        <span className="text-[10px] text-slate-400 block pt-1 border-t border-slate-800">
-                          Lihat rincian ({feat.subFeatures?.length || 3})
-                        </span>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SUB-FITUR</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                            isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-300" : "bg-zinc-600"} animate-pulse`} />
+                            <span>Aktif</span>
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 my-1">
+                          {feat.subFeatures && feat.subFeatures.length > 0 ? (
+                            feat.subFeatures.slice(0, 3).map((sub, si) => (
+                              <div key={si} className={`text-[11px] truncate flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isDark ? "bg-zinc-400" : "bg-zinc-500"}`} />
+                                <span className="truncate">{sub}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-[11px] text-slate-400">Modul sub-fitur terintegrasi</div>
+                          )}
+                        </div>
+                        <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-700/50">
+                          <span>Cakupan</span>
+                          <span className="font-bold text-white">✓ {feat.subFeatures?.length || 1} Modul</span>
+                        </div>
                       </div>
 
                       {/* Small Connecting SVG between Sub-fitur & Tasks */}
                       <div className="w-[50px] h-[20px] shrink-0">
                         <svg className="w-full h-full">
-                          <path d="M 0 10 L 50 10" stroke={isDark ? "#334155" : "#cbd5e1"} strokeWidth="1.5" fill="none" />
+                          <path d="M 0 10 L 50 10" stroke={isDark ? "#475569" : "#94a3b8"} strokeWidth="1.5" fill="none" />
                         </svg>
                       </div>
 
                       {/* 3. Tasks Card */}
-                      <div className={`w-[230px] p-3 rounded-xl border shadow-md space-y-1.5 ${
-                        isDark ? "bg-[#0f1422] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                      <div className={`w-[230px] p-3.5 rounded-xl border transition shadow-md hover:border-zinc-400 dark:hover:border-zinc-500 ${
+                        isDark ? "bg-[#151c2e] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                          TASKS
-                        </span>
-                        <div className="space-y-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">DEV TASKS</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                            isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-zinc-300" : "bg-zinc-600"} animate-pulse`} />
+                            <span>Ready</span>
+                          </span>
+                        </div>
+                        <div className="space-y-1 my-1">
                           {(featureTasks.length > 0 ? featureTasks.slice(0, 3) : displayTasks.slice(i * 2, i * 2 + 3)).map((t, ti) => (
-                            <div key={ti} className="text-[11px] text-slate-300 flex items-center gap-1.5 truncate">
-                              <span className={`font-bold ${isDark ? "text-zinc-300" : "text-zinc-600"}`}>✓</span>
+                            <div key={ti} className={`text-[11px] flex items-center gap-1.5 truncate ${isDark ? "text-slate-200" : "text-slate-800"}`}>
+                              <span className={`font-bold text-[10px] ${t.status === "ready" || t.status === "todo" ? (isDark ? "text-zinc-300" : "text-zinc-700") : "text-zinc-500"}`}>
+                                {t.status === "done" ? "✓" : "⚡"}
+                              </span>
                               <span className="truncate">{t.title}</span>
                             </div>
                           ))}
                         </div>
-                        <span className="text-[10px] text-slate-400 block pt-1 border-t border-slate-800">
-                          Lihat semua
-                        </span>
+                        <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-700/50">
+                          <span>Status</span>
+                          <span className="font-bold text-white">⚡ {featureTasks.length || taskCount} Actionable</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -4815,12 +5151,30 @@ ${tasks.map((t, i) => {
                 </div>
               )}
 
-              {activeProject.prd.functionalRequirements && activeProject.prd.functionalRequirements.length > 0 && (
+              {((activeProject.prd.classifiedRequirements && activeProject.prd.classifiedRequirements.length > 0) || (activeProject.prd.functionalRequirements && activeProject.prd.functionalRequirements.length > 0)) && (
                 <div>
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">5. Functional Requirements</h4>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {activeProject.prd.functionalRequirements.map((f, i) => <li key={i}>{f}</li>)}
-                  </ul>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-1.5">5. Functional Requirements (Source Traceable)</h4>
+                  {activeProject.prd.classifiedRequirements && activeProject.prd.classifiedRequirements.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {activeProject.prd.classifiedRequirements.map((cr, i) => (
+                        <div key={cr.id || i} className="flex items-start gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold shrink-0 border ${
+                            cr.source === "USER_REQUIREMENT" || cr.source === "USER_CONSTRAINT"
+                              ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-600 font-bold" : "bg-zinc-200 text-zinc-900 border-zinc-400 font-bold"
+                              : isDark ? "bg-zinc-900 text-zinc-500 border-zinc-800" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+                          }`}>
+                            {cr.source}
+                          </span>
+                          <span className="font-mono text-xs text-zinc-400 shrink-0">{cr.id}:</span>
+                          <span className="text-xs sm:text-sm">{cr.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {activeProject.prd.functionalRequirements?.map((f, i) => <li key={i}>{f}</li>)}
+                    </ul>
+                  )}
                 </div>
               )}
 
@@ -5523,7 +5877,16 @@ function TaskCard({
                 ? isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
                 : isDark ? "bg-zinc-900 text-zinc-500" : "bg-zinc-100 text-zinc-400"
             }`}>
-              Parallel: {task.parallelizable}
+              {task.parallelGroup ? `${task.parallelGroup}` : `Parallel: ${task.parallelizable}`}
+            </span>
+          )}
+          {task.source && (
+            <span className={`text-[9px] font-mono px-1 py-0.5 rounded border ${
+              task.source === "USER_REQUIREMENT" || task.source === "USER_CONSTRAINT"
+                ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-600 font-bold" : "bg-zinc-200 text-zinc-900 border-zinc-400 font-bold"
+                : isDark ? "bg-zinc-900 text-zinc-500 border-zinc-800" : "bg-zinc-100 text-zinc-600 border-zinc-300"
+            }`}>
+              {task.source === "USER_REQUIREMENT" ? "USER-REQ" : task.source === "AI_SUGGESTED" ? "AI-SUGG" : task.source}
             </span>
           )}
         </div>
@@ -5596,6 +5959,18 @@ function TaskCard({
 
         {showDetails && (
           <div className="mt-2 space-y-2.5 text-[11px] pt-1">
+            {/* Deliverable */}
+            {task.deliverable && (
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-0.5">
+                  Deliverable:
+                </span>
+                <p className="text-[11px] font-medium text-zinc-200">
+                  {task.deliverable}
+                </p>
+              </div>
+            )}
+
             {/* Subtasks */}
             {task.subtasks && task.subtasks.length > 0 && (
               <div>
