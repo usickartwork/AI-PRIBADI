@@ -3302,10 +3302,12 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed.map((p: ProjectItem) => {
-              const { tasks: optimized } = analyzeAndOptimizeTasks(p.tasks || [], p.features || [], p.prd);
+              const res = analyzeAndOptimizeTasks(p.tasks || [], p.features || [], p.prd);
               return {
                 ...p,
-                tasks: optimized,
+                tasks: res.tasks,
+                features: res.features,
+                qualityGate: res.qualityGate,
                 messages: (p.messages || []).map((m: ProjectChatMessage) => {
                   if (m.role === "assistant" && (!m.content || !m.content.trim())) {
                     return {
@@ -3461,7 +3463,47 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     } catch {}
   }, [projects]);
 
-  const activeProject = projects.find((p) => p.id === activeProjectId);
+  const rawActiveProject = projects.find((p) => p.id === activeProjectId);
+  const activeProject = useMemo(() => {
+    if (!rawActiveProject) return undefined;
+    if (
+      rawActiveProject.prd &&
+      Array.isArray(rawActiveProject.tasks) &&
+      rawActiveProject.tasks.length > 0 &&
+      (!rawActiveProject.qualityGate || rawActiveProject.qualityGate.sourceIntegrityState?.status !== "PASS")
+    ) {
+      const res = analyzeAndOptimizeTasks(rawActiveProject.tasks, rawActiveProject.features || [], rawActiveProject.prd);
+      return {
+        ...rawActiveProject,
+        tasks: res.tasks,
+        features: res.features,
+        qualityGate: res.qualityGate,
+      };
+    }
+    return rawActiveProject;
+  }, [rawActiveProject]);
+
+  useEffect(() => {
+    if (
+      rawActiveProject &&
+      activeProject &&
+      rawActiveProject.qualityGate?.sourceIntegrityState?.status !== "PASS" &&
+      activeProject.qualityGate?.sourceIntegrityState?.status === "PASS"
+    ) {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProject.id
+            ? {
+                ...p,
+                tasks: activeProject.tasks,
+                features: activeProject.features,
+                qualityGate: activeProject.qualityGate,
+              }
+            : p
+        )
+      );
+    }
+  }, [rawActiveProject, activeProject]);
 
   // Auto scroll chat
   useEffect(() => {
