@@ -141,6 +141,7 @@ export type ProjectTask = {
   description: string;
   status: TaskStatus;
   feature?: string;
+  featureId?: string;
   relatedFeature?: string;
   phase?: string;
   priority?: TaskPriority;
@@ -1855,6 +1856,214 @@ export type SourceIntegrityContext = {
   userConstraints?: string[];
 };
 
+// ── Universal V4 Semantic Compatibility & Feature Generator ──────────────────
+export function isFeatureSemanticallyCompatible(
+  r?: RequirementRegistryEntry,
+  f?: ProjectFeature
+): boolean {
+  if (!r || !f) return false;
+  if (f.origin === "AI_SUGGESTED" || f.isAiSuggested === true || f.scope === "AI-SUGGESTED") return false;
+  const rText = r.text.toLowerCase();
+  const fText = [f.name, f.description, ...(f.subFeatures || [])].join(" ").toLowerCase();
+  const cleanFText = fText.replace(/\bmasukan\b/gi, "");
+  const cleanRText = rText.replace(/\bmasukan\b/gi, "");
+
+  const isReviewReq = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(rText);
+  const isReviewFeat = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(fText);
+  const isNotifFeat = /\b(notifikasi|whatsapp|email|sms|pengingat|reminder)\b|distribusi dokumen/i.test(fText);
+  const isAuthFeat = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanFText);
+  const isAdminFeat = /dashboard\s*admin|manajemen\s*admin|kelola\s*admin/i.test(fText);
+  const isPaymentFeat = /\b(bayar|payment|pembayaran|midtrans)\b/i.test(fText);
+
+  // If requirement is review/rating:
+  if (isReviewReq) {
+    if (isNotifFeat || isAuthFeat || isAdminFeat) return false;
+    return isReviewFeat;
+  }
+
+  // If requirement is auth:
+  const isAuthReq = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanRText);
+  if (isAuthReq) {
+    if (isReviewFeat || isNotifFeat || isPaymentFeat) return false;
+    return isAuthFeat;
+  }
+
+  // If requirement is notif:
+  const isNotifReq = /\b(notifikasi|whatsapp|email|sms|pengingat|reminder)\b/i.test(rText);
+  if (isNotifReq) {
+    if (isReviewFeat || isAuthFeat) return false;
+    return isNotifFeat;
+  }
+
+  // If requirement is payment:
+  const isPaymentReq = /\b(bayar|payment|pembayaran|midtrans|transfer)\b/i.test(rText);
+  if (isPaymentReq) {
+    if (isReviewFeat || isNotifFeat) return false;
+    return isPaymentFeat;
+  }
+
+  // If requirement is booking:
+  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(rText);
+  const isBookingFeat = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(fText);
+  if (isBookingReq) {
+    if (isReviewFeat || isAuthFeat) return false;
+    return isBookingFeat;
+  }
+
+  // If requirement is catalog:
+  const isCatalogReq = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(rText);
+  const isCatalogFeat = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(fText);
+  if (isCatalogReq) {
+    if (isReviewFeat || isNotifFeat) return false;
+    return isCatalogFeat;
+  }
+
+  // Domain token overlap check:
+  const score = overlapScore(r.text, fText);
+  return score >= 2;
+}
+
+export function isTaskSemanticallyCompatible(
+  r?: RequirementRegistryEntry,
+  t?: ProjectTask
+): boolean {
+  if (!r || !t) return false;
+  if (t.origin === "AI_SUGGESTED" || t.source === "AI_SUGGESTED") return false;
+  const rText = r.text.toLowerCase();
+  const tText = [t.title, t.description, ...(t.subtasks || [])].join(" ").toLowerCase();
+  const cleanTText = tText.replace(/\bmasukan\b/gi, "");
+  const cleanRText = rText.replace(/\bmasukan\b/gi, "");
+
+  const isReviewReq = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(rText);
+  const isReviewTask = /\b(review|rating|ulasan|bintang|testimoni|feedback|kepuasan)\b/i.test(tText);
+  const isNotifTask = /\b(notifikasi|whatsapp|email|sms|pengingat|reminder)\b|distribusi dokumen/i.test(tText);
+  const isAuthTask = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanTText);
+  const isAdminTask = /dashboard\s*admin|manajemen\s*admin|kelola\s*admin/i.test(tText);
+  const isPaymentTask = /\b(bayar|payment|pembayaran|midtrans)\b/i.test(tText);
+
+  // If requirement is review/rating:
+  if (isReviewReq) {
+    if (isNotifTask || isAuthTask || isAdminTask) return false;
+    return isReviewTask;
+  }
+
+  // If requirement is auth:
+  const isAuthReq = /\b(auth|login|register|daftar|password|session|token|masuk)\b/i.test(cleanRText);
+  if (isAuthReq) {
+    if (isReviewTask || isNotifTask || isPaymentTask) return false;
+    return isAuthTask;
+  }
+
+  // If requirement is notif:
+  const isNotifReq = /\b(notifikasi|whatsapp|email|sms|pengingat|reminder)\b/i.test(rText);
+  if (isNotifReq) {
+    if (isReviewTask || isAuthTask) return false;
+    return isNotifTask;
+  }
+
+  // If requirement is payment:
+  const isPaymentReq = /\b(bayar|payment|pembayaran|midtrans|transfer)\b/i.test(rText);
+  if (isPaymentReq) {
+    if (isReviewTask || isNotifTask) return false;
+    return isPaymentTask;
+  }
+
+  // If requirement is booking:
+  const isBookingReq = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(rText);
+  const isBookingTask = /\b(booking|reservasi|jadwal|sewa|slot)\b/i.test(tText);
+  if (isBookingReq) {
+    if (isReviewTask || isAuthTask) return false;
+    return isBookingTask;
+  }
+
+  // If requirement is catalog:
+  const isCatalogReq = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(rText);
+  const isCatalogTask = /\b(katalog|produk|layanan|menu|service|paket|kiloan|satuan)\b/i.test(tText);
+  if (isCatalogReq) {
+    if (isReviewTask || isNotifTask) return false;
+    return isCatalogTask;
+  }
+
+  if ((t.sourceRequirementIds || []).includes(r.id)) return true;
+  return overlapScore(r.text, tText) >= 2;
+}
+
+export function createSemanticFeatureForRequirement(
+  r: RequirementRegistryEntry,
+  existingFeatures: ProjectFeature[]
+): ProjectFeature {
+  const rText = r.text.toLowerCase();
+  let featId = "";
+  let featName = "";
+  let featDesc = "";
+
+  if (/review|rating|ulasan|bintang|testimoni|feedback|kepuasan/i.test(rText)) {
+    featId = "FEATURE-CUSTOMER-REVIEW-RATING";
+    featName = "Customer Review & Rating";
+    featDesc = "Modul rating kepuasan pelanggan, form review bintang 1-5, dan catatan masukan feedback ulasan.";
+  } else if (/booking|reservasi|jadwal|sewa|slot/i.test(rText)) {
+    featId = "FEATURE-BOOKING-MANAGEMENT";
+    featName = "Booking & Reservation System";
+    featDesc = "Sistem reservasi, pemilihan slot waktu/jadwal, dan konfirmasi booking.";
+  } else if (/bayar|payment|pembayaran|transaksi/i.test(rText)) {
+    featId = "FEATURE-PAYMENT-GATEWAY";
+    featName = "Payment & Transaction Gateway";
+    featDesc = "Pemrosesan transaksi, verifikasi pembayaran digital, dan invoice.";
+  } else if (/auth|login|register|masuk|daftar|akun|password/i.test(rText)) {
+    featId = "FEATURE-AUTH-PROFILE";
+    featName = "Authentication & User Profile";
+    featDesc = "Autentikasi akun pengguna, sesi login/register, dan manajemen profil.";
+  } else if (/tracking|lacak|pelacakan|status/i.test(rText)) {
+    featId = "FEATURE-STATUS-TRACKING";
+    featName = "Real-Time Status Tracking";
+    featDesc = "Pelacakan progres dan pembaruan status secara real-time.";
+  } else if (/kalkulator|estimasi|hitung/i.test(rText)) {
+    featId = "FEATURE-CALCULATOR-ESTIMATION";
+    featName = "Price & Service Estimation Calculator";
+    featDesc = "Kalkulator estimasi biaya, bobot layanan, dan rincian perkiraan harga.";
+  } else if (/katalog|produk|layanan|menu|service|paket/i.test(rText)) {
+    featId = "FEATURE-CATALOG-SERVICES";
+    featName = "Service & Product Catalog";
+    featDesc = "Katalog layanan dan produk terstruktur dengan filter pencarian dan detail spesifikasi.";
+  } else if (/notifikasi|pengingat|reminder|alert/i.test(rText)) {
+    featId = "FEATURE-NOTIFICATION-SERVICE";
+    featName = "Customer Notification Service";
+    featDesc = "Layanan notifikasi status pemesanan dan pengingat jadwal.";
+  } else {
+    const clean = r.text.replace(/^(pengguna|customer|admin|user|sistem)\s+(dapat|bisa|harus|mampu|memiliki|fitur)\s+/i, "");
+    const capTitle = clean.charAt(0).toUpperCase() + clean.slice(1);
+    const slug = capTitle.slice(0, 28).toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    featId = `FEATURE-${slug || String(existingFeatures.length + 1).padStart(3, "0")}`;
+    featName = capTitle.slice(0, 60);
+    featDesc = r.text;
+  }
+
+  // Ensure unique ID
+  if (existingFeatures.some((f) => f.id === featId)) {
+    featId = `${featId}-${existingFeatures.length + 1}`;
+  }
+
+  return {
+    id: featId,
+    name: featName,
+    description: featDesc,
+    priority: "HIGH",
+    scope: "MVP",
+    isMvp: true,
+    isAiSuggested: false,
+    sourceType: "USER_REQUIREMENT",
+    origin: "USER_REQUIREMENT",
+    sourceRequirementIds: [r.id],
+    sourceRequirements: [r.id],
+    relatedRequirements: [r.id],
+    subFeatures: [
+      `Implementasi antarmuka dan interaksi pengguna untuk ${featName}`,
+      `Validasi logika dan penanganan data untuk ${featName}`,
+    ],
+    dependencies: [],
+  };
+}
+
 // ── Graph Optimizer, Cycle Detection & Quality Gate Engine ────────────────────
 // ── 11-Pass Validation, Scope Control & Automatic Repair Pipeline (V4 Enforcement Patch) ──
 // ── + V4 Source Lock: lineage inheritance & Source Integrity Check (8 checks) ──
@@ -1998,10 +2207,21 @@ export function analyzeAndOptimizeTasks(
     const missing = userReqs.filter((r) => !classifiedLocked.some((cr) => cr.id === r.id));
     const classDrift = classifiedLocked.filter((cr) => regMap.get(cr.id)?.classification !== cr.source);
     const noFeature = userReqs.filter(
-      (r) => !lockedFeatures.some((f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1)
+      (r) => !lockedFeatures.some((f) =>
+        f.origin !== "AI_SUGGESTED" &&
+        f.isAiSuggested !== true &&
+        f.scope !== "AI-SUGGESTED" &&
+        (f.sourceRequirementIds || []).indexOf(r.id) !== -1 &&
+        isFeatureSemanticallyCompatible(r, f)
+      )
     );
     const noTask = userReqs.filter(
-      (r) => !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)
+      (r) => !tasksArr.some((t) =>
+        t.origin !== "AI_SUGGESTED" &&
+        t.source !== "AI_SUGGESTED" &&
+        (t.sourceRequirementIds || []).indexOf(r.id) !== -1 &&
+        isTaskSemanticallyCompatible(r, t)
+      )
     );
     const aiMandatory = lockedFeatures.filter(featureMandatoryAi);
     const aiLeak = lineageItems.filter(
@@ -2035,22 +2255,35 @@ export function analyzeAndOptimizeTasks(
       return unauthorizedKeywords.test(text.toLowerCase()) && !unauthorizedKeywords.test(userReqsAllText);
     });
 
-    // Universal V4: Traceability Semantic Mismatch Detection (Section 8)
+    // Universal V4: Traceability Semantic Mismatch Detection (Section 8 & 9)
     const semanticMismatches = tasksArr.filter((t) => {
       const tIds = t.sourceRequirementIds || [];
-      if (tIds.length <= 1) return false;
       const tText = taskText(t).toLowerCase();
-      return tIds.some((id) => {
+      const fText = (t.feature || t.relatedFeature || "").toLowerCase();
+
+      // Check task text vs requirement
+      const reqMismatch = tIds.some((id) => {
         const req = regMap.get(id);
         if (!req) return false;
-        const rText = req.text.toLowerCase();
-        // If task is purely auth/profile but maps to rating/review or vice versa
-        const isAuthTask = /auth|login|password|session|token|pengguna/i.test(tText);
-        const isReviewReq = /review|rating|bintang|ulasan|testimoni/i.test(rText);
-        const isReviewTask = /review|rating|bintang|ulasan|testimoni/i.test(tText);
-        const isAuthReq = /auth|login|password|session|token/i.test(rText);
-        return (isAuthTask && isReviewReq && !isReviewTask) || (isReviewTask && isAuthReq && !isAuthTask);
+        return !isTaskSemanticallyCompatible(req, t);
       });
+      if (reqMismatch) return true;
+
+      // Check feature label vs requirement (e.g. task is for review req FR-15 but feature is Notification)
+      if (fText) {
+        const featMismatch = tIds.some((id) => {
+          const req = regMap.get(id);
+          if (!req) return false;
+          const isReviewReq = /review|rating|ulasan|bintang|testimoni/i.test(req.text.toLowerCase());
+          const isNotifFeat = /notifikasi|whatsapp|email|sms|pengingat|distribusi dokumen/i.test(fText);
+          const isReviewFeat = /review|rating|ulasan|bintang|testimoni/i.test(fText);
+          if (isReviewReq && isNotifFeat && !isReviewFeat) return true;
+          return false;
+        });
+        if (featMismatch) return true;
+      }
+
+      return false;
     });
 
     // Universal V4: Duplicate Requirement Block Detection (Section 10)
@@ -2203,12 +2436,57 @@ export function analyzeAndOptimizeTasks(
   const repairSourceIntegrity = () => {
     if (!lockActive) return;
 
+    // (0) Sanitize Incompatible Feature Mappings & Stale Lineage First:
+    // Strip requirement IDs mapped to features that are semantically incompatible (e.g. FR-15 on Notification feature)
+    lockedFeatures.forEach((f) => {
+      const ids = f.sourceRequirementIds || [];
+      const cleanIds = ids.filter((id) => {
+        const req = regMap.get(id);
+        if (!req) return true;
+        return isFeatureSemanticallyCompatible(req, f);
+      });
+      if (cleanIds.length !== ids.length) {
+        f.sourceRequirementIds = cleanIds;
+        repairedCount++;
+      }
+    });
+
+    // Strip semantically incompatible requirement mappings from tasks
+    taskMap.forEach((t) => {
+      const ids = t.sourceRequirementIds || [];
+      const cleanIds = ids.filter((id) => {
+        const req = regMap.get(id);
+        if (!req) return true;
+        return isTaskSemanticallyCompatible(req, t);
+      });
+      if (cleanIds.length !== ids.length) {
+        t.sourceRequirementIds = cleanIds.length > 0 ? cleanIds : ids.slice(0, 1);
+        repairedCount++;
+      }
+    });
+
+    // (0b) Never allow Source Coverage Tasks in final task set (Rule 8 & Step 6)
+    taskMap.forEach((t) => {
+      if (/source\s*coverage/i.test(t.title) || /source\s*coverage/i.test(t.phase || "")) {
+        const reqId = (t.sourceRequirementIds || [])[0];
+        const req = reqId ? regMap.get(reqId) : undefined;
+        t.title = t.title.replace(/source\s*coverage(\s*task)?/i, "").trim();
+        if (!t.title || t.title.length < 5) {
+          t.title = `Implementasi ${t.feature || (req ? clip(req.text, 50) : "Modul Fitur")}`;
+        }
+        if (/source\s*coverage/i.test(t.phase || "")) {
+          t.phase = "Phase 2 — Core Capabilities";
+        }
+        repairedCount++;
+      }
+    });
+
     // (a) Unsourced items: attach to best-matching user requirement, else mark explicitly AI-derived.
     lockedFeatures.forEach((f) => {
       if ((f.sourceRequirementIds || []).length > 0) return;
       if (f.origin && AI_DERIVED_CLASSES.indexOf(f.origin) !== -1) return;
       const req = matchBestReq(featureText(f), 2);
-      if (req) {
+      if (req && isFeatureSemanticallyCompatible(req, f)) {
         f.sourceRequirementIds = [req.id];
         f.origin = inheritOrigin(f.sourceRequirementIds, regMap);
       } else {
@@ -2221,7 +2499,7 @@ export function analyzeAndOptimizeTasks(
       if ((t.sourceRequirementIds || []).length > 0) return;
       if (t.origin && AI_DERIVED_CLASSES.indexOf(t.origin) !== -1) return;
       const req = matchBestReq(taskText(t), 2);
-      if (req) {
+      if (req && isTaskSemanticallyCompatible(req, t)) {
         t.sourceRequirementIds = [req.id];
         t.origin = inheritOrigin(t.sourceRequirementIds, regMap);
       } else {
@@ -2231,104 +2509,121 @@ export function analyzeAndOptimizeTasks(
       repairedCount++;
     });
 
-    // (b) No requirement loss: every ACTIVE USER_REQUIREMENT needs >=1 Feature and >=1 Task.
+    // (b) Universal V4 Feature & Task Coverage Repair Pipeline (Steps 1 to 6):
+    // Every ACTIVE USER_REQUIREMENT needs >=1 semantically compatible Feature and >=1 Task
     registry
       .filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE")
       .forEach((r) => {
+        // STEP 1 — FIND COMPATIBLE FEATURE
         let coveringFeature: ProjectFeature | undefined = lockedFeatures.find(
-          (f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1
+          (f) => (f.sourceRequirementIds || []).includes(r.id) && isFeatureSemanticallyCompatible(r, f)
         );
+
         if (!coveringFeature) {
-          let best: ProjectFeature | undefined;
-          let bestScore = 0;
-          for (const f of lockedFeatures) {
-            if (f.origin === "AI_SUGGESTED") continue;
-            const s = overlapScore(r.text, featureText(f));
-            if (s > bestScore) {
-              best = f;
-              bestScore = s;
-            }
+          // Check if an existing compatible feature exists in lockedFeatures (not yet mapped to r.id)
+          coveringFeature = lockedFeatures.find((f) => isFeatureSemanticallyCompatible(r, f));
+          if (coveringFeature) {
+            coveringFeature.sourceRequirementIds = Array.from(
+              new Set([...(coveringFeature.sourceRequirementIds || []), r.id])
+            );
+            coveringFeature.origin = inheritOrigin(coveringFeature.sourceRequirementIds, regMap);
+            repairedCount++;
           }
-          if (best && bestScore >= 1) {
-            best.sourceRequirementIds = [...(best.sourceRequirementIds || []), r.id];
-            best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
-            coveringFeature = best;
-          } else {
-            const featNum = lockedFeatures.length + 1;
-            const stubId = `FEAT-${String(featNum).padStart(3, "0")}`;
-            const stub: ProjectFeature = {
-              id: stubId,
-              name: clip(r.text, 70),
-              description: r.text,
-              priority: "HIGH",
-              scope: "MVP",
-              isMvp: true,
-              isAiSuggested: false,
-              sourceType: "USER_REQUIREMENT",
-              origin: "USER_REQUIREMENT",
-              sourceRequirementIds: [r.id],
-              sourceRequirements: [r.id],
-              relatedRequirements: [r.id],
-              subFeatures: [],
-              dependencies: [],
-            };
-            lockedFeatures.push(stub);
-            coveringFeature = stub;
-          }
+        }
+
+        // STEP 2 — IF NO COMPATIBLE FEATURE EXISTS: Create new semantic feature
+        if (!coveringFeature) {
+          const newFeat = createSemanticFeatureForRequirement(r, lockedFeatures);
+          lockedFeatures.push(newFeat);
+          coveringFeature = newFeat;
           repairedCount++;
         }
 
+        // STEP 3 & 4 — BIND EXISTING TASK OR CREATE COMPATIBLE TASK & REPAIR STALE METADATA
         const tasksArr = Array.from(taskMap.values());
-        if (!tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)) {
-          let best: ProjectTask | undefined;
-          let bestScore = 0;
-          for (const t of tasksArr) {
-            if (t.origin === "AI_SUGGESTED") continue;
-            const s = overlapScore(r.text, taskText(t));
-            if (s > bestScore) {
-              best = t;
-              bestScore = s;
+        let compatibleTask = tasksArr.find((t) => isTaskSemanticallyCompatible(r, t));
+
+        if (compatibleTask) {
+          // Task already exists (e.g. TASK-017 for rating/review): BIND TO COVERING FEATURE!
+          const featLabel = `${coveringFeature.id} — ${coveringFeature.name}`;
+          const needsFeatRepair =
+            compatibleTask.featureId !== coveringFeature.id ||
+            compatibleTask.feature !== coveringFeature.name ||
+            compatibleTask.relatedFeature !== featLabel;
+          const currentIds = compatibleTask.sourceRequirementIds || [];
+          const needsIdRepair = !currentIds.includes(r.id);
+
+          if (needsFeatRepair || needsIdRepair) {
+            compatibleTask.featureId = coveringFeature.id;
+            compatibleTask.feature = coveringFeature.name;
+            compatibleTask.relatedFeature = featLabel;
+            if (needsIdRepair) {
+              compatibleTask.sourceRequirementIds = Array.from(new Set([...currentIds, r.id]));
+              compatibleTask.origin = inheritOrigin(compatibleTask.sourceRequirementIds, regMap);
+              compatibleTask.source = compatibleTask.origin;
             }
+            repairedCount++;
           }
-          if (best && bestScore >= 2) {
-            best.sourceRequirementIds = [...(best.sourceRequirementIds || []), r.id];
-            best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
-            best.source = best.origin;
-          } else {
-            const taskNum = taskMap.size + 1;
-            const stubId = `TASK-${String(taskNum).padStart(3, "0")}`;
-            const featLabel = coveringFeature ? `${coveringFeature.id} — ${coveringFeature.name}` : "";
-            taskMap.set(stubId, {
-              id: stubId,
-              title: `Implementasi ${clip(r.text, 80)}`,
-              description: r.text,
-              status: "backlog",
-              feature: coveringFeature?.name,
-              relatedFeature: featLabel || undefined,
-              phase: "Phase 2 — Core Capabilities",
-              priority: "HIGH",
-              source: "USER_REQUIREMENT",
-              origin: "USER_REQUIREMENT",
-              sourceRequirementIds: [r.id],
-              relatedRequirements: [r.id],
-              dependencies: [],
-              dependencyType: "NONE",
-              subtasks: [
-                `${stubId}.1: Implementasi komponen antarmuka dan alur interaksi ${clip(r.text, 50)}`,
-                `${stubId}.2: Validasi logika bisnis, error handling dan sanitasi input`,
-                `${stubId}.3: Uji integrasi dan verifikasi fungsional requirement ${r.id}`,
-              ],
-              acceptanceCriteria: [
-                `Sistem berhasil mengeksekusi fungsionalitas requirement ${r.id}: ${r.text}`,
-                `Input divalidasi dengan aman dan state aplikasi diperbarui dengan benar`,
-              ],
-              testing: [
-                `Unit/Integration Test: Validasi fungsional logic requirement ${r.id}`,
-                `E2E / QA Test: Verifikasi alur user end-to-end tanpa error`,
-              ],
-              parallelizable: "NO",
-            });
+
+          // STEP 5: Validate acceptance criteria and test coverage for r.id
+          if (
+            !compatibleTask.acceptanceCriteria ||
+            compatibleTask.acceptanceCriteria.length === 0 ||
+            !compatibleTask.acceptanceCriteria.some((ac) => ac.includes(r.id))
+          ) {
+            compatibleTask.acceptanceCriteria = [
+              `Fungsionalitas ${coveringFeature.name} (${r.id}) tervalidasi berjalan tanpa error`,
+              `Validasi input data ${coveringFeature.name} diproses dengan aman dan tepat`,
+            ];
+            repairedCount++;
           }
+          if (
+            !compatibleTask.testing ||
+            compatibleTask.testing.length === 0 ||
+            !compatibleTask.testing.some((test) => test.includes(r.id))
+          ) {
+            compatibleTask.testing = [
+              `Unit / Integration Test: Validasi fungsional logic ${coveringFeature.name} (${r.id})`,
+              `E2E / QA Test: Verifikasi alur user ${coveringFeature.name} end-to-end tanpa error`,
+            ];
+            repairedCount++;
+          }
+        } else {
+          // STEP 6: No compatible task exists -> create new task (NEVER create generic "Source Coverage" task)
+          const taskNum = taskMap.size + 1;
+          const stubId = `TASK-${String(taskNum).padStart(3, "0")}`;
+          const featLabel = `${coveringFeature.id} — ${coveringFeature.name}`;
+          taskMap.set(stubId, {
+            id: stubId,
+            title: `Implementasi ${coveringFeature.name}`,
+            description: r.text,
+            status: "backlog",
+            feature: coveringFeature.name,
+            featureId: coveringFeature.id,
+            relatedFeature: featLabel,
+            phase: "Phase 2 — Core Capabilities",
+            priority: "HIGH",
+            source: "USER_REQUIREMENT",
+            origin: "USER_REQUIREMENT",
+            sourceRequirementIds: [r.id],
+            relatedRequirements: [r.id],
+            dependencies: [],
+            dependencyType: "NONE",
+            subtasks: [
+              `${stubId}.1: Implementasi antarmuka dan interaksi pengguna ${coveringFeature.name}`,
+              `${stubId}.2: Validasi logika bisnis, sanitasi input, dan error handling`,
+              `${stubId}.3: Uji integrasi dan verifikasi fungsional requirement ${r.id}`,
+            ],
+            acceptanceCriteria: [
+              `Sistem berhasil mengeksekusi fungsionalitas requirement ${r.id}: ${r.text}`,
+              `Input divalidasi dengan aman dan state aplikasi diperbarui dengan benar`,
+            ],
+            testing: [
+              `Unit/Integration Test: Validasi fungsional logic requirement ${r.id}`,
+              `E2E / QA Test: Verifikasi alur user end-to-end tanpa error`,
+            ],
+            parallelizable: "NO",
+          });
           repairedCount++;
         }
       });
@@ -2440,25 +2735,6 @@ export function analyzeAndOptimizeTasks(
       });
       prd.assumptions = dedupedAssump;
     }
-
-    // Wrong Feature Mapping Repair
-    lockedFeatures.forEach((f) => {
-      const fText = featureText(f).toLowerCase();
-      const ids = f.sourceRequirementIds || [];
-      const isNotifFeat = /notifikasi|whatsapp|email|sms|pengingat/i.test(fText);
-      const isReviewFeat = /review|rating|ulasan|bintang|testimoni/i.test(fText);
-      if (isNotifFeat && !isReviewFeat) {
-        const cleanIds = ids.filter((id) => {
-          const req = regMap.get(id);
-          if (!req) return true;
-          return !/review|rating|ulasan|bintang|testimoni/i.test(req.text.toLowerCase());
-        });
-        if (cleanIds.length !== ids.length) {
-          f.sourceRequirementIds = cleanIds;
-          repairedCount++;
-        }
-      }
-    });
 
     // (d) Project Type Mismatch Repair (V4 Section 5 & 8: repair PRD primaryType to expected primaryType)
     const userReqsActive = registry.filter(
@@ -2576,13 +2852,26 @@ export function analyzeAndOptimizeTasks(
 
   // PASS 7 & 9 & 10 — ATOMIC TASK ENRICHMENT, ACCEPTANCE CRITERIA AUDIT & AUTOMATIC REPAIR
   const optimizedTasks = Array.from(taskMap.values()).map((task, idx) => {
-    // Explicit parent feature linking (Pass 4)
-    if (!task.relatedFeature) {
+    // Explicit parent feature linking (Pass 4 & Step 4: Repair stale feature metadata)
+    let feat = lockedFeatures.find((f) => f.id === task.featureId || f.name === task.feature);
+    if (!feat && (task.sourceRequirementIds || []).length > 0) {
+      feat = lockedFeatures.find((f) =>
+        (f.sourceRequirementIds || []).some((id) => (task.sourceRequirementIds || []).includes(id)) &&
+        (!regMap.get((task.sourceRequirementIds || [])[0]) || isFeatureSemanticallyCompatible(regMap.get((task.sourceRequirementIds || [])[0]), f))
+      );
+    }
+    if (feat) {
+      task.feature = feat.name;
+      task.featureId = feat.id;
+      task.relatedFeature = `${feat.id} — ${feat.name}`;
+    } else if (!task.relatedFeature) {
       if (task.feature) {
         task.relatedFeature = task.feature;
-      } else if (features.length > 0) {
-        const feat = features[idx % features.length];
-        task.relatedFeature = `${feat.id || `FEATURE-0${idx + 1}`} — ${feat.name}`;
+      } else if (lockedFeatures.length > 0) {
+        const fallbackFeat = lockedFeatures[idx % lockedFeatures.length];
+        task.feature = fallbackFeat.name;
+        task.featureId = fallbackFeat.id;
+        task.relatedFeature = `${fallbackFeat.id} — ${fallbackFeat.name}`;
       } else {
         task.relatedFeature = `FEATURE-01 — Core System`;
       }
@@ -2704,9 +2993,14 @@ export function analyzeAndOptimizeTasks(
     sourceIntegrityChecks = evaluateSourceIntegrity();
     iterations++;
   }
-  // Repair may add coverage stubs; make sure the returned task list is the validated one.
+  // Repair may add coverage stubs or update tasks; make sure the returned task list is the validated one.
   taskMap.forEach((t) => {
-    if (optimizedTasks.indexOf(t) === -1) optimizedTasks.push(t);
+    const existingIdx = optimizedTasks.findIndex((ot) => ot.id === t.id);
+    if (existingIdx !== -1) {
+      optimizedTasks[existingIdx] = t;
+    } else {
+      optimizedTasks.push(t);
+    }
   });
   const finalViolationList = violationsOf(sourceIntegrityChecks);
   const finalIds = new Set(finalViolationList.map((v) => v.id));
