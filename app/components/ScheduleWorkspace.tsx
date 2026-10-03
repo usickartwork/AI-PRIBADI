@@ -43,6 +43,14 @@ const SUGGESTED_PROMPTS = [
   "Setiap Senin jam 8 pagi meeting mingguan",
 ];
 
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 4 && hour < 11) return "Good Morning";
+  if (hour >= 11 && hour < 15) return "Good Afternoon";
+  if (hour >= 15 && hour < 19) return "Good Evening";
+  return "Good Night";
+}
+
 export function ScheduleWorkspace({
   isDark,
   onClose,
@@ -662,22 +670,44 @@ export function ScheduleWorkspace({
           <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-6 space-y-5">
             <div className="max-w-3xl mx-auto w-full space-y-5">
               {chatMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center pt-8 sm:pt-16 pb-6 text-center animate-in fade-in-0 duration-200">
-                  <div
-                    className={`h-11 w-11 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center mb-3.5 shadow-md ${
-                      isDark ? "bg-white text-black" : "bg-black text-white"
-                    }`}
-                  >
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6 sm:py-12">
+                  {/* Pure Star Icon only (No Box/Kotak, identical to main chat tab) */}
+                  <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
+                    <svg
+                      className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                        isDark ? "text-white fill-white" : "text-black fill-black"
+                      }`}
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                     </svg>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Ada agenda apa hari ini?</h2>
-                  <p className="mt-1.5 text-xs sm:text-sm text-zinc-400 max-w-sm px-4">
-                    Tulis jadwalmu dengan bahasa santai, nanti aku yang atur dan kirimkan pengingat via email.
+
+                  {/* Tanda Tab Schedule */}
+                  <div className="mb-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+                        isDark
+                          ? "bg-zinc-900 border-zinc-700/80 text-zinc-200"
+                          : "bg-zinc-100 border-zinc-300 text-zinc-800"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Schedule Tab</span>
+                    </span>
+                  </div>
+
+                  {/* Headline identik dengan tab chat */}
+                  <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                    {getTimeGreeting()}, Usick One
+                  </h1>
+                  <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                    What would you like to schedule today?
                   </p>
 
-                  <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg px-2">
+                  <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-lg px-2">
                     {SUGGESTED_PROMPTS.map((promptText, idx) => (
                       <button
                         key={idx}

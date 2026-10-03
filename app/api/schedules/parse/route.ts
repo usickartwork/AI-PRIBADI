@@ -202,7 +202,8 @@ Guidelines:
 - If user only mentions "Meeting dengan tim" without any time or date, set "isAmbiguous": true and ask naturally: "Boleh tahu mau dijadwalkan tanggal berapa dan jam berapa?"
 - Respond ONLY with the JSON object, NO markdown formatting, NO extra commentary.`;
 
-    // Ambil AI API dari env (Custom, Novita, Cloudflare, etc.)
+    // Ambil AI API dari env (Groq, Custom, Novita, Cloudflare, etc.)
+    const groqKey = process.env.GROQ_API_KEY?.trim();
     const customBase = process.env.CUSTOM_BASE_URL?.trim();
     const customKey = process.env.CUSTOM_API_KEY?.trim();
     const novitaKey = process.env.NOVITA_API_KEY?.trim();
@@ -213,7 +214,12 @@ Guidelines:
     let llmKey = "";
     let llmModel = "";
 
-    if (customBase && customKey) {
+    // Prioritas utama: Groq openai/gpt-oss-120b sesuai permintaan user
+    if (groqKey) {
+      llmUrl = "https://api.groq.com/openai/v1/chat/completions";
+      llmKey = groqKey;
+      llmModel = "openai/gpt-oss-120b";
+    } else if (customBase && customKey) {
       llmUrl = customBase.endsWith("/chat/completions") ? customBase : `${customBase.replace(/\/+$/, "")}/v1/chat/completions`;
       llmKey = customKey;
       llmModel = "clario/deepseek-v4.1-flash-auto";

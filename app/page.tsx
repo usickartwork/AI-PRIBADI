@@ -498,8 +498,24 @@ export default function Home() {
     }
     return "dark"; // Default to dark mode as requested
   });
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("usick-active-view");
+      if (saved === "chats" || saved === "code" || saved === "schedule") {
+        return saved;
+      }
+    }
+    return "chats";
+  });
+
+  // Simpan activeView terakhir ke localStorage agar tidak reset saat di-refresh
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("usick-active-view", activeView);
+    }
+  }, [activeView]);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">("chats");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
