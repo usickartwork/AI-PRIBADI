@@ -236,7 +236,7 @@ Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
         id: "task-5",
         title: "Dashboard Rekap Omset & Manajemen Lapangan",
         description: "Halaman admin untuk melihat grafik pendapatan, jadwal hari ini, dan penyesuaian harga khusus.",
-        status: "todo",
+        status: "in_progress",
         feature: "Admin Management Dashboard",
         phase: "Phase 3 - Management & Polish",
         acceptanceCriteria: ["Admin bisa ekspor laporan ke Excel/CSV", "Admin bisa blokir jadwal untuk maintenance"],
@@ -245,7 +245,7 @@ Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
         id: "task-6",
         title: "Integrasi Notifikasi WhatsApp Pengingat Main",
         description: "Kirim pesan otomatis via WA 3 jam sebelum jadwal kick-off.",
-        status: "todo",
+        status: "in_progress",
         feature: "Notification",
         phase: "Phase 3 - Management & Polish",
         acceptanceCriteria: ["Pesan otomatis terkirim dengan nomor booking dan lokasi"],
@@ -269,6 +269,11 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
           if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed.map((p: ProjectItem) => ({
               ...p,
+              tasks: (p.tasks || []).map((t: ProjectTask) => ({
+                ...t,
+                // Pastikan seluruh task aktif berstatus in_progress (tidak ada yang belum dikerjakan)
+                status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
+              })),
               messages: (p.messages || []).map((m: ProjectChatMessage) => {
                 if (m.role === "assistant" && (!m.content || !m.content.trim())) {
                   return {
@@ -394,7 +399,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
-  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("todo");
+  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("in_progress");
   const [newTaskFeature, setNewTaskFeature] = useState("");
 
   // Save projects to localStorage
@@ -901,22 +906,22 @@ CREATE INDEX idx_photos_gallery ON gallery_photos(gallery_id);`
         },
         userFlow: `1. Landing Page Portofolio Fotografi -> 2. Filter Kategori Karya & Pilih Paket Foto -> 3. Cek Ketersediaan Kalender & Pilih Jam Sesi Pemotretan -> 4. Isi Form Konsep Pemotretan & Data Kontak -> 5. Bayar DP 50% Otomatis (QRIS / VA) -> 6. Konfirmasi Jadwal & Reminder Otomatis via WhatsApp -> 7. Sesi Pemotretan Berlangsung (Studio / Outdoor) -> 8. Tim Unggah Foto Mentah Ber-watermark ke Client Proofing Portal -> 9. Klien Akses Private Link & Menandai Foto Pilihan untuk Retouching -> 10. Tim Retouch Foto & Terbitkan Invoice Pelunasan -> 11. Klien Melunasi Sisa Tagihan -> 12. Klien Mengunduh Foto High-Resolution Final (ZIP / Cloud Storage)`,
         tasks: [
-          { id: "task-photo-1", title: "Setup Next.js 15 App Router & Database PostgreSQL Supabase", description: "Inisialisasi project, pasang Tailwind CSS, TypeScript, Lucide Icons, dan setup koneksi Supabase client.", status: "todo" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
-          { id: "task-photo-2", title: "Migrasi Skema Database: Fotografer, Paket, Bookings, Proofing Gallery & Payments", description: "Menjalankan migrasi DDL SQL lengkap dengan tabel relasional, foreign keys, dan index.", status: "todo" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
-          { id: "task-photo-3", title: "Implementasi Landing Page & Masonry Portfolio Grid dengan Lightbox EXIF", description: "Membangun tampilan galeri foto responsif dengan modal lightbox dan pembacaan EXIF data kamera.", status: "todo" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
-          { id: "task-photo-4", title: "Sistem Filter Kategori Portofolio & Showcase Testimoni Klien", description: "Filter interaktif (Wedding, Prewedding, Portrait, Commercial) dan ulasan klien terverifikasi.", status: "todo" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
-          { id: "task-photo-5", title: "Komponen Kalender Interaktif & Pemilihan Slot Jadwal Sesi Pemotretan", description: "Kalender visual ketersediaan fotografer & studio dengan proteksi pencegahan bentrok jadwal.", status: "todo" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
-          { id: "task-photo-6", title: "Formulir Reservasi Paket Foto, Add-ons (MUA/Ekstra Jam) & Validasi Zod", description: "Form multi-step pengisian data klien, pilihan paket, add-ons, dan validasi schema Zod.", status: "todo" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
-          { id: "task-photo-7", title: "Integrasi Payment Gateway QRIS & VA untuk Pembayaran DP 50%", description: "Koneksi ke API payment gateway untuk generate QRIS instan dan Virtual Account pembayaran DP.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
-          { id: "task-photo-8", title: "Webhook Handler Pembayaran DP & Notifikasi WhatsApp Konfirmasi Jadwal", description: "Endpoint /api/webhook untuk verifikasi pelunasan DP dan trigger pesan WA konfirmasi jadwal.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
-          { id: "task-photo-9", title: "Portal Client Proofing: Private Access Link & Watermark Photo Viewer", description: "Halaman privat klien dengan token unik untuk melihat foto mentah dengan overlay watermark.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-10", title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch", description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-11", title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res", description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
-          { id: "task-photo-12", title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)", description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.", status: "todo" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
-          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "todo" as const, feature: "Studio Management", phase: "Phase 6 - Dashboard Admin" },
-          { id: "task-photo-14", title: "Automasi Watermarking dengan Sharp & Cloud Presigned URL", description: "Worker background untuk meng-apply watermark dinamis pada foto yang diunggah dan generate presigned URL download.", status: "todo" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
-          { id: "task-photo-15", title: "Audit Keamanan Token Proofing & Rate Limiting Endpoint", description: "Proteksi brute force link proofing, sanitasi akses unduhan, dan pengujian otorisasi session.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
-          { id: "task-photo-16", title: "Testing Menyeluruh, Optimasi Core Web Vitals & Production Deployment", description: "Audit performa galeri foto WebP/AVIF, stress test kalender booking, dan rilis ke production Vercel.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
+          { id: "task-photo-1", title: "Setup Next.js 15 App Router & Database PostgreSQL Supabase", description: "Inisialisasi project, pasang Tailwind CSS, TypeScript, Lucide Icons, dan setup koneksi Supabase client.", status: "in_progress" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
+          { id: "task-photo-2", title: "Migrasi Skema Database: Fotografer, Paket, Bookings, Proofing Gallery & Payments", description: "Menjalankan migrasi DDL SQL lengkap dengan tabel relasional, foreign keys, dan index.", status: "in_progress" as const, feature: "Setup & Fondasi", phase: "Phase 1 - Inisialisasi" },
+          { id: "task-photo-3", title: "Implementasi Landing Page & Masonry Portfolio Grid dengan Lightbox EXIF", description: "Membangun tampilan galeri foto responsif dengan modal lightbox dan pembacaan EXIF data kamera.", status: "in_progress" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
+          { id: "task-photo-4", title: "Sistem Filter Kategori Portofolio & Showcase Testimoni Klien", description: "Filter interaktif (Wedding, Prewedding, Portrait, Commercial) dan ulasan klien terverifikasi.", status: "in_progress" as const, feature: "Showcase Portofolio", phase: "Phase 2 - Showcase" },
+          { id: "task-photo-5", title: "Komponen Kalender Interaktif & Pemilihan Slot Jadwal Sesi Pemotretan", description: "Kalender visual ketersediaan fotografer & studio dengan proteksi pencegahan bentrok jadwal.", status: "in_progress" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
+          { id: "task-photo-6", title: "Formulir Reservasi Paket Foto, Add-ons (MUA/Ekstra Jam) & Validasi Zod", description: "Form multi-step pengisian data klien, pilihan paket, add-ons, dan validasi schema Zod.", status: "in_progress" as const, feature: "Booking Engine", phase: "Phase 3 - Booking Engine" },
+          { id: "task-photo-7", title: "Integrasi Payment Gateway QRIS & VA untuk Pembayaran DP 50%", description: "Koneksi ke API payment gateway untuk generate QRIS instan dan Virtual Account pembayaran DP.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
+          { id: "task-photo-8", title: "Webhook Handler Pembayaran DP & Notifikasi WhatsApp Konfirmasi Jadwal", description: "Endpoint /api/webhook untuk verifikasi pelunasan DP dan trigger pesan WA konfirmasi jadwal.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 4 - Pembayaran" },
+          { id: "task-photo-9", title: "Portal Client Proofing: Private Access Link & Watermark Photo Viewer", description: "Halaman privat klien dengan token unik untuk melihat foto mentah dengan overlay watermark.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-10", title: "Fitur Seleksi Foto Klien (Love/Favorite) dengan Catatan Revisi Retouch", description: "Antarmuka interaktif memilih foto kuota paket dan memberi instruksi editing per foto.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-11", title: "Pipeline Admin Studio: Manajemen Status Editing & Upload Hasil High-Res", description: "Board status pengerjaan (Booked -> Shot -> Editing -> Ready) dan upload foto resolusi penuh.", status: "in_progress" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
+          { id: "task-photo-12", title: "Invoice Pelunasan Otomatis & Gerbang Unduh File Digital Resolusi Penuh (ZIP)", description: "Verifikasi pelunasan akhir sebelum membukakan akses download file ZIP resolusi tinggi 300 DPI.", status: "in_progress" as const, feature: "Delivery", phase: "Phase 6 - Delivery" },
+          { id: "task-photo-13", title: "Dashboard Studio: Kalender Penugasan Fotografer & Rekap Keuangan", description: "Monitoring penugasan tim fotografer, jadwal pemotretan aktif, dan rekapitulasi omzet studio.", status: "in_progress" as const, feature: "Studio Management", phase: "Phase 6 - Dashboard Admin" },
+          { id: "task-photo-14", title: "Automasi Watermarking dengan Sharp & Cloud Presigned URL", description: "Worker background untuk meng-apply watermark dinamis pada foto yang diunggah dan generate presigned URL download.", status: "in_progress" as const, feature: "Proofing Portal", phase: "Phase 5 - Proofing Portal" },
+          { id: "task-photo-15", title: "Audit Keamanan Token Proofing & Rate Limiting Endpoint", description: "Proteksi brute force link proofing, sanitasi akses unduhan, dan pengujian otorisasi session.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
+          { id: "task-photo-16", title: "Testing Menyeluruh, Optimasi Core Web Vitals & Production Deployment", description: "Audit performa galeri foto WebP/AVIF, stress test kalender booking, dan rilis ke production Vercel.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
         ]
       };
     }
@@ -1183,22 +1188,22 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
       },
       userFlow: `1. Landing Page -> 2. Penelusuran Katalog & Filter Layanan -> 3. Halaman Detail Item & Pengecekan Ketersediaan -> 4. Formulir Data Transaksi (Validasi Zod) -> 5. Penguncian Slot Sementara (Hold 15 Menit) -> 6. Checkout & Pembayaran Otomatis (QRIS / VA) -> 7. Verifikasi Webhook Server-to-Server -> 8. Penerbitan Faktur PDF & Notifikasi WhatsApp -> 9. Eksekusi Layanan oleh Staff -> 10. Dashboard Riwayat Pengguna & Ulasan Bintang`,
       tasks: [
-        { id: "t-01", title: "Setup Inisialisasi Proyek, Konfigurasi Lingkungan & Tooling", description: "Inisialisasi Next.js 15 App Router, TypeScript, Tailwind CSS, ESLint, Prettier, dan file konfigurasi environment variables (.env.example).", status: "todo" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-02", title: "Desain Skema Database Relasional PostgreSQL, DDL & Indexes", description: "Menulis skrip DDL SQL untuk tabel users, categories, items_services, orders_bookings, payments, reviews, dan audit logs beserta foreign keys dan B-Tree indexes.", status: "todo" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
-        { id: "t-03", title: "Implementasi Sistem Autentikasi Pengguna & Session Middleware", description: "Membangun endpoint login, register, hash password Argon2/Bcrypt, session cookie HttpOnly aman, dan middleware route guard Next.js untuk proteksi rute.", status: "todo" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
-        { id: "t-04", title: "Modul Manajemen Profil Pengguna, Reset Password & Role Guard", description: "Halaman edit profil pengguna, avatar upload, alur lupa password via email token terenkripsi, dan pembagian hak akses (Customer, Staff, Admin).", status: "todo" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
-        { id: "t-05", title: "Pembuatan Master Layout, Design System & App Shell Responsif", description: "Membangun komponen Navbar, Sidebar navigasi, modal wrapper, alert toast, dan layout adaptif responsif dark/light mode yang konsisten.", status: "todo" as const, feature: "Frontend Core", phase: "Phase 3 - Frontend Core" },
-        { id: "t-06", title: "Halaman Penelusuran Katalog, Instant Debounce Search & Filter", description: "Menampilkan kartu data dinamis dengan instant search bar (debounce 250ms), multi-filter kategori, urutan harga, dan pagination/infinite scroll.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
-        { id: "t-07", title: "Halaman Detail Entitas/Layanan dengan Visual Showcase", description: "Membangun tampilan detail item dengan galeri gambar responsif, deskripsi mendalam, accordion spesifikasi teknis, dan indikator status ketersediaan live.", status: "todo" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
-        { id: "t-08", title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking", description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
-        { id: "t-09", title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan", description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.", status: "todo" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
-        { id: "t-10", title: "Integrasi Gateway Pembayaran Digital (QRIS Dinamis & Virtual Account)", description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
-        { id: "t-11", title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order", description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.", status: "todo" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
-        { id: "t-12", title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp", description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).", status: "todo" as const, feature: "Notifikasi", phase: "Phase 5 - Integrasi" },
-        { id: "t-13", title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis", description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.", status: "todo" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
-        { id: "t-14", title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel", description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.", status: "todo" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
-        { id: "t-15", title: "Testing Menyeluruh End-to-End, Error Boundary & Logging", description: "Pengujian skenario alur dari registrasi, penelusuran, checkout holding lock, pembayaran webhook sampai invoice, serta pengujian error boundary.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
-        { id: "t-16", title: "Security Hardening, Optimasi Core Web Vitals & Deploy ke Production", description: "Audit header keamanan (CSP, X-Frame-Options), optimasi kompresi gambar Next.js Image, audit performa Lighthouse, dan rilis production ke Vercel.", status: "todo" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
+        { id: "t-01", title: "Setup Inisialisasi Proyek, Konfigurasi Lingkungan & Tooling", description: "Inisialisasi Next.js 15 App Router, TypeScript, Tailwind CSS, ESLint, Prettier, dan file konfigurasi environment variables (.env.example).", status: "in_progress" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-02", title: "Desain Skema Database Relasional PostgreSQL, DDL & Indexes", description: "Menulis skrip DDL SQL untuk tabel users, categories, items_services, orders_bookings, payments, reviews, dan audit logs beserta foreign keys dan B-Tree indexes.", status: "in_progress" as const, feature: "Fondasi", phase: "Phase 1 - Inisialisasi" },
+        { id: "t-03", title: "Implementasi Sistem Autentikasi Pengguna & Session Middleware", description: "Membangun endpoint login, register, hash password Argon2/Bcrypt, session cookie HttpOnly aman, dan middleware route guard Next.js untuk proteksi rute.", status: "in_progress" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
+        { id: "t-04", title: "Modul Manajemen Profil Pengguna, Reset Password & Role Guard", description: "Halaman edit profil pengguna, avatar upload, alur lupa password via email token terenkripsi, dan pembagian hak akses (Customer, Staff, Admin).", status: "in_progress" as const, feature: "Autentikasi", phase: "Phase 2 - Autentikasi" },
+        { id: "t-05", title: "Pembuatan Master Layout, Design System & App Shell Responsif", description: "Membangun komponen Navbar, Sidebar navigasi, modal wrapper, alert toast, dan layout adaptif responsif dark/light mode yang konsisten.", status: "in_progress" as const, feature: "Frontend Core", phase: "Phase 3 - Frontend Core" },
+        { id: "t-06", title: "Halaman Penelusuran Katalog, Instant Debounce Search & Filter", description: "Menampilkan kartu data dinamis dengan instant search bar (debounce 250ms), multi-filter kategori, urutan harga, dan pagination/infinite scroll.", status: "in_progress" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
+        { id: "t-07", title: "Halaman Detail Entitas/Layanan dengan Visual Showcase", description: "Membangun tampilan detail item dengan galeri gambar responsif, deskripsi mendalam, accordion spesifikasi teknis, dan indikator status ketersediaan live.", status: "in_progress" as const, feature: "Katalog", phase: "Phase 3 - Frontend Core" },
+        { id: "t-08", title: "Mesin Pemesanan Transaksi, Validasi Zod & Concurrency Locking", description: "Formulir interaktif multi-step dengan validasi skema Zod ketat di sisi klien/server dan mekanisme atomic holding lock 15 menit untuk mencegah double order.", status: "in_progress" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
+        { id: "t-09", title: "Kalkulator Checkout Otomatis: Biaya, Kupon & Breakdown Tagihan", description: "Kalkulasi otomatis subtotal, kode unik transaksi, potongan voucher diskon, dan estimasi rincian biaya transparan sebelum pembayaran dilakukan.", status: "in_progress" as const, feature: "Transaksi", phase: "Phase 4 - Modul Transaksi" },
+        { id: "t-10", title: "Integrasi Gateway Pembayaran Digital (QRIS Dinamis & Virtual Account)", description: "Menghubungkan API payment gateway (Midtrans / Xendit) untuk menerbitkan QRIS dinamis dan nomor Virtual Account perbankan secara real-time.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
+        { id: "t-11", title: "Endpoint Webhook Listener & Rekonsiliasi Otomatis Status Order", description: "Membuat endpoint /api/webhook/payment dengan verifikasi signature cryptographic untuk mengupdate status pembayaran dan order menjadi settlement.", status: "in_progress" as const, feature: "Pembayaran", phase: "Phase 5 - Integrasi" },
+        { id: "t-12", title: "Penerbitan Invoice PDF Digital & Integrasi Notifikasi WhatsApp", description: "Menghasilkan invoice PDF otomatis dengan barcode verifikasi transaksi dan memicu pengiriman pesan bukti sukses pesanan via WhatsApp Gateway (Fonnte).", status: "in_progress" as const, feature: "Notifikasi", phase: "Phase 5 - Integrasi" },
+        { id: "t-13", title: "Dashboard Admin: Visualisasi Grafik Analitik Omzet & KPI Bisnis", description: "Membangun kartu ringkasan omzet, rasio pesanan sukses, grafik batang pendapatan harian/bulanan, dan metrik retensi pelanggan berbasis data nyata.", status: "in_progress" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
+        { id: "t-14", title: "Dashboard Admin: Manajemen Data Master CRUD & Export CSV/Excel", description: "Tabel interaktif data master dengan modal tambah/edit berkas, filter status, bulk delete, serta fitur unduh laporan rekapitulasi ke format CSV/Excel.", status: "in_progress" as const, feature: "Dashboard Admin", phase: "Phase 6 - Dashboard Admin" },
+        { id: "t-15", title: "Testing Menyeluruh End-to-End, Error Boundary & Logging", description: "Pengujian skenario alur dari registrasi, penelusuran, checkout holding lock, pembayaran webhook sampai invoice, serta pengujian error boundary.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" },
+        { id: "t-16", title: "Security Hardening, Optimasi Core Web Vitals & Deploy ke Production", description: "Audit header keamanan (CSP, X-Frame-Options), optimasi kompresi gambar Next.js Image, audit performa Lighthouse, dan rilis production ke Vercel.", status: "in_progress" as const, feature: "QA & Hardening", phase: "Phase 7 - QA & Deployment" }
       ]
     };
   };
@@ -1298,6 +1303,7 @@ ATURAN KEDALAMAN & KELENGKAPAN OUTPUT (WAJIB DIIKUTI SECARA KETAT):
 5. TASKS WAJIB MINIMAL 16 SAMPAI 20 ACTIONABLE DEVELOPMENT TASKS:
    - Terbagi rapi ke dalam Phase 1 sampai Phase 7.
    - Setiap task harus jelas apa yang dibangun dan bagaimana eksekusinya.
+   - Status setiap task WAJIB "in_progress" (aktif sedang diproses dan dianalisis kelayakan pengerjaannya). DILARANG KERAS menggunakan status "todo" atau belum dikerjakan!
 DILARANG KERAS menghasilkan output ringkas atau minimalis! Pengguna menuntut arsitektur yang sangat kaya, komprehensif, dan siap produksi.
 
 FORMAT OUTPUT WAJIB:
@@ -1333,7 +1339,7 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
     "dataSchema": "CREATE TABLE ..."
   },
   "tasks": [
-    { "title": "...", "description": "...", "status": "todo", "phase": "Phase 1 - Inisialisasi", "feature": "Core" }
+    { "title": "...", "description": "...", "status": "in_progress", "phase": "Phase 1 - Inisialisasi", "feature": "Core" }
   ]
 }
 <<<END_BLUEPRINT_JSON>>>`;
@@ -1379,6 +1385,7 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let rawStream = "";
+      let currentTrackedStage: "prd" | "features" | "architecture" | "tasks" | "completed" = "prd";
 
       let buffer = "";
       while (true) {
@@ -1402,14 +1409,21 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
 
               // Deteksi progres estafet berbasis bagian nyata yang sedang digenerate AI:
               if (isAnsweringQuestions) {
-                if (rawStream.includes('"tasks"')) {
-                  setEstafetStage("tasks");
-                } else if (rawStream.includes('"architecture"') || rawStream.includes('"userFlow"')) {
-                  setEstafetStage("architecture");
-                } else if (rawStream.includes('"features"')) {
-                  setEstafetStage("features");
-                } else {
-                  setEstafetStage("prd");
+                if (rawStream.includes('"tasks"') || rawStream.includes('tasks":') || rawStream.includes('"Actionable') || rawStream.length > 3800) {
+                  if (currentTrackedStage !== "tasks") {
+                    currentTrackedStage = "tasks";
+                    setEstafetStage("tasks");
+                  }
+                } else if (rawStream.includes('"architecture"') || rawStream.includes('"userFlow"') || rawStream.includes('"dataSchema"') || rawStream.includes('CREATE TABLE') || rawStream.length > 2400) {
+                  if (currentTrackedStage === "prd" || currentTrackedStage === "features") {
+                    currentTrackedStage = "architecture";
+                    setEstafetStage("architecture");
+                  }
+                } else if (rawStream.includes('"features"') || rawStream.includes('features":') || rawStream.includes('"Feature Breakdown"') || rawStream.length > 900) {
+                  if (currentTrackedStage === "prd") {
+                    currentTrackedStage = "features";
+                    setEstafetStage("features");
+                  }
                 }
               }
 
@@ -1431,7 +1445,21 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
       }
 
       if (isAnsweringQuestions) {
-        setEstafetStage("completed");
+        // Transisi halus berurutan agar pengguna benar-benar melihat setiap tahap dari awal hingga akhir terupdate:
+        const stageSequence: Array<"prd" | "features" | "architecture" | "tasks" | "completed"> = [
+          "prd",
+          "features",
+          "architecture",
+          "tasks",
+          "completed",
+        ];
+        const startIdx = stageSequence.indexOf(currentTrackedStage);
+        const actualStart = startIdx >= 0 ? startIdx : 0;
+        for (let s = actualStart + 1; s < stageSequence.length; s++) {
+          await new Promise((resolve) => setTimeout(resolve, 750));
+          setEstafetStage(stageSequence[s]);
+        }
+
         if (!rawStream.trim()) {
           rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
@@ -1642,7 +1670,7 @@ Berikan pengantar singkat profesional (1-2 paragraf) lalu sertakan blok blueprin
               id: "task-" + (idx + 1) + "-" + Date.now(),
               title: t.title || "Task " + (idx + 1),
               description: t.description || "",
-              status: (t.status === "done" || t.status === "in_progress" || t.status === "failed") ? t.status : "todo",
+              status: (t.status === "done" || t.status === "failed") ? t.status : "in_progress",
               phase: t.phase || "Phase " + (Math.floor(idx / 3) + 1),
               feature: t.feature || "Core",
             }));
@@ -2140,7 +2168,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f95721] text-white shadow-xs">
+            <div className={`flex h-6 w-6 items-center justify-center rounded-lg shadow-xs ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
@@ -2161,7 +2189,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             <span className={`font-semibold truncate max-w-[140px] sm:max-w-[180px] hidden sm:inline ${isDark ? "text-slate-200" : "text-slate-800"}`}>
               {activeProject.title}
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-[#f95721] border border-slate-700/80">#1</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300"}`}>#1</span>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
@@ -2185,7 +2213,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               onClick={() => setActiveTab("mindmap")}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === "mindmap"
-                  ? "bg-[#f95721] text-white shadow-xs"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                   : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
               }`}
               title="Peta Rencana (Visual Mindmap)"
@@ -2200,7 +2228,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               onClick={() => setActiveTab("prd")}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === "prd"
-                  ? "bg-[#f95721] text-white shadow-xs"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                   : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
               }`}
               title="Wiki Dokumen PRD"
@@ -2215,7 +2243,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               onClick={() => setActiveTab("chat")}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === "chat"
-                  ? "bg-[#f95721] text-white shadow-xs"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                   : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
               }`}
               title="Diskusi & Tanya AI"
@@ -2230,7 +2258,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               onClick={() => setActiveTab("tasks")}
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === "tasks"
-                  ? "bg-[#f95721] text-white shadow-xs"
+                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                   : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
               }`}
               title="Task Board"
@@ -2242,10 +2270,14 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
             </button>
           </div>
 
-          {/* Primary CTA: Lanjutkan Proyek (Orange Pill Button) */}
+          {/* Primary CTA: Lanjutkan Proyek (Themed Button) */}
           <button
             onClick={copyEverythingText}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-[#f95721] hover:bg-[#ea4815] transition shadow-md shadow-[#f95721]/20 cursor-pointer active:scale-95"
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md cursor-pointer active:scale-95 ${
+              isDark
+                ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
+                : "bg-black hover:bg-zinc-800 text-white shadow-black/10"
+            }`}
             title="Salin Master Context & Prompt untuk implementasi proyek di AI coding tool"
           >
             <span>Lanjutkan proyek</span>
@@ -2295,7 +2327,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     onClick={() => setPerencanaanMode("prd")}
                     className={`p-1.5 rounded-lg transition ${
                       perencanaanMode === "prd"
-                        ? "bg-[#f95721] text-white shadow-xs"
+                        ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                         : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
                     }`}
                     title="Pratinjau PRD"
@@ -2311,7 +2343,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     onClick={() => setPerencanaanMode("code")}
                     className={`p-1.5 rounded-lg transition ${
                       perencanaanMode === "code"
-                        ? "bg-[#f95721] text-white shadow-xs"
+                        ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                         : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
                     }`}
                     title="Lihat Arsitektur & Skema SQL"
@@ -2372,7 +2404,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       <h3 className="text-base font-bold tracking-tight mb-3">
                         PRD — Project Requirements Document
                       </h3>
-                      <h4 className="text-xs font-semibold text-[#f95721] uppercase tracking-wider mb-1.5">
+                      <h4 className={`text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                         1. Overview
                       </h4>
                       <p className={isDark ? "text-slate-300" : "text-slate-700"}>
@@ -2396,7 +2428,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                         <h4 className="text-xs font-semibold uppercase tracking-wider mb-1.5 text-slate-400">
                           Target &amp; Goals:
                         </h4>
-                        <ul className="space-y-1.5 pl-3 border-l-2 border-[#f95721]">
+                        <ul className={`space-y-1.5 pl-3 border-l-2 ${isDark ? "border-zinc-500" : "border-zinc-700"}`}>
                           {displayPrd.goals.map((g, i) => (
                             <li key={i} className={isDark ? "text-slate-300" : "text-slate-700"}>
                               {g}
@@ -2441,7 +2473,11 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     <div className="pt-2">
                       <button
                         onClick={() => setActiveTab("prd")}
-                        className="w-full py-2.5 rounded-xl text-center font-semibold bg-[#f95721]/10 hover:bg-[#f95721]/20 text-[#f95721] border border-[#f95721]/30 transition cursor-pointer"
+                        className={`w-full py-2.5 rounded-xl text-center font-semibold border transition cursor-pointer ${
+                          isDark
+                            ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700"
+                            : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border-zinc-300"
+                        }`}
                       >
                         Buka Dokumen PRD Penuh (Wiki) ➔
                       </button>
@@ -2452,7 +2488,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                     <h3 className="text-sm font-bold tracking-tight mb-2">Arsitektur &amp; Database Schema</h3>
                     <div className="space-y-3">
                       <div className={`p-3 rounded-xl border ${isDark ? "bg-[#111625] border-slate-800" : "bg-slate-50 border-slate-200"}`}>
-                        <span className="text-[10px] font-bold text-[#f95721] uppercase tracking-wider block mb-1">Tech Stack</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>Tech Stack</span>
                         <div className="space-y-1 text-[11px]">
                           <div><strong>Frontend:</strong> {displayArch?.frontend}</div>
                           <div><strong>Backend:</strong> {displayArch?.backend}</div>
@@ -2490,7 +2526,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               }`}
             >
               <span>Buka Perencanaan</span>
-              <span className="text-[#f95721]">➔</span>
+              <span className={isDark ? "text-zinc-300" : "text-zinc-700"}>➔</span>
             </button>
           )}
 
@@ -2506,10 +2542,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
               <div className="flex flex-col items-center shrink-0 w-[200px]">
                 <div className={`w-full p-4 rounded-2xl border-2 text-center shadow-xl ${
                   isDark
-                    ? "border-[#f95721] bg-[#111625] text-white shadow-[#f95721]/15"
-                    : "border-[#f95721] bg-white text-slate-900 shadow-slate-200"
+                    ? "border-zinc-700 bg-[#111625] text-white shadow-black/40"
+                    : "border-zinc-300 bg-white text-slate-900 shadow-slate-200"
                 }`}>
-                  <span className="text-[10px] font-bold text-[#f95721] uppercase tracking-wider block mb-1">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
                     Project Root
                   </span>
                   <h3 className="font-bold text-xs sm:text-sm leading-snug line-clamp-2">
@@ -2554,7 +2590,7 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                   return (
                     <div key={feat.id || i} className="h-[140px] flex items-center gap-0">
                       {/* 1. Feature Card */}
-                      <div className={`w-[220px] p-3.5 rounded-xl border transition shadow-md hover:border-[#f95721] ${
+                      <div className={`w-[220px] p-3.5 rounded-xl border transition shadow-md hover:border-zinc-400 dark:hover:border-zinc-500 ${
                         isDark ? "bg-[#151c2e] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                       }`}>
                         <div className="flex items-center justify-between mb-1.5">
@@ -3675,10 +3711,10 @@ ${tasks.map((t, i) => `${i + 1}. [${t.status.toUpperCase()}] **${t.title}** (${t
                       isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-50 border-zinc-300"
                     }`}
                   >
-                    <option value="todo">Belum Mulai</option>
-                    <option value="in_progress">Dikerjakan</option>
+                    <option value="in_progress">Dikerjakan (Aktif)</option>
                     <option value="done">Selesai</option>
                     <option value="failed">Gagal / Kendala</option>
+                    <option value="todo">Belum Mulai</option>
                   </select>
                 </div>
 
@@ -3786,10 +3822,10 @@ function TaskCard({
               : isDark ? "bg-zinc-900 text-zinc-300 border-zinc-800" : "bg-zinc-50 text-zinc-700 border-zinc-300"
           }`}
         >
-          <option value="todo">Belum Mulai</option>
-          <option value="in_progress">Dikerjakan</option>
+          <option value="in_progress">Dikerjakan (Aktif)</option>
           <option value="done">Selesai</option>
           <option value="failed">Gagal / Kendala</option>
+          <option value="todo">Belum Mulai</option>
         </select>
       </div>
     </div>
