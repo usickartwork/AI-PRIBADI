@@ -81,6 +81,17 @@ export type SourceIntegrityCheck = {
   question: string;
   passed: boolean;
   detail: string;
+  violations?: string[];
+};
+
+// Verified repair report: "repaired" = initial - remaining, measured by re-validating the final data.
+export type SourceIntegrityReport = {
+  initialViolations: number;
+  repaired: number;
+  remaining: number;
+  iterations: number;
+  repairStatus: "NOT_NEEDED" | "REPAIRED" | "BLOCKED";
+  remainingViolations: string[];
 };
 
 export type QualityGateStatus = "PASS" | "PASS WITH WARNINGS" | "FAIL";
@@ -95,6 +106,7 @@ export type QualityGateResult = {
   pipelinePassesCompleted: number;
   sourceIntegrity?: "PASS" | "FAIL";
   sourceIntegrityChecks?: SourceIntegrityCheck[];
+  sourceIntegrityReport?: SourceIntegrityReport;
 };
 
 export type ProjectAssumption = {
@@ -784,7 +796,7 @@ export function analyzeAndOptimizeTasks(
   const evaluateSourceIntegrity = (): SourceIntegrityCheck[] => {
     const userReqs = registry.filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE");
     const tasksArr = Array.from(taskMap.values());
-    const lineageItems: { origin?: RequirementSource; sourceRequirementIds?: string[] }[] = [...lockedFeatures, ...tasksArr];
+    const lineageItems: { id?: string; origin?: RequirementSource; sourceRequirementIds?: string[] }[] = [...lockedFeatures, ...tasksArr];
     const na = "Tidak ada registry requirement (proyek tanpa PRD) — pemeriksaan dilewati.";
 
     const missing = userReqs.filter((r) => !classifiedLocked.some((cr) => cr.id === r.id));
@@ -816,7 +828,7 @@ export function analyzeAndOptimizeTasks(
     const alts = context?.stackAlternatives || [];
     const stackOk = !mode || !(mode === "USER_SPECIFIED" && (alts.length > 0 || context?.stackIsAiSuggested === true));
 
-    return [
+    const checks: SourceIntegrityCheck[] = [
       {
         checkNumber: 1,
         question: "Apakah semua USER_REQUIREMENT masih ada?",
@@ -869,6 +881,27 @@ export function analyzeAndOptimizeTasks(
         detail: stackOk ? `Stack Mode ${mode || "-"} sesuai tingkat kepastian.` : "USER_SPECIFIED tidak boleh dipakai saat masih ada alternatif/rekomendasi AI.",
       },
     ];
+
+    // Exact violations (computed from the final data, not from any repair log).
+    const named = (x: { id?: string }) => x.id || "item";
+    const lists: Record<number, string[]> = {
+      1: missing.map((r) => `${r.id} hilang dari requirement terklasifikasi`),
+      2: classDrift.map((c) => `${c.id} classification mismatch`),
+      3: noFeature.map((r) => `${r.id} missing Feature mapping`),
+      4: noTask.map((r) => `${r.id} missing Task mapping`),
+      5: [
+        ...aiMandatory.map((f) => `${f.id} AI_SUGGESTED menjadi mandatory scope`),
+        ...aiLeak.map((x) => `${named(x)} AI_SUGGESTED memakai lineage USER requirement`),
+        ...aiBlocking.map((t) => `${t.id} bergantung pada task AI_SUGGESTED`),
+      ],
+      6: unsourced.map((x) => `${named(x)} tidak memiliki source requirement`),
+      7: typeOk ? [] : [`Primary type "${primary}" tidak sesuai requirement`],
+      8: stackOk ? [] : ["Stack Mode USER_SPECIFIED padahal masih ada alternatif/rekomendasi AI"],
+    };
+    checks.forEach((c) => {
+      c.violations = c.passed ? [] : lists[c.checkNumber].length > 0 ? lists[c.checkNumber] : [c.detail];
+    });
+    return checks;
   };
 
   const repairSourceIntegrity = () => {
@@ -1021,12 +1054,31 @@ export function analyzeAndOptimizeTasks(
     });
   };
 
+  // ── V4 SOURCE INTEGRITY REPAIR LOOP: CHECK → REPAIR (mutates actual data) → RE-CHECK, max 3 iterations ──
+  const countViolations = (cs: SourceIntegrityCheck[]) => cs.reduce((n, c) => n + (c.violations?.length ?? (c.passed ? 0 : 1)), 0);
   let sourceIntegrityChecks = evaluateSourceIntegrity();
-  for (let attempt = 0; attempt < 3 && sourceIntegrityChecks.some((c) => !c.passed); attempt++) {
+  const initialViolations = countViolations(sourceIntegrityChecks);
+  const repairedBeforeLoop = repairedCount;
+  let iterations = 0;
+  while (iterations < 3 && countViolations(sourceIntegrityChecks) > 0) {
     repairSourceIntegrity();
-    sourceIntegrityChecks = evaluateSourceIntegrity();
+    sourceIntegrityChecks = evaluateSourceIntegrity(); // validator inspects the final data, not the repair log
+    iterations++;
   }
-  const sourceIntegrity: "PASS" | "FAIL" = sourceIntegrityChecks.every((c) => c.passed) ? "PASS" : "FAIL";
+  const remainingViolationList = sourceIntegrityChecks.flatMap((c) => c.violations || []);
+  const remainingViolations = remainingViolationList.length;
+  // Only verified repairs count: items no longer violating after the post-repair validation.
+  const verifiedRepaired = Math.max(0, initialViolations - remainingViolations);
+  repairedCount = repairedBeforeLoop + verifiedRepaired;
+  const sourceIntegrity: "PASS" | "FAIL" = remainingViolations === 0 ? "PASS" : "FAIL";
+  const sourceIntegrityReport: SourceIntegrityReport = {
+    initialViolations,
+    repaired: verifiedRepaired,
+    remaining: remainingViolations,
+    iterations,
+    repairStatus: initialViolations === 0 ? "NOT_NEEDED" : sourceIntegrity === "PASS" ? "REPAIRED" : "BLOCKED",
+    remainingViolations: remainingViolationList,
+  };
 
   // PASS 1 — INPUT EXTRACTION & TASK NORMALIZATION
   // PASS 2 — REQUIREMENT IMMUTABILITY & SOURCE VALIDATION
@@ -1339,6 +1391,7 @@ export function analyzeAndOptimizeTasks(
     pipelinePassesCompleted: 11,
     sourceIntegrity,
     sourceIntegrityChecks,
+    sourceIntegrityReport,
   };
 
   return {
@@ -4355,7 +4408,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 # Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
 # Complexity Level: ${arch?.complexityLevel || domain.complexity}
 # Stack Mode: ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")}${arch?.stackMode === "USER_SPECIFIED" ? " (seluruh teknologi ditentukan user)" : arch?.stackMode === "PARTIALLY_SPECIFIED" ? " (sebagian ditentukan user, sisanya perlu keputusan/review)" : arch?.stackMode === "EXISTING_PROJECT" ? " (mengikuti arsitektur proyek eksisting)" : " (rekomendasi AI — review sebelum lock-in)"}
-# SOURCE INTEGRITY = ${activeProject.qualityGate?.sourceIntegrity || "N/A (belum dievaluasi — generate ulang blueprint)"}
+# SOURCE INTEGRITY = ${activeProject.qualityGate?.sourceIntegrity || "N/A (belum dievaluasi — generate ulang blueprint)"}${activeProject.qualityGate?.sourceIntegrityReport ? ` (Initial: ${activeProject.qualityGate.sourceIntegrityReport.initialViolations}, Repaired: ${activeProject.qualityGate.sourceIntegrityReport.repaired}, Remaining: ${activeProject.qualityGate.sourceIntegrityReport.remaining})` : ""}
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
@@ -6433,6 +6486,20 @@ ${(() => {
                       <div className="font-mono font-bold text-[10px] uppercase tracking-wider mb-1">
                         Source Integrity Check — {activeProject.qualityGate.sourceIntegrity}
                       </div>
+                      {activeProject.qualityGate.sourceIntegrityReport && (
+                        <div className="font-mono text-[11px] mb-2 space-y-0.5">
+                          <div>Initial Violations: {activeProject.qualityGate.sourceIntegrityReport.initialViolations}</div>
+                          <div>Repaired: {activeProject.qualityGate.sourceIntegrityReport.repaired}</div>
+                          <div>Remaining: {activeProject.qualityGate.sourceIntegrityReport.remaining}</div>
+                          <div>Iterations: {activeProject.qualityGate.sourceIntegrityReport.iterations}/3</div>
+                          <div className="font-bold">Status: {activeProject.qualityGate.sourceIntegrity}{activeProject.qualityGate.sourceIntegrityReport.repairStatus === "BLOCKED" ? " — REPAIR STATUS = BLOCKED" : ""}</div>
+                          {activeProject.qualityGate.sourceIntegrityReport.remainingViolations.length > 0 && (
+                            <ul className="list-disc pl-4 text-zinc-500">
+                              {activeProject.qualityGate.sourceIntegrityReport.remainingViolations.map((v, i) => <li key={i}>{v}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      )}
                       {activeProject.qualityGate.sourceIntegrityChecks.map((c) => (
                         <div key={c.checkNumber} className="flex items-start gap-2">
                           <span className="font-mono font-bold shrink-0">{c.passed ? "✓" : "✗"}</span>
@@ -6796,7 +6863,7 @@ ${(() => {
                     </span>
                   )}
                   {activeProject.qualityGate.repairedCount > 0 && (
-                    <span className="text-[10px] font-mono text-zinc-400">({activeProject.qualityGate.repairedCount} auto-repaired)</span>
+                    <span className="text-[10px] font-mono text-zinc-400">({activeProject.qualityGate.repairedCount} repaired{activeProject.qualityGate.sourceIntegrityReport && activeProject.qualityGate.sourceIntegrityReport.remaining > 0 ? `, ${activeProject.qualityGate.sourceIntegrityReport.remaining} remaining` : ""})</span>
                   )}
                 </div>
               )}
