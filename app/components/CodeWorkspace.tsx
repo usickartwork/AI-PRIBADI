@@ -38,6 +38,8 @@ export type ProjectTask = {
   priority?: TaskPriority;
   complexity?: TaskComplexity;
   source?: RequirementSource;
+  origin?: RequirementSource;
+  sourceRequirementIds?: string[];
   deliverable?: string;
   parallelGroup?: string;
   relatedRequirements?: string[];
@@ -59,6 +61,8 @@ export type ProjectFeature = {
   subFeatures?: string[];
   relatedRequirements?: string[];
   sourceType?: RequirementSource;
+  origin?: RequirementSource;
+  sourceRequirementIds?: string[];
   sourceRequirements?: string[];
   isMvp?: boolean;
   scope?: "MVP" | "POST-MVP" | "OPTIONAL" | "AI-SUGGESTED";
@@ -68,6 +72,13 @@ export type ProjectFeature = {
 
 export type QualityGateCheck = {
   name: string;
+  passed: boolean;
+  detail: string;
+};
+
+export type SourceIntegrityCheck = {
+  checkNumber: number;
+  question: string;
   passed: boolean;
   detail: string;
 };
@@ -82,6 +93,8 @@ export type QualityGateResult = {
   circularDependenciesFound: boolean;
   repairedCount: number;
   pipelinePassesCompleted: number;
+  sourceIntegrity?: "PASS" | "FAIL";
+  sourceIntegrityChecks?: SourceIntegrityCheck[];
 };
 
 export type ProjectAssumption = {
@@ -97,6 +110,14 @@ export type ClassifiedRequirement = {
   source: RequirementSource;
 };
 
+export type RequirementRegistryEntry = {
+  id: string;
+  text: string;
+  source: "USER_INPUT" | "USER_CONSTRAINT" | "AI_DERIVED";
+  classification: RequirementSource;
+  status: "ACTIVE" | "BLOCKED" | "TBD";
+};
+
 export type ProjectPRD = {
   overview?: string;
   problemStatement?: string;
@@ -106,6 +127,20 @@ export type ProjectPRD = {
   functionalRequirements?: string[];
   nonFunctionalRequirements?: string[];
   classifiedRequirements?: ClassifiedRequirement[];
+  requirementRegistry?: RequirementRegistryEntry[];
+  userDerived?: {
+    goals?: string[];
+    functionalRequirements?: string[];
+    userConstraints?: string[];
+    explicitNFR?: string[];
+  };
+  aiDerived?: {
+    technicalRecommendations?: string[];
+    architectureSuggestions?: string[];
+    assumptions?: ProjectAssumption[];
+    optionalFeatures?: string[];
+    aiSuggestions?: string[];
+  };
   constraints?: string[];
   successCriteria?: string[];
   assumptions?: ProjectAssumption[];
@@ -394,42 +429,611 @@ Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
   },
 ];
 
+// ── V4 SOURCE LOCK — Requirement Lineage Helpers ──────────────────────────────
+// Classification is created ONCE at ingestion, then inherited — never regenerated.
+const USER_CLASSES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT"];
+const AI_DERIVED_CLASSES: RequirementSource[] = ["AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD"];
+const ALL_SOURCES: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "AI_SUGGESTED", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD"];
+const ORIGIN_PRIORITY: RequirementSource[] = ["USER_REQUIREMENT", "USER_CONSTRAINT", "TECHNICAL_DECISION", "TECHNICAL_RECOMMENDATION", "ASSUMPTION", "TBD", "AI_SUGGESTED"];
+
+export const isValidSource = (v: unknown): v is RequirementSource =>
+  typeof v === "string" && ALL_SOURCES.indexOf(v as RequirementSource) !== -1;
+
+const toRegistrySource = (c: RequirementSource): RequirementRegistryEntry["source"] =>
+  c === "USER_REQUIREMENT" ? "USER_INPUT" : c === "USER_CONSTRAINT" ? "USER_CONSTRAINT" : "AI_DERIVED";
+
+const LINEAGE_STOPWORDS = new Set([
+  "yang", "dengan", "untuk", "pada", "dari", "atau", "dapat", "dalam", "akan", "agar", "serta", "adalah", "oleh",
+  "user", "pengguna", "with", "that", "this", "from", "have", "will", "system", "sistem", "halaman", "page",
+]);
+
+const significantTokens = (text: string): Set<string> => {
+  const out = new Set<string>();
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .forEach((w) => {
+      if (w.length > 3 && !LINEAGE_STOPWORDS.has(w)) out.add(w);
+    });
+  return out;
+};
+
+const overlapScore = (a: string, b: string): number => {
+  const ta = significantTokens(a);
+  let n = 0;
+  significantTokens(b).forEach((w) => {
+    if (ta.has(w)) n++;
+  });
+  return n;
+};
+
+// Project type MUST come from actual requirements (not templates): score every type by keyword hits.
+export const PROJECT_TYPE_RULES: { label: string; re: RegExp }[] = [
+  { label: "Booking / Reservation", re: /booking|reservasi|reservation|appointment|availability|ketersediaan|jadwal|slot|sewa|antrean|meja resto|hotel/g },
+  { label: "E-commerce", re: /toko online|olshop|ecommerce|e-commerce|keranjang|checkout|jual beli|katalog produk|belanja/g },
+  { label: "Marketplace", re: /marketplace|multi-vendor|multi vendor|banyak seller|multi toko/g },
+  { label: "SaaS", re: /saas|software as a service|langganan|subscription|workspace|multi-tenant/g },
+  { label: "Dashboard / Admin", re: /dashboard|admin panel|panel admin|backoffice|crm|erp|kelola data|kpi/g },
+  { label: "CMS", re: /cms|content management|kelola konten/g },
+  { label: "Education", re: /kursus|sekolah|lms|belajar|akademi|e-learning/g },
+  { label: "Event", re: /event|acara|tiket|seminar|webinar|workshop/g },
+  { label: "Community", re: /komunitas|forum|diskusi|sosial|social media|feed|follow/g },
+  { label: "Blog / News", re: /blog|artikel|tulisan|berita|news|portal berita|majalah online/g },
+  { label: "Company Profile", re: /company profile|profil perusahaan|profil bisnis|tentang kami|layanan perusahaan/g },
+  { label: "Portfolio", re: /portfolio|portofolio|showcase|galeri karya/g },
+  { label: "Marketing Website", re: /landing page|promosi|brosur|one-page|one page/g },
+  { label: "Service Business", re: /jasa |service business|bengkel|laundry|salon|klinik/g },
+  { label: "Internal Tool", re: /internal tool|alat internal|operasional tim/g },
+  { label: "AI Application", re: /fitur ai|ai feature|artificial intelligence|chatbot|llm|generative ai|model ai/g },
+  { label: "Directory", re: /direktori|directory|listing/g },
+  { label: "Documentation", re: /dokumentasi|documentation|docs /g },
+  { label: "Membership", re: /membership|keanggotaan|portal member/g },
+  { label: "Content Platform", re: /konten platform|content platform|creator/g },
+];
+
+export function rankProjectTypes(text: string): { label: string; score: number }[] {
+  const lower = text.toLowerCase();
+  return PROJECT_TYPE_RULES
+    .map((r, order) => ({ label: r.label, score: (lower.match(r.re) || []).length, order }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .map(({ label, score }) => ({ label, score }));
+}
+
+// REQUIREMENT INGESTION LOCK: registry entries already stored are authoritative (never rewritten);
+// only unseen ids are appended with the classification they were first given.
+export function buildRequirementRegistry(prd?: ProjectPRD, existing?: RequirementRegistryEntry[]): RequirementRegistryEntry[] {
+  const entries: RequirementRegistryEntry[] = [];
+  const seen = new Set<string>();
+  const push = (id: string, text: string, classification: RequirementSource, status?: RequirementRegistryEntry["status"]) => {
+    if (!id || !text || seen.has(id)) return;
+    seen.add(id);
+    entries.push({
+      id,
+      text,
+      source: toRegistrySource(classification),
+      classification,
+      status: status || (classification === "TBD" ? "TBD" : "ACTIVE"),
+    });
+  };
+
+  (existing || []).forEach((e) => push(e.id, e.text, e.classification, e.status));
+  if (!prd) return entries;
+
+  if (Array.isArray(prd.classifiedRequirements) && prd.classifiedRequirements.length > 0) {
+    prd.classifiedRequirements.forEach((cr, i) =>
+      push(cr.id || `REQ-${String(i + 1).padStart(3, "0")}`, cr.text, isValidSource(cr.source) ? cr.source : "USER_REQUIREMENT")
+    );
+  } else {
+    (prd.functionalRequirements || []).forEach((fr, i) => {
+      const m = fr.match(/^\s*((?:FR|REQ)-\d+)\s*[:\-]\s*([\s\S]*)$/i);
+      const tag = fr.match(/\[Source:\s*([A-Z_]+)\]/);
+      const cls: RequirementSource = tag && isValidSource(tag[1]) ? tag[1] : "USER_REQUIREMENT";
+      const id = m ? m[1].toUpperCase() : `REQ-${String(i + 1).padStart(3, "0")}`;
+      const text = (m ? m[2] : fr).replace(/\s*\[Source:[^\]]*\]\s*$/, "").trim();
+      push(id, text, cls);
+    });
+  }
+  (prd.constraints || []).forEach((c, i) => push(`CON-${String(i + 1).padStart(2, "0")}`, c, "USER_CONSTRAINT"));
+  (prd.nonFunctionalRequirements || []).forEach((nf, i) => {
+    const m = nf.match(/^\s*(NFR-\d+)/i);
+    const text = nf.replace(/^\s*NFR-\d+\s*(\([^)]*\))?\s*[:\-]?\s*/i, "").trim() || nf;
+    push(m ? m[1].toUpperCase() : `NFR-${String(i + 1).padStart(2, "0")}`, text, "TECHNICAL_RECOMMENDATION");
+  });
+  return entries;
+}
+
+export function resolveSourceIds(raw: unknown[], regMap: Map<string, RequirementRegistryEntry>): string[] {
+  const out: string[] = [];
+  raw.forEach((v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return;
+    const lead = (s.match(/^[A-Za-z]+-\d+/) || [s])[0];
+    const key = regMap.has(s) ? s : regMap.has(lead) ? lead : regMap.has(lead.toUpperCase()) ? lead.toUpperCase() : "";
+    if (key && out.indexOf(key) === -1) out.push(key);
+  });
+  return out;
+}
+
+// SOURCE INHERITANCE: derived entities inherit origin from their source requirements.
+function inheritOrigin(ids: string[], regMap: Map<string, RequirementRegistryEntry>): RequirementSource | undefined {
+  const classes: RequirementSource[] = [];
+  ids.forEach((id) => {
+    const c = regMap.get(id)?.classification;
+    if (c) classes.push(c);
+  });
+  if (classes.length === 0) return undefined;
+  for (const p of ORIGIN_PRIORITY) {
+    if (classes.indexOf(p) !== -1) return p;
+  }
+  return undefined;
+}
+
+// Traceability is derived from lineage ids; classification always comes from the registry (never recomputed).
+export function buildTraceabilityMatrix(
+  registry: RequirementRegistryEntry[],
+  features: ProjectFeature[],
+  tasks: ProjectTask[]
+): TraceabilityRow[] {
+  return registry.map((r) => {
+    const featIds = features.filter((f) => (f.sourceRequirementIds || []).indexOf(r.id) !== -1).map((f) => f.id);
+    const taskIds = tasks.filter((t) => (t.sourceRequirementIds || []).indexOf(r.id) !== -1).map((t) => t.id);
+    return {
+      requirementId: r.id,
+      featureId: featIds.length > 0 ? featIds.join(", ") : "-",
+      taskIds,
+      classification: r.classification,
+    };
+  });
+}
+
+// PRD SOURCE SEPARATION: USER-DERIVED vs AI-DERIVED (AI content is never promoted to user requirement).
+export function buildPrdSourceSeparation(
+  prd: ProjectPRD | undefined,
+  registry: RequirementRegistryEntry[],
+  features: ProjectFeature[],
+  tasks: ProjectTask[],
+  architecture?: ProjectArchitecture,
+  extraConstraints: string[] = []
+): { userDerived: NonNullable<ProjectPRD["userDerived"]>; aiDerived: NonNullable<ProjectPRD["aiDerived"]> } {
+  const fmt = (r: RequirementRegistryEntry) => `${r.id}: ${r.text}`;
+  const constraints = registry.filter((r) => r.classification === "USER_CONSTRAINT").map(fmt);
+  extraConstraints.forEach((c) => {
+    if (constraints.indexOf(c) === -1) constraints.push(c);
+  });
+  const optionalFeatures = features
+    .filter((f) => f.origin === "AI_SUGGESTED" || f.scope === "AI-SUGGESTED")
+    .map((f) => `${f.id}: ${f.name}`);
+  const aiSuggestions = registry.filter((r) => r.classification === "AI_SUGGESTED").map(fmt);
+  tasks
+    .filter((t) => t.origin === "AI_SUGGESTED")
+    .forEach((t) => aiSuggestions.push(`${t.id}: ${t.title}`));
+  const technicalRecommendations = registry
+    .filter((r) => r.classification === "TECHNICAL_DECISION" || r.classification === "TECHNICAL_RECOMMENDATION")
+    .map(fmt);
+  (architecture?.stackRecommendations || []).forEach((s) => {
+    technicalRecommendations.push(`${s.technology || s.component || s.recommendation || "Stack"}: ${s.reason}`);
+  });
+
+  return {
+    userDerived: {
+      goals: prd?.userDerived?.goals ?? prd?.goals ?? [],
+      functionalRequirements: registry.filter((r) => r.classification === "USER_REQUIREMENT").map(fmt),
+      userConstraints: constraints,
+      explicitNFR: prd?.userDerived?.explicitNFR ?? [],
+    },
+    aiDerived: {
+      technicalRecommendations,
+      architectureSuggestions: prd?.aiDerived?.architectureSuggestions ?? [],
+      assumptions: prd?.assumptions ?? [],
+      optionalFeatures,
+      aiSuggestions,
+    },
+  };
+}
+
+// Stack mode can never claim more certainty than what was actually detected from the user.
+export function normalizeStackMode(llmMode: unknown, detected: StackMode): StackMode {
+  const rank: Record<StackMode, number> = { UNDECIDED: 0, AI_RECOMMENDED: 1, PARTIALLY_SPECIFIED: 2, USER_SPECIFIED: 3, EXISTING_PROJECT: 3 };
+  if (detected === "EXISTING_PROJECT") return detected;
+  if (typeof llmMode === "string" && llmMode in rank && llmMode !== "EXISTING_PROJECT" && rank[llmMode as StackMode] <= rank[detected]) {
+    return llmMode as StackMode;
+  }
+  return detected;
+}
+
+export type SourceIntegrityContext = {
+  primaryType?: string;
+  stackMode?: StackMode;
+  stackAlternatives?: string[];
+  stackIsAiSuggested?: boolean;
+};
+
 // ── Graph Optimizer, Cycle Detection & Quality Gate Engine ────────────────────
 // ── 11-Pass Validation, Scope Control & Automatic Repair Pipeline (V4 Enforcement Patch) ──
+// ── + V4 Source Lock: lineage inheritance & Source Integrity Check (8 checks) ──
 export function analyzeAndOptimizeTasks(
   tasks: ProjectTask[],
   features: ProjectFeature[] = [],
-  prd?: ProjectPRD
-): { tasks: ProjectTask[]; qualityGate: QualityGateResult } {
+  prd?: ProjectPRD,
+  context?: SourceIntegrityContext
+): {
+  tasks: ProjectTask[];
+  qualityGate: QualityGateResult;
+  features: ProjectFeature[];
+  requirementRegistry: RequirementRegistryEntry[];
+  classifiedRequirements: ClassifiedRequirement[];
+  stackMode?: StackMode;
+} {
   let repairedCount = 0;
   const taskMap = new Map<string, ProjectTask>();
   tasks.forEach((t) => taskMap.set(t.id, { ...t }));
+
+  // ── V4 SOURCE LOCK: REQUIREMENT INGESTION LOCK ────────────────────────────────
+  const registry = buildRequirementRegistry(prd, prd?.requirementRegistry);
+  const regMap = new Map<string, RequirementRegistryEntry>();
+  registry.forEach((r) => regMap.set(r.id, r));
+  const lockActive = registry.length > 0;
+  const isUserClass = (c?: RequirementSource) => !!c && USER_CLASSES.indexOf(c) !== -1;
+  const lockedFeatures: ProjectFeature[] = features.map((f) => ({ ...f }));
+
+  const unauthorizedPattern = /kupon|coupon|voucher|wishlist|faq|tanya jawab|live chat|customer support|google oauth|dark mode|mode gelap|ai chatbot|chatbot ai|redis|swr|framer motion|advanced analytics|analitik lanjutan|retention analytics|bulk action|aksi massal|avatar upload|unggah avatar|recommendation engine|rekomendasi|loyalty system|poin loyalitas/i;
+  const prdText = ((prd?.overview || "") + " " + (prd?.functionalRequirements || []).join(" ") + " " + (prd?.classifiedRequirements || []).map(r => r.text).join(" ")).toLowerCase();
+
+  // Classification is assigned once: restore text/classification of locked requirements, restore dropped ones.
+  const incomingClassified = prd?.classifiedRequirements || [];
+  incomingClassified.forEach((cr) => {
+    const entry = regMap.get(cr.id);
+    if (entry && (entry.classification !== cr.source || entry.text !== cr.text)) repairedCount++;
+  });
+  const classifiedLocked: ClassifiedRequirement[] = registry
+    .filter((r) => r.id.indexOf("NFR-") !== 0)
+    .map((r) => ({ id: r.id, text: r.text, source: r.classification }));
+  if (incomingClassified.length > 0) {
+    registry
+      .filter((r) => /^(FR|REQ)-\d+$/i.test(r.id))
+      .forEach((r) => {
+        if (!incomingClassified.some((cr) => cr.id === r.id)) repairedCount++;
+      });
+  }
+
+  // ── V4 SOURCE LOCK: SOURCE INHERITANCE (Feature & Task inherit origin from requirement ids) ──
+  lockedFeatures.forEach((f) => {
+    const explicitAi = f.isAiSuggested === true || f.scope === "AI-SUGGESTED" || f.origin === "AI_SUGGESTED" || f.sourceType === "AI_SUGGESTED";
+    let ids = resolveSourceIds(
+      [...(f.sourceRequirementIds || []), ...(f.sourceRequirements || []), ...(f.relatedRequirements || [])],
+      regMap
+    );
+    if (explicitAi) ids = ids.filter((id) => !isUserClass(regMap.get(id)?.classification));
+    f.sourceRequirementIds = ids;
+    f.origin = explicitAi
+      ? "AI_SUGGESTED"
+      : inheritOrigin(ids, regMap) ?? (isValidSource(f.origin) ? f.origin : isValidSource(f.sourceType) ? f.sourceType : undefined);
+  });
+
+  taskMap.forEach((task) => {
+    const declared = isValidSource(task.origin) ? task.origin : isValidSource(task.source) ? task.source : undefined;
+    const explicitAi = declared === "AI_SUGGESTED";
+    let ids = resolveSourceIds([...(task.sourceRequirementIds || []), ...(task.relatedRequirements || [])], regMap);
+    if (explicitAi) ids = ids.filter((id) => !isUserClass(regMap.get(id)?.classification));
+    task.sourceRequirementIds = ids;
+    task.origin = explicitAi ? "AI_SUGGESTED" : inheritOrigin(ids, regMap) ?? declared;
+    task.source = task.origin;
+  });
+
+  // PASS 5 — SCOPE AUDIT & UNAUTHORIZED SCOPE DETECTION (lineage-aware)
+  // Items with real USER lineage are locked; only unsourced "user" claims can be reclassified.
+  taskMap.forEach((task) => {
+    const hasUserLineage = (task.sourceRequirementIds || []).some((id) => isUserClass(regMap.get(id)?.classification));
+    if (
+      !hasUserLineage &&
+      task.origin === "USER_REQUIREMENT" &&
+      unauthorizedPattern.test((task.title + " " + task.description).toLowerCase()) &&
+      !unauthorizedPattern.test(prdText)
+    ) {
+      task.origin = "AI_SUGGESTED";
+      task.source = "AI_SUGGESTED";
+      if (task.priority === "CRITICAL" || task.priority === "HIGH") task.priority = "MEDIUM";
+      repairedCount++;
+    }
+  });
+  lockedFeatures.forEach((f) => {
+    const hasUserLineage = (f.sourceRequirementIds || []).some((id) => isUserClass(regMap.get(id)?.classification));
+    if (
+      !hasUserLineage &&
+      (!f.origin || f.origin === "USER_REQUIREMENT") &&
+      unauthorizedPattern.test((f.name + " " + f.description).toLowerCase()) &&
+      !unauthorizedPattern.test(prdText)
+    ) {
+      f.origin = "AI_SUGGESTED";
+      repairedCount++;
+    }
+  });
+
+  // ── V4 SOURCE LOCK: SOURCE INTEGRITY CHECK (8 checks) + AUTOMATIC REPAIR LOOP ──────────
+  let correctedStackMode: StackMode | undefined = context?.stackMode;
+  if (
+    context?.stackMode === "USER_SPECIFIED" &&
+    ((context.stackAlternatives || []).length > 0 || context.stackIsAiSuggested === true)
+  ) {
+    correctedStackMode = (context.stackAlternatives || []).length > 0 ? "PARTIALLY_SPECIFIED" : "AI_RECOMMENDED";
+    repairedCount++;
+  }
+
+  const featureMandatoryAi = (f: ProjectFeature) => f.origin === "AI_SUGGESTED" && (f.isMvp !== false || f.scope === "MVP");
+
+  const matchBestReq = (text: string, minScore: number): RequirementRegistryEntry | undefined => {
+    let best: RequirementRegistryEntry | undefined;
+    let bestScore = 0;
+    for (const r of registry) {
+      if (r.classification !== "USER_REQUIREMENT") continue;
+      const s = overlapScore(text, r.text);
+      if (s > bestScore) {
+        best = r;
+        bestScore = s;
+      }
+    }
+    return bestScore >= minScore ? best : undefined;
+  };
+
+  const featureText = (f: ProjectFeature) => [f.name, f.description, ...(f.subFeatures || [])].join(" ");
+  const taskText = (t: ProjectTask) => [t.title, t.description, ...(t.subtasks || [])].join(" ");
+  const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+
+  const evaluateSourceIntegrity = (): SourceIntegrityCheck[] => {
+    const userReqs = registry.filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE");
+    const tasksArr = Array.from(taskMap.values());
+    const lineageItems: { origin?: RequirementSource; sourceRequirementIds?: string[] }[] = [...lockedFeatures, ...tasksArr];
+    const na = "Tidak ada registry requirement (proyek tanpa PRD) — pemeriksaan dilewati.";
+
+    const missing = userReqs.filter((r) => !classifiedLocked.some((cr) => cr.id === r.id));
+    const classDrift = classifiedLocked.filter((cr) => regMap.get(cr.id)?.classification !== cr.source);
+    const noFeature = lockedFeatures.length === 0
+      ? []
+      : userReqs.filter((r) => !lockedFeatures.some((f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1));
+    const noTask = tasksArr.length === 0
+      ? []
+      : userReqs.filter((r) => !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1));
+    const aiMandatory = lockedFeatures.filter(featureMandatoryAi);
+    const aiLeak = lineageItems.filter(
+      (x) => x.origin === "AI_SUGGESTED" && (x.sourceRequirementIds || []).some((id) => isUserClass(regMap.get(id)?.classification))
+    );
+    const aiBlocking = tasksArr.filter(
+      (t) => isUserClass(t.origin) && (t.dependencies || []).some((d) => taskMap.get(d)?.origin === "AI_SUGGESTED")
+    );
+    const unsourced = lineageItems.filter(
+      (x) => (x.sourceRequirementIds || []).length === 0 && !(x.origin && AI_DERIVED_CLASSES.indexOf(x.origin) !== -1)
+    );
+
+    const reqText = userReqs.map((r) => r.text).join(" ");
+    const ranking = rankProjectTypes(reqText);
+    const primary = context?.primaryType;
+    const typeOk = !primary || ranking.length === 0 || primary === "Custom Web Application" ||
+      ranking.some((r) => r.label === primary && r.score >= ranking[0].score / 2);
+
+    const mode = correctedStackMode;
+    const alts = context?.stackAlternatives || [];
+    const stackOk = !mode || !(mode === "USER_SPECIFIED" && (alts.length > 0 || context?.stackIsAiSuggested === true));
+
+    return [
+      {
+        checkNumber: 1,
+        question: "Apakah semua USER_REQUIREMENT masih ada?",
+        passed: !lockActive || missing.length === 0,
+        detail: !lockActive ? na : missing.length === 0 ? `${userReqs.length} USER_REQUIREMENT terdaftar di registry dan utuh.` : `Hilang: ${missing.map((r) => r.id).join(", ")}`,
+      },
+      {
+        checkNumber: 2,
+        question: "Apakah classification masih sama?",
+        passed: !lockActive || classDrift.length === 0,
+        detail: !lockActive ? na : classDrift.length === 0 ? "Classification identik dengan registry (dikunci saat ingest)." : `Drift: ${classDrift.map((c) => c.id).join(", ")}`,
+      },
+      {
+        checkNumber: 3,
+        question: "Apakah setiap requirement memiliki Feature?",
+        passed: !lockActive || noFeature.length === 0,
+        detail: !lockActive ? na : noFeature.length === 0 ? "Setiap USER_REQUIREMENT memiliki minimal satu Feature." : `Tanpa feature: ${noFeature.map((r) => r.id).join(", ")}`,
+      },
+      {
+        checkNumber: 4,
+        question: "Apakah setiap requirement memiliki Task?",
+        passed: !lockActive || noTask.length === 0,
+        detail: !lockActive ? na : noTask.length === 0 ? "Setiap USER_REQUIREMENT memiliki minimal satu Task." : `Tanpa task: ${noTask.map((r) => r.id).join(", ")}`,
+      },
+      {
+        checkNumber: 5,
+        question: "Apakah ada AI_SUGGESTED yang masuk sebagai mandatory scope?",
+        passed: aiMandatory.length === 0 && aiLeak.length === 0 && aiBlocking.length === 0,
+        detail:
+          aiMandatory.length === 0 && aiLeak.length === 0 && aiBlocking.length === 0
+            ? "AI_SUGGESTED terisolasi dari scope wajib, lineage user, dan dependency task user."
+            : `Bocor: ${aiMandatory.map((f) => f.id).join(", ")} ${aiBlocking.map((t) => t.id).join(", ")}`.trim(),
+      },
+      {
+        checkNumber: 6,
+        question: "Apakah ada requirement baru yang tidak memiliki source?",
+        passed: !lockActive || unsourced.length === 0,
+        detail: !lockActive ? na : unsourced.length === 0 ? "Semua Feature/Task memiliki source requirement atau ditandai AI-derived." : `${unsourced.length} item tanpa source.`,
+      },
+      {
+        checkNumber: 7,
+        question: "Apakah project type sesuai dengan requirement sebenarnya?",
+        passed: typeOk,
+        detail: typeOk ? `Primary type "${primary || "-"}" konsisten dengan requirement.` : `Primary type "${primary}" tidak sesuai; requirement mengarah ke "${ranking[0]?.label}".`,
+      },
+      {
+        checkNumber: 8,
+        question: "Apakah Stack Mode sesuai dengan tingkat kepastian teknologi?",
+        passed: stackOk,
+        detail: stackOk ? `Stack Mode ${mode || "-"} sesuai tingkat kepastian.` : "USER_SPECIFIED tidak boleh dipakai saat masih ada alternatif/rekomendasi AI.",
+      },
+    ];
+  };
+
+  const repairSourceIntegrity = () => {
+    if (!lockActive) return;
+
+    // (a) Unsourced items: attach to best-matching user requirement, else mark explicitly AI-derived.
+    lockedFeatures.forEach((f) => {
+      if ((f.sourceRequirementIds || []).length > 0) return;
+      if (f.origin && AI_DERIVED_CLASSES.indexOf(f.origin) !== -1) return;
+      const req = matchBestReq(featureText(f), 2);
+      if (req) {
+        f.sourceRequirementIds = [req.id];
+        f.origin = inheritOrigin(f.sourceRequirementIds, regMap);
+      } else {
+        f.origin = "TECHNICAL_DECISION";
+        f.sourceType = "TECHNICAL_DECISION";
+      }
+      repairedCount++;
+    });
+    taskMap.forEach((t) => {
+      if ((t.sourceRequirementIds || []).length > 0) return;
+      if (t.origin && AI_DERIVED_CLASSES.indexOf(t.origin) !== -1) return;
+      const req = matchBestReq(taskText(t), 2);
+      if (req) {
+        t.sourceRequirementIds = [req.id];
+        t.origin = inheritOrigin(t.sourceRequirementIds, regMap);
+      } else {
+        t.origin = "TECHNICAL_DECISION";
+      }
+      t.source = t.origin;
+      repairedCount++;
+    });
+
+    // (b) No requirement loss: every ACTIVE USER_REQUIREMENT needs >=1 Feature and >=1 Task.
+    registry
+      .filter((r) => r.classification === "USER_REQUIREMENT" && r.status === "ACTIVE")
+      .forEach((r) => {
+        let coveringFeature: ProjectFeature | undefined = lockedFeatures.find(
+          (f) => f.origin !== "AI_SUGGESTED" && (f.sourceRequirementIds || []).indexOf(r.id) !== -1
+        );
+        if (lockedFeatures.length > 0 && !coveringFeature) {
+          let best: ProjectFeature | undefined;
+          let bestScore = 0;
+          for (const f of lockedFeatures) {
+            if (f.origin === "AI_SUGGESTED") continue;
+            const s = overlapScore(r.text, featureText(f));
+            if (s > bestScore) {
+              best = f;
+              bestScore = s;
+            }
+          }
+          if (best && bestScore >= 1) {
+            best.sourceRequirementIds = [...(best.sourceRequirementIds || []), r.id];
+            best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
+            coveringFeature = best;
+          } else {
+            const stub: ProjectFeature = {
+              id: `FEAT-${r.id}`,
+              name: clip(r.text, 70),
+              description: r.text,
+              priority: "HIGH",
+              scope: "MVP",
+              isMvp: true,
+              isAiSuggested: false,
+              sourceType: "USER_REQUIREMENT",
+              origin: "USER_REQUIREMENT",
+              sourceRequirementIds: [r.id],
+              sourceRequirements: [r.id],
+              relatedRequirements: [r.id],
+              subFeatures: [],
+              dependencies: [],
+            };
+            lockedFeatures.push(stub);
+            coveringFeature = stub;
+          }
+          repairedCount++;
+        }
+
+        const tasksArr = Array.from(taskMap.values());
+        if (tasksArr.length > 0 && !tasksArr.some((t) => t.origin !== "AI_SUGGESTED" && (t.sourceRequirementIds || []).indexOf(r.id) !== -1)) {
+          let best: ProjectTask | undefined;
+          let bestScore = 0;
+          for (const t of tasksArr) {
+            if (t.origin === "AI_SUGGESTED") continue;
+            const s = overlapScore(r.text, taskText(t));
+            if (s > bestScore) {
+              best = t;
+              bestScore = s;
+            }
+          }
+          if (best && bestScore >= 2) {
+            best.sourceRequirementIds = [...(best.sourceRequirementIds || []), r.id];
+            best.origin = inheritOrigin(best.sourceRequirementIds, regMap);
+            best.source = best.origin;
+          } else {
+            const stubId = `TASK-${r.id}`;
+            const featLabel = coveringFeature ? `${coveringFeature.id} — ${coveringFeature.name}` : "";
+            taskMap.set(stubId, {
+              id: stubId,
+              title: `Implementasi ${clip(r.text, 80)}`,
+              description: r.text,
+              status: "backlog",
+              feature: coveringFeature?.name,
+              relatedFeature: featLabel || undefined,
+              phase: "Phase — Source Coverage",
+              priority: "HIGH",
+              source: "USER_REQUIREMENT",
+              origin: "USER_REQUIREMENT",
+              sourceRequirementIds: [r.id],
+              relatedRequirements: [r.id],
+              dependencies: [],
+              dependencyType: "NONE",
+              subtasks: [`${stubId}.1: Implementasi perilaku sesuai requirement ${r.id}`, `${stubId}.2: Verifikasi hasil terhadap requirement ${r.id}`],
+              acceptanceCriteria: [`Perilaku sistem sesuai requirement ${r.id}: ${r.text}`],
+              testing: [`Uji skenario yang memverifikasi requirement ${r.id}`],
+              parallelizable: "NO",
+            });
+          }
+          repairedCount++;
+        }
+      });
+
+    // (c) AI_SUGGESTED isolation: never mandatory, never inside user lineage, never a blocker for user tasks.
+    lockedFeatures.forEach((f) => {
+      if (f.origin !== "AI_SUGGESTED") return;
+      const stripped = (f.sourceRequirementIds || []).filter((id) => !isUserClass(regMap.get(id)?.classification));
+      if (featureMandatoryAi(f) || stripped.length !== (f.sourceRequirementIds || []).length) {
+        f.isMvp = false;
+        f.scope = "AI-SUGGESTED";
+        f.isAiSuggested = true;
+        f.sourceType = "AI_SUGGESTED";
+        f.sourceRequirementIds = stripped;
+        repairedCount++;
+      }
+    });
+    taskMap.forEach((t) => {
+      if (t.origin === "AI_SUGGESTED") {
+        const stripped = (t.sourceRequirementIds || []).filter((id) => !isUserClass(regMap.get(id)?.classification));
+        if (stripped.length !== (t.sourceRequirementIds || []).length) {
+          t.sourceRequirementIds = stripped;
+          repairedCount++;
+        }
+      } else if (isUserClass(t.origin) && Array.isArray(t.dependencies)) {
+        const clean = t.dependencies.filter((d) => taskMap.get(d)?.origin !== "AI_SUGGESTED");
+        if (clean.length !== t.dependencies.length) {
+          t.dependencies = clean;
+          repairedCount++;
+        }
+      }
+    });
+  };
+
+  let sourceIntegrityChecks = evaluateSourceIntegrity();
+  for (let attempt = 0; attempt < 3 && sourceIntegrityChecks.some((c) => !c.passed); attempt++) {
+    repairSourceIntegrity();
+    sourceIntegrityChecks = evaluateSourceIntegrity();
+  }
+  const sourceIntegrity: "PASS" | "FAIL" = sourceIntegrityChecks.every((c) => c.passed) ? "PASS" : "FAIL";
 
   // PASS 1 — INPUT EXTRACTION & TASK NORMALIZATION
   // PASS 2 — REQUIREMENT IMMUTABILITY & SOURCE VALIDATION
   // PASS 3 & 4 — FEATURE & ATOMIC TASK GENERATION / PARENT LINKING
   // Deliverable derivation, explicit parent feature linking
 
-  // PASS 5 — SCOPE AUDIT & UNAUTHORIZED SCOPE DETECTION
-  // Check for unauthorized items: Coupon, Voucher, Wishlist, FAQ, Customer Support, Google OAuth,
-  // Dark Mode, AI Chatbot, Redis, SWR, Framer Motion, Advanced Analytics, Bulk Actions, Avatar Upload, Loyalty System.
-  const unauthorizedPattern = /kupon|coupon|voucher|wishlist|faq|tanya jawab|live chat|customer support|google oauth|dark mode|mode gelap|ai chatbot|chatbot ai|redis|swr|framer motion|advanced analytics|analitik lanjutan|retention analytics|bulk action|aksi massal|avatar upload|unggah avatar|recommendation engine|rekomendasi|loyalty system|poin loyalitas/i;
-  const prdText = ((prd?.overview || "") + " " + (prd?.functionalRequirements || []).join(" ") + " " + (prd?.classifiedRequirements || []).map(r => r.text).join(" ")).toLowerCase();
-
-  for (const task of taskMap.values()) {
-    const taskContent = (task.title + " " + task.description).toLowerCase();
-    const hasSuspiciousScope = unauthorizedPattern.test(taskContent);
-    const explicitlyInPrd = unauthorizedPattern.test(prdText);
-
-    if (hasSuspiciousScope && !explicitlyInPrd && task.source === "USER_REQUIREMENT") {
-      // Reclassify as AI_SUGGESTED to protect MVP from unauthorized scope
-      task.source = "AI_SUGGESTED";
-      if (task.priority === "CRITICAL" || task.priority === "HIGH") {
-        task.priority = "MEDIUM";
-      }
-      repairedCount++;
-    }
-  }
+  // PASS 5 — SCOPE AUDIT is performed above (lineage-aware, before Source Integrity Check).
 
   // PASS 6 — AI_SUGGESTED ISOLATION
   // AI_SUGGESTED items MUST NOT:
@@ -437,12 +1041,12 @@ export function analyzeAndOptimizeTasks(
   // - create mandatory dependencies for USER_REQUIREMENT tasks
   const aiSuggestedIds = new Set(
     Array.from(taskMap.values())
-      .filter((t) => t.source === "AI_SUGGESTED")
+      .filter((t) => (t.origin || t.source) === "AI_SUGGESTED")
       .map((t) => t.id)
   );
 
   for (const task of taskMap.values()) {
-    if (task.source === "USER_REQUIREMENT" && Array.isArray(task.dependencies)) {
+    if ((task.origin || task.source) === "USER_REQUIREMENT" && Array.isArray(task.dependencies)) {
       const sanitizedDeps = task.dependencies.filter((depId) => !aiSuggestedIds.has(depId));
       if (sanitizedDeps.length !== task.dependencies.length) {
         task.dependencies = sanitizedDeps;
@@ -513,7 +1117,7 @@ export function analyzeAndOptimizeTasks(
 
     // Source derivation & Immutability (Pass 2)
     if (!task.source) {
-      task.source = idx < 4 ? "USER_REQUIREMENT" : (idx % 3 === 0 ? "AI_SUGGESTED" : "TECHNICAL_DECISION");
+      task.source = task.origin || "TECHNICAL_DECISION";
     }
 
     // Dependency classification (Pass 8)
@@ -657,13 +1261,13 @@ export function analyzeAndOptimizeTasks(
     },
     {
       name: "11. Stack Classification Accuracy",
-      passed: true,
-      detail: "Klasifikasi mode stack (USER_SPECIFIED/AI_RECOMMENDED) akurat."
+      passed: sourceIntegrityChecks.find((c) => c.checkNumber === 8)?.passed ?? true,
+      detail: "Klasifikasi mode stack (USER_SPECIFIED/PARTIALLY_SPECIFIED/AI_RECOMMENDED) sesuai tingkat kepastian teknologi."
     },
     {
       name: "12. Project Type Normalization",
-      passed: true,
-      detail: "Tipe proyek dinormalisasi dengan satu Primary Type tanpa duplikasi semantik."
+      passed: sourceIntegrityChecks.find((c) => c.checkNumber === 7)?.passed ?? true,
+      detail: "Tipe proyek diturunkan dari requirement aktual dengan satu Primary Type."
     },
     {
       name: "13. Proportional Architecture",
@@ -694,8 +1298,8 @@ export function analyzeAndOptimizeTasks(
     },
     {
       name: "18. Requirement Immutability",
-      passed: true,
-      detail: "Klasifikasi sumber kebutuhan tidak diubah/dikonversi secara diam-diam."
+      passed: sourceIntegrityChecks.filter((c) => c.checkNumber === 1 || c.checkNumber === 2).every((c) => c.passed),
+      detail: "Klasifikasi sumber kebutuhan dikunci di registry dan tidak diubah/dikonversi secara diam-diam."
     },
     {
       name: "19. Technology Transparency",
@@ -709,7 +1313,7 @@ export function analyzeAndOptimizeTasks(
     },
     {
       name: "21. Final Traceability Matrix",
-      passed: true,
+      passed: sourceIntegrityChecks.filter((c) => c.checkNumber === 3 || c.checkNumber === 4).every((c) => c.passed),
       detail: "Matriks Requirement -> Feature -> Task -> AC -> Testing lengkap."
     },
     {
@@ -721,19 +1325,30 @@ export function analyzeAndOptimizeTasks(
 
   const passedCount = checks.filter((c) => c.passed).length;
   const score = Math.round((passedCount / checks.length) * 100);
-  const status: QualityGateStatus = score >= 95 ? "PASS" : score >= 80 ? "PASS WITH WARNINGS" : "FAIL";
+  const baseStatus: QualityGateStatus = score >= 95 ? "PASS" : score >= 80 ? "PASS WITH WARNINGS" : "FAIL";
+  // Source drift is a hard failure: never reported as PASS.
+  const status: QualityGateStatus = sourceIntegrity === "FAIL" ? "FAIL" : baseStatus;
 
   const qualityGate: QualityGateResult = {
-    passed: score >= 80,
+    passed: score >= 80 && sourceIntegrity === "PASS",
     status,
     score,
     checks,
     circularDependenciesFound: circularFound,
     repairedCount,
-    pipelinePassesCompleted: 11
+    pipelinePassesCompleted: 11,
+    sourceIntegrity,
+    sourceIntegrityChecks,
   };
 
-  return { tasks: optimizedTasks, qualityGate };
+  return {
+    tasks: optimizedTasks,
+    qualityGate,
+    features: lockedFeatures,
+    requirementRegistry: registry,
+    classifiedRequirements: classifiedLocked,
+    stackMode: correctedStackMode,
+  };
 }
 
 type CodeWorkspaceProps = {
@@ -986,6 +1601,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
     isHybrid: boolean;
     complexity: "SIMPLE" | "MODERATE" | "COMPLEX" | "ENTERPRISE";
     stackMode: StackMode;
+    stackAlternatives: string[];
     needsAuth: boolean;
     needsDatabase: boolean;
     needsPayment: boolean;
@@ -1009,72 +1625,21 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
   const detectProjectDomain = (messages: ProjectChatMessage[], title: string, desc?: string): DetectedDomain => {
     const combined = (
       title + " " + (desc || "") + " " +
-      messages.map((m) => m.content).join(" ")
+      messages.filter((m) => m.role === "user").map((m) => m.content).join(" ")
     ).toLowerCase();
 
-    // Universal Project Type Normalization (V4 Enforcement Patch Section 6)
-    const rawCategories: string[] = [];
-    if (/portfolio|portofolio|galeri|showcase|fotograf|karya|desainer|artist/i.test(combined)) {
-      rawCategories.push("Portfolio");
+    // Universal Project Type Normalization (V4 Source Lock: type derived from actual requirements)
+    // PRIMARY = top-ranked requirement signal; Dashboard / Admin and CMS only become primary when clearly dominant.
+    const ranked = rankProjectTypes(combined);
+    const SUPPORT_TYPES = ["Dashboard / Admin", "CMS"];
+    if (ranked.length > 1 && SUPPORT_TYPES.indexOf(ranked[0].label) !== -1) {
+      const nextIdx = ranked.findIndex((r) => SUPPORT_TYPES.indexOf(r.label) === -1);
+      if (nextIdx > 0 && ranked[0].score < ranked[nextIdx].score + 2) {
+        const [supportItem] = ranked.splice(0, 1);
+        ranked.splice(nextIdx, 0, supportItem);
+      }
     }
-    if (/company profile|profil perusahaan|pt |cv |profil bisnis|tentang kami|layanan perusahaan/i.test(combined)) {
-      rawCategories.push("Company Profile");
-    }
-    if (/landing page|marketing|promosi|brosur|one-page|one page/i.test(combined)) {
-      rawCategories.push("Marketing Website");
-    }
-    if (/blog|artikel|tulisan|berita|news|portal berita|majalah online/i.test(combined)) {
-      rawCategories.push("Blog / News");
-    }
-    if (/toko|olshop|ecommerce|e-commerce|belanja|checkout|jual beli|keranjang/i.test(combined)) {
-      rawCategories.push("E-commerce");
-    }
-    if (/marketplace|multi-vendor|multi vendor|banyak seller|multi toko/i.test(combined)) {
-      rawCategories.push("Marketplace");
-    }
-    if (/booking|slot|sewa|futsal|lapangan|studio|antrean|appointment|reservasi|reservation|meja resto|hotel/i.test(combined)) {
-      rawCategories.push("Booking / Reservation");
-    }
-    if (/saas|software as a service|langganan|subscription|workspace|multi-tenant/i.test(combined)) {
-      rawCategories.push("SaaS");
-    }
-    if (/dashboard|metrik|kpi|grafik analitik|admin panel|backoffice|crm|erp|panel admin|kelola data/i.test(combined)) {
-      rawCategories.push("Dashboard / Admin");
-    }
-    if (/cms|content management|kelola konten/i.test(combined)) {
-      rawCategories.push("CMS");
-    }
-    if (/komunitas|forum|diskusi|sosial|social media|feed|follow/i.test(combined)) {
-      rawCategories.push("Community");
-    }
-    if (/kursus|sekolah|lms|belajar|akademi|e-learning/i.test(combined)) {
-      rawCategories.push("Education");
-    }
-    if (/event|acara|tiket|seminar|webinar|workshop/i.test(combined)) {
-      rawCategories.push("Event");
-    }
-    if (/jasa |service business|bengkel|laundry|salon|klinik/i.test(combined)) {
-      rawCategories.push("Service Business");
-    }
-    if (/internal tool|alat internal|operasional tim/i.test(combined)) {
-      rawCategories.push("Internal Tool");
-    }
-    // Only assign AI Application if AI functionality is explicitly requested (Section 6)
-    if (/ai feature|fitur ai|artificial intelligence|chatbot|llm|generative ai|model ai/i.test(combined)) {
-      rawCategories.push("AI Application");
-    }
-    if (/direktori|directory|listing/i.test(combined)) {
-      rawCategories.push("Directory");
-    }
-    if (/dokumentasi|documentation|docs /i.test(combined)) {
-      rawCategories.push("Documentation");
-    }
-    if (/membership|keanggotaan|portal member/i.test(combined)) {
-      rawCategories.push("Membership");
-    }
-    if (/konten platform|content platform|creator/i.test(combined)) {
-      rawCategories.push("Content Platform");
-    }
+    const rawCategories: string[] = ranked.map((r) => r.label);
     if (rawCategories.length === 0) {
       rawCategories.push("Custom Web Application");
     }
@@ -1180,21 +1745,28 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       /caching|redis|memcached|cache layer|penyimpanan cache/i.test(combined)
     );
 
-    // Stack Mode Intelligence (Final V4 Addition Section 6)
+    // Stack Mode Intelligence (Final V4 Addition Section 6 + Source Lock)
+    // Alternatives still open (e.g. "Supabase atau Neon") mean the stack is NOT fully confirmed.
+    const stackAlternatives: string[] = [];
+    if (/supabase/i.test(combined) && /neon/i.test(combined)) stackAlternatives.push("Supabase / Neon");
+    if (/supabase auth/i.test(combined) && /next-?auth|auth\.js/i.test(combined)) stackAlternatives.push("Supabase Auth / NextAuth");
+    if (/\br2\b|cloudflare r2/i.test(combined) && /supabase storage/i.test(combined)) stackAlternatives.push("Cloudflare R2 / Supabase Storage");
+    if (/midtrans/i.test(combined) && /xendit/i.test(combined)) stackAlternatives.push("Midtrans / Xendit");
+
     let stackMode: StackMode = "UNDECIDED";
     if (/repo ini|proyek ini sudah ada|lanjutkan kode|existing code|codebase lama|kode yang sudah ada/i.test(combined)) {
       stackMode = "EXISTING_PROJECT";
     } else if (userSpecifiedStack.frontend && userSpecifiedStack.database) {
-      stackMode = "USER_SPECIFIED";
+      stackMode = stackAlternatives.length > 0 ? "PARTIALLY_SPECIFIED" : "USER_SPECIFIED";
     } else if (userSpecifiedStack.frontend || userSpecifiedStack.database) {
       stackMode = "PARTIALLY_SPECIFIED";
     } else {
       stackMode = "AI_RECOMMENDED";
     }
 
-    // Universal Project Classification (Final V4 Addition Section 3)
+    // Universal Project Classification (Source Lock: type derived from actual requirements)
     const primaryType = categories[0] || "Custom Web Application";
-    const secondaryTypes = categories.slice(1);
+    const secondaryTypes = categories.slice(1, 4);
     const isHybrid = secondaryTypes.length > 0;
 
     // User Constraints Awareness (V4 Section 8)
@@ -1217,6 +1789,7 @@ export function CodeWorkspace({ isDark, onClose }: CodeWorkspaceProps) {
       isHybrid,
       complexity,
       stackMode,
+      stackAlternatives,
       needsAuth,
       needsDatabase,
       needsPayment,
@@ -2960,6 +3533,19 @@ V4 ENFORCEMENT PATCH & MANDATORY 11-PASS PIPELINE DIRECTIVES (WAJIB DIPATUHI PEN
 9. 15-POINT AI CODING ASSISTANT INSTRUCTIONS (SECTION 26):
    Sertakan instruksi AI Coding Assistant di akhir teks respon.
 
+V4 SOURCE LOCK — REQUIREMENT LINEAGE (WAJIB DIPATUHI PENUH):
+S1. REQUIREMENT INGESTION LOCK: Ekstrak seluruh requirement dari input user menjadi registry dengan ID stabil (REQ-001, REQ-002, ...). text, classification, dan source TIDAK boleh diubah maknanya, dihapus, atau digabung diam-diam dengan AI suggestion.
+S2. CLASSIFICATION ASSIGNED ONCE: Classification ditentukan SEKALI saat ingest (USER_REQUIREMENT, USER_CONSTRAINT, AI_SUGGESTED, TECHNICAL_DECISION, TECHNICAL_RECOMMENDATION, ASSUMPTION, TBD). JANGAN menghitung ulang classification dari Feature atau Task.
+S3. SOURCE INHERITANCE: Setiap Feature dan Task WAJIB memiliki "sourceRequirementIds" (contoh ["REQ-004"]) dan "origin" yang diwarisi dari requirement sumbernya. Acceptance Criteria dan Testing mewarisi lineage task induknya.
+S4. AI SUGGESTION ISOLATION: Kupon, FAQ, support, loyalty, avatar, dark mode, dll yang tidak diminta -> origin "AI_SUGGESTED", optional, isMvp=false, scope "AI-SUGGESTED", TANPA sourceRequirementIds milik USER_REQUIREMENT.
+S5. TECHNICAL DECISION != REQUIREMENT: Implementasi teknis (mis. NextAuth) TIDAK boleh melahirkan requirement baru (Google OAuth, avatar, profile) dan TIDAK boleh menimpa source requirement asli.
+S6. PRD SOURCE SEPARATION: Pisahkan "userDerived" (goals, FR, constraints, explicit NFR) dari "aiDerived" (technicalRecommendations, architectureSuggestions, assumptions, optionalFeatures, aiSuggestions). TBD ditempatkan di aiDerived.
+S7. NO REQUIREMENT LOSS: Setiap USER_REQUIREMENT minimal punya 1 Feature dan 1 Task (kecuali berstatus TBD/BLOCKED).
+S8. NO DRIFT: Perubahan makna, requirement hilang, classification berubah, AI menjadi mandatory, technical menjadi user requirement, atau scope tanpa source = SOURCE INTEGRITY FAIL -> perbaiki otomatis sebelum output final.
+S9. PROJECT TYPE dari requirement aktual: PRIMARY_TYPE + SECONDARY_TYPES (Dashboard hanya secondary bila memang dibutuhkan).
+S10. STACK MODE sesuai kepastian: jangan gunakan USER_SPECIFIED/"CONFIRMED" jika masih ada alternatif (Supabase/Neon, Supabase Auth/NextAuth, R2/Supabase Storage, Midtrans/Xendit). Mode: USER_SPECIFIED, PARTIALLY_SPECIFIED, AI_RECOMMENDED, UNDECIDED, EXISTING_PROJECT.
+S11. SOURCE INTEGRITY CHECK sebelum output final: (1) semua USER_REQUIREMENT masih ada? (2) classification masih sama? (3) tiap requirement punya Feature? (4) tiap requirement punya Task? (5) AI_SUGGESTED tidak menjadi mandatory scope? (6) tidak ada requirement baru tanpa source? (7) project type sesuai requirement? (8) Stack Mode sesuai kepastian teknologi?
+
 FORMAT OUTPUT WAJIB:
 Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu sertakan blok blueprint lengkap di akhir respon:
 
@@ -2970,12 +3556,26 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     "problemStatement": "...",
     "goals": ["G-01...", "G-02..."],
     "targetUsers": ["...", "..."],
-    "functionalRequirements": ["FR-01: ... [Source: USER_REQUIREMENT]", "FR-02: ... [Source: USER_REQUIREMENT]"],
+    "functionalRequirements": ["REQ-001: ... [Source: USER_REQUIREMENT]", "REQ-002: ... [Source: USER_REQUIREMENT]"],
     "nonFunctionalRequirements": ["NFR-01: ...", "NFR-02: ..."],
+    "constraints": ["..."],
     "classifiedRequirements": [
-      { "id": "FR-01", "text": "...", "source": "USER_REQUIREMENT" },
-      { "id": "FR-02", "text": "...", "source": "USER_REQUIREMENT" }
+      { "id": "REQ-001", "text": "...", "source": "USER_REQUIREMENT" },
+      { "id": "REQ-002", "text": "...", "source": "USER_REQUIREMENT" }
     ],
+    "userDerived": {
+      "goals": ["..."],
+      "functionalRequirements": ["REQ-001: ..."],
+      "userConstraints": ["..."],
+      "explicitNFR": ["..."]
+    },
+    "aiDerived": {
+      "technicalRecommendations": ["..."],
+      "architectureSuggestions": ["..."],
+      "assumptions": ["..."],
+      "optionalFeatures": ["..."],
+      "aiSuggestions": ["..."]
+    },
     "assumptions": [
       {
         "id": "ASSUMPTION-01",
@@ -2996,9 +3596,11 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       "priority": "HIGH",
       "scope": "MVP",
       "sourceType": "USER_REQUIREMENT",
-      "sourceRequirements": ["FR-01"],
+      "origin": "USER_REQUIREMENT",
+      "sourceRequirementIds": ["REQ-001"],
+      "sourceRequirements": ["REQ-001"],
       "isAiSuggested": false,
-      "relatedRequirements": ["FR-01"],
+      "relatedRequirements": ["REQ-001"],
       "subFeatures": ["...", "..."],
       "dependencies": [],
       "isMvp": true
@@ -3029,6 +3631,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       "feature": "FEATURE-01: ...",
       "relatedFeature": "FEATURE-01: ...",
       "source": "USER_REQUIREMENT",
+      "origin": "USER_REQUIREMENT",
+      "sourceRequirementIds": ["REQ-001"],
       "deliverable": "...",
       "dependencyType": "NONE",
       "complexity": "M",
@@ -3044,7 +3648,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
   ],
   "traceabilityMatrix": [
     {
-      "requirementId": "FR-01",
+      "requirementId": "REQ-001",
       "featureId": "FEATURE-01",
       "taskIds": ["TASK-001"],
       "classification": "USER_REQUIREMENT"
@@ -3324,6 +3928,45 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         const domain = detectProjectDomain(updated.messages, p.title, p.description);
         const domainBlueprint = getDomainBlueprint(domain, p.title);
 
+        // ── V4 SOURCE LOCK: single pipeline = registry lock → lineage inheritance → integrity repair → matrix ──
+        const runLockedAnalysis = (rawTasks: ProjectTask[]) => {
+          const prdIn: ProjectPRD | undefined = updated.prd
+            ? { ...updated.prd, requirementRegistry: updated.prd.requirementRegistry || p.prd?.requirementRegistry }
+            : undefined;
+          const res = analyzeAndOptimizeTasks(rawTasks, updated.features || [], prdIn, {
+            primaryType: domain.primaryType,
+            stackMode: updated.architecture?.stackMode,
+            stackAlternatives: domain.stackAlternatives,
+            stackIsAiSuggested: updated.architecture?.isAiSuggestedStack,
+          });
+          updated.tasks = res.tasks;
+          updated.qualityGate = res.qualityGate;
+          updated.features = res.features;
+          if (updated.architecture && res.stackMode) {
+            updated.architecture = { ...updated.architecture, stackMode: res.stackMode };
+          }
+          if (prdIn) {
+            const matrix = buildTraceabilityMatrix(res.requirementRegistry, res.features, res.tasks);
+            const separation = buildPrdSourceSeparation(
+              { ...prdIn, userDerived: undefined, aiDerived: prdIn.aiDerived },
+              res.requirementRegistry,
+              res.features,
+              res.tasks,
+              updated.architecture,
+              domain.constraints
+            );
+            updated.prd = {
+              ...prdIn,
+              requirementRegistry: res.requirementRegistry,
+              classifiedRequirements: res.classifiedRequirements,
+              userDerived: { ...separation.userDerived, explicitNFR: prdIn.userDerived?.explicitNFR ?? [] },
+              aiDerived: separation.aiDerived,
+              traceabilityMatrix: matrix,
+            };
+            updated.traceabilityMatrix = matrix;
+          }
+        };
+
         if (blueprintData) {
           if (blueprintData.prd) {
             const funcReqs = Array.isArray(blueprintData.prd.functionalRequirements) && blueprintData.prd.functionalRequirements.length > 0
@@ -3356,6 +3999,10 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               risks: Array.isArray(blueprintData.prd.risks)
                 ? blueprintData.prd.risks
                 : [],
+              constraints: Array.isArray(blueprintData.prd.constraints) ? blueprintData.prd.constraints : p.prd?.constraints,
+              requirementRegistry: p.prd?.requirementRegistry,
+              userDerived: blueprintData.prd.userDerived,
+              aiDerived: blueprintData.prd.aiDerived,
             };
           } else {
             updated.prd = domainBlueprint.prd;
@@ -3365,9 +4012,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             updated.features = blueprintData.features.map((f: any, idx: number) => {
               const scope = f.scope || (idx < 4 ? "MVP" : idx < 7 ? "POST-MVP" : "OPTIONAL");
               const isAiSuggested = typeof f.isAiSuggested === "boolean" ? f.isAiSuggested : scope === "AI-SUGGESTED";
-              const relatedReqs = Array.isArray(f.relatedRequirements) && f.relatedRequirements.length > 0
-                ? f.relatedRequirements
-                : ["FR-" + String(idx + 1).padStart(2, "0")];
+              const relatedReqs = Array.isArray(f.relatedRequirements) ? f.relatedRequirements : [];
+              const declaredOrigin = isValidSource(f.origin) ? f.origin : isValidSource(f.sourceType) ? f.sourceType : (isAiSuggested ? "AI_SUGGESTED" : undefined);
 
               return {
                 id: f.id || "FEATURE-" + String(idx + 1).padStart(2, "0"),
@@ -3375,8 +4021,10 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 description: f.description || "",
                 priority: f.priority || (idx < 2 ? "CRITICAL" : idx < 5 ? "HIGH" : "MEDIUM"),
                 scope: scope,
-                sourceType: f.sourceType || (scope === "AI-SUGGESTED" || isAiSuggested ? "AI_SUGGESTED" : "USER_REQUIREMENT"),
-                sourceRequirements: Array.isArray(f.sourceRequirements) && f.sourceRequirements.length > 0 ? f.sourceRequirements : relatedReqs,
+                sourceType: declaredOrigin,
+                origin: declaredOrigin,
+                sourceRequirementIds: Array.isArray(f.sourceRequirementIds) ? f.sourceRequirementIds : Array.isArray(f.source_requirement_ids) ? f.source_requirement_ids : [],
+                sourceRequirements: Array.isArray(f.sourceRequirements) ? f.sourceRequirements : relatedReqs,
                 isAiSuggested: isAiSuggested,
                 aiReason: f.aiReason || (isAiSuggested ? "Optimasi arsitektur & keandalan sistem" : undefined),
                 subFeatures: Array.isArray(f.subFeatures) ? f.subFeatures : [],
@@ -3408,7 +4056,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
               deployment: blueprintData.architecture.deployment || "Vercel / Cloudflare Pages",
               dataSchema: blueprintData.architecture.dataSchema || (domain.needsDatabase ? (domainBlueprint.architecture.dataSchema || "") : "-- Tidak memerlukan skema database relasional (Static site / JSON content)"),
               isAiSuggestedStack: !domain.userSpecifiedStack.specified,
-              stackMode: blueprintData.architecture.stackMode || domain.stackMode,
+              stackMode: normalizeStackMode(blueprintData.architecture.stackMode, domain.stackMode),
               stackRecommendations: Array.isArray(blueprintData.architecture.stackRecommendations) ? blueprintData.architecture.stackRecommendations : [],
               userConstraints: domain.constraints,
               complexityLevel: domain.complexity,
@@ -3430,16 +4078,14 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 priority: t.priority || (idx < 2 ? "CRITICAL" : idx < 7 ? "HIGH" : "MEDIUM"),
                 feature: parentFeat,
                 relatedFeature: parentFeat,
-                source: (t.source === "USER_REQUIREMENT" || t.source === "USER_CONSTRAINT" || t.source === "AI_SUGGESTED" || t.source === "TECHNICAL_DECISION" || t.source === "TECHNICAL_RECOMMENDATION" || t.source === "ASSUMPTION" || t.source === "TBD")
-                  ? t.source
-                  : (idx < 4 ? "USER_REQUIREMENT" : (idx % 3 === 0 ? "AI_SUGGESTED" : "TECHNICAL_DECISION")),
+                source: isValidSource(t.origin) ? t.origin : isValidSource(t.source) ? t.source : undefined,
+                origin: isValidSource(t.origin) ? t.origin : isValidSource(t.source) ? t.source : undefined,
+                sourceRequirementIds: Array.isArray(t.sourceRequirementIds) ? t.sourceRequirementIds : Array.isArray(t.source_requirement_ids) ? t.source_requirement_ids : [],
                 deliverable: t.deliverable || `Deliverable modul ${t.title || ""}`,
                 dependencyType: (t.dependencyType === "HARD" || t.dependencyType === "SOFT" || t.dependencyType === "NONE") ? t.dependencyType : (idx === 0 ? "NONE" : "HARD"),
                 complexity: (t.complexity === "XS" || t.complexity === "S" || t.complexity === "M" || t.complexity === "L" || t.complexity === "XL") ? t.complexity : (idx % 3 === 0 ? "L" : idx % 2 === 0 ? "M" : "S"),
                 technicalNotes: t.technicalNotes || "",
-                relatedRequirements: Array.isArray(t.relatedRequirements) && t.relatedRequirements.length > 0
-                  ? t.relatedRequirements
-                  : ["FR-" + String(Math.floor(idx / 2) + 1).padStart(2, "0")],
+                relatedRequirements: Array.isArray(t.relatedRequirements) ? t.relatedRequirements : [],
                 dependencies: Array.isArray(t.dependencies) ? t.dependencies : (idx === 0 ? [] : ["TASK-" + String(idx).padStart(3, "0")]),
                 parallelGroup: t.parallelGroup || (t.parallelizable === "YES" ? "PG-01" : undefined),
                 subtasks: Array.isArray(t.subtasks) && t.subtasks.length > 0
@@ -3467,66 +4113,10 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                   : (idx > 2 && idx % 2 === 0 ? "YES" : "NO"),
               };
             });
-            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(rawTasks, updated.features, updated.prd);
-            updated.tasks = optimizedTasks;
-            updated.qualityGate = qualityGate;
+            runLockedAnalysis(rawTasks);
           } else {
             // Jika tasks dari LLM sedikit, gunakan tasks blueprint domain yang telah dioptimasi
-            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(domainBlueprint.tasks, updated.features || domainBlueprint.features, updated.prd || domainBlueprint.prd);
-            updated.tasks = optimizedTasks;
-            updated.qualityGate = qualityGate;
-          }
-
-          // Compute or extract Compact Traceability Matrix (Requirement -> Feature -> Tasks -> Classification)
-          let traceMatrix: TraceabilityRow[] = [];
-          if (Array.isArray(blueprintData.traceabilityMatrix) && blueprintData.traceabilityMatrix.length > 0) {
-            traceMatrix = blueprintData.traceabilityMatrix.map((row: any) => ({
-              requirementId: row.requirementId || row.requirement || "",
-              featureId: row.featureId || row.feature || "",
-              taskIds: Array.isArray(row.taskIds) ? row.taskIds : (row.tasks ? (Array.isArray(row.tasks) ? row.tasks : [String(row.tasks)]) : []),
-              classification: (row.classification === "USER_REQUIREMENT" || row.classification === "USER_CONSTRAINT" || row.classification === "AI_SUGGESTED" || row.classification === "TECHNICAL_DECISION" || row.classification === "TECHNICAL_RECOMMENDATION" || row.classification === "ASSUMPTION" || row.classification === "TBD") ? row.classification : "USER_REQUIREMENT",
-            }));
-          } else if (updated.tasks && updated.tasks.length > 0) {
-            const mapReqToRow = new Map<string, { featureId: string; taskIds: Set<string>; classification: RequirementSource }>();
-            if (updated.prd?.classifiedRequirements) {
-              updated.prd.classifiedRequirements.forEach(cr => {
-                mapReqToRow.set(cr.id, {
-                  featureId: "",
-                  taskIds: new Set(),
-                  classification: cr.source || "USER_REQUIREMENT",
-                });
-              });
-            }
-            updated.tasks.forEach(t => {
-              const reqs = t.relatedRequirements || [];
-              const feat = t.relatedFeature || t.feature || "";
-              reqs.forEach(reqId => {
-                const existing = mapReqToRow.get(reqId);
-                if (existing) {
-                  if (!existing.featureId && feat) existing.featureId = feat;
-                  existing.taskIds.add(t.id);
-                } else {
-                  mapReqToRow.set(reqId, {
-                    featureId: feat,
-                    taskIds: new Set([t.id]),
-                    classification: t.source || "USER_REQUIREMENT",
-                  });
-                }
-              });
-            });
-            traceMatrix = Array.from(mapReqToRow.entries()).map(([reqId, val]) => ({
-              requirementId: reqId,
-              featureId: val.featureId || "General",
-              taskIds: Array.from(val.taskIds),
-              classification: val.classification,
-            }));
-          }
-
-          if (traceMatrix.length > 0) {
-            updated.traceabilityMatrix = traceMatrix;
-            if (updated.prd) {
-              updated.prd.traceabilityMatrix = traceMatrix;
-            }
+            runLockedAnalysis(domainBlueprint.tasks);
           }
         } else if (!hasQuestions) {
           // Jika respons bukan pertanyaan discovery (misal instruksi pembuatan PRD/Blueprint langsung),
@@ -3544,48 +4134,10 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             updated.architecture = domainBlueprint.architecture;
           }
           if (!updated.tasks || updated.tasks.length === 0) {
-            const { tasks: optimizedTasks, qualityGate } = analyzeAndOptimizeTasks(domainBlueprint.tasks, updated.features || domainBlueprint.features, updated.prd || domainBlueprint.prd);
-            updated.tasks = optimizedTasks;
-            updated.qualityGate = qualityGate;
-          }
-          if (!updated.traceabilityMatrix && updated.tasks && updated.tasks.length > 0) {
-            const mapReqToRow = new Map<string, { featureId: string; taskIds: Set<string>; classification: RequirementSource }>();
-            if (updated.prd?.classifiedRequirements) {
-              updated.prd.classifiedRequirements.forEach(cr => {
-                mapReqToRow.set(cr.id, {
-                  featureId: "",
-                  taskIds: new Set(),
-                  classification: cr.source || "USER_REQUIREMENT",
-                });
-              });
-            }
-            updated.tasks.forEach(t => {
-              const reqs = t.relatedRequirements || [];
-              const feat = t.relatedFeature || t.feature || "";
-              reqs.forEach(reqId => {
-                const existing = mapReqToRow.get(reqId);
-                if (existing) {
-                  if (!existing.featureId && feat) existing.featureId = feat;
-                  existing.taskIds.add(t.id);
-                } else {
-                  mapReqToRow.set(reqId, {
-                    featureId: feat,
-                    taskIds: new Set([t.id]),
-                    classification: t.source || "USER_REQUIREMENT",
-                  });
-                }
-              });
-            });
-            const fallbackMatrix: TraceabilityRow[] = Array.from(mapReqToRow.entries()).map(([reqId, val]) => ({
-              requirementId: reqId,
-              featureId: val.featureId || "General",
-              taskIds: Array.from(val.taskIds),
-              classification: val.classification,
-            }));
-            updated.traceabilityMatrix = fallbackMatrix;
-            if (updated.prd) {
-              updated.prd.traceabilityMatrix = fallbackMatrix;
-            }
+            runLockedAnalysis(domainBlueprint.tasks);
+          } else if (!updated.prd?.requirementRegistry) {
+            // Legacy project without registry: lock the registry once and derive lineage (matrix) from it.
+            runLockedAnalysis(updated.tasks);
           }
         }
 
@@ -3784,6 +4336,10 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       showCopyToast("Blueprint proyek belum selesai dirumuskan. Selesaikan sesi AI Planner di tab Chat terlebih dahulu.");
       return;
     }
+    if (activeProject.qualityGate?.sourceIntegrity === "FAIL") {
+      showCopyToast("SOURCE INTEGRITY = FAIL. Perbaiki drift requirement sebelum export final.");
+      return;
+    }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
 
     const prd = activeProject.prd;
@@ -3798,7 +4354,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 # Generated by: Usick One — Code Planner (Universal V4 Blueprint Engine)
 # Traceability: Requirements -> Features -> Tasks -> Subtasks -> Acceptance Criteria -> Testing
 # Complexity Level: ${arch?.complexityLevel || domain.complexity}
-# Stack Mode: ${arch?.isAiSuggestedStack ? "AI-SUGGESTED STACK (Review before lock-in)" : "CONFIRMED / USER-SPECIFIED STACK"}
+# Stack Mode: ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")}${arch?.stackMode === "USER_SPECIFIED" ? " (seluruh teknologi ditentukan user)" : arch?.stackMode === "PARTIALLY_SPECIFIED" ? " (sebagian ditentukan user, sisanya perlu keputusan/review)" : arch?.stackMode === "EXISTING_PROJECT" ? " (mengikuti arsitektur proyek eksisting)" : " (rekomendasi AI — review sebelum lock-in)"}
+# SOURCE INTEGRITY = ${activeProject.qualityGate?.sourceIntegrity || "N/A (belum dievaluasi — generate ulang blueprint)"}
 
 ---
 ## 1. PROJECT OVERVIEW & PRD
@@ -3808,14 +4365,31 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 ${prd?.goals?.map((g) => `  * ${g}`).join("\n") || "  * Menghasilkan aplikasi fungsional yang stabil"}
 
 ---
-## 2. TARGET USERS & REQUIREMENTS (Classified Sources)
+## 2. TARGET USERS & REQUIREMENTS (Source Lock — Requirement Lineage)
 - **Target Users**: ${prd?.targetUsers?.join(", ") || "Klien Utama, Staff Operasional, Administrator"}
+
+### 2A. REQUIREMENT REGISTRY (Locked at Ingestion)
+${prd?.requirementRegistry && prd.requirementRegistry.length > 0
+  ? prd.requirementRegistry.map((r) => `  * **${r.id}** [${r.classification}] [${r.status}]: ${r.text}`).join("\n")
+  : (prd?.classifiedRequirements && prd.classifiedRequirements.length > 0
+    ? prd.classifiedRequirements.map((cr) => `  * [${cr.source}] **${cr.id}**: ${cr.text}`).join("\n")
+    : (prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi"))}
+
+### 2B. USER-DERIVED
+- **Goals**:
+${(prd?.userDerived?.goals || prd?.goals || []).map((g) => `  * ${g}`).join("\n") || "  * -"}
 - **Functional Requirements**:
-${prd?.classifiedRequirements && prd.classifiedRequirements.length > 0
-  ? prd.classifiedRequirements.map((cr) => `  * [${cr.source}] **${cr.id}**: ${cr.text}`).join("\n")
-  : (prd?.functionalRequirements?.map((f) => `  * ${f}`).join("\n") || "  * Standar modul aplikasi")}
-- **Non-Functional Requirements**:
-${prd?.nonFunctionalRequirements?.map((nf) => `  * ${nf}`).join("\n") || "  * Performa cepat dan aman"}
+${(prd?.userDerived?.functionalRequirements || prd?.functionalRequirements || []).map((f) => `  * ${f}`).join("\n") || "  * -"}
+- **User Constraints**: ${((prd?.userDerived?.userConstraints && prd.userDerived.userConstraints.length > 0) ? prd.userDerived.userConstraints : domain.constraints).join(", ") || "-"}
+- **Explicit NFR**: ${(prd?.userDerived?.explicitNFR || []).join("; ") || "-"}
+
+### 2C. AI-DERIVED (Not user requirements)
+- **Non-Functional Requirements / Technical Recommendations**:
+${[...(prd?.nonFunctionalRequirements || []), ...(prd?.aiDerived?.technicalRecommendations || [])].map((nf) => `  * ${nf}`).join("\n") || "  * -"}
+- **Architecture Suggestions**: ${(prd?.aiDerived?.architectureSuggestions || []).join("; ") || "-"}
+- **Assumptions / TBD**: ${(prd?.aiDerived?.assumptions || []).map((a) => (typeof a === "string" ? a : a.assumption)).join("; ") || "-"}
+- **OPTIONAL AI SUGGESTIONS** (tidak termasuk mandatory scope):
+${[...(prd?.aiDerived?.optionalFeatures || []), ...(prd?.aiDerived?.aiSuggestions || [])].map((s) => `  * ${s}`).join("\n") || "  * -"}
 ${domain.constraints.length > 0 ? `- **Project Constraints**: ${domain.constraints.join(", ")}\n` : ""}
 ${prd?.assumptions && prd.assumptions.length > 0 ? `### Technical & Product Assumptions:\n${prd.assumptions.map((ass, i) => `- **${ass.id || `ASSUMPTION-${String(i+1).padStart(2, '0')}`}**: ${ass.assumption}${ass.reason ? ` (Alasan: ${ass.reason})` : ""}${ass.impact ? ` (Dampak: ${ass.impact})` : ""}`).join("\n")}\n\n` : ""}${prd?.risks && prd.risks.length > 0 ? `### Technical Risks & Mitigations:\n${prd.risks.map((r, i) => `${i + 1}. ${r}`).join("\n")}\n\n` : ""}---
 ## 3. TECHNICAL ARCHITECTURE & STACK
@@ -3841,13 +4415,10 @@ ${userFlow}
 ${features.map((f, i) => {
   const featId = f.id || `FEATURE-${String(i + 1).padStart(2, "0")}`;
   const scope = f.scope || (f.isMvp !== false ? "MVP" : "POST-MVP");
-  const src = f.sourceType || (f.isAiSuggested ? "AI_SUGGESTED" : "USER_REQUIREMENT");
+  const src = f.origin || f.sourceType || (f.isAiSuggested ? "AI_SUGGESTED" : "TECHNICAL_DECISION");
   let str = `${i + 1}. **${featId}: ${f.name}** [${scope}] [Source: ${src}] [Priority: ${f.priority || "Medium"}]:\n   ${f.description}`;
-  if (f.sourceRequirements && f.sourceRequirements.length > 0) {
-    str += `\n   - Source Requirements: ${f.sourceRequirements.join(", ")}`;
-  } else if (f.relatedRequirements && f.relatedRequirements.length > 0) {
-    str += `\n   - Related Requirements: ${f.relatedRequirements.join(", ")}`;
-  }
+  str += `\n   - source_requirement_ids: ${(f.sourceRequirementIds && f.sourceRequirementIds.length > 0) ? f.sourceRequirementIds.join(", ") : "-"}`;
+  str += `\n   - origin: ${src}`;
   if (f.subFeatures && f.subFeatures.length > 0) {
     str += `\n   - Sub-fitur: ${f.subFeatures.join(", ")}`;
   }
@@ -3861,8 +4432,9 @@ ${features.map((f, i) => {
 ## 6. ACTIONABLE DEVELOPMENT BLUEPRINT (${tasks.length} Atomic Tasks)
 ${tasks.map((t, i) => {
   const taskId = t.id || `TASK-${String(i + 1).padStart(3, "0")}`;
-  const src = t.source || "USER_REQUIREMENT";
-  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] [Size: ${t.complexity || "M"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}${t.parallelGroup ? ` (${t.parallelGroup})` : ""}]\n- **Deskripsi**: ${t.description}\n- **Source**: ${src}\n- **Related Feature**: ${t.relatedFeature || t.feature || "N/A"}`;
+  const src = t.origin || t.source || "TECHNICAL_DECISION";
+  const lineageIds = (t.sourceRequirementIds && t.sourceRequirementIds.length > 0) ? t.sourceRequirementIds.join(", ") : "-";
+  let block = `### ${i + 1}. [${t.status.toUpperCase()}] **${taskId}: ${t.title}** [${t.priority || "HIGH"}] [Size: ${t.complexity || "M"}] (${t.phase || "Dev"}) [Parallel: ${t.parallelizable || "NO"}${t.parallelGroup ? ` (${t.parallelGroup})` : ""}]\n- **Deskripsi**: ${t.description}\n- **Source**: ${src}\n- **source_requirement_ids**: ${lineageIds}\n- **origin**: ${src}\n- **Related Feature**: ${t.relatedFeature || t.feature || "N/A"}`;
   if (t.deliverable) {
     block += `\n- **Deliverable**: ${t.deliverable}`;
   }
@@ -3876,10 +4448,10 @@ ${tasks.map((t, i) => {
     block += `\n- **Subtasks**:\n` + t.subtasks.map((st) => `  * [ ] ${st}`).join("\n");
   }
   if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
-    block += `\n- **Acceptance Criteria**:\n` + t.acceptanceCriteria.map((ac) => `  * ${ac}`).join("\n");
+    block += `\n- **Acceptance Criteria** [source_requirement_ids: ${lineageIds}] [origin: ${src}]:\n` + t.acceptanceCriteria.map((ac) => `  * ${ac}`).join("\n");
   }
   if (t.testing && t.testing.length > 0) {
-    block += `\n- **Testing Requirements**:\n` + t.testing.map((test) => `  * ${test}`).join("\n");
+    block += `\n- **Testing Requirements** [source_requirement_ids: ${lineageIds}] [origin: ${src}]:\n` + t.testing.map((test) => `  * ${test}`).join("\n");
   }
   return block;
 }).join("\n\n")}
@@ -3895,7 +4467,7 @@ ${(() => {
     });
     return md.trim();
   }
-  return "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n| FR-01 | feat-01 | TASK-001, TASK-002 | USER_REQUIREMENT |";
+  return "| Requirement | Feature | Tasks | Classification |\n|---|---|---|---|\n| - | - | - | - |";
 })()}
 
 ---
@@ -3924,6 +4496,10 @@ ${(() => {
     if (!activeProject) return;
     if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
       showCopyToast("Blueprint proyek belum lengkap. Selesaikan sesi AI Planner terlebih dahulu.");
+      return;
+    }
+    if (activeProject.qualityGate?.sourceIntegrity === "FAIL") {
+      showCopyToast("SOURCE INTEGRITY = FAIL. Perbaiki drift requirement sebelum export final.");
       return;
     }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
@@ -3997,7 +4573,8 @@ ${(() => {
   <div class="meta">
     <strong>Kategori:</strong> ${domain.categories.join(", ")} |
     <strong>Kompleksitas:</strong> ${arch?.complexityLevel || domain.complexity} |
-    <strong>Stack Mode:</strong> ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "USER_SPECIFIED")} |
+    <strong>Stack Mode:</strong> ${arch?.stackMode || (arch?.isAiSuggestedStack ? "AI_RECOMMENDED" : "PARTIALLY_SPECIFIED")} |
+    <strong>Source Integrity:</strong> ${activeProject.qualityGate?.sourceIntegrity || "N/A"} |
     <strong>Tanggal:</strong> ${new Date().toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })}
   </div>
 
@@ -5783,6 +6360,92 @@ ${(() => {
                   </div>
                 </div>
               )}
+
+              {(activeProject.prd.userDerived || activeProject.prd.aiDerived || (activeProject.prd.requirementRegistry && activeProject.prd.requirementRegistry.length > 0)) && (
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-400 mb-2">10. Source Lineage (Requirement Registry Locked)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={`p-3 rounded-xl border text-xs space-y-2 ${isDark ? "bg-zinc-900/40 border-zinc-700" : "bg-zinc-50 border-zinc-300"}`}>
+                      <div className="font-mono font-bold text-[10px] uppercase tracking-wider">USER-DERIVED</div>
+                      {([
+                        ["Goals", activeProject.prd.userDerived?.goals],
+                        ["Functional Requirements", activeProject.prd.userDerived?.functionalRequirements],
+                        ["User Constraints", activeProject.prd.userDerived?.userConstraints],
+                        ["Explicit NFR", activeProject.prd.userDerived?.explicitNFR],
+                      ] as [string, string[] | undefined][]).map(([label, items]) => (
+                        <div key={label}>
+                          <div className="text-[10px] font-semibold text-zinc-500">{label}</div>
+                          {items && items.length > 0 ? (
+                            <ul className="list-disc pl-4 space-y-0.5">{items.map((it, i) => <li key={i}>{it}</li>)}</ul>
+                          ) : (
+                            <div className="text-zinc-500">-</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`p-3 rounded-xl border border-dashed text-xs space-y-2 ${isDark ? "bg-zinc-950/40 border-zinc-800 text-zinc-400" : "bg-white border-zinc-300 text-zinc-600"}`}>
+                      <div className="font-mono font-bold text-[10px] uppercase tracking-wider">AI-DERIVED</div>
+                      {([
+                        ["Technical Recommendations", activeProject.prd.aiDerived?.technicalRecommendations],
+                        ["Architecture Suggestions", activeProject.prd.aiDerived?.architectureSuggestions],
+                        ["Assumptions / TBD", (activeProject.prd.aiDerived?.assumptions || []).map((a) => (typeof a === "string" ? a : String((a as { assumption?: string }).assumption || "")))],
+                        ["OPTIONAL AI SUGGESTIONS", [...(activeProject.prd.aiDerived?.optionalFeatures || []), ...(activeProject.prd.aiDerived?.aiSuggestions || [])]],
+                      ] as [string, string[] | undefined][]).map(([label, items]) => (
+                        <div key={label}>
+                          <div className="text-[10px] font-semibold text-zinc-500">{label}</div>
+                          {items && items.length > 0 ? (
+                            <ul className="list-disc pl-4 space-y-0.5">{items.map((it, i) => <li key={i}>{it}</li>)}</ul>
+                          ) : (
+                            <div className="text-zinc-500">-</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {activeProject.prd.requirementRegistry && activeProject.prd.requirementRegistry.length > 0 && (
+                    <div className={`mt-3 overflow-x-auto rounded-xl border ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
+                      <table className="w-full text-left text-xs">
+                        <thead className={`border-b ${isDark ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-600"}`}>
+                          <tr>
+                            <th className="py-2 px-3 font-semibold">ID</th>
+                            <th className="py-2 px-3 font-semibold">Requirement</th>
+                            <th className="py-2 px-3 font-semibold">Classification</th>
+                            <th className="py-2 px-3 font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[11px]">
+                          {activeProject.prd.requirementRegistry.map((r) => (
+                            <tr key={r.id}>
+                              <td className="py-2 px-3 font-mono font-semibold">{r.id}</td>
+                              <td className="py-2 px-3">{r.text}</td>
+                              <td className="py-2 px-3 font-mono text-[10px]">{r.classification}</td>
+                              <td className="py-2 px-3 font-mono text-[10px] text-zinc-400">{r.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {activeProject.qualityGate?.sourceIntegrityChecks && activeProject.qualityGate.sourceIntegrityChecks.length > 0 && (
+                    <div className={`mt-3 p-3 rounded-xl border text-xs space-y-1 ${isDark ? "border-zinc-800 bg-zinc-900/30" : "border-zinc-200 bg-zinc-50"}`}>
+                      <div className="font-mono font-bold text-[10px] uppercase tracking-wider mb-1">
+                        Source Integrity Check — {activeProject.qualityGate.sourceIntegrity}
+                      </div>
+                      {activeProject.qualityGate.sourceIntegrityChecks.map((c) => (
+                        <div key={c.checkNumber} className="flex items-start gap-2">
+                          <span className="font-mono font-bold shrink-0">{c.passed ? "✓" : "✗"}</span>
+                          <span>
+                            <span className="font-semibold">{c.checkNumber}. {c.question}</span>
+                            <span className="text-zinc-500"> — {c.detail}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -6120,6 +6783,18 @@ ${(() => {
                   }`}>
                     Quality Gate: {activeProject.qualityGate.status || (activeProject.qualityGate.passed ? "PASS" : "FAIL")} ({activeProject.qualityGate.score}%)
                   </span>
+                  {activeProject.qualityGate.sourceIntegrity && (
+                    <span
+                      title={(activeProject.qualityGate.sourceIntegrityChecks || []).map((c) => `${c.checkNumber}. ${c.question} ${c.passed ? "✓" : "✗"}`).join("\n")}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                        activeProject.qualityGate.sourceIntegrity === "PASS"
+                          ? isDark ? "bg-zinc-800 text-zinc-200 border-zinc-600" : "bg-zinc-200 text-zinc-900 border-zinc-400"
+                          : isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
+                      }`}
+                    >
+                      Source Integrity: {activeProject.qualityGate.sourceIntegrity}
+                    </span>
+                  )}
                   {activeProject.qualityGate.repairedCount > 0 && (
                     <span className="text-[10px] font-mono text-zinc-400">({activeProject.qualityGate.repairedCount} auto-repaired)</span>
                   )}
