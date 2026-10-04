@@ -82,8 +82,6 @@ export function ScheduleWorkspace({
 
   // Detail Modal State
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
-  const [testingEmail, setTestingEmail] = useState(false);
-  const [emailStatusMsg, setEmailStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Notification & Reminder Alert State
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
@@ -93,53 +91,21 @@ export function ScheduleWorkspace({
   const userId = user?.id || "guest";
   const userEmail = user?.email || "";
 
-  // Email pengingat yang tersimpan (mendukung Guest maupun Logged-in)
-  const [reminderEmail, setReminderEmail] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return user?.email || localStorage.getItem("usick_reminder_email") || "usick.artwork@gmail.com";
-    }
-    return user?.email || "usick.artwork@gmail.com";
-  });
+  // Email pengingat otomatis langsung menggunakan email akun login pengguna
+  const activeEmail = (user?.email || "usick.artwork@gmail.com").trim();
 
+  // Otomatis sinkronkan izin notifikasi saat komponen dimuat
   useEffect(() => {
-    if (user?.email) {
-      setReminderEmail(user.email);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("usick_reminder_email", user.email);
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((perm) => {
+          setNotificationPermission(perm);
+        }).catch(() => {});
+      } else {
+        setNotificationPermission(Notification.permission);
       }
     }
-  }, [user?.email]);
-
-  const saveReminderEmail = (email: string) => {
-    const clean = email.trim();
-    if (clean) {
-      setReminderEmail(clean);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("usick_reminder_email", clean);
-      }
-    }
-  };
-
-  const activeEmail = (reminderEmail || userEmail || "usick.artwork@gmail.com").trim();
-
-  const handleConfigureEmail = () => {
-    const input = prompt("Masukkan alamat email untuk menerima pengingat jadwal:", activeEmail);
-    if (input !== null) {
-      const clean = input.trim();
-      if (!clean || !clean.includes("@")) {
-        alert("Harap masukkan format email yang valid (contoh: nama@gmail.com).");
-        return;
-      }
-      saveReminderEmail(clean);
-      setSchedules((prev) =>
-        prev.map((s) => ({ ...s, user_email: clean }))
-      );
-      setEmailStatusMsg({
-        type: "success",
-        text: `Email pengingat aktif disetel ke ${clean}!`,
-      });
-    }
-  };
+  }, []);
 
   // Helper untuk mendapatkan authorization header dari sesi Supabase
   const getAuthHeaders = async () => {
@@ -1033,93 +999,6 @@ export function ScheduleWorkspace({
     }
   };
 
-  const handleTestEmailReminder = async (item: ScheduleItem) => {
-    // 1. Suara lonceng pengingat berbunyi seketika
-    playNotificationChime();
-
-    // 2. Tampilkan notifikasi desktop browser seketika
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "granted") {
-        try {
-          const notifTitle = `⏰ [Uji Pengingat] ${item.title}`;
-          const notifOptions: NotificationOptions = {
-            body: `Pukul ${formatScheduleTime(item.time)} WIB (${formatReminderText(item.reminder_minutes)}). Lonceng & notifikasi browser aktif!`,
-            icon: "/favicon.ico",
-            tag: `test-reminder-${item.id}`,
-          };
-          new Notification(notifTitle, notifOptions);
-        } catch (nErr) {
-          console.warn("Desktop notification test error:", nErr);
-        }
-      } else if (Notification.permission === "default") {
-        Notification.requestPermission().then((perm) => {
-          setNotificationPermission(perm);
-          if (perm === "granted") {
-            try {
-              new Notification(`⏰ [Uji Pengingat] ${item.title}`, {
-                body: `Notifikasi browser berhasil diaktifkan!`,
-                icon: "/favicon.ico",
-              });
-            } catch {}
-          }
-        });
-      }
-    }
-
-    // 3. Tampilkan banner peringatan in-app seketika
-    setActiveReminderAlert(item);
-
-    // 4. Pastikan email penerima terdaftar
-    let targetEmail = item.user_email || activeEmail;
-    if (!targetEmail || !targetEmail.includes("@")) {
-      const input = prompt("Masukkan alamat email untuk menerima tes pengingat:", "usick.artwork@gmail.com");
-      if (!input || !input.includes("@")) {
-        alert("Harap masukkan alamat email yang valid.");
-        return;
-      }
-      targetEmail = input.trim();
-    }
-
-    // Simpan email agar otomatis teringat di agenda berikutnya
-    saveReminderEmail(targetEmail);
-    if (!item.user_email || item.user_email !== targetEmail) {
-      const updatedItem = { ...item, user_email: targetEmail };
-      setSchedules((prev) => prev.map((s) => (s.id === item.id ? updatedItem : s)));
-    }
-
-    setTestingEmail(true);
-    setEmailStatusMsg(null);
-
-    try {
-      const res = await fetch("/api/schedules/remind", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_email",
-          testEmail: targetEmail,
-          targetSchedule: item,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Gagal mengirim email tes.");
-      }
-
-      setEmailStatusMsg({
-        type: "success",
-        text: `Email tes berhasil dikirim ke ${targetEmail}. Silakan periksa inbox Gmail Anda!`,
-      });
-    } catch (err: any) {
-      setEmailStatusMsg({
-        type: "error",
-        text: err?.message || "Terjadi kendala saat mengirim email.",
-      });
-    } finally {
-      setTestingEmail(false);
-    }
-  };
-
   // ─── Filtered & Grouped Schedules ────────────────────────────────────────────
   const filteredSchedules = useMemo(() => {
     return schedules.filter((item) => {
@@ -1185,63 +1064,8 @@ export function ScheduleWorkspace({
           </div>
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button & Notification Indicator */}
+        {/* Header Action: Daftar Agenda Toggle Button */}
         <div className="flex items-center gap-2">
-          {/* Notification Permission Indicator / Button */}
-          <button
-            type="button"
-            onClick={requestNotificationPermission}
-            title={
-              notificationPermission === "granted"
-                ? "Notifikasi browser aktif"
-                : notificationPermission === "denied"
-                ? "Izin notifikasi diblokir di browser. Izinkan di pengaturan situs jika ingin notifikasi desktop."
-                : "Klik untuk mengaktifkan notifikasi pengingat di browser"
-            }
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
-              notificationPermission === "granted"
-                ? isDark
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : notificationPermission === "denied"
-                ? isDark
-                  ? "bg-zinc-900 border-zinc-800 text-zinc-500"
-                  : "bg-zinc-100 border-zinc-200 text-zinc-400"
-                : isDark
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
-                : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="hidden sm:inline">
-              {notificationPermission === "granted"
-                ? "Notif Aktif"
-                : notificationPermission === "denied"
-                ? "Notif Diblokir"
-                : "Aktifkan Notif"}
-            </span>
-          </button>
-
-          {/* Email Reminder Setting Indicator / Button */}
-          <button
-            type="button"
-            onClick={handleConfigureEmail}
-            title={`Email Pengingat: ${activeEmail}. Klik untuk mengubah.`}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
-              isDark
-                ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <span className="hidden md:inline max-w-[140px] truncate">{activeEmail}</span>
-            <span className="inline md:hidden">Email</span>
-          </button>
-
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
@@ -1859,7 +1683,6 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
-                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1874,7 +1697,6 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
-                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1889,7 +1711,6 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
-                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1904,7 +1725,6 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
-                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -2115,7 +1935,6 @@ export function ScheduleWorkspace({
                 type="button"
                 onClick={() => {
                   setSelectedItem(null);
-                  setEmailStatusMsg(null);
                 }}
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
                   isDark
@@ -2202,30 +2021,7 @@ export function ScheduleWorkspace({
                     )}
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={testingEmail}
-                  onClick={() => handleTestEmailReminder(selectedItem)}
-                  className={`px-3 py-1.5 rounded-xl font-medium text-[11px] transition cursor-pointer border disabled:opacity-50 ${
-                    isDark
-                      ? "bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-black border-zinc-300"
-                  }`}
-                >
-                  {testingEmail ? "Mengirim..." : "Kirim Tes Email"}
-                </button>
               </div>
-
-              {emailStatusMsg && (
-                <div
-                  className={`p-2.5 rounded-xl text-xs font-medium border ${
-                    isDark ? "bg-zinc-800 text-white border-zinc-700" : "bg-zinc-100 text-black border-zinc-300"
-                  }`}
-                >
-                  {emailStatusMsg.text}
-                </div>
-              )}
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-zinc-700/40 flex flex-wrap items-center justify-between gap-2">
@@ -2316,7 +2112,6 @@ function ScheduleSection({
   onSelect,
   onEdit,
   onDelete,
-  onTestReminder,
   onToggleComplete,
 }: {
   title: string;
@@ -2325,7 +2120,6 @@ function ScheduleSection({
   onSelect: (item: ScheduleItem) => void;
   onEdit: (item: ScheduleItem) => void;
   onDelete: (item: ScheduleItem) => void;
-  onTestReminder?: (item: ScheduleItem) => void;
   onToggleComplete: (item: ScheduleItem) => void;
 }) {
   return (
@@ -2423,24 +2217,6 @@ function ScheduleSection({
                   className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Quick Action: Uji Pengingat Langsung */}
-                  {onTestReminder && (
-                    <button
-                      type="button"
-                      onClick={() => onTestReminder(item)}
-                      title="Uji pengingat sekarang (suara lonceng, notifikasi browser & email)"
-                      className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                        isDark
-                          ? "border-amber-500/30 hover:border-amber-500/60 bg-amber-500/10 text-amber-400 hover:text-amber-300"
-                          : "border-amber-200 hover:border-amber-300 bg-amber-50 text-amber-600 hover:text-amber-700"
-                      }`}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                      </svg>
-                    </button>
-                  )}
-
                   <button
                     type="button"
                     onClick={() => onToggleComplete(item)}
