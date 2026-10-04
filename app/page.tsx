@@ -850,22 +850,44 @@ export default function Home() {
   useEffect(() => {
     let touchStartX = 0;
     let touchStartY = 0;
+    let touchStartTime = 0;
+    let isSelectingText = false;
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+      isSelectingText = false;
+    };
+
+    const handleSelectionChange = () => {
+      // Tandai jika ada proses seleksi/blok teks selama interaksi touch
+      isSelectingText = true;
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
       const deltaX = e.changedTouches[0].clientX - touchStartX;
       const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+      const duration = Date.now() - touchStartTime;
+
+      // Cek apakah ada teks yang sedang diblok/diseleksi untuk disalin
+      const selection = typeof window !== "undefined" ? window.getSelection() : null;
+      const hasActiveSelection =
+        !!selection &&
+        (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
+
+      // Jangan buka sidebar jika user sedang memblok atau menyalin teks
+      if (hasActiveSelection || isSelectingText) {
+        return;
+      }
 
       if (deltaY < 80) {
-        // Swipe to right from anywhere on screen to slide open panel (hanya aktif di halaman chat)
-        if (deltaX > 45 && !sidebarOpen && activeView === "chats") {
+        // Slide ke kanan untuk membuka panel di SEMUA tab (chats, code, schedule)
+        // Batasi duration < 600ms agar gerakan blok teks lambat tidak disalahartikan sebagai swipe
+        if (deltaX > 50 && !sidebarOpen && duration < 600) {
           setSidebarOpen(true);
         }
-        // Swipe to left to close panel when open
+        // Slide ke kiri untuk menutup panel ketika sedang terbuka
         if (deltaX < -45 && sidebarOpen) {
           setSidebarOpen(false);
         }
@@ -874,12 +896,14 @@ export default function Home() {
 
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
     window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("selectionchange", handleSelectionChange);
 
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("selectionchange", handleSelectionChange);
     };
-  }, [sidebarOpen, activeView]);
+  }, [sidebarOpen]);
 
   // Load models from API
   useEffect(() => {
@@ -1634,6 +1658,12 @@ export default function Home() {
     user?.email?.split("@")[0] ||
     "Tamu";
 
+  const chatAccountName =
+    user?.user_metadata?.full_name?.trim() ||
+    user?.user_metadata?.name?.trim() ||
+    (user?.email ? user.email.split("@")[0] : null) ||
+    "Usick One";
+
   const userInitial = (
     user?.user_metadata?.full_name ||
     user?.email ||
@@ -1946,30 +1976,7 @@ export default function Home() {
           isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl shadow-xs ${
-              isDark ? "bg-white text-black" : "bg-black text-white"
-            }`}>
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-              </svg>
-            </div>
-            <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={newChat}
-              className={`flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full text-xs font-semibold shadow-xs transition cursor-pointer ${
-                isDark ? "bg-white hover:bg-zinc-200 text-black" : "bg-black hover:bg-zinc-800 text-white"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline">New Chat</span>
-            </button>
-
-            {/* 3-line hamburger menu button in top-right corner to open panel */}
+            {/* 3-line hamburger menu button on the LEFT */}
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
               className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
@@ -1983,6 +1990,31 @@ export default function Home() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl shadow-xs ${
+                isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}>
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                </svg>
+              </div>
+              <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={newChat}
+              className={`flex items-center gap-1.5 h-8 sm:h-9 px-3 rounded-full text-xs font-semibold shadow-xs transition cursor-pointer ${
+                isDark ? "bg-white hover:bg-zinc-200 text-black" : "bg-black hover:bg-zinc-800 text-white"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">New Chat</span>
             </button>
           </div>
         </header>
@@ -2035,7 +2067,7 @@ export default function Home() {
 
                 {/* Headline */}
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
-                  {getTimeGreeting()}, Usick One
+                  {getTimeGreeting()}, {chatAccountName}
                 </h1>
                 <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?

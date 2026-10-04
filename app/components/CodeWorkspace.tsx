@@ -6943,6 +6943,22 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           isDark ? "bg-[#0c0c0e]/90 border-zinc-850" : "bg-white/90 border-zinc-200"
         }`}>
           <div className="flex items-center gap-2.5">
+            {/* 3-line hamburger menu button on the LEFT */}
+            <button
+              onClick={onTogglePanel}
+              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
+              title="Menu Panel"
+              aria-label="Menu Panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
             <div className={`flex h-8 w-8 items-center justify-center rounded-xl font-mono font-bold text-xs ${
               isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
             }`}>
@@ -6967,22 +6983,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span>Project Baru</span>
-            </button>
-
-            {/* 3-line hamburger menu button in top-right corner to open panel */}
-            <button
-              onClick={onTogglePanel}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
-                isDark
-                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
-              }`}
-              title="Menu Panel"
-              aria-label="Menu Panel"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
             </button>
           </div>
         </div>
@@ -7194,8 +7194,20 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       <div className={`flex items-center justify-between px-3 sm:px-6 py-2.5 border-b backdrop-blur-md shrink-0 ${
         isDark ? "bg-[#0b0f19] border-slate-800/80" : "bg-white border-slate-200"
       }`}>
-        {/* Left: Brand + Breadcrumb */}
-        <div className="flex items-center gap-3 min-w-0">
+        {/* Left: Hamburger Panel + Brand + Breadcrumb */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* 3-line hamburger menu button on the LEFT */}
+          <button
+            onClick={onTogglePanel}
+            className={`p-1.5 rounded-xl transition cursor-pointer shrink-0 ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
+            title="Menu Panel"
+            aria-label="Menu Panel"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           <button
             onClick={() => setActiveProjectId(null)}
             className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
@@ -7400,19 +7412,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               )}
             </div>
           )}
-          {/* 3-line hamburger menu button to open sidebar panel */}
-          <button
-            onClick={onTogglePanel || onClose}
-            className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"
-            }`}
-            title="Menu Panel"
-            aria-label="Menu Panel"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
         </div>
       </div>
 
