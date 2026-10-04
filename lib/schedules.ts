@@ -21,6 +21,8 @@ export interface ScheduleItem {
 }
 
 export interface ParsedScheduleAI {
+  action?: "create" | "update" | "delete";
+  targetScheduleId?: string;
   title: string;
   date?: string; // YYYY-MM-DD
   time?: string; // HH:mm

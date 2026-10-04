@@ -34,6 +34,7 @@ type ScheduleChatMessage = {
   pendingSchedule?: ParsedScheduleAI;
   isConfirmed?: boolean;
   confirmedSchedule?: ScheduleItem;
+  isRevision?: boolean;
   timestamp: string;
 };
 
@@ -262,7 +263,8 @@ export function ScheduleWorkspace({
           clientDate,
           timezone: tz,
           pendingDraft: currentPendingDraft,
-          history: chatMessages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+          history: chatMessages.slice(-8).map((m) => ({ role: m.role, content: m.content })),
+          existingSchedules: schedules,
         }),
       });
 
@@ -274,6 +276,113 @@ export function ScheduleWorkspace({
       const parsed: ParsedScheduleAI = json.data;
       const assistantMsgId = `assistant_${Date.now()}`;
 
+      // ─── A. Aksi Revisi / Update Jadwal Eksisting ─────────────────────────────
+      if (parsed.action === "update") {
+        if (parsed.targetScheduleId) {
+          const target = schedules.find((s) => s.id === parsed.targetScheduleId);
+          if (target) {
+            const updatedItem: ScheduleItem = {
+              ...target,
+              title: parsed.title || target.title,
+              date: parsed.date || target.date,
+              time: parsed.time || target.time,
+              description: parsed.description !== undefined ? parsed.description : target.description,
+              duration_minutes: parsed.duration || target.duration_minutes,
+              reminder_minutes: parsed.reminder ?? target.reminder_minutes,
+              recurrence: parsed.recurrence || target.recurrence,
+              updated_at: new Date().toISOString(),
+            };
+
+            // 1. Update langsung ke Supabase jika terhubung & bukan ID lokal
+            if (user?.id && isSupabaseConfigured && !target.id.startsWith("local_")) {
+              try {
+                await supabase
+                  .from("schedules")
+                  .update({
+                    title: updatedItem.title,
+                    description: updatedItem.description,
+                    date: updatedItem.date,
+                    time: updatedItem.time,
+                    duration_minutes: updatedItem.duration_minutes,
+                    reminder_minutes: updatedItem.reminder_minutes,
+                    recurrence: updatedItem.recurrence,
+                    updated_at: updatedItem.updated_at,
+                  })
+                  .eq("id", target.id)
+                  .eq("user_id", user.id);
+              } catch (supErr) {
+                console.warn("[supabase] update schedule error:", supErr);
+              }
+            }
+
+            // 2. Beritahu route /api/schedules dengan Bearer token
+            try {
+              const headers = await getAuthHeaders();
+              await fetch("/api/schedules", {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({
+                  id: target.id,
+                  user_id: userId,
+                  title: updatedItem.title,
+                  description: updatedItem.description,
+                  date: updatedItem.date,
+                  time: updatedItem.time,
+                  duration_minutes: updatedItem.duration_minutes,
+                  reminder_minutes: updatedItem.reminder_minutes,
+                  recurrence: updatedItem.recurrence,
+                }),
+              });
+            } catch (apiErr) {
+              console.warn("[api] put schedule error:", apiErr);
+            }
+
+            // 3. Update state lokal
+            const nextSchedules = schedules.map((s) => (s.id === target.id ? updatedItem : s));
+            updateSchedulesState(nextSchedules);
+            setCurrentPendingDraft(null);
+
+            // 4. Konfirmasi di chat dengan detail kartu yang sudah diperbarui
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                id: assistantMsgId,
+                role: "assistant",
+                content: `Sip! Jadwal "${updatedItem.title}" sudah berhasil direvisi ke tanggal ${formatScheduleDate(updatedItem.date)} pukul ${formatScheduleTime(updatedItem.time)} WIB.`,
+                pendingSchedule: {
+                  title: updatedItem.title,
+                  date: updatedItem.date,
+                  time: updatedItem.time,
+                  duration: updatedItem.duration_minutes,
+                  reminder: updatedItem.reminder_minutes,
+                  recurrence: updatedItem.recurrence,
+                  description: updatedItem.description,
+                  timezone: updatedItem.timezone,
+                },
+                isConfirmed: true,
+                confirmedSchedule: updatedItem,
+                isRevision: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+              },
+            ]);
+            return;
+          }
+        }
+
+        // Jika target revisi tidak ditemukan
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: "Aku tidak menemukan jadwal yang dimaksud untuk direvisi. Boleh sebutkan tanggal atau judul jadwalnya?",
+            timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+        return;
+      }
+
+      // ─── B. Aksi Pembuatan Jadwal Baru ────────────────────────────────────────
       if (parsed.isAmbiguous && parsed.clarificationQuestion) {
         // AI meminta klarifikasi detail waktu/tanggal yang belum terisi
         setCurrentPendingDraft(parsed);
@@ -993,7 +1102,7 @@ export function ScheduleWorkspace({
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
-                                <span>Sudah Dijadwalkan</span>
+                                <span>{msg.isRevision ? "Telah Direvisi" : "Sudah Dijadwalkan"}</span>
                               </span>
                             ) : (
                               <span
@@ -1103,7 +1212,7 @@ export function ScheduleWorkspace({
                                 <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
-                                <span>Jadwal telah ditambahkan ke agenda</span>
+                                <span>{msg.isRevision ? "Jadwal berhasil diperbarui di agenda" : "Jadwal telah ditambahkan ke agenda"}</span>
                               </span>
                               <button
                                 onClick={() => setCurrentTab("list")}
