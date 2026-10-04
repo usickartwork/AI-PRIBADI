@@ -54,6 +54,45 @@ CREATE POLICY "Users can delete their own schedules"
   ON public.schedules FOR DELETE
   USING (auth.uid() = user_id);
 
+-- 5. CRON/WORKER Policies: Izinkan background worker anon membaca dan mengupdate status pengingat
+DROP POLICY IF EXISTS "Allow anon select for upcoming reminders" ON public.schedules;
+CREATE POLICY "Allow anon select for upcoming reminders"
+  ON public.schedules FOR SELECT
+  TO anon
+  USING (status = 'upcoming' AND reminder_status != 'sent');
+
+DROP POLICY IF EXISTS "Allow anon update reminder status" ON public.schedules;
+CREATE POLICY "Allow anon update reminder status"
+  ON public.schedules FOR UPDATE
+  TO anon
+  USING (status = 'upcoming')
+  WITH CHECK (true);
+
+-- 6. RPC Functions (Security Definer): Akses aman untuk background reminder worker
+CREATE OR REPLACE FUNCTION get_due_reminders()
+RETURNS SETOF public.schedules
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT * FROM public.schedules
+  WHERE status = 'upcoming'
+    AND reminder_status != 'sent';
+$$;
+
+CREATE OR REPLACE FUNCTION mark_reminder_sent(schedule_id UUID, new_status TEXT DEFAULT 'sent')
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  UPDATE public.schedules
+  SET reminder_status = new_status,
+      updated_at = timezone('utc'::text, now())
+  WHERE id = schedule_id;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_due_reminders() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION mark_reminder_sent(UUID, TEXT) TO anon, authenticated, service_role;
+
 -- ==============================================================================
 -- OPTIONAL: Background Cloud Cron 24/7 (Supabase pg_cron + pg_net)
 -- Menjamin reminder email otomatis terkirim setiap menit meskipun tab web ditutup total!
@@ -71,4 +110,5 @@ CREATE POLICY "Users can delete their own schedules"
 --   );
 --   $$
 -- );
+
 

@@ -93,6 +93,54 @@ export function ScheduleWorkspace({
   const userId = user?.id || "guest";
   const userEmail = user?.email || "";
 
+  // Email pengingat yang tersimpan (mendukung Guest maupun Logged-in)
+  const [reminderEmail, setReminderEmail] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return user?.email || localStorage.getItem("usick_reminder_email") || "usick.artwork@gmail.com";
+    }
+    return user?.email || "usick.artwork@gmail.com";
+  });
+
+  useEffect(() => {
+    if (user?.email) {
+      setReminderEmail(user.email);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("usick_reminder_email", user.email);
+      }
+    }
+  }, [user?.email]);
+
+  const saveReminderEmail = (email: string) => {
+    const clean = email.trim();
+    if (clean) {
+      setReminderEmail(clean);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("usick_reminder_email", clean);
+      }
+    }
+  };
+
+  const activeEmail = (reminderEmail || userEmail || "usick.artwork@gmail.com").trim();
+
+  const handleConfigureEmail = () => {
+    const input = prompt("Masukkan alamat email untuk menerima pengingat jadwal:", activeEmail);
+    if (input !== null) {
+      const clean = input.trim();
+      if (!clean || !clean.includes("@")) {
+        alert("Harap masukkan format email yang valid (contoh: nama@gmail.com).");
+        return;
+      }
+      saveReminderEmail(clean);
+      setSchedules((prev) =>
+        prev.map((s) => ({ ...s, user_email: clean }))
+      );
+      setEmailStatusMsg({
+        type: "success",
+        text: `Email pengingat aktif disetel ke ${clean}!`,
+      });
+    }
+  };
+
   // Helper untuk mendapatkan authorization header dari sesi Supabase
   const getAuthHeaders = async () => {
     try {
@@ -181,8 +229,9 @@ export function ScheduleWorkspace({
         scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
       );
 
-      // Trigger jika sudah melewati waktu pengingat dan belum melewati batas akhir acara
-      if (now >= reminderTime && now <= eventEndTime) {
+      // Trigger jika sudah melewati waktu pengingat dan belum melewati batas toleransi akhir acara (2 jam)
+      const gracePeriodEnd = new Date(eventEndTime.getTime() + 2 * 60 * 60 * 1000);
+      if (now >= reminderTime && now <= gracePeriodEnd && schedule.reminder_status !== "sent") {
         if (!notifiedIdsRef.current.has(schedule.id)) {
           notifiedIdsRef.current.add(schedule.id);
 
@@ -235,7 +284,7 @@ export function ScheduleWorkspace({
         headers,
         body: JSON.stringify({
           userId,
-          userEmail,
+          userEmail: activeEmail,
           activeSchedules: currentItems,
         }),
       });
@@ -293,7 +342,7 @@ export function ScheduleWorkspace({
     }, 20000);
 
     return () => clearInterval(interval);
-  }, [schedules, userId, userEmail]);
+  }, [schedules, userId, userEmail, activeEmail]);
 
   // ─── Fetch Schedules ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -582,7 +631,7 @@ export function ScheduleWorkspace({
           timezone: parsed.timezone || "Asia/Jakarta",
           status: "upcoming" as ScheduleStatus,
           reminder_status: "pending" as ReminderStatus,
-          user_email: userEmail || undefined,
+          user_email: activeEmail || undefined,
         };
 
         let savedItem: ScheduleItem | null = null;
@@ -680,7 +729,7 @@ export function ScheduleWorkspace({
       timezone: parsed.timezone || "Asia/Jakarta",
       status: "upcoming" as ScheduleStatus,
       reminder_status: "pending" as ReminderStatus,
-      user_email: userEmail || undefined,
+      user_email: activeEmail || undefined,
     };
 
     let savedItem: ScheduleItem | null = null;
@@ -852,7 +901,7 @@ export function ScheduleWorkspace({
         timezone: "Asia/Jakarta",
         status: "upcoming" as ScheduleStatus,
         reminder_status: "pending" as ReminderStatus,
-        user_email: userEmail || undefined,
+        user_email: activeEmail || undefined,
       };
 
       let savedItem: ScheduleItem | null = null;
@@ -985,10 +1034,57 @@ export function ScheduleWorkspace({
   };
 
   const handleTestEmailReminder = async (item: ScheduleItem) => {
-    const targetEmail = userEmail || prompt("Masukkan alamat email untuk tes pengingat:");
+    // 1. Suara lonceng pengingat berbunyi seketika
+    playNotificationChime();
+
+    // 2. Tampilkan notifikasi desktop browser seketika
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        try {
+          const notifTitle = `⏰ [Uji Pengingat] ${item.title}`;
+          const notifOptions: NotificationOptions = {
+            body: `Pukul ${formatScheduleTime(item.time)} WIB (${formatReminderText(item.reminder_minutes)}). Lonceng & notifikasi browser aktif!`,
+            icon: "/favicon.ico",
+            tag: `test-reminder-${item.id}`,
+          };
+          new Notification(notifTitle, notifOptions);
+        } catch (nErr) {
+          console.warn("Desktop notification test error:", nErr);
+        }
+      } else if (Notification.permission === "default") {
+        Notification.requestPermission().then((perm) => {
+          setNotificationPermission(perm);
+          if (perm === "granted") {
+            try {
+              new Notification(`⏰ [Uji Pengingat] ${item.title}`, {
+                body: `Notifikasi browser berhasil diaktifkan!`,
+                icon: "/favicon.ico",
+              });
+            } catch {}
+          }
+        });
+      }
+    }
+
+    // 3. Tampilkan banner peringatan in-app seketika
+    setActiveReminderAlert(item);
+
+    // 4. Pastikan email penerima terdaftar
+    let targetEmail = item.user_email || activeEmail;
     if (!targetEmail || !targetEmail.includes("@")) {
-      alert("Harap masukkan alamat email yang valid.");
-      return;
+      const input = prompt("Masukkan alamat email untuk menerima tes pengingat:", "usick.artwork@gmail.com");
+      if (!input || !input.includes("@")) {
+        alert("Harap masukkan alamat email yang valid.");
+        return;
+      }
+      targetEmail = input.trim();
+    }
+
+    // Simpan email agar otomatis teringat di agenda berikutnya
+    saveReminderEmail(targetEmail);
+    if (!item.user_email || item.user_email !== targetEmail) {
+      const updatedItem = { ...item, user_email: targetEmail };
+      setSchedules((prev) => prev.map((s) => (s.id === item.id ? updatedItem : s)));
     }
 
     setTestingEmail(true);
@@ -1012,7 +1108,7 @@ export function ScheduleWorkspace({
 
       setEmailStatusMsg({
         type: "success",
-        text: `Email tes berhasil dikirim ke ${targetEmail}. Silakan periksa inbox Anda!`,
+        text: `Email tes berhasil dikirim ke ${targetEmail}. Silakan periksa inbox Gmail Anda!`,
       });
     } catch (err: any) {
       setEmailStatusMsg({
@@ -1126,6 +1222,24 @@ export function ScheduleWorkspace({
                 ? "Notif Diblokir"
                 : "Aktifkan Notif"}
             </span>
+          </button>
+
+          {/* Email Reminder Setting Indicator / Button */}
+          <button
+            type="button"
+            onClick={handleConfigureEmail}
+            title={`Email Pengingat: ${activeEmail}. Klik untuk mengubah.`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+              isDark
+                ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span className="hidden md:inline max-w-[140px] truncate">{activeEmail}</span>
+            <span className="inline md:hidden">Email</span>
           </button>
 
           <button
@@ -1745,6 +1859,7 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1759,6 +1874,7 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1773,6 +1889,7 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1787,6 +1904,7 @@ export function ScheduleWorkspace({
                   onSelect={setSelectedItem}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onTestReminder={handleTestEmailReminder}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -2198,6 +2316,7 @@ function ScheduleSection({
   onSelect,
   onEdit,
   onDelete,
+  onTestReminder,
   onToggleComplete,
 }: {
   title: string;
@@ -2206,6 +2325,7 @@ function ScheduleSection({
   onSelect: (item: ScheduleItem) => void;
   onEdit: (item: ScheduleItem) => void;
   onDelete: (item: ScheduleItem) => void;
+  onTestReminder?: (item: ScheduleItem) => void;
   onToggleComplete: (item: ScheduleItem) => void;
 }) {
   return (
@@ -2303,6 +2423,24 @@ function ScheduleSection({
                   className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Quick Action: Uji Pengingat Langsung */}
+                  {onTestReminder && (
+                    <button
+                      type="button"
+                      onClick={() => onTestReminder(item)}
+                      title="Uji pengingat sekarang (suara lonceng, notifikasi browser & email)"
+                      className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                        isDark
+                          ? "border-amber-500/30 hover:border-amber-500/60 bg-amber-500/10 text-amber-400 hover:text-amber-300"
+                          : "border-amber-200 hover:border-amber-300 bg-amber-50 text-amber-600 hover:text-amber-700"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => onToggleComplete(item)}

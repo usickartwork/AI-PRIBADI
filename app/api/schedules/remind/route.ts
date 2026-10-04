@@ -63,18 +63,39 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
   if (isSupabaseConfigured) {
     try {
       const client = getCronClient(req);
-      let query = client
-        .from("schedules")
-        .select("*")
-        .eq("status", "upcoming")
-        .neq("reminder_status", "sent");
 
-      if (userId) {
-        query = query.eq("user_id", userId);
+      // Coba panggil RPC get_due_reminders (security definer) terlebih dahulu
+      let dbSchedules: any[] | null = null;
+      try {
+        const { data: rpcData, error: rpcErr } = await client.rpc("get_due_reminders");
+        if (!rpcErr && Array.isArray(rpcData)) {
+          dbSchedules = rpcData;
+        }
+      } catch {
+        // Abaikan jika RPC belum terpasang di database
       }
 
-      const { data: dbSchedules, error } = await query;
-      if (!error && Array.isArray(dbSchedules)) {
+      // Fallback query tabel langsung
+      if (!dbSchedules) {
+        let query = client
+          .from("schedules")
+          .select("*")
+          .eq("status", "upcoming")
+          .neq("reminder_status", "sent");
+
+        if (userId) {
+          query = query.eq("user_id", userId);
+        }
+
+        const { data, error } = await query;
+        if (!error && Array.isArray(data)) {
+          dbSchedules = data;
+        } else if (error) {
+          console.warn("[remind] Supabase query warning:", error.message);
+        }
+      }
+
+      if (Array.isArray(dbSchedules)) {
         for (const item of dbSchedules) {
           if (!candidateIds.has(item.id)) {
             candidates.push(item);
@@ -83,19 +104,26 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
         }
       }
     } catch (queryErr) {
-      console.warn("[remind] Supabase query error:", queryErr);
+      console.warn("[remind] Supabase query exception:", queryErr);
     }
   }
 
   const now = new Date();
   const sentResults: string[] = [];
   const client = getCronClient(req);
+  const defaultOwnerEmail = (process.env.GMAIL_USER || process.env.EMAIL_USER || "usick.artwork@gmail.com").trim();
+
+  console.log(`[remind] Memeriksa ${candidates.length} kandidat jadwal pada ${now.toISOString()}...`);
 
   for (const schedule of candidates) {
-    const recipient = schedule.user_email || clientEmail;
-    if (!recipient) continue;
+    // Alamat penerima: email spesifik jadwal > email user login > email pemilik sistem
+    const recipient = schedule.user_email || clientEmail || defaultOwnerEmail;
+    if (!recipient) {
+      console.warn(`[remind] Melewati jadwal ${schedule.id} (${schedule.title}) karena tidak ada alamat email penerima.`);
+      continue;
+    }
 
-    // Hitung waktu jadwal dengan timezone yang presisi (bebas perbedaan server timezone)
+    // Hitung waktu jadwal dengan timezone yang presisi
     const scheduleDate = parseScheduleDateTime(
       schedule.date,
       schedule.time,
@@ -117,8 +145,13 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
       continue;
     }
 
-    // Jika waktu sekarang sudah melewati atau pas di waktu pengingat
-    if (now >= reminderTime) {
+    // Cek apakah waktu saat ini sudah mencapai atau melewati waktu pengingat
+    const isDue = now >= reminderTime;
+    console.log(
+      `[remind] Jadwal: "${schedule.title}" (${schedule.date} ${schedule.time}) | Reminder: ${reminderTime.toISOString()} | Now: ${now.toISOString()} | Due: ${isDue}`
+    );
+
+    if (isDue) {
       try {
         const dateText = formatScheduleDate(schedule.date);
         const timeText = formatScheduleTime(schedule.time);
@@ -135,23 +168,38 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
           reminderMinutes,
         });
 
+        console.log(`[remind] Mengirim email pengingat "${schedule.title}" ke ${recipient}...`);
         await sendEmail({
           to: recipient,
           subject: `⏰ [Pengingat] ${schedule.title} (${timeText} WIB)`,
           html,
         });
+        console.log(`[remind] Berhasil mengirim email pengingat untuk jadwal ${schedule.id}!`);
 
         // Tandai status pengingat berhasil dikirim (anti-duplikasi)
         if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
-          await client
-            .from("schedules")
-            .update({ reminder_status: "sent", updated_at: new Date().toISOString() })
-            .eq("id", schedule.id);
+          let updatedViaRpc = false;
+          try {
+            const { error: rpcErr } = await client.rpc("mark_reminder_sent", {
+              schedule_id: schedule.id,
+              new_status: "sent",
+            });
+            if (!rpcErr) updatedViaRpc = true;
+          } catch {
+            // Abaikan jika RPC belum ada
+          }
+
+          if (!updatedViaRpc) {
+            await client
+              .from("schedules")
+              .update({ reminder_status: "sent", updated_at: new Date().toISOString() })
+              .eq("id", schedule.id);
+          }
         }
 
         sentResults.push(schedule.id);
       } catch (sendErr: any) {
-        console.error(`Gagal mengirim reminder email untuk schedule ${schedule.id}:`, sendErr);
+        console.error(`[remind] Gagal mengirim reminder email untuk schedule ${schedule.id}:`, sendErr?.message || sendErr);
         if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
           await client
             .from("schedules")
@@ -196,7 +244,8 @@ export async function POST(req: NextRequest) {
     // Tes Kirim Email Langsung untuk Verifikasi
     if (action === "test_email" || testEmail) {
       const schedule = targetSchedule as ScheduleItem | undefined;
-      const emailRecipient = testEmail || schedule?.user_email || userEmail;
+      const defaultOwner = (process.env.GMAIL_USER || process.env.EMAIL_USER || "usick.artwork@gmail.com").trim();
+      const emailRecipient = testEmail || schedule?.user_email || userEmail || defaultOwner;
 
       if (!emailRecipient) {
         return NextResponse.json(

@@ -2,7 +2,7 @@ name: Automated Schedule Reminder Worker
 
 on:
   schedule:
-    # Berjalan otomatis setiap 5 menit 24/7 di cloud GitHub
+    # Berjalan otomatis setiap 5 menit 24/7 di cloud GitHub Actions
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
@@ -15,12 +15,21 @@ jobs:
         run: |
           URLS=(
             "${{ secrets.SITE_URL }}"
+            "${{ vars.SITE_URL }}"
             "https://ai-pribadi.vercel.app"
+            "https://ai-pribadi-usickartwork.vercel.app"
+            "https://ai-pribadi-git-main-usickartwork.vercel.app"
             "https://usick.ai"
           )
           for u in "${URLS[@]}"; do
             if [ -n "$u" ]; then
-              echo "Checking $u/api/schedules/remind..."
-              curl -s -X POST -H "Content-Type: application/json" "$u/api/schedules/remind" || true
+              echo "=== Ping: $u/api/schedules/remind ==="
+              STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST -H "Content-Type: application/json" "$u/api/schedules/remind" || echo "000")
+              echo "HTTP Status: $STATUS"
+              if [ -f /tmp/resp.json ]; then
+                cat /tmp/resp.json
+                echo ""
+                rm -f /tmp/resp.json
+              fi
             fi
           done
