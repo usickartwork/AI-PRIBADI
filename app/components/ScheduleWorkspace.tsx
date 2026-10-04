@@ -26,6 +26,7 @@ type ScheduleWorkspaceProps = {
   onClose: () => void;
   user: User | null;
   setShowAuthModal?: (show: boolean) => void;
+  onTogglePanel?: () => void;
 };
 
 type ScheduleChatMessage = {
@@ -52,6 +53,7 @@ export function ScheduleWorkspace({
   onClose,
   user,
   setShowAuthModal,
+  onTogglePanel,
 }: ScheduleWorkspaceProps) {
   // Mode Tampilan: "chat" (Chat Asisten AI) atau "list" (Daftar Agenda)
   const [currentTab, setCurrentTab] = useState<"chat" | "list">("chat");
@@ -1038,33 +1040,22 @@ export function ScheduleWorkspace({
         }`}
       >
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={currentTab === "list" ? () => setCurrentTab("chat") : onClose}
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              isDark
-                ? "hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
-            }`}
-            title={currentTab === "list" ? "Kembali ke Chat Jadwal" : "Kembali ke Chat"}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <div className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-xs ${
+            isDark ? "bg-white text-black" : "bg-black text-white"
+          }`}>
+            <svg className="w-4 h-4 fill-none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-          </button>
+          </div>
           <div>
-            <div className="flex items-center gap-2">
-              <svg className={`w-4 h-4 shrink-0 ${isDark ? "text-white" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h1 className="text-sm sm:text-base font-bold tracking-tight">Schedule</h1>
-            </div>
+            <h1 className="text-sm sm:text-base font-bold tracking-tight">Schedule</h1>
             <p className="text-[11px] text-zinc-400 hidden sm:block">
               Manage your personal schedules and reminders.
             </p>
           </div>
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button */}
+        {/* Header Action: Daftar Agenda Toggle Button & 3-Line Hamburger Panel Button */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
@@ -1100,6 +1091,22 @@ export function ScheduleWorkspace({
                 </span>
               </>
             )}
+          </button>
+
+          {/* 3-line hamburger menu button in top-right corner */}
+          <button
+            onClick={onTogglePanel}
+            className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+            }`}
+            title="Menu Panel"
+            aria-label="Menu Panel"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
         </div>
       </header>

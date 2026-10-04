@@ -3293,9 +3293,10 @@ type CodeWorkspaceProps = {
   isDark: boolean;
   onClose: () => void;
   userId?: string;
+  onTogglePanel?: () => void;
 };
 
-export function CodeWorkspace({ isDark, onClose, userId }: CodeWorkspaceProps) {
+export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWorkspaceProps) {
   const userStorageKey = userId ? `usick_code_projects_${userId}` : "usick_code_projects_guest";
   const projectsOwnerIdRef = useRef<string | undefined>(userId);
 
@@ -6941,42 +6942,49 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         <div className={`sticky top-0 z-10 flex items-center justify-between px-4 sm:px-8 py-3.5 border-b backdrop-blur-md ${
           isDark ? "bg-[#0c0c0e]/90 border-zinc-850" : "bg-white/90 border-zinc-200"
         }`}>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-xl transition ${isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"}`}
-              title="Kembali ke Chat"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-2.5">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-xl font-mono font-bold text-xs ${
-                isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-              }`}>
-                &lt;/&gt;
-              </div>
-              <div>
-                <h1 className="text-base font-bold tracking-tight">Code</h1>
-                <p className="text-[11px] font-medium text-zinc-400">AI Project Planner &amp; Software Architect</p>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl font-mono font-bold text-xs ${
+              isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+            }`}>
+              &lt;/&gt;
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight">Code</h1>
+              <p className="text-[11px] font-medium text-zinc-400">AI Project Planner &amp; Software Architect</p>
             </div>
           </div>
 
-          <button
-            onClick={() => setShowNewModal(true)}
-            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition shadow-xs cursor-pointer ${
-              isDark
-                ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
-                : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Project Baru</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNewModal(true)}
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition shadow-xs cursor-pointer ${
+                isDark
+                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
+                  : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Project Baru</span>
+            </button>
+
+            {/* 3-line hamburger menu button in top-right corner to open panel */}
+            <button
+              onClick={onTogglePanel}
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
+              title="Menu Panel"
+              aria-label="Menu Panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Content Area: Projects Grid */}
@@ -7392,13 +7400,17 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               )}
             </div>
           )}
+          {/* 3-line hamburger menu button to open sidebar panel */}
           <button
-            onClick={onClose}
-            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
-            title="Tutup Workspace"
+            onClick={onTogglePanel || onClose}
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"
+            }`}
+            title="Menu Panel"
+            aria-label="Menu Panel"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>

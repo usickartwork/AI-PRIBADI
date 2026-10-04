@@ -392,6 +392,7 @@ export default function Home() {
   const [activeSessionId, setActiveSessionId] = useState<string>(() => generateUUID());
   const activeSessionIdRef = useRef(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
+  const isInitialBootRef = useRef(true);
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
   const messages = currentSession?.messages || [];
@@ -485,22 +486,18 @@ export default function Home() {
     }
     return "dark"; // Default to dark mode as requested
   });
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("usick-active-view");
-      if (saved === "chats" || saved === "code" || saved === "schedule") {
-        return saved;
-      }
-    }
-    return "chats";
-  });
 
-  // Simpan activeView terakhir ke localStorage agar tidak reset saat di-refresh
+  // Selalu arahkan ke tab "chats" saat buka web / refresh sesuai brief
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">("chats");
+
+  // Hapus key usick-active-view lama agar tidak pernah membuka schedule secara otomatis saat reload
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("usick-active-view", activeView);
+      try {
+        localStorage.removeItem("usick-active-view");
+      } catch {}
     }
-  }, [activeView]);
+  }, []);
 
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
@@ -588,7 +585,11 @@ export default function Home() {
 
     if (cached.length > 0) {
       setSessions(cached);
-      if (savedActiveId && cached.some((s) => s.id === savedActiveId)) {
+      // Sesuai brief: Setiap refresh / masuk web, selalu mulai dengan obrolan baru
+      if (isInitialBootRef.current) {
+        isInitialBootRef.current = false;
+        // Tetap di sesi obrolan baru yang telah di-generate saat boot
+      } else if (savedActiveId && cached.some((s) => s.id === savedActiveId)) {
         setActiveSessionId(savedActiveId);
       } else {
         setActiveSessionId(cached[0].id);
@@ -597,6 +598,7 @@ export default function Home() {
       const fresh = createFreshSession();
       setSessions([fresh]);
       setActiveSessionId(fresh.id);
+      isInitialBootRef.current = false;
     }
 
     if (!currentUserId) return;
@@ -618,9 +620,7 @@ export default function Home() {
           const parsed = parseRawToSessions(data.messages);
           if (parsed.length > 0 && isMounted && sessionsOwnerIdRef.current === currentUserId) {
             setSessions(parsed);
-            if (!parsed.some((s) => s.id === activeSessionIdRef.current)) {
-              setActiveSessionId(parsed[0].id);
-            }
+            // Sesuai brief: Jangan timpa activeSessionId jika pengguna sedang di obrolan baru
             try {
               localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(parsed));
             } catch {}
@@ -1928,6 +1928,7 @@ export default function Home() {
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             userId={user?.id}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : activeView === "schedule" ? (
           <ScheduleWorkspace
@@ -1936,6 +1937,7 @@ export default function Home() {
             onClose={() => setActiveView("chats")}
             user={user}
             setShowAuthModal={setShowAuthModal}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : (
           <>
@@ -1944,29 +1946,14 @@ export default function Home() {
           isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
         }`}>
           <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
-                isDark
-                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
-              }`}
-              title="Toggle Sidebar"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl shadow-xs ${
+              isDark ? "bg-white text-black" : "bg-black text-white"
+            }`}>
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
               </svg>
-            </button>
-            <div className="flex items-center gap-2">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-xl shadow-xs ${
-                isDark ? "bg-white text-black" : "bg-black text-white"
-              }`}>
-                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                </svg>
-              </div>
-              <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
             </div>
+            <span className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1980,6 +1967,22 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span className="hidden sm:inline">New Chat</span>
+            </button>
+
+            {/* 3-line hamburger menu button in top-right corner to open panel */}
+            <button
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
+              title="Menu Panel"
+              aria-label="Menu Panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
           </div>
         </header>
