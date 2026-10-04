@@ -18,6 +18,7 @@ import {
   groupSchedules,
   getLocalSchedules,
   saveLocalSchedules,
+  parseScheduleDateTime,
 } from "@/lib/schedules";
 
 type ScheduleWorkspaceProps = {
@@ -84,6 +85,11 @@ export function ScheduleWorkspace({
   const [testingEmail, setTestingEmail] = useState(false);
   const [emailStatusMsg, setEmailStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Notification & Reminder Alert State
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [activeReminderAlert, setActiveReminderAlert] = useState<ScheduleItem | null>(null);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+
   const userId = user?.id || "guest";
   const userEmail = user?.email || "";
 
@@ -98,6 +104,145 @@ export function ScheduleWorkspace({
       };
     } catch {
       return { "Content-Type": "application/json" };
+    }
+  };
+
+  // Suara lonceng pengingat (Web Audio API sintetis, tanpa file eksternal)
+  const playNotificationChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
+      const now = ctx.currentTime;
+
+      // Nada 1: E5 (659.25 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(0.25, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.45);
+
+      // Nada 2: A5 (880 Hz) sedikit delay
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(880, now + 0.15);
+      gain2.gain.setValueAtTime(0.3, now + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.15);
+      osc2.stop(now + 0.75);
+    } catch (err) {
+      console.warn("Audio chime error:", err);
+    }
+  };
+
+  // Minta izin Browser Desktop Notification
+  const requestNotificationPermission = async () => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setNotificationPermission(perm);
+        return perm;
+      } catch (err) {
+        console.warn("Notification request permission error:", err);
+      }
+    }
+    return "default";
+  };
+
+  // Cek pengingat jadwal yang jatuh tempo (Browser Push, Audio Chime, In-App Banner, dan Email Sync)
+  const checkDueReminders = async (currentItems: ScheduleItem[]) => {
+    if (!currentItems || currentItems.length === 0) return;
+    const now = new Date();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta";
+
+    // 1. Client-Side Browser & In-App Notification Check
+    for (const schedule of currentItems) {
+      if (schedule.status !== "upcoming") continue;
+
+      const scheduleDate = parseScheduleDateTime(
+        schedule.date,
+        schedule.time,
+        schedule.timezone || tz
+      );
+      const reminderMinutes = schedule.reminder_minutes ?? 15;
+      const reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
+      const eventEndTime = new Date(
+        scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
+      );
+
+      // Trigger jika sudah melewati waktu pengingat dan belum melewati batas akhir acara
+      if (now >= reminderTime && now <= eventEndTime) {
+        if (!notifiedIdsRef.current.has(schedule.id)) {
+          notifiedIdsRef.current.add(schedule.id);
+
+          // A. Desktop Browser Notification
+          if (
+            typeof window !== "undefined" &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            try {
+              const notif = new Notification(`⏰ Pengingat: ${schedule.title}`, {
+                body: `Pukul ${formatScheduleTime(schedule.time)} WIB (${formatReminderText(
+                  reminderMinutes
+                )}). ${schedule.description || ""}`.trim(),
+                icon: "/favicon.ico",
+                tag: `schedule-reminder-${schedule.id}`,
+              });
+              notif.onclick = () => {
+                window.focus();
+                setSelectedItem(schedule);
+                notif.close();
+              };
+            } catch (nErr) {
+              console.warn("Browser notification error:", nErr);
+            }
+          }
+
+          // B. Audio Bell Chime
+          playNotificationChime();
+
+          // C. In-App Banner Alert
+          setActiveReminderAlert(schedule);
+        }
+      }
+    }
+
+    // 2. Server-Side Email Sync & Worker Trigger
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/schedules/remind", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          userId,
+          userEmail,
+          activeSchedules: currentItems,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && Array.isArray(json.sentScheduleIds) && json.sentScheduleIds.length > 0) {
+        const sentSet = new Set(json.sentScheduleIds);
+        setSchedules((prev) =>
+          prev.map((s) =>
+            sentSet.has(s.id) ? { ...s, reminder_status: "sent" as ReminderStatus } : s
+          )
+        );
+      }
+    } catch (err) {
+      console.warn("[remind] background check error:", err);
     }
   };
 
@@ -116,14 +261,26 @@ export function ScheduleWorkspace({
     }
   };
 
-  // Background periodic check untuk memproses pengingat yang jatuh tempo
+  // Background periodic check untuk pengingat (Browser Notif + Server Email) setiap 20 detik
   useEffect(() => {
-    fetch("/api/schedules/remind").catch(() => {});
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === "default") {
+        Notification.requestPermission()
+          .then((p) => setNotificationPermission(p))
+          .catch(() => {});
+      }
+    }
+
+    // Pengecekan langsung saat mount / update jadwal
+    checkDueReminders(schedules);
+
     const interval = setInterval(() => {
-      fetch("/api/schedules/remind").catch(() => {});
-    }, 60000);
+      checkDueReminders(schedules);
+    }, 20000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [schedules, userId, userEmail]);
 
   // ─── Fetch Schedules ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -919,8 +1076,45 @@ export function ScheduleWorkspace({
           </div>
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button */}
+        {/* Header Action: Daftar Agenda Toggle Button & Notification Indicator */}
         <div className="flex items-center gap-2">
+          {/* Notification Permission Indicator / Button */}
+          <button
+            type="button"
+            onClick={requestNotificationPermission}
+            title={
+              notificationPermission === "granted"
+                ? "Notifikasi browser aktif"
+                : notificationPermission === "denied"
+                ? "Izin notifikasi diblokir di browser. Izinkan di pengaturan situs jika ingin notifikasi desktop."
+                : "Klik untuk mengaktifkan notifikasi pengingat di browser"
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
+              notificationPermission === "granted"
+                ? isDark
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : notificationPermission === "denied"
+                ? isDark
+                  ? "bg-zinc-900 border-zinc-800 text-zinc-500"
+                  : "bg-zinc-100 border-zinc-200 text-zinc-400"
+                : isDark
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+                : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span className="hidden sm:inline">
+              {notificationPermission === "granted"
+                ? "Notif Aktif"
+                : notificationPermission === "denied"
+                ? "Notif Diblokir"
+                : "Aktifkan Notif"}
+            </span>
+          </button>
+
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
@@ -958,6 +1152,76 @@ export function ScheduleWorkspace({
           </button>
         </div>
       </header>
+
+      {/* ─── In-App Reminder Alert Toast / Banner ──────────────────────────── */}
+      {activeReminderAlert && (
+        <div className="z-30 px-3.5 sm:px-6 pt-3 animate-fadeIn">
+          <div
+            className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border shadow-xl backdrop-blur-md ${
+              isDark
+                ? "bg-zinc-900/95 border-amber-500/50 text-white shadow-amber-500/5"
+                : "bg-amber-50/95 border-amber-300 text-zinc-900 shadow-amber-500/10"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+                <svg className="w-5 h-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                    ⏰ Pengingat Jadwal
+                  </span>
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                </div>
+                <div className="text-sm font-bold mt-0.5">{activeReminderAlert.title}</div>
+                <div className="text-xs text-zinc-400 mt-0.5">
+                  {formatScheduleDate(activeReminderAlert.date)}, Pukul{" "}
+                  <span className={`font-semibold ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                    {formatScheduleTime(activeReminderAlert.time)} WIB
+                  </span>{" "}
+                  ({formatReminderText(activeReminderAlert.reminder_minutes)})
+                </div>
+                {activeReminderAlert.description && (
+                  <div className="text-xs text-zinc-400 mt-1 italic">
+                    {activeReminderAlert.description}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedItem(activeReminderAlert);
+                  setActiveReminderAlert(null);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                Detail
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveReminderAlert(null)}
+                className={`p-1.5 rounded-xl cursor-pointer ${
+                  isDark ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-200 text-zinc-600"
+                }`}
+                title="Tutup Notifikasi"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guest Notice Banner */}
       {!user && (

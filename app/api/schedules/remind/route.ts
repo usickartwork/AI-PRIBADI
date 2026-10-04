@@ -5,103 +5,159 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendEmail, buildScheduleReminderHtml } from "@/lib/email";
-import { formatScheduleDate, formatScheduleTime, formatDuration, ScheduleItem } from "@/lib/schedules";
+import {
+  formatScheduleDate,
+  formatScheduleTime,
+  formatDuration,
+  parseScheduleDateTime,
+  ScheduleItem,
+} from "@/lib/schedules";
 
-function getCronClient() {
+function getCronClient(req?: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
   if (serviceRoleKey && isSupabaseConfigured) {
-    return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", serviceRoleKey);
+    return createClient(supabaseUrl, serviceRoleKey);
   }
+
+  const authHeader = req?.headers.get("authorization");
+  if (authHeader && isSupabaseConfigured) {
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
+  }
+
   return supabase;
 }
 
+interface ProcessRemindersOptions {
+  req?: NextRequest;
+  userId?: string;
+  clientEmail?: string;
+  activeSchedules?: ScheduleItem[];
+}
+
 // ─── Shared Reminder Processor ────────────────────────────────────────────────
-async function processDueReminders() {
-  if (!isSupabaseConfigured) {
-    return {
-      success: true,
-      processed: 0,
-      message: "Supabase belum terkonfigurasi untuk background worker cron.",
-    };
+async function processDueReminders(options: ProcessRemindersOptions = {}) {
+  const { req, userId, clientEmail, activeSchedules } = options;
+  const candidates: ScheduleItem[] = [];
+  const candidateIds = new Set<string>();
+
+  // 1. Tambahkan kandidat dari payload client (jika ada)
+  if (Array.isArray(activeSchedules)) {
+    for (const item of activeSchedules) {
+      if (item && item.status === "upcoming" && item.reminder_status !== "sent") {
+        candidates.push(item);
+        candidateIds.add(item.id);
+      }
+    }
   }
 
-  const client = getCronClient();
+  // 2. Ambil dari database Supabase
+  if (isSupabaseConfigured) {
+    try {
+      const client = getCronClient(req);
+      let query = client
+        .from("schedules")
+        .select("*")
+        .eq("status", "upcoming")
+        .neq("reminder_status", "sent");
 
-  // Ambil semua schedule yang upcoming dan reminder_status pending
-  const { data: dueSchedules, error } = await client
-    .from("schedules")
-    .select("*")
-    .eq("status", "upcoming")
-    .eq("reminder_status", "pending")
-    .not("user_email", "is", null);
+      if (userId) {
+        query = query.eq("user_id", userId);
+      }
 
-  if (error || !dueSchedules) {
-    return {
-      success: true,
-      processed: 0,
-      warning: error?.message,
-    };
+      const { data: dbSchedules, error } = await query;
+      if (!error && Array.isArray(dbSchedules)) {
+        for (const item of dbSchedules) {
+          if (!candidateIds.has(item.id)) {
+            candidates.push(item);
+            candidateIds.add(item.id);
+          }
+        }
+      }
+    } catch (queryErr) {
+      console.warn("[remind] Supabase query error:", queryErr);
+    }
   }
 
   const now = new Date();
   const sentResults: string[] = [];
+  const client = getCronClient(req);
 
-  for (const schedule of dueSchedules) {
-    if (!schedule.user_email) continue;
+  for (const schedule of candidates) {
+    const recipient = schedule.user_email || clientEmail;
+    if (!recipient) continue;
 
-    // Hitung waktu jadwal
-    const [year, month, day] = schedule.date.split("-").map(Number);
-    const [hours, minutes] = schedule.time.split(":").map(Number);
-    const scheduleDate = new Date(year, month - 1, day, hours, minutes);
+    // Hitung waktu jadwal dengan timezone yang presisi (bebas perbedaan server timezone)
+    const scheduleDate = parseScheduleDateTime(
+      schedule.date,
+      schedule.time,
+      schedule.timezone || "Asia/Jakarta"
+    );
 
-    // Hitung waktu pengingat seharusnya dikirim
-    const reminderTime = new Date(scheduleDate.getTime() - (schedule.reminder_minutes || 15) * 60 * 1000);
+    const reminderMinutes = schedule.reminder_minutes ?? 15;
+    const reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
+    const oneDayPast = new Date(scheduleDate.getTime() + 24 * 60 * 60 * 1000);
 
-    // Jika waktu sekarang sudah melewati atau sama dengan waktu reminder
-    if (now >= reminderTime) {
-      // Cek jika sudah lewat waktu jadwal lebih dari 1 hari, tandai skipped agar tidak spamming jadwal lama
-      const oneDayPast = new Date(scheduleDate.getTime() + 24 * 60 * 60 * 1000);
-      if (now > oneDayPast) {
+    // Jika waktu jadwal sudah lewat lebih dari 1 hari, tandai skipped agar tidak spamming
+    if (now > oneDayPast) {
+      if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
         await client
           .from("schedules")
           .update({ reminder_status: "skipped" })
           .eq("id", schedule.id);
-        continue;
       }
+      continue;
+    }
 
+    // Jika waktu sekarang sudah melewati atau pas di waktu pengingat
+    if (now >= reminderTime) {
       try {
         const dateText = formatScheduleDate(schedule.date);
         const timeText = formatScheduleTime(schedule.time);
-        const scheduledTimeText = `${dateText}, Pukul ${timeText}`;
-        const durationText = schedule.duration_minutes ? formatDuration(schedule.duration_minutes) : undefined;
+        const scheduledTimeText = `${dateText}, Pukul ${timeText} WIB`;
+        const durationText = schedule.duration_minutes
+          ? formatDuration(schedule.duration_minutes)
+          : undefined;
 
         const html = buildScheduleReminderHtml({
           scheduleTitle: schedule.title,
           scheduledTimeText,
           durationText,
           notes: schedule.description,
-          reminderMinutes: schedule.reminder_minutes,
+          reminderMinutes,
         });
 
         await sendEmail({
-          to: schedule.user_email,
-          subject: `⏰ [Pengingat] ${schedule.title}`,
+          to: recipient,
+          subject: `⏰ [Pengingat] ${schedule.title} (${timeText} WIB)`,
           html,
         });
 
-        // Update status menjadi sent untuk perlindungan anti-duplikasi
-        await client
-          .from("schedules")
-          .update({ reminder_status: "sent" })
-          .eq("id", schedule.id);
+        // Tandai status pengingat berhasil dikirim (anti-duplikasi)
+        if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+          await client
+            .from("schedules")
+            .update({ reminder_status: "sent", updated_at: new Date().toISOString() })
+            .eq("id", schedule.id);
+        }
 
         sentResults.push(schedule.id);
       } catch (sendErr: any) {
-        console.error(`Gagal mengirim reminder untuk schedule ${schedule.id}:`, sendErr);
-        await client
-          .from("schedules")
-          .update({ reminder_status: "failed" })
-          .eq("id", schedule.id);
+        console.error(`Gagal mengirim reminder email untuk schedule ${schedule.id}:`, sendErr);
+        if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+          await client
+            .from("schedules")
+            .update({ reminder_status: "failed" })
+            .eq("id", schedule.id);
+        }
       }
     }
   }
@@ -116,7 +172,11 @@ async function processDueReminders() {
 // ─── GET: Dipanggil oleh Vercel Cron / Scheduled Job ─────────────────────────
 export async function GET(req: NextRequest) {
   try {
-    const result = await processDueReminders();
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId") || undefined;
+    const clientEmail = searchParams.get("email") || undefined;
+
+    const result = await processDueReminders({ req, userId, clientEmail });
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("GET /api/schedules/remind error:", err);
@@ -127,16 +187,16 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ─── POST: Dipanggil manual atau tes kirim email langsung ─────────────────────
+// ─── POST: Dipanggil manual atau tes kirim email langsung / background sync ───
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { action, scheduleId, testEmail, targetSchedule } = body;
+    const { action, testEmail, targetSchedule, userId, userEmail, activeSchedules } = body;
 
     // Tes Kirim Email Langsung untuk Verifikasi
     if (action === "test_email" || testEmail) {
       const schedule = targetSchedule as ScheduleItem | undefined;
-      const emailRecipient = testEmail || schedule?.user_email;
+      const emailRecipient = testEmail || schedule?.user_email || userEmail;
 
       if (!emailRecipient) {
         return NextResponse.json(
@@ -162,7 +222,7 @@ export async function POST(req: NextRequest) {
 
       await sendEmail({
         to: emailRecipient,
-        subject: `[Pengingat] ${title}`,
+        subject: `⏰ [Tes Pengingat] ${title}`,
         html,
       });
 
@@ -173,7 +233,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Cron / Worker Pemrosesan Pengingat yang Jatuh Tempo
-    const result = await processDueReminders();
+    const result = await processDueReminders({
+      req,
+      userId,
+      clientEmail: userEmail,
+      activeSchedules,
+    });
+
     return NextResponse.json(result);
   } catch (err: any) {
     console.error("POST /api/schedules/remind error:", err);
