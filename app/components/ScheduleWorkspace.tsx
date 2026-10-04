@@ -193,18 +193,26 @@ export function ScheduleWorkspace({
             Notification.permission === "granted"
           ) {
             try {
-              const notif = new Notification(`⏰ Pengingat: ${schedule.title}`, {
+              const notifTitle = `⏰ Pengingat: ${schedule.title}`;
+              const notifOptions: NotificationOptions = {
                 body: `Pukul ${formatScheduleTime(schedule.time)} WIB (${formatReminderText(
                   reminderMinutes
                 )}). ${schedule.description || ""}`.trim(),
                 icon: "/favicon.ico",
                 tag: `schedule-reminder-${schedule.id}`,
-              });
-              notif.onclick = () => {
-                window.focus();
-                setSelectedItem(schedule);
-                notif.close();
               };
+
+              if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready
+                  .then((reg) => {
+                    reg.showNotification(notifTitle, notifOptions);
+                  })
+                  .catch(() => {
+                    new Notification(notifTitle, notifOptions);
+                  });
+              } else {
+                new Notification(notifTitle, notifOptions);
+              }
             } catch (nErr) {
               console.warn("Browser notification error:", nErr);
             }
@@ -263,12 +271,17 @@ export function ScheduleWorkspace({
 
   // Background periodic check untuk pengingat (Browser Notif + Server Email) setiap 20 detik
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setNotificationPermission(Notification.permission);
-      if (Notification.permission === "default") {
-        Notification.requestPermission()
-          .then((p) => setNotificationPermission(p))
-          .catch(() => {});
+    if (typeof window !== "undefined") {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      }
+      if ("Notification" in window) {
+        setNotificationPermission(Notification.permission);
+        if (Notification.permission === "default") {
+          Notification.requestPermission()
+            .then((p) => setNotificationPermission(p))
+            .catch(() => {});
+        }
       }
     }
 

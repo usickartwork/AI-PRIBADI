@@ -1,0 +1,26 @@
+name: Automated Schedule Reminder Worker
+
+on:
+  schedule:
+    # Run every 5 minutes 24/7 in the cloud
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-send-reminders:
+    name: Check & Send Due Reminders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Schedule Reminder Endpoint
+        run: |
+          URLS=(
+            "${{ secrets.SITE_URL }}"
+            "https://ai-pribadi.vercel.app"
+            "https://usick.ai"
+          )
+          for u in "${URLS[@]}"; do
+            if [ -n "$u" ]; then
+              echo "Checking $u/api/schedules/remind..."
+              curl -s -X POST -H "Content-Type: application/json" "$u/api/schedules/remind" || true
+            fi
+          done

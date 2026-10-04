@@ -53,3 +53,22 @@ DROP POLICY IF EXISTS "Users can delete their own schedules" ON public.schedules
 CREATE POLICY "Users can delete their own schedules"
   ON public.schedules FOR DELETE
   USING (auth.uid() = user_id);
+
+-- ==============================================================================
+-- OPTIONAL: Background Cloud Cron 24/7 (Supabase pg_cron + pg_net)
+-- Menjamin reminder email otomatis terkirim setiap menit meskipun tab web ditutup total!
+-- ==============================================================================
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- CREATE EXTENSION IF NOT EXISTS pg_net;
+--
+-- SELECT cron.schedule(
+--   'auto-send-schedule-reminders',
+--   '* * * * *',
+--   $$
+--   SELECT net.http_post(
+--     url:='https://ai-pribadi.vercel.app/api/schedules/remind',
+--     headers:='{"Content-Type": "application/json"}'::jsonb
+--   );
+--   $$
+-- );
+
