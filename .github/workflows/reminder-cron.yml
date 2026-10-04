@@ -2,7 +2,7 @@ name: Automated Schedule Reminder Worker
 
 on:
   schedule:
-    # Run every 5 minutes 24/7 in the cloud
+    # Berjalan otomatis setiap 5 menit 24/7 di cloud GitHub
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
