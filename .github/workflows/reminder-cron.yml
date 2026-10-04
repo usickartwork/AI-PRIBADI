@@ -16,9 +16,8 @@ jobs:
           URLS=(
             "${{ secrets.SITE_URL }}"
             "${{ vars.SITE_URL }}"
+            "https://filius-ai.vercel.app"
             "https://ai-pribadi.vercel.app"
-            "https://ai-pribadi-usickartwork.vercel.app"
-            "https://ai-pribadi-git-main-usickartwork.vercel.app"
             "https://usick.ai"
           )
           for u in "${URLS[@]}"; do

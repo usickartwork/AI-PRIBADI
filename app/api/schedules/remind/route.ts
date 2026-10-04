@@ -214,6 +214,8 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
     success: true,
     processed: sentResults.length,
     sentScheduleIds: sentResults,
+    candidatesCount: candidates.length,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 }
 
