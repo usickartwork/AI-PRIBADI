@@ -63,6 +63,7 @@ export function ScheduleWorkspace({
   const [chatMessages, setChatMessages] = useState<ScheduleChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentPendingDraft, setCurrentPendingDraft] = useState<ParsedScheduleAI | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -130,6 +131,7 @@ export function ScheduleWorkspace({
     // Reset list agenda dan obrolan AI seketika saat user berganti agar data akun lain tidak tertinggal
     setSchedules([]);
     setChatMessages([]);
+    setCurrentPendingDraft(null);
 
     async function loadData() {
       setLoading(true);
@@ -231,6 +233,22 @@ export function ScheduleWorkspace({
     setChatMessages((prev) => [...prev, newUserMsg]);
     setIsProcessing(true);
 
+    const lowerText = text.toLowerCase();
+    if (lowerText === "batal" || lowerText === "cancel") {
+      setCurrentPendingDraft(null);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant_${Date.now()}`,
+          role: "assistant",
+          content: "Oke, pembuatan jadwal dibatalkan. Ada yang ingin kamu jadwalkan lagi?",
+          timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       const now = new Date();
       const clientDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -243,6 +261,8 @@ export function ScheduleWorkspace({
           prompt: text,
           clientDate,
           timezone: tz,
+          pendingDraft: currentPendingDraft,
+          history: chatMessages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
 
@@ -255,7 +275,8 @@ export function ScheduleWorkspace({
       const assistantMsgId = `assistant_${Date.now()}`;
 
       if (parsed.isAmbiguous && parsed.clarificationQuestion) {
-        // AI meminta klarifikasi detail waktu/tanggal
+        // AI meminta klarifikasi detail waktu/tanggal yang belum terisi
+        setCurrentPendingDraft(parsed);
         setChatMessages((prev) => [
           ...prev,
           {
@@ -266,15 +287,87 @@ export function ScheduleWorkspace({
           },
         ]);
       } else {
-        // AI berhasil mem-parse, tampilkan kartu konfirmasi inline di dalam chat
+        // Data jadwal sudah CLEAR & LENGKAP!
+        // Reset pending draft
+        setCurrentPendingDraft(null);
+
+        const payload = {
+          user_id: userId,
+          title: parsed.title || "Jadwal Baru",
+          description: parsed.description || "",
+          date: parsed.date || getTodayDateString(),
+          time: parsed.time || "09:00",
+          duration_minutes: parsed.duration || 60,
+          reminder_minutes: parsed.reminder ?? 15,
+          recurrence: parsed.recurrence || "once",
+          timezone: parsed.timezone || "Asia/Jakarta",
+          status: "upcoming" as ScheduleStatus,
+          reminder_status: "pending" as ReminderStatus,
+          user_email: userEmail || undefined,
+        };
+
+        let savedItem: ScheduleItem | null = null;
+
+        // 1. Simpan langsung ke Supabase dengan session aktif
+        if (user?.id && isSupabaseConfigured) {
+          try {
+            const { data, error } = await supabase
+              .from("schedules")
+              .insert([payload])
+              .select()
+              .single();
+
+            if (!error && data) {
+              savedItem = data;
+            } else if (error) {
+              console.warn("[supabase] auto insert schedule error:", error.message);
+            }
+          } catch (supErr) {
+            console.warn("[supabase] auto insert exception:", supErr);
+          }
+        }
+
+        // 2. Fallback via route /api/schedules dengan Bearer token
+        if (!savedItem) {
+          try {
+            const headers = await getAuthHeaders();
+            const postRes = await fetch("/api/schedules", {
+              method: "POST",
+              headers,
+              body: JSON.stringify(payload),
+            });
+
+            const postJson = await postRes.json();
+            if (postJson.success && postJson.data) {
+              savedItem = postJson.data;
+            }
+          } catch (apiErr) {
+            console.warn("[api] auto post schedule error:", apiErr);
+          }
+        }
+
+        // 3. Fallback lokal
+        if (!savedItem) {
+          savedItem = {
+            ...payload,
+            id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        }
+
+        updateSchedulesState([...schedules, savedItem]);
+
+        // Tampilkan pesan konfirmasi bahwa jadwal sudah otomatis ditambahkan
         setChatMessages((prev) => [
           ...prev,
           {
             id: assistantMsgId,
             role: "assistant",
-            content: "Oke, ini detail jadwalnya. Cek dulu ya, kalau sudah pas tinggal klik Konfirmasi & Jadwalkan:",
+            content: `Sip! Jadwal "${savedItem!.title}" sudah otomatis ditambahkan ke agendamu.`,
             pendingSchedule: parsed,
-            isConfirmed: false,
+            isConfirmed: true,
+            confirmedSchedule: savedItem!,
             timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
@@ -378,6 +471,7 @@ export function ScheduleWorkspace({
   };
 
   const handleCancelInlineSchedule = (messageId: string) => {
+    setCurrentPendingDraft(null);
     setChatMessages((prev) =>
       prev.map((msg) =>
         msg.id === messageId
