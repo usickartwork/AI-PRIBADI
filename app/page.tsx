@@ -1510,6 +1510,7 @@ export default function Home() {
   };
 
   const switchSession = (sessionId: string) => {
+    setActiveView("chats");
     if (sessionId === activeSessionId) {
       closeSidebarOnMobile();
       return;
