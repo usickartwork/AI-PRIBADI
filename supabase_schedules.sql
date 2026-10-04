@@ -98,3 +98,43 @@ $$;
 
 GRANT EXECUTE ON FUNCTION get_due_reminders() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION mark_reminder_sent(UUID, TEXT) TO anon, authenticated, service_role;
+
+-- ==============================================================================
+-- 6. JADWAL OTOMATIS CLOUD (pg_cron + pg_net) — BERJALAN SETIAP 1 MENIT 24/7
+-- Fitur ini memastikan pengingat email PASTI terkirim otomatis di cloud
+-- meskipun browser ditutup, tab dihapus, atau laptop dimatikan!
+-- ==============================================================================
+
+-- Aktifkan ekstensi pg_net (HTTP client) dan pg_cron (Scheduler) jika didukung project
+CREATE EXTENSION IF NOT EXISTS pg_net;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Bersihkan job lama jika sudah terdaftar agar tidak duplikasi
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'usick_schedule_reminder_job') THEN
+    PERFORM cron.unschedule('usick_schedule_reminder_job');
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    NULL; -- Abaikan jika schema cron belum tersedia
+END $$;
+
+-- Daftarkan cron job otomatis setiap 1 menit memanggil endpoint pengingat Vercel
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'usick_schedule_reminder_job',
+    '* * * * *',
+    $cron$
+      SELECT net.http_post(
+        url := 'https://filius-ai.vercel.app/api/schedules/remind',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        body := '{}'::jsonb
+      );
+    $cron$
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'pg_cron belum aktif di schema. Anda dapat mengaktifkannya via Supabase Project Settings -> Database -> Extensions.';
+END $$;
