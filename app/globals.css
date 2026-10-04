@@ -88,6 +88,77 @@ textarea:focus {
   animation: pulseGlow 4s ease-in-out infinite;
 }
 
+/* ─── Usick One: Logo Awakening Intro Animations ─────────────────────────── */
+@keyframes usickAwaken {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes usickPulseBreath {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.032) translateY(-2px);
+  }
+}
+
+@keyframes usickAuraBreath {
+  0%, 100% {
+    opacity: 0.18;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes usickStarShimmer {
+  0%, 100% {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.45));
+  }
+}
+
+.animate-usick-awaken {
+  animation: usickAwaken 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-usick-breath {
+  animation: usickPulseBreath 2.4s ease-in-out infinite;
+}
+
+.animate-usick-aura {
+  animation: usickAuraBreath 2.4s ease-in-out infinite;
+}
+
+.animate-usick-shimmer {
+  animation: usickStarShimmer 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-usick-awaken {
+    animation: usickAwaken 0.3s ease-out forwards;
+    transform: none !important;
+  }
+  .animate-usick-breath,
+  .animate-usick-aura,
+  .animate-usick-shimmer {
+    animation: none !important;
+  }
+}
+
 .glass-panel {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);

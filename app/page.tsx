@@ -5,6 +5,7 @@ import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
+import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -500,6 +501,14 @@ export default function Home() {
       localStorage.setItem("usick-active-view", activeView);
     }
   }, [activeView]);
+
+  // ─── Usick One: Initialization Controller for Intro Loading ───────────────
+  const { introState, isInitializing } = useAppInitializer({
+    authLoading,
+    sessionsReady: sessions.length > 0,
+    minDurationMs: 1600, // ±1.6s minimum visual rhythm
+    safetyTimeoutMs: 6000, // 6s maximum fallback in case network hangs
+  });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -2877,6 +2886,14 @@ export default function Home() {
             />
           </div>
         </div>
+      )}
+
+      {/* ─── USICK ONE: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
+      {isInitializing && (
+        <IntroLoader
+          state={introState === "exiting" ? "exiting" : "visible"}
+          theme={theme}
+        />
       )}
     </div>
   );
