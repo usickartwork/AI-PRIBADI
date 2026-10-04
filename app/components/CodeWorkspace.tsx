@@ -3297,6 +3297,7 @@ type CodeWorkspaceProps = {
 
 export function CodeWorkspace({ isDark, onClose, userId }: CodeWorkspaceProps) {
   const userStorageKey = userId ? `usick_code_projects_${userId}` : "usick_code_projects_guest";
+  const projectsOwnerIdRef = useRef<string | undefined>(userId);
 
   const [projects, setProjects] = useState<ProjectItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -3460,15 +3461,17 @@ export function CodeWorkspace({ isDark, onClose, userId }: CodeWorkspaceProps) {
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("ready");
   const [newTaskFeature, setNewTaskFeature] = useState("");
 
-  // Save projects to localStorage per user
+  // Save projects to localStorage per user (hanya jika state milik user aktif)
   useEffect(() => {
+    if (projectsOwnerIdRef.current !== userId) return;
     try {
       localStorage.setItem(userStorageKey, JSON.stringify(projects));
     } catch {}
-  }, [projects, userStorageKey]);
+  }, [projects, userStorageKey, userId]);
 
   // Reload projects when switching user
   useEffect(() => {
+    projectsOwnerIdRef.current = userId;
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(userStorageKey);
@@ -3483,7 +3486,7 @@ export function CodeWorkspace({ isDark, onClose, userId }: CodeWorkspaceProps) {
       setProjects(DEFAULT_PROJECTS);
       setActiveProjectId(null);
     }
-  }, [userStorageKey]);
+  }, [userStorageKey, userId]);
 
   const rawActiveProject = projects.find((p) => p.id === activeProjectId);
   const activeProject = useMemo(() => {

@@ -2,8 +2,33 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ScheduleItem } from "@/lib/schedules";
+
+function getSupabaseClient(req: NextRequest) {
+  if (!isSupabaseConfigured) return null;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  if (serviceRoleKey) {
+    return createClient(supabaseUrl, serviceRoleKey);
+  }
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader) {
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
+  }
+
+  return supabase;
+}
 
 // ─── GET: Ambil seluruh schedule milik user_id tertentu ───────────────────────
 export async function GET(req: NextRequest) {
@@ -27,7 +52,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const { data, error } = await supabase
+    const client = getSupabaseClient(req) || supabase;
+    const { data, error } = await client
       .from("schedules")
       .select("*")
       .eq("user_id", userId)
@@ -105,7 +131,8 @@ export async function POST(req: NextRequest) {
     };
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
+      const client = getSupabaseClient(req) || supabase;
+      const { data, error } = await client
         .from("schedules")
         .insert([newSchedule])
         .select()
@@ -172,7 +199,8 @@ export async function PUT(req: NextRequest) {
     updates.updated_at = new Date().toISOString();
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
+      const client = getSupabaseClient(req) || supabase;
+      const { data, error } = await client
         .from("schedules")
         .update(updates)
         .eq("id", id)
@@ -226,7 +254,8 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (isSupabaseConfigured) {
-      const { error } = await supabase
+      const client = getSupabaseClient(req) || supabase;
+      const { error } = await client
         .from("schedules")
         .delete()
         .eq("id", id)

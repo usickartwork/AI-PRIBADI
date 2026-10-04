@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { User } from "@supabase/supabase-js";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   ScheduleItem,
   ScheduleRecurrence,
   ScheduleStatus,
+  ReminderStatus,
   ParsedScheduleAI,
   formatScheduleDate,
   formatScheduleTime,
@@ -83,6 +85,20 @@ export function ScheduleWorkspace({
   const userId = user?.id || "guest";
   const userEmail = user?.email || "";
 
+  // Helper untuk mendapatkan authorization header dari sesi Supabase
+  const getAuthHeaders = async () => {
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const token = session?.access_token;
+      return {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+    } catch {
+      return { "Content-Type": "application/json" };
+    }
+  };
+
   // Auto-scroll chat ke pesan paling bawah
   useEffect(() => {
     if (currentTab === "chat") {
@@ -119,16 +135,54 @@ export function ScheduleWorkspace({
       setLoading(true);
       try {
         if (user?.id) {
-          const res = await fetch(`/api/schedules?userId=${user.id}`);
-          const json = await res.json();
-          if (isMounted) {
-            if (json.success && Array.isArray(json.data)) {
-              setSchedules(json.data);
-              saveLocalSchedules(user.id, json.data);
-            } else {
-              const cached = getLocalSchedules(user.id);
-              setSchedules(cached);
+          let loaded = false;
+
+          // 1. Ambil langsung dari Supabase dengan session aktif
+          if (isSupabaseConfigured) {
+            try {
+              const { data, error } = await supabase
+                .from("schedules")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("date", { ascending: true })
+                .order("time", { ascending: true });
+
+              if (!error && Array.isArray(data)) {
+                if (isMounted) {
+                  setSchedules(data);
+                  saveLocalSchedules(user.id, data);
+                  loaded = true;
+                }
+              } else if (error) {
+                console.warn("[supabase] direct select warning:", error.message);
+              }
+            } catch (supErr) {
+              console.warn("[supabase] direct select exception:", supErr);
             }
+          }
+
+          // 2. Fallback via route /api/schedules dengan Bearer token
+          if (!loaded) {
+            try {
+              const headers = await getAuthHeaders();
+              const res = await fetch(`/api/schedules?userId=${user.id}`, { headers });
+              const json = await res.json();
+              if (isMounted) {
+                if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                  setSchedules(json.data);
+                  saveLocalSchedules(user.id, json.data);
+                  loaded = true;
+                }
+              }
+            } catch (apiErr) {
+              console.warn("[api] load schedules error:", apiErr);
+            }
+          }
+
+          // 3. Fallback jika offline ke local cache milik user ini
+          if (!loaded && isMounted) {
+            const cached = getLocalSchedules(user.id);
+            setSchedules(cached);
           }
         } else {
           const guestItems = getLocalSchedules("guest");
@@ -252,37 +306,56 @@ export function ScheduleWorkspace({
       reminder_minutes: parsed.reminder ?? 15,
       recurrence: parsed.recurrence || "once",
       timezone: parsed.timezone || "Asia/Jakarta",
+      status: "upcoming" as ScheduleStatus,
+      reminder_status: "pending" as ReminderStatus,
       user_email: userEmail || undefined,
     };
 
-    let savedItem: ScheduleItem;
+    let savedItem: ScheduleItem | null = null;
 
-    try {
-      const res = await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+    // 1. Simpan langsung ke Supabase dengan session aktif
+    if (user?.id && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from("schedules")
+          .insert([payload])
+          .select()
+          .single();
 
-      const json = await res.json();
-      if (json.success && json.data) {
-        savedItem = json.data;
-      } else {
-        savedItem = {
-          ...payload,
-          id: `sch_${Date.now()}`,
-          status: "upcoming",
-          reminder_status: "pending",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+        if (!error && data) {
+          savedItem = data;
+        } else if (error) {
+          console.warn("[supabase] insert schedule error:", error.message);
+        }
+      } catch (supErr) {
+        console.warn("[supabase] insert schedule exception:", supErr);
       }
-    } catch {
+    }
+
+    // 2. Fallback via /api/schedules dengan Bearer token
+    if (!savedItem) {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch("/api/schedules", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        const json = await res.json();
+        if (json.success && json.data) {
+          savedItem = json.data;
+        }
+      } catch (apiErr) {
+        console.warn("[api] post schedule error:", apiErr);
+      }
+    }
+
+    // 3. Fallback lokal jika offline/belum terhubung
+    if (!savedItem) {
       savedItem = {
         ...payload,
-        id: `sch_${Date.now()}`,
-        status: "upcoming",
-        reminder_status: "pending",
+        id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -297,7 +370,7 @@ export function ScheduleWorkspace({
           ? {
               ...msg,
               isConfirmed: true,
-              confirmedSchedule: savedItem,
+              confirmedSchedule: savedItem!,
             }
           : msg
       )
@@ -357,12 +430,28 @@ export function ScheduleWorkspace({
         duration_minutes: Number(formDuration),
         reminder_minutes: Number(formReminder),
         recurrence: formRecurrence,
+        updated_at: new Date().toISOString(),
       };
 
+      // 1. Update langsung ke Supabase
+      if (user?.id && isSupabaseConfigured) {
+        try {
+          await supabase
+            .from("schedules")
+            .update(updatedFields)
+            .eq("id", editingItem.id)
+            .eq("user_id", user.id);
+        } catch (err) {
+          console.warn("Direct update error:", err);
+        }
+      }
+
+      // 2. Beritahu route /api/schedules dengan Bearer token
       try {
+        const headers = await getAuthHeaders();
         await fetch("/api/schedules", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             id: editingItem.id,
             user_id: userId,
@@ -374,7 +463,7 @@ export function ScheduleWorkspace({
       }
 
       const updatedList = schedules.map((item) =>
-        item.id === editingItem.id ? { ...item, ...updatedFields, updated_at: new Date().toISOString() } : item
+        item.id === editingItem.id ? { ...item, ...updatedFields } : item
       );
       updateSchedulesState(updatedList);
     } else {
@@ -388,40 +477,61 @@ export function ScheduleWorkspace({
         reminder_minutes: Number(formReminder),
         recurrence: formRecurrence,
         timezone: "Asia/Jakarta",
+        status: "upcoming" as ScheduleStatus,
+        reminder_status: "pending" as ReminderStatus,
         user_email: userEmail || undefined,
       };
 
-      try {
-        const res = await fetch("/api/schedules", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const json = await res.json();
-        if (json.success && json.data) {
-          updateSchedulesState([...schedules, json.data]);
-        } else {
-          const localItem: ScheduleItem = {
-            ...payload,
-            id: `sch_${Date.now()}`,
-            status: "upcoming",
-            reminder_status: "pending",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          updateSchedulesState([...schedules, localItem]);
+      let savedItem: ScheduleItem | null = null;
+
+      // 1. Simpan langsung ke Supabase
+      if (user?.id && isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase
+            .from("schedules")
+            .insert([payload])
+            .select()
+            .single();
+
+          if (!error && data) {
+            savedItem = data;
+          } else if (error) {
+            console.warn("[supabase] manual insert error:", error.message);
+          }
+        } catch (supErr) {
+          console.warn("[supabase] manual insert exception:", supErr);
         }
-      } catch {
-        const localItem: ScheduleItem = {
+      }
+
+      // 2. Fallback via route /api/schedules dengan Bearer token
+      if (!savedItem) {
+        try {
+          const headers = await getAuthHeaders();
+          const res = await fetch("/api/schedules", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+          const json = await res.json();
+          if (json.success && json.data) {
+            savedItem = json.data;
+          }
+        } catch (apiErr) {
+          console.warn("[api] post schedule error:", apiErr);
+        }
+      }
+
+      // 3. Fallback lokal
+      if (!savedItem) {
+        savedItem = {
           ...payload,
-          id: `sch_${Date.now()}`,
-          status: "upcoming",
-          reminder_status: "pending",
+          id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-        updateSchedulesState([...schedules, localItem]);
       }
+
+      updateSchedulesState([...schedules, savedItem]);
     }
 
     setModalOpen(false);
@@ -429,10 +539,25 @@ export function ScheduleWorkspace({
 
   // ─── Status Actions ──────────────────────────────────────────────────────────
   const handleUpdateStatus = async (item: ScheduleItem, newStatus: ScheduleStatus) => {
+    // 1. Update langsung ke Supabase
+    if (user?.id && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from("schedules")
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq("id", item.id)
+          .eq("user_id", user.id);
+      } catch (err) {
+        console.warn("Direct status update error:", err);
+      }
+    }
+
+    // 2. Kirim update ke /api/schedules
     try {
+      const headers = await getAuthHeaders();
       await fetch("/api/schedules", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           id: item.id,
           user_id: userId,
@@ -455,9 +580,25 @@ export function ScheduleWorkspace({
   const handleDeleteSchedule = async (item: ScheduleItem) => {
     if (!confirm(`Hapus jadwal "${item.title}"?`)) return;
 
+    // 1. Hapus langsung dari Supabase
+    if (user?.id && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from("schedules")
+          .delete()
+          .eq("id", item.id)
+          .eq("user_id", user.id);
+      } catch (err) {
+        console.warn("Direct delete error:", err);
+      }
+    }
+
+    // 2. Kirim request hapus ke /api/schedules
     try {
+      const headers = await getAuthHeaders();
       await fetch(`/api/schedules?id=${item.id}&userId=${userId}`, {
         method: "DELETE",
+        headers,
       });
     } catch (err) {
       console.warn("Delete error:", err);

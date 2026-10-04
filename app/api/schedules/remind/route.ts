@@ -2,9 +2,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendEmail, buildScheduleReminderHtml } from "@/lib/email";
 import { formatScheduleDate, formatScheduleTime, formatDuration, ScheduleItem } from "@/lib/schedules";
+
+function getCronClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceRoleKey && isSupabaseConfigured) {
+    return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", serviceRoleKey);
+  }
+  return supabase;
+}
 
 // ─── Shared Reminder Processor ────────────────────────────────────────────────
 async function processDueReminders() {
@@ -16,8 +25,10 @@ async function processDueReminders() {
     };
   }
 
+  const client = getCronClient();
+
   // Ambil semua schedule yang upcoming dan reminder_status pending
-  const { data: dueSchedules, error } = await supabase
+  const { data: dueSchedules, error } = await client
     .from("schedules")
     .select("*")
     .eq("status", "upcoming")
@@ -51,7 +62,7 @@ async function processDueReminders() {
       // Cek jika sudah lewat waktu jadwal lebih dari 1 hari, tandai skipped agar tidak spamming jadwal lama
       const oneDayPast = new Date(scheduleDate.getTime() + 24 * 60 * 60 * 1000);
       if (now > oneDayPast) {
-        await supabase
+        await client
           .from("schedules")
           .update({ reminder_status: "skipped" })
           .eq("id", schedule.id);
@@ -79,7 +90,7 @@ async function processDueReminders() {
         });
 
         // Update status menjadi sent untuk perlindungan anti-duplikasi
-        await supabase
+        await client
           .from("schedules")
           .update({ reminder_status: "sent" })
           .eq("id", schedule.id);
@@ -87,7 +98,7 @@ async function processDueReminders() {
         sentResults.push(schedule.id);
       } catch (sendErr: any) {
         console.error(`Gagal mengirim reminder untuk schedule ${schedule.id}:`, sendErr);
-        await supabase
+        await client
           .from("schedules")
           .update({ reminder_status: "failed" })
           .eq("id", schedule.id);

@@ -1914,9 +1914,15 @@ export default function Home() {
           : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
       }`}>
         {activeView === "code" ? (
-          <CodeWorkspace isDark={isDark} onClose={() => setActiveView("chats")} userId={user?.id} />
+          <CodeWorkspace
+            key={user?.id || "guest"}
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            userId={user?.id}
+          />
         ) : activeView === "schedule" ? (
           <ScheduleWorkspace
+            key={user?.id || "guest"}
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             user={user}
