@@ -163,6 +163,43 @@ async function sendViaResend(apiKey: string, toEmail: string, otp: string) {
   return data;
 }
 
+// Helper pengiriman email via Google Apps Script HTTPS Webhook (100% Bebas Blokir Port & IP)
+async function sendViaGoogleWebhook(webhookUrl: string, toEmail: string, otp: string) {
+  const cleanUrl = webhookUrl.replace(/^["']|["']$/g, "").trim();
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px 20px; text-align: center; border-radius: 16px;">
+      <h1 style="color: #ffffff; font-size: 24px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Usick V1 Intelligence</h1>
+      <p style="color: #a1a1aa; font-size: 14px; margin-bottom: 24px;">Berikut adalah kode verifikasi OTP untuk menyelesaikan pendaftaran akun Anda:</p>
+      <div style="display: inline-block; background-color: #18181b; border: 1px solid #3f3f46; border-radius: 16px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #ffffff; font-family: monospace; margin-bottom: 24px;">
+        ${otp}
+      </div>
+      <p style="color: #71717a; font-size: 12px; line-height: 1.5;">Kode verifikasi ini berlaku selama 5 menit.<br/>Masukkan kode ini pada aplikasi untuk mengaktifkan akun Anda.</p>
+    </div>
+  `;
+
+  const res = await fetch(cleanUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to: toEmail.trim(),
+      subject: `Kode Verifikasi OTP: ${otp} - Usick AI`,
+      html,
+    }),
+  });
+
+  const text = await res.text();
+  let data: any = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || data.message || "Gagal via Google Webhook.");
+  }
+  return data;
+}
+
 // Helper pengiriman email via Brevo jika BREVO_API_KEY diset
 async function sendViaBrevo(apiKey: string, toEmail: string, otp: string) {
   const senderEmail = (
@@ -218,6 +255,7 @@ export async function POST(request: Request) {
       const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = Date.now() + 5 * 60 * 1000; // 5 Menit
 
+      const webhookUrl = process.env.GMAIL_WEBHOOK_URL?.trim();
       const brevoKey = process.env.BREVO_API_KEY?.trim();
       const gmailUser = (
         process.env.GMAIL_USER ||
@@ -239,11 +277,11 @@ export async function POST(request: Request) {
       )?.trim();
       const resendKey = process.env.RESEND_API_KEY?.trim();
 
-      if (!brevoKey && !resendKey && (!gmailUser || !gmailPass)) {
+      if (!webhookUrl && !brevoKey && !resendKey && (!gmailUser || !gmailPass)) {
         return NextResponse.json(
           {
             success: false,
-            error: "Konfigurasi email belum lengkap. Harap isi BREVO_API_KEY, GMAIL_USER & GMAIL_APP_PASSWORD, atau RESEND_API_KEY di Vercel.",
+            error: "Konfigurasi email belum lengkap. Harap isi GMAIL_WEBHOOK_URL, BREVO_API_KEY, GMAIL_USER & GMAIL_APP_PASSWORD, atau RESEND_API_KEY di Vercel.",
           },
           { status: 500 }
         );
@@ -252,7 +290,11 @@ export async function POST(request: Request) {
       let emailResult: any = null;
 
       try {
-        if (brevoKey) {
+        if (webhookUrl) {
+          console.log(`[OTP] Mengirim kode OTP ke ${normalizedEmail} via Google Apps Script Webhook...`);
+          emailResult = await sendViaGoogleWebhook(webhookUrl, normalizedEmail, generatedOtp);
+          console.log(`[OTP] Berhasil mengirim kode OTP via Google Webhook ke ${normalizedEmail}.`);
+        } else if (brevoKey) {
           console.log(`[OTP] Mengirim kode OTP ke ${normalizedEmail} via Brevo...`);
           emailResult = await sendViaBrevo(brevoKey, normalizedEmail, generatedOtp);
           console.log(`[OTP] Berhasil mengirim kode OTP via Brevo ke ${normalizedEmail}.`);

@@ -15,24 +15,48 @@ export type ScheduleEmailReminderParams = {
   reminderMinutes: number;
 };
 
+// Helper pengiriman email via Google Apps Script HTTPS Webhook (100% Bebas Blokir Port & IP)
+async function sendViaGoogleWebhook(webhookUrl: string, toEmail: string, subject: string, html: string) {
+  const cleanUrl = webhookUrl.replace(/^["']|["']$/g, "").trim();
+  const res = await fetch(cleanUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: toEmail.trim(),
+      subject,
+      html,
+    }),
+  });
+
+  const text = await res.text();
+  let data: any = {};
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || data.message || "Gagal mengirim email via Google Webhook.");
+  }
+  return data;
+}
+
 // Helper pengiriman email via Gmail SMTP (Nodemailer)
 async function sendViaGmail(user: string, pass: string, toEmail: string, subject: string, html: string) {
   const cleanUser = user.replace(/^["']|["']$/g, "").trim();
   const cleanPass = pass.replace(/^["']|["']$/g, "").replace(/\s+/g, "").trim();
 
-  // Coba port 465 (SSL)
+  // 1. Coba service: "gmail"
   try {
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      service: "gmail",
       auth: {
         user: cleanUser,
         pass: cleanPass,
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
     });
 
     return await transporter.sendMail({
@@ -41,24 +65,24 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
       subject,
       html,
     });
-  } catch (err465: any) {
-    console.warn("[Email] Gmail port 465 gagal, mencoba fallback port 587 STARTTLS...", err465?.message || err465);
+  } catch (serviceErr: any) {
+    console.warn("[Email] Gmail service gagal, mencoba port 465 manual...", serviceErr?.message || serviceErr);
 
-    // Fallback port 587 (STARTTLS)
-    const transporter587 = nodemailer.createTransport({
+    // Fallback port 465 (SSL)
+    const transporter465 = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true,
       auth: {
         user: cleanUser,
         pass: cleanPass,
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
 
-    return await transporter587.sendMail({
+    return await transporter465.sendMail({
       from: `"Usick AI" <${cleanUser}>`,
       to: toEmail,
       subject,
@@ -189,10 +213,21 @@ async function sendViaBrevo(apiKey: string, toEmail: string, subject: string, ht
 }
 
 export async function sendEmail({ to, subject, html }: SendEmailOptions) {
+  // 1. Coba Google Apps Script Webhook jika diset (paling reliable di cloud serverless, 100% bebas blokir)
+  const webhookUrl = process.env.GMAIL_WEBHOOK_URL?.trim();
+  if (webhookUrl) {
+    try {
+      console.log(`[Email] Mengirim email ke ${to} via Google Apps Script Webhook...`);
+      return await sendViaGoogleWebhook(webhookUrl, to, subject, html);
+    } catch (whErr: any) {
+      console.error("[Email] Gagal via Google Webhook, mencoba opsi berikutnya:", whErr?.message || whErr);
+    }
+  }
+
   const brevoKey = process.env.BREVO_API_KEY?.trim();
   const resendKey = process.env.RESEND_API_KEY?.trim();
 
-  // 1. Coba Brevo API jika tersedia (mendukung pengiriman ke email apa saja tanpa wajib domain custom)
+  // 2. Coba Brevo API jika tersedia (mendukung pengiriman ke email apa saja tanpa wajib domain custom)
   if (brevoKey) {
     try {
       return await sendViaBrevo(brevoKey, to, subject, html);
