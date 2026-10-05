@@ -5,6 +5,7 @@ import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
+import { FaithWorkspace } from "./components/FaithWorkspace";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
@@ -518,7 +519,7 @@ export default function Home() {
   });
 
   // Selalu arahkan ke tab "chats" saat buka web / refresh sesuai brief
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule">("chats");
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith">("chats");
 
   // Hapus key usick-active-view lama agar tidak pernah membuka schedule secara otomatis saat reload
   useEffect(() => {
@@ -1886,6 +1887,24 @@ export default function Home() {
               <span>Schedule</span>
             </div>
 
+            {/* Faith Feature Button (Integrasi Web Rohani / Salib) */}
+            <div
+              onClick={() => {
+                setActiveView("faith");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                activeView === "faith"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+              </svg>
+              <span>Faith</span>
+            </div>
+
             <div
               onClick={() => {
                 refreshSubscription();
@@ -2088,6 +2107,13 @@ export default function Home() {
             onClose={() => setActiveView("chats")}
             user={user}
             setShowAuthModal={setShowAuthModal}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        ) : activeView === "faith" ? (
+          <FaithWorkspace
+            key="faith-workspace"
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : (
