@@ -1830,6 +1830,436 @@ export default function Home() {
     "U"
   )[0].toUpperCase();
 
+  const renderChatInputCard = () => (
+    <div
+      className={`w-full rounded-[24px] sm:rounded-[26px] border shadow-2xl transition-all relative ${
+        isDark
+          ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
+          : "bg-white border-zinc-200 shadow-zinc-200/80"
+      }`}
+    >
+      <div className="p-3 sm:p-3.5 space-y-1.5">
+        {/* Photo Attachment Thumbnail Preview */}
+        {selectedImage && (
+          <div className="mb-1 px-0.5 relative inline-flex items-center">
+            <div className="relative overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-md group bg-black/20">
+              <img
+                src={selectedImage}
+                alt="Foto Kamera"
+                className="h-14 w-14 sm:h-16 sm:w-16 object-cover cursor-pointer hover:opacity-90 transition"
+                onClick={() => setPreviewImage(selectedImage)}
+                title="Klik untuk melihat pratinjau"
+              />
+              <button
+                type="button"
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-1 right-1 h-4 w-4 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition shadow cursor-pointer"
+                title="Hapus foto"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* File Attachment Chip Preview */}
+        {selectedFile && (
+          <div className="mb-1 px-0.5 relative inline-flex items-center">
+            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border shadow-xs ${
+              isDark ? "bg-zinc-800/90 border-zinc-700/80 text-zinc-100" : "bg-zinc-100 border-zinc-200 text-zinc-900"
+            }`}>
+              <div className={`p-1 rounded-md ${isDark ? "bg-zinc-700 text-white" : "bg-white text-black shadow-xs"}`}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex flex-col min-w-0 pr-1">
+                <span className="text-xs font-medium truncate max-w-[160px] sm:max-w-[220px]">{selectedFile.name}</span>
+                <span className="text-[10px] text-zinc-500">{(selectedFile.size / 1024).toFixed(1)} KB</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="h-4 w-4 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition cursor-pointer text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                title="Hapus file"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Textarea Input (Full width, narrowed vertically) */}
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoResize();
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              selectedImage
+                ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..."
+                : selectedFile
+                ? `Ketik perintah untuk file ${selectedFile.name}...`
+                : "Ask AI a question or make a request..."
+            }
+            rows={1}
+            className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
+              isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
+            }`}
+            style={{ maxHeight: "120px" }}
+          />
+        </div>
+
+        {/* Native System Camera & Gallery Picker Input */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCameraUpload}
+        />
+
+        {/* Native System File Picker Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+
+        {/* Controls Row (Narrowed Vertically) */}
+        <div className="flex items-center justify-between pt-1 gap-1.5 sm:gap-2">
+          {/* Left Side: Plus Attach Menu + Model Selector + Browse */}
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            {/* Tombol Plus Attachment Menu */}
+            <div className="relative shrink-0" ref={attachMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowAttachMenu((prev) => !prev)}
+                className={`p-1.5 rounded-full transition cursor-pointer shrink-0 ${
+                  showAttachMenu || selectedImage || selectedFile
+                    ? isDark
+                      ? "text-white bg-zinc-800 border border-zinc-700 shadow-xs"
+                      : "text-black bg-zinc-200 border border-zinc-300 shadow-xs"
+                    : isDark
+                    ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                    : "text-zinc-500 hover:text-black hover:bg-zinc-100"
+                }`}
+                title="Lampirkan foto atau file"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${showAttachMenu ? "rotate-45" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+
+              {/* Popup Menu: Kamera & File */}
+              {showAttachMenu && (
+                <div
+                  className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 animate-in fade-in-0 zoom-in-95 duration-150 ${
+                    isDark
+                      ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
+                      : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachMenu(false);
+                      cameraInputRef.current?.click();
+                    }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Kamera</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachMenu(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>File</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* LLM Selector Button */}
+            <div className="relative shrink-0" ref={inputDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 sm:px-3 py-1 text-xs font-medium transition cursor-pointer max-w-[130px] sm:max-w-[200px] ${
+                  isDark
+                    ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700/60 text-zinc-200"
+                    : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200 text-zinc-800"
+                }`}
+                title="Pilih Model AI"
+              >
+                <ModelCategoryIcon category={getModelCategory(activeModelObj)} />
+                <span className="truncate">
+                  {cleanModelLabel(activeModelObj.label)}
+                </span>
+                <svg className={`w-3 h-3 shrink-0 text-zinc-400 transition-transform duration-200 ${
+                  modelDropdownOpen ? "rotate-180" : ""
+                }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Popover backdrop mobile */}
+              {modelDropdownOpen && (
+                <div
+                  className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                  onClick={() => setModelDropdownOpen(false)}
+                  aria-hidden="true"
+                />
+              )}
+
+              {/* Popover list */}
+              {modelDropdownOpen && (
+                <div className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-95 ${
+                  isDark
+                    ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
+                    : "bg-white border-zinc-200 text-black shadow-2xl"
+                }`}>
+                  <div className={`flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
+                    isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-black"
+                  }`}>
+                    <span>Pilih Model LLM ({models.length})</span>
+                    <button
+                      onClick={() => setModelDropdownOpen(false)}
+                      className={`sm:hidden ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-400 hover:text-black"}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
+                    {groupedCategories.map((group) => {
+                      const isUsickGroup = group.name === "Usick";
+                      return (
+                        <div
+                          key={group.name}
+                          className={`py-1.5 first:pt-0.5 last:pb-0.5 ${
+                            isUsickGroup
+                              ? (isDark ? "bg-white/[0.04] rounded-xl my-1 p-1" : "bg-black/[0.03] rounded-xl my-1 p-1")
+                              : ""
+                          }`}
+                        >
+                          <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center justify-between ${
+                            isUsickGroup
+                              ? (isDark ? "text-white" : "text-black")
+                              : (isDark ? "text-zinc-300" : "text-black")
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <ModelCategoryIcon category={group.name} />
+                              <span>{group.name}</span>
+                            </div>
+                            {isUsickGroup && (
+                              <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                isDark
+                                  ? "bg-white text-black shadow-xs shadow-white/20"
+                                  : "bg-black text-white shadow-xs shadow-black/20"
+                              }`}>
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-0.5">
+                            {group.items.map((m, idx) => {
+                              const isSelected = m.id === model;
+                              const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
+                              const cleanName = cleanModelLabel(m.label);
+                              const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash" || m.id.toLowerCase().includes("usick");
+                              const isLocked = (subscription?.plan || "free") === "free" && !isUsick;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  disabled={isDisabled}
+                                  onClick={() => {
+                                    if (isDisabled) return;
+                                    if (isLocked) {
+                                      setSelectedLockedModelName(cleanName);
+                                      setShowUpgradeModal(true);
+                                      return;
+                                    }
+                                    setModel(m.id);
+                                    setModelDropdownOpen(false);
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition relative ${
+                                    isDisabled
+                                      ? "opacity-40 cursor-not-allowed line-through text-zinc-500"
+                                      : isSelected
+                                      ? (isDark
+                                          ? "bg-white text-black font-semibold shadow-xs cursor-pointer"
+                                          : "bg-black text-white font-medium shadow-xs cursor-pointer")
+                                      : isUsick
+                                      ? (isDark
+                                          ? "bg-zinc-800/90 hover:bg-zinc-750 text-white font-semibold border border-zinc-700/80 cursor-pointer shadow-xs"
+                                          : "bg-zinc-100 hover:bg-zinc-200/90 text-black font-semibold border border-zinc-300 cursor-pointer shadow-xs")
+                                      : isLocked
+                                      ? (isDark
+                                          ? "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200 cursor-pointer opacity-80 hover:opacity-100"
+                                          : "text-zinc-600 hover:bg-zinc-100 hover:text-black font-medium cursor-pointer opacity-80 hover:opacity-100")
+                                      : (isDark
+                                          ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
+                                          : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate pr-2">
+                                    <span
+                                      className={`text-[11px] font-semibold w-4 shrink-0 ${
+                                        isDisabled
+                                          ? "text-zinc-600"
+                                          : isSelected
+                                          ? (isDark ? "text-zinc-600" : "text-zinc-300")
+                                          : isUsick
+                                          ? (isDark ? "text-zinc-300" : "text-zinc-700")
+                                          : (isDark ? "text-zinc-500" : "text-zinc-500")
+                                      }`}
+                                    >
+                                      {idx + 1}.
+                                    </span>
+                                    <span className="truncate">{cleanName}</span>
+                                  </div>
+                                  {isDisabled ? (
+                                    <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
+                                      Limit
+                                    </span>
+                                  ) : isLocked ? (
+                                    <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border ${
+                                      isDark
+                                        ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                                        : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                                    }`}>
+                                      <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                      </svg>
+                                      PRO
+                                    </span>
+                                  ) : isSelected ? (
+                                    <svg
+                                      className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2.5}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Browse Toggle Switch */}
+            <button
+              type="button"
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shrink-0 ${
+                webSearchEnabled
+                  ? (isDark
+                      ? "border-white bg-white text-black shadow-xs"
+                      : "border-black bg-black text-white shadow-xs")
+                  : (isDark
+                      ? "border-zinc-700/60 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                      : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200")
+              }`}
+              title="Aktifkan fitur Browse / Web Search"
+            >
+              <div className={`relative h-3 w-5 rounded-full transition-colors ${
+                webSearchEnabled
+                  ? (isDark ? "bg-black/25" : "bg-white/30")
+                  : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+              }`}>
+                <div className={`absolute top-0.5 h-2 w-2 rounded-full transition-transform ${
+                  webSearchEnabled
+                    ? `translate-x-2.5 ${isDark ? "bg-black" : "bg-white"}`
+                    : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
+                }`} />
+              </div>
+              <span className="hidden sm:inline">Browse</span>
+            </button>
+          </div>
+
+          {/* Right Side: Send / Stop Circular Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
+                title="Hentikan respons"
+              >
+                <div className="h-2.5 w-2.5 bg-white rounded-sm" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => sendMessage()}
+                disabled={!input.trim() && !selectedImage}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  input.trim() || selectedImage
+                    ? (isDark
+                        ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                        : "bg-black hover:bg-zinc-800 text-white shadow-xs")
+                    : (isDark
+                        ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50"
+                        : "bg-zinc-100 text-zinc-400 border border-zinc-200/60")
+                }`}
+                title="Kirim pesan (Enter)"
+              >
+                <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
       isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
@@ -2266,7 +2696,7 @@ export default function Home() {
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6 w-full max-w-2xl mx-auto my-auto">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
@@ -2284,9 +2714,14 @@ export default function Home() {
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {getTimeGreeting()}, {chatAccountName}
                 </h1>
-                <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                <p className={`mt-2 mb-6 sm:mb-8 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?
                 </p>
+
+                {/* Obrolan Baru: Chat Box persis di tengah seperti tab image tapi dipersempit ke bawah */}
+                <div className="w-full text-left">
+                  {renderChatInputCard()}
+                </div>
               </div>
             )}
 
@@ -2514,465 +2949,18 @@ export default function Home() {
           </div>
         )}
 
-        {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling) ─────────── */}
-        <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-          isDark
-            ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
-            : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
-        }`}>
-          <div className="mx-auto max-w-3xl w-full">
-            <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
-              isDark
-                ? "shadow-2xl shadow-black/80"
-                : "shadow-xl shadow-zinc-900/[0.08]"
-            }`}>
-              {/* Liquid glass top specular reflection highlight line */}
-              <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
-
-              {/* Photo Attachment Thumbnail Preview (ChatGPT Style) */}
-              {selectedImage && (
-                <div className="mb-2 px-1 relative inline-flex items-center">
-                  <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 shadow-lg group bg-black/20">
-                    <img
-                      src={selectedImage}
-                      alt="Foto Kamera"
-                      className="h-16 w-16 sm:h-20 sm:w-20 object-cover cursor-pointer hover:opacity-90 transition"
-                      onClick={() => setPreviewImage(selectedImage)}
-                      title="Klik untuk melihat pratinjau"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSelectedImage(null)}
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center transition shadow cursor-pointer"
-                      title="Hapus foto"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* File Attachment Chip Preview (ChatGPT Style) */}
-              {selectedFile && (
-                <div className="mb-2 px-1 relative inline-flex items-center">
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl border shadow-sm ${
-                    isDark
-                      ? "bg-zinc-800/90 border-zinc-700/80 text-zinc-100"
-                      : "bg-zinc-100 border-zinc-200 text-zinc-900"
-                  }`}>
-                    <div className={`p-1.5 rounded-lg ${isDark ? "bg-zinc-700 text-white" : "bg-white text-black shadow-xs"}`}>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col min-w-0 pr-1">
-                      <span className="text-xs font-medium truncate max-w-[160px] sm:max-w-[220px]">{selectedFile.name}</span>
-                      <span className="text-[10px] text-zinc-500">{(selectedFile.size / 1024).toFixed(1)} KB</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFile(null)}
-                      className="h-5 w-5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center transition cursor-pointer text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                      title="Hapus file"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Textarea Row with Plus Attachment Button on the Left */}
-              <div className="flex items-center gap-1 sm:gap-1.5 w-full">
-                {/* Tombol Plus Attachment Menu (Kamera & File) */}
-                <div className="relative shrink-0" ref={attachMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowAttachMenu((prev) => !prev)}
-                    className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
-                      showAttachMenu || selectedImage || selectedFile
-                        ? isDark
-                          ? "text-white bg-zinc-800 border border-zinc-700/80 shadow-xs"
-                          : "text-black bg-zinc-200 border border-zinc-300 shadow-xs"
-                        : isDark
-                        ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
-                        : "text-zinc-500 hover:text-black hover:bg-zinc-100"
-                    }`}
-                    title="Lampirkan foto atau file"
-                  >
-                    <svg
-                      className={`w-5 h-5 transition-transform duration-200 ${showAttachMenu ? "rotate-45" : ""}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-
-                  {/* Popup Menu: Kamera & File */}
-                  {showAttachMenu && (
-                    <div
-                      className={`absolute bottom-full left-0 mb-2 w-40 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 animate-in fade-in-0 zoom-in-95 duration-150 ${
-                        isDark
-                          ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
-                          : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
-                      }`}
-                    >
-                      {/* Opsi Kamera */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAttachMenu(false);
-                          cameraInputRef.current?.click();
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
-                          isDark
-                            ? "hover:bg-zinc-800 text-zinc-200 hover:text-white"
-                            : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
-                        }`}
-                      >
-                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span>Kamera</span>
-                      </button>
-
-                      {/* Opsi File */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAttachMenu(false);
-                          fileInputRef.current?.click();
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
-                          isDark
-                            ? "hover:bg-zinc-800 text-zinc-200 hover:text-white"
-                            : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
-                        }`}
-                      >
-                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>File</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    autoResize();
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    selectedImage
-                      ? "Ketik perintah untuk foto ini (misal: analisis, jelaskan, terjemahkan)..."
-                      : selectedFile
-                      ? `Ketik perintah untuk file ${selectedFile.name}...`
-                      : "Ask AI a question or make a request..."
-                  }
-                  rows={1}
-                  className={`flex-1 bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
-                    isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
-                  }`}
-                  style={{ maxHeight: "140px" }}
-                />
-              </div>
-
-              {/* Native System Camera & Gallery Picker Input */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCameraUpload}
-              />
-
-              {/* Native System File Picker Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-
-              {/* Bottom Actions Bar inside Liquid Glass Card */}
-              <div className={`mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t gap-1.5 sm:gap-2 ${
-                isDark ? "border-white/[0.08]" : "border-black/[0.06]"
-              }`}>
-                {/* Left Action: Model Selector Pill + Thinking Toggle */}
-                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                  
-                  {/* LLM Selector Button */}
-                  <div className="relative shrink-0" ref={inputDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[220px] ${
-                        getModelCategory(activeModelObj) === "Usick"
-                          ? (isDark
-                              ? "bg-zinc-800 text-white border-zinc-600 ring-1 ring-white/20"
-                              : "bg-zinc-100 text-black border-zinc-400 ring-1 ring-black/15")
-                          : (isDark
-                              ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700 text-zinc-100"
-                              : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200/90 text-black")
-                      }`}
-                      title="Pilih Model AI"
-                    >
-                      <ModelCategoryIcon category={getModelCategory(activeModelObj)} />
-                      <span className="truncate">
-                        {cleanModelLabel(activeModelObj.label)}
-                      </span>
-                      {getModelCategory(activeModelObj) === "Usick" && (
-                        <span className={`hidden sm:inline-block text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full ${
-                          isDark ? "bg-white text-black" : "bg-black text-white"
-                        }`}>
-                          Default
-                        </span>
-                      )}
-                      <svg className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
-                        isDark ? "text-zinc-500" : "text-black"
-                      } ${modelDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {/* Popover backdrop mobile */}
-                    {modelDropdownOpen && (
-                      <div
-                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
-                        onClick={() => setModelDropdownOpen(false)}
-                        aria-hidden="true"
-                      />
-                    )}
-
-                    {/* Popover list */}
-                    {modelDropdownOpen && (
-                      <div className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-95 ${
-                        isDark
-                          ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
-                          : "bg-white border-zinc-200 text-black shadow-2xl"
-                      }`}>
-                        <div className={`flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
-                          isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-black"
-                        }`}>
-                          <span>Pilih Model LLM ({models.length})</span>
-                          <button
-                            onClick={() => setModelDropdownOpen(false)}
-                            className={`sm:hidden ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-400 hover:text-black"}`}
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
-                          {groupedCategories.map((group) => {
-                            const isUsickGroup = group.name === "Usick";
-                            return (
-                              <div
-                                key={group.name}
-                                className={`py-1.5 first:pt-0.5 last:pb-0.5 ${
-                                  isUsickGroup
-                                    ? (isDark ? "bg-white/[0.04] rounded-xl my-1 p-1" : "bg-black/[0.03] rounded-xl my-1 p-1")
-                                    : ""
-                                }`}
-                              >
-                                <div className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center justify-between ${
-                                  isUsickGroup
-                                    ? (isDark ? "text-white" : "text-black")
-                                    : (isDark ? "text-zinc-300" : "text-black")
-                                }`}>
-                                  <div className="flex items-center gap-2">
-                                    <ModelCategoryIcon category={group.name} />
-                                    <span>{group.name}</span>
-                                  </div>
-                                  {isUsickGroup && (
-                                    <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                                      isDark
-                                        ? "bg-white text-black shadow-xs shadow-white/20"
-                                        : "bg-black text-white shadow-xs shadow-black/20"
-                                    }`}>
-                                      Default
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="space-y-0.5">
-                                  {group.items.map((m, idx) => {
-                                    const isSelected = m.id === model;
-                                    const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
-                                    const cleanName = cleanModelLabel(m.label);
-                                    const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash" || m.id.toLowerCase().includes("usick");
-                                    const isLocked = (subscription?.plan || "free") === "free" && !isUsick;
-                                    return (
-                                      <button
-                                        key={m.id}
-                                        type="button"
-                                        disabled={isDisabled}
-                                        onClick={() => {
-                                          if (isDisabled) return;
-                                          if (isLocked) {
-                                            setSelectedLockedModelName(cleanName);
-                                            setShowUpgradeModal(true);
-                                            return;
-                                          }
-                                          setModel(m.id);
-                                          setModelDropdownOpen(false);
-                                        }}
-                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition relative ${
-                                          isDisabled
-                                            ? "opacity-40 cursor-not-allowed line-through text-zinc-500"
-                                            : isSelected
-                                            ? (isDark
-                                                ? "bg-white text-black font-semibold shadow-xs cursor-pointer"
-                                                : "bg-black text-white font-medium shadow-xs cursor-pointer")
-                                            : isUsick
-                                            ? (isDark
-                                                ? "bg-zinc-800/90 hover:bg-zinc-750 text-white font-semibold border border-zinc-700/80 cursor-pointer shadow-xs"
-                                                : "bg-zinc-100 hover:bg-zinc-200/90 text-black font-semibold border border-zinc-300 cursor-pointer shadow-xs")
-                                            : isLocked
-                                            ? (isDark
-                                                ? "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200 cursor-pointer opacity-80 hover:opacity-100"
-                                                : "text-zinc-600 hover:bg-zinc-100 hover:text-black font-medium cursor-pointer opacity-80 hover:opacity-100")
-                                            : (isDark
-                                                ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
-                                                : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-2 truncate pr-2">
-                                          <span
-                                            className={`text-[11px] font-semibold w-4 shrink-0 ${
-                                              isDisabled
-                                                ? "text-zinc-600"
-                                                : isSelected
-                                                ? (isDark ? "text-zinc-600" : "text-zinc-300")
-                                                : isUsick
-                                                ? (isDark ? "text-zinc-300" : "text-zinc-700")
-                                                : (isDark ? "text-zinc-500" : "text-zinc-500")
-                                            }`}
-                                          >
-                                            {idx + 1}.
-                                          </span>
-                                          <span className="truncate">{cleanName}</span>
-                                        </div>
-                                        {isDisabled ? (
-                                          <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
-                                            Limit
-                                          </span>
-                                        ) : isLocked ? (
-                                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border ${
-                                            isDark
-                                              ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
-                                              : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                                          }`}>
-                                            <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                            PRO
-                                          </span>
-                                        ) : isSelected ? (
-                                          <svg
-                                            className={`w-4 h-4 shrink-0 ${isDark ? "text-black" : "text-white"}`}
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2.5}
-                                              d="M5 13l4 4L19 7"
-                                            />
-                                          </svg>
-                                        ) : null}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Browse Toggle Switch */}
-                  <button
-                    type="button"
-                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1 text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                      webSearchEnabled
-                        ? (isDark
-                            ? "border-white bg-white text-black shadow-xs"
-                            : "border-black bg-black text-white shadow-xs")
-                        : (isDark
-                            ? "border-zinc-750 bg-zinc-800/90 text-zinc-400 hover:bg-zinc-750 hover:text-zinc-200"
-                            : "border-zinc-200/90 bg-zinc-100 text-black hover:bg-zinc-200/70")
-                    }`}
-                    title="Aktifkan fitur Browse / Web Search"
-                  >
-                    <div className={`relative h-3.5 w-6 rounded-full transition-colors ${
-                      webSearchEnabled
-                        ? (isDark ? "bg-black/25" : "bg-white/30")
-                        : (isDark ? "bg-zinc-700" : "bg-zinc-300")
-                    }`}>
-                      <div className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${
-                        webSearchEnabled
-                          ? `translate-x-3 ${isDark ? "bg-black" : "bg-white"}`
-                          : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
-                      }`} />
-                    </div>
-                    <span>Browse</span>
-                  </button>
-
-                </div>
-
-                {/* Right Action: Send / Stop Circular Button */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {isStreaming ? (
-                    <button
-                      type="button"
-                      onClick={handleStop}
-                      className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
-                      title="Hentikan respons"
-                    >
-                      <div className="h-2.5 w-2.5 bg-white rounded-sm" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => sendMessage()}
-                      disabled={!input.trim() && !selectedImage}
-                      className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
-                        input.trim() || selectedImage
-                          ? (isDark
-                              ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
-                              : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer")
-                          : (isDark
-                              ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
-                              : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed")
-                      }`}
-                      title="Kirim pesan (Enter)"
-                    >
-                      <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
+        {/* ─── FLOATING ELEVATED INPUT BAR (Hanya saat ada percakapan / messages.length > 0) ─── */}
+        {messages.length > 0 && (
+          <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+            isDark
+              ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
+              : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
+          }`}>
+            <div className="mx-auto max-w-3xl w-full">
+              {renderChatInputCard()}
             </div>
           </div>
-        </div>
+        )}
       </>
     )}
   </main>

@@ -1027,6 +1027,87 @@ export function ScheduleWorkspace({
     return groupSchedules(filteredSchedules);
   }, [filteredSchedules]);
 
+  const renderScheduleInputCard = () => (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSendChatMessage();
+      }}
+      className={`w-full rounded-[24px] sm:rounded-[26px] border shadow-2xl transition-all relative ${
+        isDark
+          ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
+          : "bg-white border-zinc-200 shadow-zinc-200/80"
+      }`}
+    >
+      <div className="p-3 sm:p-3.5 space-y-1.5">
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={inputMessage}
+            onChange={(e) => {
+              setInputMessage(e.target.value);
+              autoResizeTextarea();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendChatMessage();
+              }
+            }}
+            placeholder="Ask Schedule AI to add or manage your schedule..."
+            rows={1}
+            className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
+              isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
+            }`}
+            style={{ maxHeight: "120px" }}
+          />
+        </div>
+
+        {/* Bottom Actions Row (Narrowed Vertically) */}
+        <div className="flex items-center justify-between pt-1 gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
+              isDark
+                ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
+                : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+            }`}>
+              <span>Schedule Assistant</span>
+            </div>
+          </div>
+
+          {/* Send Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="submit"
+              disabled={isProcessing || !inputMessage.trim()}
+              className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                inputMessage.trim()
+                  ? (isDark
+                      ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                      : "bg-black hover:bg-zinc-800 text-white shadow-xs")
+                  : (isDark
+                      ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50"
+                      : "bg-zinc-100 text-zinc-400 border border-zinc-200/60")
+              }`}
+              title="Kirim pesan jadwal (Enter)"
+            >
+              {isProcessing ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+
   return (
     <div
       className={`flex flex-col h-full w-full overflow-hidden ${
@@ -1201,7 +1282,7 @@ export function ScheduleWorkspace({
               }`}
             >
               {chatMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6">
+                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6 w-full max-w-2xl mx-auto my-auto">
                   {/* Pure Star Icon only (No Box/Kotak, identical to main chat tab) */}
                   <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
                     <svg
@@ -1234,9 +1315,14 @@ export function ScheduleWorkspace({
                   <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                     {getTimeGreeting()}, Usick One
                   </h1>
-                  <p className={`mt-2 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                  <p className={`mt-2 mb-6 sm:mb-8 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                     What would you like to schedule today?
                   </p>
+
+                  {/* Obrolan Baru: Chat Box persis di tengah seperti tab image tapi dipersempit ke bawah */}
+                  <div className="w-full text-left">
+                    {renderScheduleInputCard()}
+                  </div>
                 </div>
               ) : (
                 chatMessages.map((msg) => {
@@ -1453,94 +1539,20 @@ export function ScheduleWorkspace({
             </div>
           </div>
 
-          {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling, Identical to Tab Chat) ─────────── */}
-          <div
-            className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-              isDark
-                ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
-                : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
-            }`}
-          >
-            <div className="mx-auto max-w-3xl w-full">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendChatMessage();
-                }}
-                className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
-                  isDark
-                    ? "shadow-2xl shadow-black/80"
-                    : "shadow-xl shadow-zinc-900/[0.08]"
-                }`}
-              >
-                {/* Liquid glass top specular reflection highlight line */}
-                <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
-
-                <div className="flex items-center gap-1 sm:gap-1.5 w-full">
-                  <textarea
-                    ref={textareaRef}
-                    value={inputMessage}
-                    onChange={(e) => {
-                      setInputMessage(e.target.value);
-                      autoResizeTextarea();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendChatMessage();
-                      }
-                    }}
-                    placeholder="Ask Schedule AI to add or manage your schedule..."
-                    rows={1}
-                    className={`flex-1 bg-transparent px-2 sm:px-2.5 pt-1 text-[16px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
-                      isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
-                    }`}
-                    style={{ maxHeight: "140px" }}
-                  />
-                </div>
-
-                {/* Bottom Actions Bar inside Liquid Glass Card */}
-                <div className={`mt-2 sm:mt-2.5 flex items-center justify-between pt-2 border-t gap-1.5 sm:gap-2 ${
-                  isDark ? "border-white/[0.08]" : "border-black/[0.06]"
-                }`}>
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`text-[11px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                      Schedule Assistant
-                    </span>
-                  </div>
-
-                  {/* Send Button */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="submit"
-                      disabled={isProcessing || !inputMessage.trim()}
-                      className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
-                        inputMessage.trim()
-                          ? (isDark
-                              ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
-                              : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer")
-                          : (isDark
-                              ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
-                              : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed")
-                      }`}
-                      title="Kirim pesan jadwal (Enter)"
-                    >
-                      {isProcessing ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </form>
+          {/* ─── FLOATING ELEVATED INPUT BAR (Hanya saat ada percakapan / chatMessages.length > 0) ─── */}
+          {chatMessages.length > 0 && (
+            <div
+              className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+                isDark
+                  ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
+                  : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
+              }`}
+            >
+              <div className="mx-auto max-w-3xl w-full">
+                {renderScheduleInputCard()}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
