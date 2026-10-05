@@ -18,6 +18,7 @@ export type ScheduleEmailReminderParams = {
 // Helper pengiriman email via Google Apps Script HTTPS Webhook (100% Bebas Blokir Port & IP)
 async function sendViaGoogleWebhook(webhookUrl: string, toEmail: string, subject: string, html: string) {
   const cleanUrl = webhookUrl.replace(/^["']|["']$/g, "").trim();
+  const senderName = process.env.EMAIL_SENDER_NAME?.trim() || "One Mind";
   const res = await fetch(cleanUrl, {
     method: "POST",
     headers: {
@@ -27,6 +28,8 @@ async function sendViaGoogleWebhook(webhookUrl: string, toEmail: string, subject
       to: toEmail.trim(),
       subject,
       html,
+      senderName,
+      name: senderName,
     }),
   });
 
@@ -48,6 +51,7 @@ async function sendViaGoogleWebhook(webhookUrl: string, toEmail: string, subject
 async function sendViaGmail(user: string, pass: string, toEmail: string, subject: string, html: string) {
   const cleanUser = user.replace(/^["']|["']$/g, "").trim();
   const cleanPass = pass.replace(/^["']|["']$/g, "").replace(/\s+/g, "").trim();
+  const senderName = process.env.EMAIL_SENDER_NAME?.trim() || "One Mind";
 
   // 1. Coba service: "gmail"
   try {
@@ -60,7 +64,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
     });
 
     return await transporter.sendMail({
-      from: `"One Mind" <${cleanUser}>`,
+      from: `"${senderName}" <${cleanUser}>`,
       to: toEmail,
       subject,
       html,
@@ -83,7 +87,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
     });
 
     return await transporter465.sendMail({
-      from: `"One Mind" <${cleanUser}>`,
+      from: `"${senderName}" <${cleanUser}>`,
       to: toEmail,
       subject,
       html,
@@ -93,7 +97,8 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
 
 // Helper pengiriman email via Resend
 async function sendViaResend(apiKey: string, toEmail: string, subject: string, html: string) {
-  const sender = process.env.RESEND_FROM_EMAIL?.trim() || "One Mind Schedule <onboarding@resend.dev>";
+  const senderName = process.env.EMAIL_SENDER_NAME?.trim() || "One Mind";
+  const sender = process.env.RESEND_FROM_EMAIL?.trim() || `${senderName} Schedule <onboarding@resend.dev>`;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
