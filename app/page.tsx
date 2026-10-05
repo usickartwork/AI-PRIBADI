@@ -2218,7 +2218,7 @@ export default function Home() {
                     : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
                 }`} />
               </div>
-              <span className="hidden sm:inline">Browse</span>
+              <span className="text-[11px] sm:text-xs font-semibold">Browse</span>
             </button>
           </div>
 
@@ -2696,7 +2696,7 @@ export default function Home() {
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6 w-full max-w-2xl mx-auto my-auto">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-6 sm:-translate-y-8">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">

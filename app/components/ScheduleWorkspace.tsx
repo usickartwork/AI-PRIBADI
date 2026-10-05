@@ -68,6 +68,7 @@ export function ScheduleWorkspace({
   const [inputMessage, setInputMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPendingDraft, setCurrentPendingDraft] = useState<ParsedScheduleAI | null>(null);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -452,6 +453,7 @@ export function ScheduleWorkspace({
           pendingDraft: currentPendingDraft,
           history: chatMessages.slice(-8).map((m) => ({ role: m.role, content: m.content })),
           existingSchedules: schedules,
+          webSearch: webSearchEnabled,
         }),
       });
 
@@ -1073,6 +1075,35 @@ export function ScheduleWorkspace({
             }`}>
               <span>Schedule Assistant</span>
             </div>
+
+            {/* Browse Toggle Switch */}
+            <button
+              type="button"
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shrink-0 ${
+                webSearchEnabled
+                  ? (isDark
+                      ? "border-white bg-white text-black shadow-xs"
+                      : "border-black bg-black text-white shadow-xs")
+                  : (isDark
+                      ? "border-zinc-700/60 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                      : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200")
+              }`}
+              title="Aktifkan fitur Browse / Web Search"
+            >
+              <div className={`relative h-3 w-5 rounded-full transition-colors ${
+                webSearchEnabled
+                  ? (isDark ? "bg-black/25" : "bg-white/30")
+                  : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+              }`}>
+                <div className={`absolute top-0.5 h-2 w-2 rounded-full transition-transform ${
+                  webSearchEnabled
+                    ? `translate-x-2.5 ${isDark ? "bg-black" : "bg-white"}`
+                    : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
+                }`} />
+              </div>
+              <span className="text-[11px] sm:text-xs font-semibold">Browse</span>
+            </button>
           </div>
 
           {/* Send Button */}
@@ -1282,7 +1313,7 @@ export function ScheduleWorkspace({
               }`}
             >
               {chatMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6 w-full max-w-2xl mx-auto my-auto">
+                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-6 sm:-translate-y-8">
                   {/* Pure Star Icon only (No Box/Kotak, identical to main chat tab) */}
                   <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
                     <svg
