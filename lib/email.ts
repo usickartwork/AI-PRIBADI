@@ -86,12 +86,121 @@ async function sendViaResend(apiKey: string, toEmail: string, subject: string, h
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || data.error || "Gagal mengirim email via Resend.");
+    const errorMsg = data.message || data.error || "Gagal mengirim email via Resend.";
+
+    // Deteksi khusus batasan sandbox/testing domain bawaan Resend (onboarding@resend.dev)
+    const isSandboxRestriction =
+      typeof errorMsg === "string" &&
+      (errorMsg.includes("only send testing emails to your own email address") ||
+        errorMsg.includes("resend.com/domains"));
+
+    if (isSandboxRestriction) {
+      const ownerEmail = (
+        process.env.GMAIL_USER ||
+        process.env.EMAIL_USER ||
+        "usick.artwork@gmail.com"
+      ).trim();
+
+      console.warn(
+        `[Resend Sandbox] Email tujuan (${toEmail}) bukan email pemilik Resend. Resend menolak karena domain pengirim masih ${sender}. Mem-forward ke ${ownerEmail}...`
+      );
+
+      // Jika alamat tujuan bukan email owner, forward ke owner agar notifikasi tetap sampai dan tidak hilang
+      if (toEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
+        const forwardedHtml = `
+          <div style="background-color: #27272a; color: #f43f5e; border: 1px solid #e11d48; border-radius: 12px; padding: 16px; margin-bottom: 24px; font-family: sans-serif; font-size: 13px; line-height: 1.6;">
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px;">⚠️ [Pemberitahuan Sandbox Resend]</div>
+            <div>Pengingat ini dibuat untuk akun: <strong>${escapeHtml(toEmail)}</strong>.</div>
+            <div style="margin-top: 6px; color: #d4d4d8;">
+              Karena akun Resend saat ini masih menggunakan domain uji coba (<code>onboarding@resend.dev</code>), Resend secara otomatis menolak pengiriman ke akun luar selain pemilik akun (<code>${ownerEmail}</code>).
+            </div>
+            <div style="margin-top: 8px; color: #e4e4e7;">
+              👉 <strong>Solusi:</strong> Untuk mengirim notifikasi langsung ke email pengguna lain, verifikasi domain Anda di <a href="https://resend.com/domains" style="color: #38bdf8; text-decoration: underline;" target="_blank">resend.com/domains</a>, lalu atur <code>RESEND_FROM_EMAIL</code>.
+            </div>
+          </div>
+          ${html}
+        `;
+
+        const fallbackRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: sender,
+            to: [ownerEmail],
+            subject: `[Jadwal Akun: ${toEmail}] ${subject}`,
+            html: forwardedHtml,
+          }),
+        });
+
+        const fallbackData = await fallbackRes.json();
+        if (fallbackRes.ok) {
+          console.log(`[Resend Fallback] Berhasil meneruskan notifikasi pengingat ke ${ownerEmail}.`);
+          return {
+            ...fallbackData,
+            forwarded: true,
+            originalRecipient: toEmail,
+            forwardedTo: ownerEmail,
+          };
+        }
+      }
+    }
+
+    throw new Error(errorMsg);
   }
   return data;
 }
 
+// Helper pengiriman email via Brevo (Sendinblue) REST API (Gratis 300 email/hari ke penerima apapun)
+async function sendViaBrevo(apiKey: string, toEmail: string, subject: string, html: string) {
+  const cleanApiKey = apiKey.replace(/^["']|["']$/g, "").trim();
+  const senderEmail = (
+    process.env.BREVO_SENDER_EMAIL ||
+    process.env.GMAIL_USER ||
+    process.env.EMAIL_USER ||
+    "usick.artwork@gmail.com"
+  ).trim();
+
+  console.log(`[Brevo] Mengirim email ke ${toEmail} dari ${senderEmail}...`);
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": cleanApiKey,
+      "Content-Type": "application/json",
+      "accept": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Usick AI", email: senderEmail },
+      to: [{ email: toEmail.trim() }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("[Brevo] Gagal mengirim email:", data);
+    throw new Error(data.message || data.error || "Gagal mengirim email via Brevo.");
+  }
+  console.log("[Brevo] Email berhasil dikirim! messageId:", data.messageId);
+  return data;
+}
+
 export async function sendEmail({ to, subject, html }: SendEmailOptions) {
+  const brevoKey = process.env.BREVO_API_KEY?.trim();
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+
+  // 1. Coba Brevo API jika tersedia (mendukung pengiriman ke email apa saja tanpa wajib domain custom)
+  if (brevoKey) {
+    try {
+      return await sendViaBrevo(brevoKey, to, subject, html);
+    } catch (brevoErr: any) {
+      console.error("[Email] Gagal mengirim via Brevo, mencoba provider berikutnya:", brevoErr?.message || brevoErr);
+    }
+  }
+
   const gmailUser = (
     process.env.GMAIL_USER ||
     process.env.GMAIL_EMAIL ||
@@ -110,14 +219,14 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions) {
     process.env.EMAIL_PASSWORD ||
     "djrsvftujahcelgn"
   )?.trim();
-  const resendKey = process.env.RESEND_API_KEY?.trim();
 
-  if (!resendKey && (!gmailUser || !gmailPass)) {
+  if (!resendKey && !brevoKey && (!gmailUser || !gmailPass)) {
     throw new Error(
-      "Konfigurasi email belum lengkap di server (harus mengisi GMAIL_USER & GMAIL_APP_PASSWORD atau RESEND_API_KEY)."
+      "Konfigurasi email belum lengkap di server (harus mengisi GMAIL_USER & GMAIL_APP_PASSWORD, RESEND_API_KEY, atau BREVO_API_KEY)."
     );
   }
 
+  // 2. Coba Gmail SMTP
   if (gmailUser && gmailPass) {
     try {
       return await sendViaGmail(gmailUser, gmailPass, to, subject, html);
