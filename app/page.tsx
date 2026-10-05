@@ -6,7 +6,6 @@ import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
-import { WorkspaceConnect } from "./components/WorkspaceConnect";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
@@ -520,7 +519,7 @@ export default function Home() {
   });
 
   // Selalu arahkan ke tab "chats" saat buka web / refresh sesuai brief
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "connect">("chats");
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith">("chats");
 
   // Hapus key usick-active-view lama agar tidak pernah membuka schedule secara otomatis saat reload
   useEffect(() => {
@@ -1906,24 +1905,6 @@ export default function Home() {
               <span>Faith</span>
             </div>
 
-            {/* Workspace Connect Button (Embedded Workspace Manager) */}
-            <div
-              onClick={() => {
-                setActiveView("connect");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
-                activeView === "connect"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
-              }`}
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <span>Workspace Connect</span>
-            </div>
-
             <div
               onClick={() => {
                 refreshSubscription();
@@ -2131,13 +2112,6 @@ export default function Home() {
         ) : activeView === "faith" ? (
           <FaithWorkspace
             key="faith-workspace"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        ) : activeView === "connect" ? (
-          <WorkspaceConnect
-            key="connect-workspace"
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
