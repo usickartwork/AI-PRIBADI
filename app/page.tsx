@@ -2632,7 +2632,7 @@ export default function Home() {
             {/* 3-line hamburger menu button on the LEFT */}
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
-              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
                 isDark
                   ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
@@ -2640,7 +2640,7 @@ export default function Home() {
               title="Menu Panel"
               aria-label="Menu Panel"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -2649,7 +2649,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={newChat}
-              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
                 isDark
                   ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
@@ -2657,7 +2657,7 @@ export default function Home() {
               title="New Chat"
               aria-label="New Chat"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
@@ -2696,12 +2696,12 @@ export default function Home() {
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-6 sm:-translate-y-8">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-12 sm:-translate-y-16">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
-                <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+                <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
                   <svg
-                    className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                    className={`w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md transition-colors ${
                       isDark ? "text-white fill-white" : "text-black fill-black"
                     }`}
                     viewBox="0 0 24 24"
@@ -2714,7 +2714,7 @@ export default function Home() {
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {getTimeGreeting()}, {chatAccountName}
                 </h1>
-                <p className={`mt-2 mb-6 sm:mb-8 text-base sm:text-lg font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                <p className={`mt-1.5 mb-5 sm:mb-6 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?
                 </p>
 
