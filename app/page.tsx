@@ -1759,37 +1759,9 @@ export default function Home() {
   )[0].toUpperCase();
 
   return (
-    <div className={`relative flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
-      isDark ? "ambient-bg-dark text-zinc-100" : "ambient-bg-light text-zinc-900"
-    } font-sans antialiased p-0 sm:p-3 md:p-4 z-0`}>
-      {/* ─── AMBIENT MONOCHROME GRADIENT & BLUR GLASS LIGHTING ─────────────── */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-        {/* Top-Center White Radial Spotlight */}
-        <div
-          className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] sm:w-[1000px] h-[550px] rounded-full blur-[110px] transition-all duration-700 pointer-events-none ${
-            isDark
-              ? "bg-gradient-to-b from-white/12 via-white/3 to-transparent opacity-80"
-              : "bg-gradient-to-b from-white via-zinc-200/50 to-transparent opacity-90"
-          }`}
-        />
-        {/* Center Ambient Diffusion Sphere */}
-        <div
-          className={`absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[750px] h-[400px] rounded-full blur-[130px] transition-all duration-700 pointer-events-none ${
-            isDark
-              ? "bg-[radial-gradient(circle,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.015)_40%,transparent_75%)] opacity-70"
-              : "bg-[radial-gradient(circle,rgba(255,255,255,0.8)_0%,rgba(0,0,0,0.02)_50%,transparent_75%)] opacity-80"
-          }`}
-        />
-        {/* Bottom Atmospheric Vignette / Glass Floor Glow */}
-        <div
-          className={`absolute -bottom-24 left-1/2 -translate-x-1/2 w-[850px] sm:w-[1200px] h-[350px] rounded-full blur-[120px] transition-all duration-700 pointer-events-none ${
-            isDark
-              ? "bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.04)_0%,transparent_70%)] opacity-60"
-              : "bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0.03)_0%,transparent_70%)] opacity-40"
-          }`}
-        />
-      </div>
-
+    <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+      isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
+    } font-sans antialiased p-0 sm:p-3 md:p-4`}>
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -1803,9 +1775,9 @@ export default function Home() {
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border ${
           isDark
-            ? "border-white/[0.08] bg-[#101014]/75 text-zinc-200"
-            : "border-black/[0.06] bg-white/75 text-zinc-900"
-        } backdrop-blur-2xl sm:rounded-3xl shadow-2xl md:shadow-sm overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
+            ? "border-zinc-800/80 bg-[#121215]/95 text-zinc-200"
+            : "border-zinc-200/80 bg-white/95 text-zinc-900"
+        } backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
             ? "translate-x-0 opacity-100 scale-100 md:w-64 md:mr-3"
             : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
@@ -2096,25 +2068,11 @@ export default function Home() {
       </aside>
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
-      <main className={`relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-all duration-300 ${
+      <main className={`flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-colors ${
         isDark
-          ? "blur-glass-dark text-zinc-100"
-          : "blur-glass-light text-zinc-900"
+          ? "bg-[#121215] border-zinc-800/90 shadow-2xl shadow-black/80 text-zinc-100"
+          : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
       }`}>
-        {/* Internal Ambient Radial Gradient / Aura behind chat */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-          <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[850px] h-[400px] sm:h-[500px] rounded-full blur-[100px] transition-opacity duration-700 pointer-events-none ${
-            isDark
-              ? "bg-[radial-gradient(circle,_rgba(255,255,255,0.07)_0%,_rgba(255,255,255,0.02)_40%,_transparent_75%)] opacity-70"
-              : "bg-[radial-gradient(circle,_rgba(0,0,0,0.04)_0%,_rgba(0,0,0,0.01)_40%,_transparent_75%)] opacity-80"
-          }`} />
-          <div className={`absolute -bottom-20 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full blur-[110px] transition-opacity duration-700 pointer-events-none ${
-            isDark
-              ? "bg-[radial-gradient(ellipse_at_bottom,_rgba(255,255,255,0.04)_0%,_transparent_70%)] opacity-60"
-              : "bg-[radial-gradient(ellipse_at_bottom,_rgba(0,0,0,0.02)_0%,_transparent_70%)] opacity-40"
-          }`} />
-        </div>
-
         {activeView === "code" ? (
           <CodeWorkspace
             key={user?.id || "guest"}
@@ -2135,9 +2093,9 @@ export default function Home() {
         ) : (
           <>
             {/* Top App Bar */}
-            <header className={`shrink-0 w-full z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl ${
-              isDark ? "border-white/[0.06] bg-[#0d0d12]/50 text-white" : "border-black/[0.05] bg-white/60 text-zinc-900"
-            }`}>
+        <header className={`shrink-0 w-full z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
+          isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
+        }`}>
           <div className="flex items-center gap-2.5">
             {/* 3-line hamburger menu button on the LEFT */}
             <button
@@ -2216,13 +2174,10 @@ export default function Home() {
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-6">
                 
-                {/* Pure Star Icon with subtle atmospheric ambient aura (No Box/Kotak) */}
+                {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
-                  <div className={`absolute -inset-6 rounded-full blur-2xl transition-opacity pointer-events-none ${
-                    isDark ? "bg-white/12" : "bg-black/8"
-                  }`} />
                   <svg
-                    className={`relative w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
                       isDark ? "text-white fill-white" : "text-black fill-black"
                     }`}
                     viewBox="0 0 24 24"
@@ -2466,10 +2421,10 @@ export default function Home() {
         )}
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling) ─────────── */}
-        <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] relative ${
+        <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
           isDark
-            ? "bg-gradient-to-t from-[#0a0a0d]/90 via-[#0a0a0d]/35 to-transparent"
-            : "bg-gradient-to-t from-white/90 via-white/35 to-transparent"
+            ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
+            : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
         }`}>
           <div className="mx-auto max-w-3xl w-full">
             <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
