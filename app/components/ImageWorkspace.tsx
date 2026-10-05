@@ -51,7 +51,7 @@ const TEMPLATES: StyleTemplate[] = [
     title: "Origami",
     prompt: "Exquisite low-poly 3D papercraft origami portrait, geometric folded paper planes, clean sharp edges, soft warm studio lighting, modern museum art",
     gradient: "from-amber-900 via-orange-950 to-stone-900",
-    previewUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=400&auto=format&fit=crop&q=80",
+    previewUrl: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=400&auto=format&fit=crop&q=80",
   },
   {
     id: "somelier",
@@ -65,7 +65,7 @@ const TEMPLATES: StyleTemplate[] = [
     title: "Pelatih",
     prompt: "Intense sports coach in tailored dark navy suit holding tactical clipboard on sidelines of a crowded roaring stadium, dramatic stadium spotlights, cinematic shot",
     gradient: "from-slate-900 via-zinc-900 to-blue-950",
-    previewUrl: "https://images.unsplash.com/photo-1526676037777-05a232554f77?w=400&auto=format&fit=crop&q=80",
+    previewUrl: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&auto=format&fit=crop&q=80",
   },
   {
     id: "kolase",
@@ -98,7 +98,6 @@ export function ImageWorkspace({
   const [prompt, setPrompt] = useState("");
   const [selectedRatio, setSelectedRatio] = useState("1:1");
   const [ratioDropdownOpen, setRatioDropdownOpen] = useState(false);
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>("");
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
@@ -115,7 +114,6 @@ export function ImageWorkspace({
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setRatioDropdownOpen(false);
-        setModelDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -158,7 +156,6 @@ export function ImageWorkspace({
     setIsGenerating(true);
     setGenerationStep("Memproses permintaan dengan Ming Image 0.1 Design...");
     setRatioDropdownOpen(false);
-    setModelDropdownOpen(false);
 
     const ratioConfig = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
 
@@ -261,58 +258,22 @@ export function ImageWorkspace({
             </button>
           )}
         </div>
-
-        <div className="flex items-center gap-2">
-          {history.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm("Bersihkan seluruh riwayat gambar?")) {
-                  saveHistory([]);
-                  setCurrentImage(null);
-                }
-              }}
-              className={`px-3 py-1.5 rounded-xl border text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                isDark
-                  ? "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800 text-zinc-400 hover:text-red-400"
-                  : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-500 hover:text-red-600"
-              }`}
-              title="Hapus riwayat"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span className="hidden sm:inline">Hapus Riwayat</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={onClose}
-            className={`p-2 rounded-xl border transition cursor-pointer ${
-              isDark
-                ? "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-500 hover:text-black"
-            }`}
-            title="Kembali ke Chats"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
       </header>
 
       {/* ─── MAIN SCROLL CONTAINER ──────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pb-12 flex flex-col items-center justify-start sm:justify-center">
         <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto pt-4 sm:pt-0">
 
-          {/* 1. HERO HEADER (Exact layout as reference screenshot) */}
+          {/* 1. HERO HEADER */}
           <div className="text-center mb-6 sm:mb-8">
-            {/* Banana / Creative Icon Badge */}
+            {/* Usick One Logo Badge */}
             <div className="flex justify-center mb-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900/90 border border-zinc-800/80 shadow-md">
-                <span className="text-xl select-none" role="img" aria-label="Creative">🍌</span>
+              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-md ${
+                isDark ? "bg-white text-black shadow-white/10" : "bg-black text-white shadow-black/25"
+              }`}>
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                </svg>
               </div>
             </div>
 
@@ -327,7 +288,7 @@ export function ImageWorkspace({
             <p className={`text-xs sm:text-sm max-w-md mx-auto ${
               isDark ? "text-zinc-400" : "text-zinc-500"
             }`}>
-              Try a template or describe an idea in chat. Create with Ming Image.
+              Try a template or describe an idea in chat. Create with One image.
             </p>
           </div>
 
@@ -357,158 +318,95 @@ export function ImageWorkspace({
                 />
               </div>
 
-              {/* Middle Row Controls */}
+              {/* Controls Row */}
               <div className="flex items-center justify-between pt-1">
-                {/* Left Side: Plus & Gambar Pill */}
-                <div className="flex items-center gap-2">
+                {/* Left Side: Setting Rasio Dropdown Button */}
+                <div className="relative" ref={dropdownRef}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setPrompt("A modern creative design poster with typography 'USICK AI', vibrant colors, clean graphics, 8k");
-                    }}
-                    className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer ${
+                    onClick={() => setRatioDropdownOpen((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer ${
                       isDark
-                        ? "bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-white"
-                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
+                        ? "bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60"
+                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200"
                     }`}
-                    title="Tambah inspirasi prompt"
+                    title="Setting rasio aspek gambar"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth={2} />
+                    </svg>
+                    <span>Setting rasio ({currentRatioObj.label.split(" ")[0]})</span>
+                    <svg className="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
 
-                  {/* Active Pill: Gambar */}
-                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                    isDark
-                      ? "bg-zinc-800/90 text-zinc-200 border border-zinc-700/60"
-                      : "bg-zinc-100 text-zinc-800 border border-zinc-200"
-                  }`}>
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Gambar</span>
-                  </div>
+                  {/* Ratio Dropdown Menu */}
+                  {ratioDropdownOpen && (
+                    <div className={`absolute left-0 bottom-full mb-2 w-52 rounded-2xl border shadow-2xl p-1.5 z-40 animate-in fade-in-0 zoom-in-95 grid grid-cols-1 gap-1 ${
+                      isDark ? "bg-[#1c1c1f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+                    }`}>
+                      <div className="px-2.5 py-1 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
+                        Pilih Rasio Aspek
+                      </div>
+                      {ASPECT_RATIOS.map((ratio) => (
+                        <button
+                          key={ratio.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRatio(ratio.id);
+                            setRatioDropdownOpen(false);
+                          }}
+                          className={`p-2 rounded-xl text-left transition cursor-pointer border flex flex-col gap-0.5 ${
+                            selectedRatio === ratio.id
+                              ? (isDark ? "bg-zinc-800 border-zinc-600 text-white font-semibold" : "bg-zinc-100 border-zinc-300 text-black font-semibold")
+                              : (isDark ? "border-transparent hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "border-transparent hover:bg-zinc-50 text-zinc-600 hover:text-black")
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold">{ratio.label}</span>
+                            <span className="text-[10px] text-zinc-400 font-mono">{ratio.size}</span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500">{ratio.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Right Side: Model dropdown & Generate Action */}
-                <div className="flex items-center gap-2" ref={dropdownRef}>
-                  {/* Model Selector Pill */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setModelDropdownOpen((prev) => !prev)}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer ${
-                        isDark
-                          ? "bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
-                      }`}
-                    >
-                      <span>Ming Design</span>
-                      <svg className="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {modelDropdownOpen && (
-                      <div className={`absolute right-0 bottom-full mb-2 w-48 rounded-2xl border shadow-xl p-1.5 z-30 animate-in fade-in-0 zoom-in-95 ${
-                        isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
-                      }`}>
-                        <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
-                          Model AI Generator
-                        </div>
-                        <div className={`px-2.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                          isDark ? "bg-zinc-800 text-white" : "bg-zinc-100 text-black"
-                        }`}>
-                          <span>Ming Image 0.1</span>
-                          <span className="text-[10px] text-emerald-400">Aktif</span>
-                        </div>
-                      </div>
-                    )}
+                {/* Right Side: One design Badge & Generate Button */}
+                <div className="flex items-center gap-2">
+                  <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
+                    isDark
+                      ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
+                      : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                  }`}>
+                    <span>One design</span>
                   </div>
 
-                  {/* Mic / Generate Button */}
                   <button
                     type="button"
-                    disabled={isGenerating}
-                    onClick={() => {
-                      if (prompt.trim()) {
-                        handleGenerate();
-                      } else {
-                        // Quick suggestion or focus
-                        setPrompt("A cinematic portrait of a creative designer, studio lighting, highly detailed, 8k");
-                      }
-                    }}
-                    className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer ${
-                      prompt.trim()
-                        ? (isDark ? "bg-white hover:bg-zinc-200 text-black shadow-xs" : "bg-black hover:bg-zinc-800 text-white shadow-xs")
-                        : (isDark ? "bg-zinc-800/60 hover:bg-zinc-800 text-zinc-400 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600")
+                    disabled={!prompt.trim() || isGenerating}
+                    onClick={() => handleGenerate()}
+                    className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isDark
+                        ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                        : "bg-black hover:bg-zinc-800 text-white shadow-xs"
                     }`}
-                    title={prompt.trim() ? "Buat gambar sekarang (Enter)" : "Ide prompt"}
+                    title="Buat gambar sekarang (Enter)"
                   >
                     {isGenerating ? (
                       <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                       </svg>
-                    ) : prompt.trim() ? (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
                     ) : (
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
                     )}
                   </button>
                 </div>
-              </div>
-
-              {/* Bottom Capsule Bar: Rasio Aspek */}
-              <div className="pt-2 border-t border-zinc-800/40 relative">
-                <button
-                  type="button"
-                  onClick={() => setRatioDropdownOpen((prev) => !prev)}
-                  className={`w-full py-2.5 px-4 rounded-full flex items-center justify-center gap-2 text-xs font-medium transition cursor-pointer ${
-                    isDark
-                      ? "bg-transparent hover:bg-zinc-800/40 text-zinc-300 hover:text-white border border-zinc-700/60"
-                      : "bg-transparent hover:bg-zinc-100 text-zinc-700 border border-zinc-300"
-                  }`}
-                >
-                  <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth={2} />
-                  </svg>
-                  <span>Rasio aspek</span>
-                  <svg className="w-3 h-3 text-zinc-400 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* Aspect Ratio Dropdown Menu */}
-                {ratioDropdownOpen && (
-                  <div className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border shadow-2xl p-2 z-40 animate-in fade-in-0 zoom-in-95 grid grid-cols-2 gap-1.5 ${
-                    isDark ? "bg-[#1e1e21] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
-                  }`}>
-                    {ASPECT_RATIOS.map((ratio) => (
-                      <button
-                        key={ratio.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedRatio(ratio.id);
-                          setRatioDropdownOpen(false);
-                        }}
-                        className={`p-2.5 rounded-xl text-left transition cursor-pointer border flex flex-col gap-0.5 ${
-                          selectedRatio === ratio.id
-                            ? (isDark ? "bg-zinc-800 border-zinc-600 text-white font-semibold" : "bg-zinc-100 border-zinc-300 text-black font-semibold")
-                            : (isDark ? "border-transparent hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "border-transparent hover:bg-zinc-50 text-zinc-600 hover:text-black")
-                        }`}
-                      >
-                        <span className="text-xs font-semibold">{ratio.label}</span>
-                        <span className="text-[10px] text-zinc-500">{ratio.size} • {ratio.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -644,6 +542,9 @@ export function ImageWorkspace({
                             alt="Avatar"
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
                           />
                         </div>
                       ))}
@@ -664,6 +565,9 @@ export function ImageWorkspace({
                         alt={tmpl.title}
                         className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition duration-500"
                         loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
                       />
                     ) : (
                       <div className={`w-full h-full bg-gradient-to-br ${tmpl.gradient}`} />
@@ -688,7 +592,28 @@ export function ImageWorkspace({
                 <span className={`text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
                   Riwayat Karya ({history.length})
                 </span>
-                <span className="text-[11px] text-zinc-500">Tersimpan di browser</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-zinc-500">Tersimpan di browser</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Bersihkan seluruh riwayat gambar?")) {
+                        saveHistory([]);
+                        setCurrentImage(null);
+                      }
+                    }}
+                    className={`p-1.5 rounded-lg border text-xs transition cursor-pointer flex items-center justify-center ${
+                      isDark
+                        ? "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800 text-zinc-400 hover:text-red-400"
+                        : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-500 hover:text-red-600"
+                    }`}
+                    title="Hapus riwayat karya"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
