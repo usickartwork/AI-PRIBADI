@@ -6,6 +6,10 @@ import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
+import { PricingModal } from "./components/PricingModal";
+import { UpgradePromptModal } from "./components/UpgradePromptModal";
+import { UsageHistoryModal } from "./components/UsageHistoryModal";
+import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
@@ -48,6 +52,9 @@ type StreamChunk = {
     delta?: { content?: string };
     message?: { content?: string };
   }[];
+  creditsUsed?: number;
+  remainingCredits?: number;
+  creditType?: "ai" | "code";
 };
 
 function getSessionsStorageKey(userId?: string | null): string {
@@ -446,6 +453,29 @@ export default function Home() {
   );
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
+  const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
+  const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
+  const [selectedLockedModelName, setSelectedLockedModelName] = useState<string | undefined>(undefined);
+
+  const refreshSubscription = useCallback(async () => {
+    try {
+      const qUserId = user?.id || "guest";
+      const res = await fetch(`/api/subscription?userId=${encodeURIComponent(qUserId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data);
+      }
+    } catch (err) {
+      console.warn("Failed to load subscription:", err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    refreshSubscription();
+  }, [refreshSubscription]);
+
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -1154,19 +1184,54 @@ export default function Home() {
           model,
           messages: apiMessages,
           webSearch: webSearchEnabled,
+          taskType: "chat",
+          userId: user?.id || "guest",
         }),
         signal: controller.signal,
       });
 
-        if (!res.ok) {
+      if (!res.ok) {
         let errDetail = `HTTP ${res.status}`;
-        let errJson: { error?: string; detail?: string; isLimit?: boolean; isVisionUnsupported?: boolean; model?: string } = {};
+        let errJson: {
+          error?: string;
+          detail?: string;
+          isLimit?: boolean;
+          isVisionUnsupported?: boolean;
+          requiresUpgrade?: boolean;
+          creditsExhausted?: boolean;
+          creditType?: string;
+          resetsInDays?: number;
+          model?: string;
+        } = {};
         try {
-          errJson = (await res.json()) as { error?: string; detail?: string; isLimit?: boolean; isVisionUnsupported?: boolean; model?: string };
+          errJson = (await res.json());
           errDetail = errJson.error || errJson.detail || errDetail;
         } catch {
           const errRaw = await res.text().catch(() => "");
           if (errRaw) errDetail = errRaw.slice(0, 200);
+        }
+
+        // Handle 403 Forbidden: Model Locked for Free Tier
+        if (res.status === 403 && errJson.requiresUpgrade) {
+          setError(null);
+          setSelectedLockedModelName(cleanModelLabel(activeModelObj.label));
+          setShowUpgradeModal(true);
+          updateAssistantContent(
+            assistantId,
+            "🔒 Model ini hanya tersedia untuk pengguna Usick One Pro. Silakan upgrade paket Anda untuk menggunakan model eksternal."
+          );
+          return;
+        }
+
+        // Handle 402 Payment Required: Credit Balance Exhausted
+        if (res.status === 402 && errJson.creditsExhausted) {
+          setError(null);
+          setShowPricingModal(true);
+          updateAssistantContent(
+            assistantId,
+            `⚠️ Saldo ${errJson.creditType === "code" ? "Code" : "AI"} Credits Anda telah habis. Kuota akan direset otomatis dalam ${errJson.resetsInDays || 30} hari atau Anda dapat melakukan upgrade ke Pro.`
+          );
+          return;
         }
 
         // Deteksi jika model tidak support analisis gambar / foto
@@ -1326,6 +1391,27 @@ export default function Home() {
               pendingSources = chunk.sources;
             } else if (chunk.type === "search_error" && chunk.error) {
               pendingSearchError = chunk.error;
+            } else if (chunk.type === "credit_usage") {
+              setSubscription((prev) => {
+                if (!prev) return prev;
+                if (chunk.creditType === "code") {
+                  return {
+                    ...prev,
+                    codeCredits:
+                      typeof chunk.remainingCredits === "number"
+                        ? chunk.remainingCredits
+                        : Math.max(0, prev.codeCredits - (chunk.creditsUsed || 1)),
+                  };
+                } else {
+                  return {
+                    ...prev,
+                    aiCredits:
+                      typeof chunk.remainingCredits === "number"
+                        ? chunk.remainingCredits
+                        : Math.max(0, prev.aiCredits - (chunk.creditsUsed || 1)),
+                  };
+                }
+              });
             } else {
               const contentText =
                 chunk.choices?.[0]?.delta?.content ||
@@ -1895,6 +1981,108 @@ export default function Home() {
 
           {/* Bottom User Card / Status */}
           <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+            {/* Credit Status & Pricing Button (Tepat di atas email/user card di panel) */}
+            <div className="mb-2.5 space-y-2">
+              <div className={`rounded-2xl p-2.5 border transition ${
+                isDark ? "bg-[#18181b]/80 border-zinc-800/80 text-zinc-200" : "bg-white border-zinc-200 text-zinc-800"
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      (subscription?.plan || "free") === "pro"
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-extrabold"
+                        : isDark
+                        ? "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                        : "bg-zinc-100 text-zinc-700 border border-zinc-300"
+                    }`}>
+                      {subscription?.plan ? subscription.plan.toUpperCase() : "FREE"}
+                    </span>
+                    <span className={`text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                      • {subscription ? `Reset ${subscription.resetsInDays}h` : "30h"}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowUsageHistoryModal(true)}
+                    title="Lihat Riwayat Pemakaian Kredit"
+                    className={`text-[10px] font-medium transition hover:underline cursor-pointer ${
+                      isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                    }`}
+                  >
+                    Riwayat
+                  </button>
+                </div>
+
+                {/* AI Credits Bar */}
+                <div className="space-y-1 mb-2">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className={isDark ? "text-zinc-400" : "text-zinc-500"}>AI Credits</span>
+                    <span className="font-mono font-semibold">
+                      {formatCreditNumber(subscription?.aiCredits ?? 10000)} / {formatCreditNumber(subscription?.aiCreditLimit ?? 10000)}
+                    </span>
+                  </div>
+                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`}>
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, ((subscription?.aiCredits ?? 10000) / (subscription?.aiCreditLimit ?? 10000)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Code Credits Bar */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className={isDark ? "text-zinc-400" : "text-zinc-500"}>Code Credits</span>
+                    <span className="font-mono font-semibold">
+                      {formatCreditNumber(subscription?.codeCredits ?? 50)} / {formatCreditNumber(subscription?.codeCreditLimit ?? 50)}
+                    </span>
+                  </div>
+                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`}>
+                    <div
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, ((subscription?.codeCredits ?? 50) / (subscription?.codeCreditLimit ?? 50)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tombol Pricing (Tepat di atas email pengguna di panel) */}
+              <button
+                type="button"
+                onClick={() => setShowPricingModal(true)}
+                className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold transition shadow-xs cursor-pointer ${
+                  (subscription?.plan || "free") === "pro"
+                    ? isDark
+                      ? "bg-zinc-800/90 hover:bg-zinc-750 text-white border border-zinc-700/80"
+                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border border-zinc-300"
+                    : isDark
+                    ? "bg-white text-black hover:bg-zinc-200 shadow-md shadow-white/10"
+                    : "bg-black text-white hover:bg-zinc-800 shadow-md shadow-black/10"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>
+                    {(subscription?.plan || "free") === "pro" ? "Usick One Pro • Pricing" : "Pricing & Plans"}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+                  (subscription?.plan || "free") === "pro"
+                    ? isDark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-200 text-zinc-800"
+                    : isDark ? "bg-black text-white" : "bg-white text-black font-semibold"
+                }`}>
+                  {(subscription?.plan || "free") === "pro" ? "ACTIVE" : "Rp49K"}
+                </span>
+              </button>
+            </div>
+
             <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
               isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
             }`}>
@@ -2596,7 +2784,8 @@ export default function Home() {
                                     const isSelected = m.id === model;
                                     const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
                                     const cleanName = cleanModelLabel(m.label);
-                                    const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash";
+                                    const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash" || m.id.toLowerCase().includes("usick");
+                                    const isLocked = (subscription?.plan || "free") === "free" && !isUsick;
                                     return (
                                       <button
                                         key={m.id}
@@ -2604,6 +2793,11 @@ export default function Home() {
                                         disabled={isDisabled}
                                         onClick={() => {
                                           if (isDisabled) return;
+                                          if (isLocked) {
+                                            setSelectedLockedModelName(cleanName);
+                                            setShowUpgradeModal(true);
+                                            return;
+                                          }
                                           setModel(m.id);
                                           setModelDropdownOpen(false);
                                         }}
@@ -2618,6 +2812,10 @@ export default function Home() {
                                             ? (isDark
                                                 ? "bg-zinc-800/90 hover:bg-zinc-750 text-white font-semibold border border-zinc-700/80 cursor-pointer shadow-xs"
                                                 : "bg-zinc-100 hover:bg-zinc-200/90 text-black font-semibold border border-zinc-300 cursor-pointer shadow-xs")
+                                            : isLocked
+                                            ? (isDark
+                                                ? "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200 cursor-pointer opacity-80 hover:opacity-100"
+                                                : "text-zinc-600 hover:bg-zinc-100 hover:text-black font-medium cursor-pointer opacity-80 hover:opacity-100")
                                             : (isDark
                                                 ? "text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer"
                                                 : "text-black hover:bg-zinc-100 hover:text-black font-medium cursor-pointer")
@@ -2642,6 +2840,17 @@ export default function Home() {
                                         {isDisabled ? (
                                           <span className="text-[10px] font-mono shrink-0 uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400">
                                             Limit
+                                          </span>
+                                        ) : isLocked ? (
+                                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border ${
+                                            isDark
+                                              ? "bg-zinc-800/90 text-zinc-400 border-zinc-700"
+                                              : "bg-zinc-100 text-zinc-600 border-zinc-300"
+                                          }`}>
+                                            <svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            PRO
                                           </span>
                                         ) : isSelected ? (
                                           <svg
@@ -2895,6 +3104,45 @@ export default function Home() {
           onSuccess={() => setShowAuthModal(false)}
         />
       ) : null}
+
+      {/* ─── PRICING & SUBSCRIPTION MODALS ──────────────────────────────── */}
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+        subscription={subscription}
+        onSubscriptionUpdated={(updated) => setSubscription(updated)}
+        isDark={isDark}
+        onOpenUsageHistory={() => {
+          setShowPricingModal(false);
+          setShowUsageHistoryModal(true);
+        }}
+      />
+
+      <UpgradePromptModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        targetModelName={selectedLockedModelName}
+        userId={user?.id || "guest"}
+        isDark={isDark}
+        onUpgradeSuccess={(updated) => {
+          setSubscription(updated);
+          if (selectedLockedModelName) {
+            const match = models.find((m) => cleanModelLabel(m.label) === selectedLockedModelName);
+            if (match) setModel(match.id);
+          }
+        }}
+        onOpenPricingPlans={() => {
+          setShowUpgradeModal(false);
+          setShowPricingModal(true);
+        }}
+      />
+
+      <UsageHistoryModal
+        isOpen={showUsageHistoryModal}
+        onClose={() => setShowUsageHistoryModal(false)}
+        userId={user?.id || "guest"}
+        isDark={isDark}
+      />
 
 
       {/* ─── FULLSCREEN IMAGE PREVIEW LIGHTBOX ───────────────────────────── */}

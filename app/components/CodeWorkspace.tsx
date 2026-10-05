@@ -5673,6 +5673,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
           ],
           model: "novita:qwen/qwen3.8-flash",
           max_tokens: 8192,
+          taskType: "code",
+          userId,
         }),
       });
 
@@ -6185,7 +6187,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     if (!hasQuestions && newlyPlannedProject) {
       const projToPreview: ProjectItem = newlyPlannedProject;
       setTimeout(() => {
-        generateProjectPreviewHtmlWithAI(projToPreview)
+        generateProjectPreviewHtmlWithAI(projToPreview, undefined, userId)
           .then((aiHtml) => {
             if (aiHtml && aiHtml.length > 200) {
               setProjects((curr) =>
@@ -11427,7 +11429,8 @@ export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
 
 export async function generateProjectPreviewHtmlWithAI(
   project: ProjectItem,
-  onChunk?: (streamedText: string) => void
+  onChunk?: (streamedText: string) => void,
+  userId?: string
 ): Promise<string> {
   const prdText = project.prd?.overview || project.description || "";
   const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
@@ -11503,6 +11506,8 @@ PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tu
       ],
       model: "novita:qwen/qwen3.8-flash",
       max_tokens: 8192,
+      taskType: "code",
+      userId,
     }),
   });
 
@@ -11572,11 +11577,13 @@ export function QuickHtmlPreview({
   isDark,
   onUpdateHtml,
   onSwitchToChat,
+  userId,
 }: {
   project: ProjectItem;
   isDark: boolean;
   onUpdateHtml: (html: string) => void;
   onSwitchToChat: () => void;
+  userId?: string;
 }) {
   const [rawHtml, setRawHtml] = useState<string>(() => extractHtmlFromProject(project));
   const [debouncedHtml, setDebouncedHtml] = useState<string>(() => extractHtmlFromProject(project));
@@ -11600,7 +11607,7 @@ export function QuickHtmlPreview({
     setIsGeneratingWithAI(true);
     setPreviewError(null);
     try {
-      const aiHtml = await generateProjectPreviewHtmlWithAI(project);
+      const aiHtml = await generateProjectPreviewHtmlWithAI(project, undefined, userId);
       if (aiHtml && aiHtml.length > 100) {
         setRawHtml(aiHtml);
         setDebouncedHtml(aiHtml);

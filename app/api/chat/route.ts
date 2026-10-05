@@ -3,6 +3,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { searchWeb, SearchResult } from "@/lib/search";
+import { isModelAllowedForPlan, calculateCreditUsage } from "@/lib/pricing";
+import { getUserSubscription, deductCredits } from "@/lib/subscriptionServer";
+import { supabase } from "@/lib/supabase";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
 type ProviderConfig = {
@@ -184,7 +187,13 @@ export async function OPTIONS() {
 // ─── POST /api/chat ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  let body: { messages?: ChatMessage[]; model?: string; webSearch?: boolean };
+  let body: {
+    messages?: ChatMessage[];
+    model?: string;
+    webSearch?: boolean;
+    taskType?: "chat" | "code";
+    userId?: string;
+  };
 
   try {
     body = await request.json();
@@ -206,6 +215,56 @@ export async function POST(request: Request) {
   const messages: ChatMessage[] = [...rawMessages];
   const webSearch = Boolean(body.webSearch);
   const modelId = body.model || "";
+  const taskType = body.taskType === "code" ? "code" : "chat";
+  const creditType = taskType === "code" ? "code" : "ai";
+
+  // ── Authentication & Subscription Check ──────────────────────────────────────
+  let userId = body.userId;
+  if (!userId) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.substring(7);
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user?.id) userId = user.id;
+      } catch {}
+    }
+  }
+  if (!userId) userId = "guest";
+
+  const userSub = await getUserSubscription(userId);
+
+  // 1. Model Access Control: Free user can only use Usick One AI
+  const modelAllowed = isModelAllowedForPlan(userSub.plan, modelId);
+  if (!modelAllowed) {
+    return Response.json(
+      {
+        error: `Model [${modelId}] terkunci untuk akun ${userSub.plan.toUpperCase()}. Model eksternal hanya dapat diakses pada paket Pro.`,
+        requiresUpgrade: true,
+        plan: userSub.plan,
+        model: modelId,
+      },
+      { status: 403, headers: CORS_HEADERS }
+    );
+  }
+
+  // 2. Credit Balance Control: AI Credits vs Code Credits
+  const currentBalance = creditType === "code" ? userSub.codeCredits : userSub.aiCredits;
+  const creditLimit = creditType === "code" ? userSub.codeCreditLimit : userSub.aiCreditLimit;
+
+  if (currentBalance <= 0) {
+    return Response.json(
+      {
+        error: `Saldo ${creditType === "code" ? "Code" : "AI"} Credits Anda telah habis (0/${creditLimit}). Kredit akan direset dalam ${userSub.resetsInDays} hari atau Anda dapat melakukan upgrade ke Pro.`,
+        creditsExhausted: true,
+        creditType,
+        plan: userSub.plan,
+        resetsInDays: userSub.resetsInDays,
+        resetAt: userSub.resetAt,
+      },
+      { status: 402, headers: CORS_HEADERS }
+    );
+  }
 
   let sources: SearchResult[] = [];
   let searchError: string | null = null;
@@ -641,6 +700,7 @@ export async function POST(request: Request) {
 
         if (isAnthropic) {
           let buffer = "";
+          let anthropicOutputChars = 0;
           const decoder = new TextDecoder();
           try {
             while (true) {
@@ -659,6 +719,7 @@ export async function POST(request: Request) {
                 try {
                   const parsed = JSON.parse(dataStr);
                   if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                    anthropicOutputChars += parsed.delta.text.length;
                     const chunk = {
                       choices: [{ delta: { content: parsed.delta.text } }],
                     };
@@ -678,6 +739,7 @@ export async function POST(request: Request) {
                   try {
                     const parsed = JSON.parse(dataStr);
                     if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                      anthropicOutputChars += parsed.delta.text.length;
                       const chunk = {
                         choices: [{ delta: { content: parsed.delta.text } }],
                       };
@@ -690,18 +752,77 @@ export async function POST(request: Request) {
               }
             }
 
+            // Deduct credits on stream finish
+            try {
+              const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
+              const outTokens = Math.max(5, Math.ceil(anthropicOutputChars / 4));
+              const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
+              const deductRes = await deductCredits({
+                userId,
+                creditType,
+                amount: credits,
+                modelId,
+                taskType,
+                inputTokens: inTokens,
+                outputTokens: outTokens,
+              });
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({
+                  type: "credit_usage",
+                  creditType,
+                  creditsUsed: credits,
+                  remainingCredits: deductRes.remainingCredits,
+                  multiplier,
+                })}\n\n`)
+              );
+            } catch (deductErr) {
+              console.warn("[api/chat] Error deducting Anthropic credits:", deductErr);
+            }
+
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
             controller.close();
           } catch (readErr) {
             controller.error(readErr);
           }
         } else {
+          let standardOutputBytes = 0;
           try {
             while (true) {
               const { done, value } = await upstreamReader.read();
               if (done) break;
-              controller.enqueue(value);
+              if (value) {
+                standardOutputBytes += value.length;
+                controller.enqueue(value);
+              }
             }
+
+            // Deduct credits on stream finish
+            try {
+              const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
+              const outTokens = Math.max(5, Math.ceil(standardOutputBytes / 10));
+              const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
+              const deductRes = await deductCredits({
+                userId,
+                creditType,
+                amount: credits,
+                modelId,
+                taskType,
+                inputTokens: inTokens,
+                outputTokens: outTokens,
+              });
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({
+                  type: "credit_usage",
+                  creditType,
+                  creditsUsed: credits,
+                  remainingCredits: deductRes.remainingCredits,
+                  multiplier,
+                })}\n\n`)
+              );
+            } catch (deductErr) {
+              console.warn("[api/chat] Error deducting stream credits:", deductErr);
+            }
+
             controller.close();
           } catch (readErr) {
             controller.error(readErr);

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ScheduleItem } from "@/lib/schedules";
+import { getUserSubscription } from "@/lib/subscriptionServer";
 
 function getSupabaseClient(req: NextRequest) {
   if (!isSupabaseConfigured) return null;
@@ -135,6 +136,36 @@ export async function POST(req: NextRequest) {
 
     if (isSupabaseConfigured) {
       const client = getSupabaseClient(req) || supabase;
+
+      // Cek Batasan Jumlah Jadwal Berdasarkan Paket Langganan (Free max 3, Pro max 50)
+      if (validUserId) {
+        try {
+          const sub = await getUserSubscription(validUserId);
+          const { count: activeCount } = await client
+            .from("schedules")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", validUserId)
+            .eq("status", "upcoming");
+
+          if ((activeCount || 0) >= sub.scheduleLimit) {
+            return NextResponse.json(
+              {
+                error: `Batas jadwal untuk paket ${sub.plan.toUpperCase()} Anda telah mencapai batas maksimal (${sub.scheduleLimit} jadwal aktif). ${
+                  sub.plan === "free" ? "Upgrade ke Pro untuk membuat hingga 50 jadwal." : ""
+                }`,
+                isLimitReached: true,
+                limit: sub.scheduleLimit,
+                activeCount,
+                plan: sub.plan,
+              },
+              { status: 403 }
+            );
+          }
+        } catch (subErr) {
+          console.warn("[schedules] Error checking subscription limit:", subErr);
+        }
+      }
+
       const { data, error } = await client
         .from("schedules")
         .insert([newSchedule])
