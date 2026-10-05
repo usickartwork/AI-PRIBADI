@@ -6,6 +6,7 @@ import { AuthModal } from "./components/AuthModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
+import { ImageWorkspace } from "./components/ImageWorkspace";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
@@ -521,7 +522,7 @@ export default function Home() {
   });
 
   // Selalu arahkan ke tab "chats" saat buka web / refresh sesuai brief
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith">("chats");
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image">("chats");
 
   // Hapus key usick-active-view lama agar tidak pernah membuka schedule secara otomatis saat reload
   useEffect(() => {
@@ -629,6 +630,7 @@ export default function Home() {
           localStorage.removeItem(getActiveSessionStorageKey(user.id));
           localStorage.removeItem(`usick-schedules-${user.id}`);
           localStorage.removeItem(`usick-code-blueprint-${user.id}`);
+          localStorage.removeItem(`usick-image-history-${user.id}`);
           localStorage.removeItem("usick-active-view");
         } catch {}
       }
@@ -1965,6 +1967,24 @@ export default function Home() {
               <span>Faith</span>
             </div>
 
+            {/* Image Feature Button (Generator Gambar AI - FLUX.1 Free) */}
+            <div
+              onClick={() => {
+                setActiveView("image");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+                activeView === "image"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>Image</span>
+            </div>
+
             <div
               onClick={() => {
                 refreshSubscription();
@@ -2174,6 +2194,14 @@ export default function Home() {
             key="faith-workspace"
             isDark={isDark}
             onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        ) : activeView === "image" ? (
+          <ImageWorkspace
+            key={user?.id || "guest"}
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            userId={user?.id}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : (
