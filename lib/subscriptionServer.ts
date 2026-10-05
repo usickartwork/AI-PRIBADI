@@ -385,3 +385,13 @@ export async function getCreditTransactions(userId: string): Promise<CreditTrans
   // Memory fallback
   return memoryTransactions.filter((t) => t.userId === userId || isGuest).slice(0, 25);
 }
+
+/**
+ * Menghapus data langganan dan kredit dari memori
+ */
+export async function deleteUserData(userId: string): Promise<boolean> {
+  if (!userId || userId === "guest") return false;
+  memoryUserSubscriptions.delete(userId);
+  return true;
+}
+

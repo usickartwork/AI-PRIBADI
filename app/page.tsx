@@ -458,6 +458,8 @@ export default function Home() {
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
   const [selectedLockedModelName, setSelectedLockedModelName] = useState<string | undefined>(undefined);
 
   const refreshSubscription = useCallback(async () => {
@@ -598,6 +600,64 @@ export default function Home() {
       setActiveSessionId(fresh.id);
     }
     setShowAuthModal(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeletingAccount(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal menghapus akun.");
+      }
+
+      // Bersihkan seluruh data lokal pengguna ini dari browser
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(getSessionsStorageKey(user.id));
+          localStorage.removeItem(getActiveSessionStorageKey(user.id));
+          localStorage.removeItem(`usick-schedules-${user.id}`);
+          localStorage.removeItem(`usick-code-blueprint-${user.id}`);
+          localStorage.removeItem("usick-active-view");
+        } catch {}
+      }
+
+      // Logout dari Supabase
+      await supabase.auth.signOut();
+      sessionsOwnerIdRef.current = null;
+      setUser(null);
+      setSubscription(null);
+
+      // Muat sesi guest atau fresh session
+      const guestSessions = loadSessions(null);
+      if (guestSessions.length > 0) {
+        setSessions(guestSessions);
+        setActiveSessionId(guestSessions[0].id);
+      } else {
+        const fresh = createFreshSession();
+        setSessions([fresh]);
+        setActiveSessionId(fresh.id);
+      }
+
+      setSettingsOpen(false);
+      setShowDeleteModal(false);
+      setShowAuthModal(true);
+    } catch (err: any) {
+      alert(err?.message || "Gagal menghapus akun.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   // Sinkronisasi riwayat chat dari Supabase saat user login atau berganti akun
@@ -3211,6 +3271,27 @@ export default function Home() {
               </div>
             )}
 
+            {/* Danger Zone: Hapus Akun & Logout */}
+            {user && (
+              <div className={`mt-3 pt-3 border-t ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-red-500 block">Hapus Akun & Logout</span>
+                    <span className={`text-[10px] mt-0.5 block ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
+                      Hapus permanen semua data chat, jadwal, kredit & langsung keluar
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold transition border border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50 cursor-pointer shrink-0"
+                  >
+                    Hapus Akun
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Modal Footer */}
             <div className={`pt-3 border-t flex justify-end ${
               isDark ? "border-zinc-800" : "border-zinc-100"
@@ -3225,6 +3306,70 @@ export default function Home() {
                 }`}
               >
                 Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL KONFIRMASI HAPUS AKUN & LOGOUT ───────────────────────── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div
+            className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl relative ${
+              isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+            }`}
+          >
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold">Hapus Akun Permanen?</h3>
+                <p className={`text-xs mt-1 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                  Tindakan ini tidak dapat dibatalkan. Seluruh riwayat percakapan, jadwal aktif, sisa kredit, dan akun Anda akan dihapus secara total dari sistem dan Anda akan langsung keluar (logout).
+                </p>
+              </div>
+            </div>
+
+            <div className={`p-3 rounded-2xl border text-xs mb-5 ${
+              isDark ? "bg-red-500/5 border-red-500/20 text-red-400" : "bg-red-50 border-red-200 text-red-700"
+            }`}>
+              ⚠️ Seluruh data lokal dan cloud akan dibersihkan secara permanen.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={() => setShowDeleteModal(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                  isDark
+                    ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300"
+                    : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                } disabled:opacity-50`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={handleDeleteAccount}
+                className="px-4 py-2 rounded-xl text-xs font-semibold transition bg-red-600 hover:bg-red-700 text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <span>Ya, Hapus Akun & Logout</span>
+                )}
               </button>
             </div>
           </div>
