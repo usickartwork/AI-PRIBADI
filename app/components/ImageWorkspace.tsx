@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 interface ImageWorkspaceProps {
   isDark: boolean;
@@ -14,28 +14,27 @@ interface GeneratedImage {
   url: string;
   prompt: string;
   translatedPrompt?: string;
-  model: "flux" | "turbo";
+  model: string;
   aspectRatio: string;
   width: number;
   height: number;
-  seed: number;
   createdAt: number;
 }
 
 const PRESET_PROMPTS = [
-  "Cyberpunk neon street at rainy night, highly detailed, 8k resolution, cinematic lighting",
-  "Cute fluffy orange kitten wearing tiny headphones playing with colorful yarn, studio lighting",
-  "Futuristic architecture floating city in the clouds, ethereal sunset, octane render",
-  "Anime studio ghibli style lush green valley with traditional windmill and flowers",
-  "Majestic mystical wolf with glowing blue runes in a dark enchanted forest",
-  "Minimalist abstract 3D geometric shapes, soft pastel colors, modern aesthetic",
+  "A modern creative design poster of a cute orange kitten with headphones, typography text 'USICK AI', vibrant colors, clean graphics, 8k",
+  "Minimalist technology company logo, sleek geometric shapes, modern typography, vector icon",
+  "Creative UI/UX mobile app dashboard screen for smart home, clean layout, modern dark theme",
+  "Futuristic cyberpunk city event poster, glowing neon typography 'NIGHT CITY 2077', octane render",
+  "Coffee shop vintage logo design with coffee bean and warm typography 'AROMA ROASTERS'",
+  "Anime studio style illustration of a peaceful mountain village, warm sunlight, vibrant colors",
 ];
 
 const ASPECT_RATIOS = [
-  { label: "1:1 Persegi", id: "1:1", width: 1024, height: 1024, desc: "Avatar / Post" },
-  { label: "16:9 Landscape", id: "16:9", width: 1280, height: 720, desc: "Wallpaper / Banner" },
-  { label: "9:16 Portrait", id: "9:16", width: 720, height: 1280, desc: "Story / Smartphone" },
-  { label: "4:3 Klasik", id: "4:3", width: 1024, height: 768, desc: "Standard" },
+  { label: "1:1 Persegi", id: "1:1", size: "1024x1024", width: 1024, height: 1024, desc: "Avatar / Post" },
+  { label: "16:9 Landscape", id: "16:9", size: "1280x720", width: 1280, height: 720, desc: "Wallpaper / Banner" },
+  { label: "9:16 Portrait", id: "9:16", size: "720x1280", width: 720, height: 1280, desc: "Story / Smartphone" },
+  { label: "4:3 Klasik", id: "4:3", size: "1024x768", width: 1024, height: 768, desc: "Standard" },
 ];
 
 export function ImageWorkspace({
@@ -46,7 +45,6 @@ export function ImageWorkspace({
 }: ImageWorkspaceProps) {
   const [prompt, setPrompt] = useState("");
   const [selectedRatio, setSelectedRatio] = useState("1:1");
-  const [selectedModel, setSelectedModel] = useState<"flux" | "turbo">("flux");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>("");
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
@@ -54,7 +52,6 @@ export function ImageWorkspace({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [isEnhance, setIsEnhance] = useState(true);
 
   const storageKey = `usick-image-history-${userId || "guest"}`;
 
@@ -90,61 +87,39 @@ export function ImageWorkspace({
     }
   };
 
-  const handleGenerate = async (customPrompt?: string, customSeed?: number) => {
+  const handleGenerate = async (customPrompt?: string) => {
     const textToUse = (customPrompt ?? prompt).trim();
     if (!textToUse || isGenerating) return;
 
     setIsGenerating(true);
-    setGenerationStep("Menerjemahkan & mengoptimasi prompt dengan GPT OSS 120B...");
-
-    let finalPrompt = textToUse;
-    let translatedPrompt: string | undefined = undefined;
-
-    try {
-      const transRes = await fetch("/api/image/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: textToUse }),
-      });
-      if (transRes.ok) {
-        const transData = await transRes.json();
-        if (transData.translatedPrompt) {
-          finalPrompt = transData.translatedPrompt;
-          translatedPrompt = transData.translatedPrompt;
-        }
-      }
-    } catch (e) {
-      console.warn("Translation failed, using raw prompt:", e);
-    }
-
-    setGenerationStep("Merender piksel gambar FLUX.1 beresolusi tinggi...");
+    setGenerationStep("Memproses permintaan dengan Ming Image 0.1 Design (Novita AI)...");
 
     const ratioConfig = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
-    const seed = customSeed ?? Math.floor(Math.random() * 100000000);
-    const encodedPrompt = encodeURIComponent(finalPrompt);
-
-    // Pollinations AI URL (Option 1 - 100% Free & Fast with GPT OSS 120B Translation)
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${ratioConfig.width}&height=${ratioConfig.height}&model=${selectedModel}&seed=${seed}&nologo=true`;
 
     try {
-      // Preload image to ensure it loads before displaying
-      await new Promise<void>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Gagal merender gambar. Coba ulangi kembali."));
-        img.src = imageUrl;
+      const res = await fetch("/api/image/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: textToUse,
+          size: ratioConfig.size,
+        }),
       });
 
+      const data = await res.json();
+      if (!res.ok || !data.image) {
+        throw new Error(data.error || "Gagal membuat gambar.");
+      }
+
       const newEntry: GeneratedImage = {
-        id: `img-${Date.now()}-${seed}`,
-        url: imageUrl,
+        id: `img-${Date.now()}`,
+        url: data.image,
         prompt: textToUse,
-        translatedPrompt,
-        model: selectedModel,
+        translatedPrompt: data.translatedPrompt,
+        model: "ming-image-0.1-design",
         aspectRatio: selectedRatio,
         width: ratioConfig.width,
         height: ratioConfig.height,
-        seed,
         createdAt: Date.now(),
       };
 
@@ -159,21 +134,16 @@ export function ImageWorkspace({
     }
   };
 
-  const handleDownload = async (img: GeneratedImage) => {
+  const handleDownload = (img: GeneratedImage) => {
     try {
       setDownloading(true);
-      const res = await fetch(img.url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `usick-flux-${Date.now()}.jpg`;
+      link.href = img.url;
+      link.download = `usick-ming-design-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
     } catch {
-      // Fallback: open in new tab
       window.open(img.url, "_blank");
     } finally {
       setDownloading(false);
@@ -243,14 +213,14 @@ export function ImageWorkspace({
                 Image Generator
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                isDark ? "bg-zinc-900 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
               }`}>
-                FLUX.1 • Free
+                Ming Image 0.1 Design
               </span>
               <span className={`hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                isDark ? "bg-zinc-800/80 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
               }`}>
-                GPT OSS 120B Translator
+                Novita AI
               </span>
             </div>
           </div>
@@ -306,21 +276,14 @@ export function ImageWorkspace({
                 <label className={`text-xs font-bold uppercase tracking-wider ${
                   isDark ? "text-zinc-300" : "text-zinc-800"
                 }`}>
-                  Deskripsi Gambar (Prompt)
+                  Deskripsi Desain / Gambar (Prompt)
                 </label>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-                  <span className="hidden sm:inline">Engine:</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModel(selectedModel === "flux" ? "turbo" : "flux")}
-                    className={`px-2 py-0.5 rounded-lg border font-semibold text-[10px] transition cursor-pointer ${
-                      selectedModel === "flux"
-                        ? (isDark ? "bg-white text-black border-white" : "bg-black text-white border-black")
-                        : (isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300")
-                    }`}
-                  >
-                    {selectedModel === "flux" ? "FLUX.1 (Kualitas Tinggi)" : "Turbo (Cepat)"}
-                  </button>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border ${
+                    isDark ? "bg-zinc-800 border-zinc-700 text-zinc-300" : "bg-zinc-200 border-zinc-300 text-zinc-800"
+                  }`}>
+                    Engine: Novita ming-image-0.1-design
+                  </span>
                 </div>
               </div>
 
@@ -336,7 +299,7 @@ export function ImageWorkspace({
                     }
                   }}
                   rows={3}
-                  placeholder="Ketik deskripsi gambar yang kamu inginkan... (Contoh: Seekor kucing oren berbulu tebal memakai kacamata cyberpunk neon di malam hari, 8k, cinematic lighting)"
+                  placeholder="Ketik ide gambar / poster / logo yang kamu inginkan... (Contoh: Poster kucing oranye imut memakai headphone dengan teks 'USICK AI', warna cerah, desain grafis modern)"
                   className={`w-full p-3.5 sm:p-4 rounded-2xl border text-sm outline-none transition resize-none ${
                     isDark
                       ? "bg-zinc-950/80 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
@@ -414,7 +377,7 @@ export function ImageWorkspace({
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      <span>Hasilkan Gambar</span>
+                      <span>Hasilkan Desain</span>
                     </>
                   )}
                 </button>
@@ -437,9 +400,9 @@ export function ImageWorkspace({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
                 </div>
-                <h4 className="text-sm font-bold mb-1">Sedang Membuat Gambar</h4>
+                <h4 className="text-sm font-bold mb-1">Sedang Membuat Desain Gambar</h4>
                 <p className={`text-xs max-w-sm ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  {generationStep || "AI FLUX.1 sedang memproses prompt dan menyusun detail grafis..."}
+                  {generationStep || "Model Ming Image 0.1 Design sedang menyusun grafis dan tipografi resolusi tinggi..."}
                 </p>
               </div>
             ) : currentImage ? (
@@ -474,16 +437,14 @@ export function ImageWorkspace({
                     </p>
                     {currentImage.translatedPrompt && currentImage.translatedPrompt !== currentImage.prompt && (
                       <p className={`text-[11px] mt-1.5 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                        <span className="font-semibold text-zinc-500 mr-1">[GPT OSS 120B]:</span>
+                        <span className="font-semibold text-zinc-500 mr-1">[Prompt Optimal]:</span>
                         &ldquo;{currentImage.translatedPrompt}&rdquo;
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-[11px] text-zinc-500">
-                      <span>Model: <b className="capitalize text-zinc-400">{currentImage.model}</b></span>
+                      <span>Model: <b className="text-zinc-400">Ming Image 0.1 Design (Novita AI)</b></span>
                       <span>•</span>
                       <span>Ukuran: <b className="text-zinc-400">{currentImage.aspectRatio} ({currentImage.width}×{currentImage.height})</b></span>
-                      <span>•</span>
-                      <span>Seed: <b className="font-mono text-zinc-400">{currentImage.seed}</b></span>
                     </div>
                   </div>
 
@@ -523,7 +484,7 @@ export function ImageWorkspace({
                       <span>{copiedText === "prompt" ? "Disalin!" : "Salin Prompt"}</span>
                     </button>
 
-                    {/* Download HD */}
+                    {/* Download HD PNG */}
                     <button
                       type="button"
                       disabled={downloading}
@@ -541,7 +502,7 @@ export function ImageWorkspace({
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          <span>Unduh HD</span>
+                          <span>Unduh PNG</span>
                         </>
                       )}
                     </button>
@@ -560,9 +521,9 @@ export function ImageWorkspace({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-sm font-bold mb-1">Mulai Generate Gambar Pertamamu</h3>
+                <h3 className="text-sm font-bold mb-1">Mulai Generate Desain Pertamamu</h3>
                 <p className={`text-xs max-w-md ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                  Ketik deskripsi gambar di kotak atas atau pilih salah satu inspirasi prompt untuk membuat gambar berkualitas tinggi menggunakan model FLUX.1.
+                  Ketik ide desain di kotak atas untuk membuat gambar beresolusi tinggi dengan tipografi dan grafis presisi dari model <b>Ming Image 0.1 Design</b>.
                 </p>
               </div>
             )}
@@ -573,7 +534,7 @@ export function ImageWorkspace({
             <div className="space-y-3 pt-4 border-t border-zinc-800/50">
               <div className="flex items-center justify-between">
                 <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  Riwayat Gambar ({history.length})
+                  Riwayat Desain ({history.length})
                 </h3>
                 <span className="text-[11px] text-zinc-500">Tersimpan di browser</span>
               </div>
