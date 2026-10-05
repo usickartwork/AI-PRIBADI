@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface ImageWorkspaceProps {
   isDark: boolean;
@@ -21,20 +21,72 @@ interface GeneratedImage {
   createdAt: number;
 }
 
-const PRESET_PROMPTS = [
-  "A modern creative design poster of a cute orange kitten with headphones, typography text 'USICK AI', vibrant colors, clean graphics, 8k",
-  "Minimalist technology company logo, sleek geometric shapes, modern typography, vector icon",
-  "Creative UI/UX mobile app dashboard screen for smart home, clean layout, modern dark theme",
-  "Futuristic cyberpunk city event poster, glowing neon typography 'NIGHT CITY 2077', octane render",
-  "Coffee shop vintage logo design with coffee bean and warm typography 'AROMA ROASTERS'",
-  "Anime studio style illustration of a peaceful mountain village, warm sunlight, vibrant colors",
+interface StyleTemplate {
+  id: string;
+  title: string;
+  prompt: string;
+  gradient: string;
+  previewUrl?: string;
+  isGrid?: boolean;
+  circleImages?: string[];
+}
+
+const TEMPLATES: StyleTemplate[] = [
+  {
+    id: "pin",
+    title: "Pin",
+    prompt: "A detailed enamel metal lapel pin illustration of a smiling cool character on denim jacket, metallic golden borders, vibrant flat vector colors, high resolution graphic art",
+    gradient: "from-blue-900 via-indigo-950 to-slate-900",
+    previewUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "baris-depan",
+    title: "Baris\ndepan",
+    prompt: "High fashion front-row runway photography, chic stylish model in avant-garde black attire surrounded by paparazzi flashes, cinematic atmosphere, 8k",
+    gradient: "from-zinc-900 via-stone-900 to-black",
+    previewUrl: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "origami",
+    title: "Origami",
+    prompt: "Exquisite low-poly 3D papercraft origami portrait, geometric folded paper planes, clean sharp edges, soft warm studio lighting, modern museum art",
+    gradient: "from-amber-900 via-orange-950 to-stone-900",
+    previewUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "somelier",
+    title: "Somelier",
+    prompt: "Atmospheric portrait of an expert sommelier holding a crystal glass of fine red wine in a rustic oak barrel wine cellar, warm dramatic chiaroscuro lighting, photorealistic 8k",
+    gradient: "from-amber-950 via-stone-900 to-zinc-950",
+    previewUrl: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "pelatih",
+    title: "Pelatih",
+    prompt: "Intense sports coach in tailored dark navy suit holding tactical clipboard on sidelines of a crowded roaring stadium, dramatic stadium spotlights, cinematic shot",
+    gradient: "from-slate-900 via-zinc-900 to-blue-950",
+    previewUrl: "https://images.unsplash.com/photo-1526676037777-05a232554f77?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "kolase",
+    title: "Karakter",
+    isGrid: true,
+    prompt: "A colorful pop-art collage of expressive creative characters, diverse portraits, bold graphic design elements, vibrant modern aesthetic, 8k",
+    gradient: "from-purple-950 via-zinc-900 to-pink-950",
+    circleImages: [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=160&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=160&auto=format&fit=crop&q=80",
+    ],
+  },
 ];
 
 const ASPECT_RATIOS = [
-  { label: "1:1 Persegi", id: "1:1", size: "1024x1024", width: 1024, height: 1024, desc: "Avatar / Post" },
-  { label: "16:9 Landscape", id: "16:9", size: "1280x720", width: 1280, height: 720, desc: "Wallpaper / Banner" },
-  { label: "9:16 Portrait", id: "9:16", size: "720x1280", width: 720, height: 1280, desc: "Story / Smartphone" },
-  { label: "4:3 Klasik", id: "4:3", size: "1024x768", width: 1024, height: 768, desc: "Standard" },
+  { label: "1:1 Persegi", id: "1:1", size: "1024x1024", width: 1024, height: 1024, desc: "Standar / Avatar" },
+  { label: "16:9 Landscape", id: "16:9", size: "1280x720", width: 1280, height: 720, desc: "Banner / Wallpaper" },
+  { label: "9:16 Portrait", id: "9:16", size: "720x1280", width: 720, height: 1280, desc: "Story / HP" },
+  { label: "4:3 Klasik", id: "4:3", size: "1024x768", width: 1024, height: 768, desc: "Tradisional" },
 ];
 
 export function ImageWorkspace({
@@ -45,6 +97,8 @@ export function ImageWorkspace({
 }: ImageWorkspaceProps) {
   const [prompt, setPrompt] = useState("");
   const [selectedRatio, setSelectedRatio] = useState("1:1");
+  const [ratioDropdownOpen, setRatioDropdownOpen] = useState(false);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>("");
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
@@ -53,7 +107,20 @@ export function ImageWorkspace({
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const storageKey = `usick-image-history-${userId || "guest"}`;
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setRatioDropdownOpen(false);
+        setModelDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Load history from localStorage
   useEffect(() => {
@@ -64,9 +131,6 @@ export function ImageWorkspace({
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
             setHistory(parsed);
-            if (parsed.length > 0 && !currentImage) {
-              setCurrentImage(parsed[0]);
-            }
           }
         }
       } catch (e) {
@@ -92,7 +156,9 @@ export function ImageWorkspace({
     if (!textToUse || isGenerating) return;
 
     setIsGenerating(true);
-    setGenerationStep("Memproses permintaan dengan Ming Image 0.1 Design (Novita AI)...");
+    setGenerationStep("Memproses permintaan dengan Ming Image 0.1 Design...");
+    setRatioDropdownOpen(false);
+    setModelDropdownOpen(false);
 
     const ratioConfig = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
 
@@ -156,103 +222,77 @@ export function ImageWorkspace({
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  const handleDeleteHistoryItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = history.filter((h) => h.id !== id);
-    saveHistory(updated);
-    if (currentImage?.id === id) {
-      setCurrentImage(updated[0] || null);
-    }
+  const handleSelectTemplate = (template: StyleTemplate) => {
+    setPrompt(template.prompt);
+    handleGenerate(template.prompt);
   };
 
-  const handleClearHistory = () => {
-    if (confirm("Hapus semua riwayat gambar yang tersimpan?")) {
-      saveHistory([]);
-      setCurrentImage(null);
-    }
-  };
+  const currentRatioObj = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden ${
-      isDark ? "bg-[#121215] text-zinc-100" : "bg-white text-zinc-900"
-    }`}>
-      {/* ─── HEADER BAR ─────────────────────────────────────────────────── */}
-      <header className={`shrink-0 w-full z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
-        isDark ? "border-zinc-800/80 bg-[#121215]/95 text-white" : "border-zinc-100 bg-white/95 text-zinc-900"
+    <div
+      className={`flex flex-col h-full w-full overflow-hidden ${
+        isDark ? "text-zinc-100" : "bg-[#f8f9fa] text-zinc-900"
+      }`}
+      style={{
+        background: isDark
+          ? "radial-gradient(ellipse 90% 75% at 50% 60%, #151824 0%, #0c0d12 60%, #08080b 100%)"
+          : undefined,
+      }}
+    >
+      {/* ─── TOP APP HEADER ─────────────────────────────────────────────── */}
+      <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
+        isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
       }`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          {/* Hamburger toggle button */}
+        <div className="flex items-center gap-2">
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
               className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
               }`}
               title="Menu Panel"
-              aria-label="Menu Panel"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           )}
-
-          {/* Icon & Title */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl shadow-xs shrink-0 ${
-              isDark ? "bg-white text-black" : "bg-black text-white"
-            }`}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="truncate flex items-center gap-2">
-              <span className={`text-sm font-bold tracking-tight truncate ${isDark ? "text-white" : "text-black"}`}>
-                Image Generator
-              </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                isDark ? "bg-white text-black border-white" : "bg-black text-white border-black"
-              }`}>
-                Ming Image 0.1 Design
-              </span>
-              <span className={`hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
-              }`}>
-                Novita AI
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2">
           {history.length > 0 && (
             <button
               type="button"
-              onClick={handleClearHistory}
-              className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
+              onClick={() => {
+                if (confirm("Bersihkan seluruh riwayat gambar?")) {
+                  saveHistory([]);
+                  setCurrentImage(null);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl border text-xs transition cursor-pointer flex items-center gap-1.5 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-red-400"
-                  : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 hover:text-red-600"
+                  ? "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800 text-zinc-400 hover:text-red-400"
+                  : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-500 hover:text-red-600"
               }`}
-              title="Bersihkan riwayat gambar"
+              title="Hapus riwayat"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
+              <span className="hidden sm:inline">Hapus Riwayat</span>
             </button>
           )}
 
-          {/* Close button */}
           <button
             type="button"
             onClick={onClose}
             className={`p-2 rounded-xl border transition cursor-pointer ${
               isDark
-                ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 hover:text-black"
+                ? "border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-500 hover:text-black"
             }`}
             title="Kembali ke Chats"
           >
@@ -263,315 +303,413 @@ export function ImageWorkspace({
         </div>
       </header>
 
-      {/* ─── MAIN BODY (Scrollable Split View) ─────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
+      {/* ─── MAIN SCROLL CONTAINER ──────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pb-12 flex flex-col items-center justify-start sm:justify-center">
+        <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto pt-4 sm:pt-0">
 
-          {/* 1. PROMPT & CONTROLS BOX */}
-          <div className={`p-4 sm:p-6 rounded-3xl border shadow-sm space-y-4 ${
-            isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-zinc-50/70 border-zinc-200"
-          }`}>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className={`text-xs font-bold uppercase tracking-wider ${
-                  isDark ? "text-zinc-300" : "text-zinc-800"
-                }`}>
-                  Deskripsi Desain / Gambar (Prompt)
-                </label>
-                <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border ${
-                    isDark ? "bg-zinc-800 border-zinc-700 text-zinc-300" : "bg-zinc-200 border-zinc-300 text-zinc-800"
-                  }`}>
-                    Engine: Novita ming-image-0.1-design
-                  </span>
-                </div>
+          {/* 1. HERO HEADER (Exact layout as reference screenshot) */}
+          <div className="text-center mb-6 sm:mb-8">
+            {/* Banana / Creative Icon Badge */}
+            <div className="flex justify-center mb-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900/90 border border-zinc-800/80 shadow-md">
+                <span className="text-xl select-none" role="img" aria-label="Creative">🍌</span>
               </div>
+            </div>
 
-              {/* Textarea */}
+            {/* Title */}
+            <h1 className={`text-2xl sm:text-3xl font-medium tracking-tight mb-2 ${
+              isDark ? "text-white" : "text-zinc-900"
+            }`}>
+              Buat gambar
+            </h1>
+
+            {/* Subtitle */}
+            <p className={`text-xs sm:text-sm max-w-md mx-auto ${
+              isDark ? "text-zinc-400" : "text-zinc-500"
+            }`}>
+              Try a template or describe an idea in chat. Create with Ming Image.
+            </p>
+          </div>
+
+          {/* 2. MAIN CAPSULE INPUT CARD */}
+          <div className={`w-full rounded-[28px] border shadow-2xl transition-all relative ${
+            isDark
+              ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
+              : "bg-white border-zinc-200 shadow-zinc-200/80"
+          }`}>
+            <div className="p-4 sm:p-5 space-y-3">
+              {/* Textarea Input */}
               <div className="relative">
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleGenerate();
                     }
                   }}
-                  rows={3}
-                  placeholder="Ketik ide gambar / poster / logo yang kamu inginkan... (Contoh: Poster kucing oranye imut memakai headphone dengan teks 'USICK AI', warna cerah, desain grafis modern)"
-                  className={`w-full p-3.5 sm:p-4 rounded-2xl border text-sm outline-none transition resize-none ${
-                    isDark
-                      ? "bg-zinc-950/80 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
-                      : "bg-white border-zinc-200 text-black placeholder-zinc-400 focus:border-black focus:ring-1 focus:ring-black"
+                  rows={2}
+                  placeholder="Deskripsikan gambar Anda"
+                  className={`w-full bg-transparent text-sm sm:text-base outline-none resize-none placeholder-zinc-500 leading-relaxed ${
+                    isDark ? "text-white" : "text-zinc-900"
                   }`}
                 />
               </div>
 
-              {/* Preset prompt tags */}
-              <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0 mr-1">
-                  Inspirasi:
-                </span>
-                {PRESET_PROMPTS.map((p, idx) => (
+              {/* Middle Row Controls */}
+              <div className="flex items-center justify-between pt-1">
+                {/* Left Side: Plus & Gambar Pill */}
+                <div className="flex items-center gap-2">
                   <button
-                    key={idx}
                     type="button"
-                    onClick={() => setPrompt(p)}
-                    className={`text-[11px] px-2.5 py-1 rounded-xl border whitespace-nowrap transition cursor-pointer shrink-0 ${
+                    onClick={() => {
+                      setPrompt("A modern creative design poster with typography 'USICK AI', vibrant colors, clean graphics, 8k");
+                    }}
+                    className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer ${
                       isDark
-                        ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                        : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        ? "bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-white"
+                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
                     }`}
+                    title="Tambah inspirasi prompt"
                   >
-                    {p.split(",")[0]}
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
                   </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Bottom Controls Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-zinc-800/40">
-              {/* Aspect Ratio Selector */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                <span className="text-[11px] font-medium text-zinc-500 mr-1 hidden sm:inline">Ukuran:</span>
-                {ASPECT_RATIOS.map((ratio) => (
-                  <button
-                    key={ratio.id}
-                    type="button"
-                    onClick={() => setSelectedRatio(ratio.id)}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer shrink-0 ${
-                      selectedRatio === ratio.id
-                        ? (isDark ? "bg-white text-black border-white shadow-xs" : "bg-black text-white border-black shadow-xs")
-                        : (isDark ? "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800" : "bg-white border-zinc-200 text-zinc-600 hover:text-black hover:bg-zinc-100")
-                    }`}
-                    title={ratio.desc}
-                  >
-                    {ratio.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Generate Button */}
-              <div className="flex items-center gap-2 self-end sm:self-auto">
-                <button
-                  type="button"
-                  disabled={!prompt.trim() || isGenerating}
-                  onClick={() => handleGenerate()}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  {/* Active Pill: Gambar */}
+                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
                     isDark
-                      ? "bg-white hover:bg-zinc-200 text-black font-semibold"
-                      : "bg-black hover:bg-zinc-800 text-white font-semibold"
-                  }`}
-                >
-                  {isGenerating ? (
-                    <>
+                      ? "bg-zinc-800/90 text-zinc-200 border border-zinc-700/60"
+                      : "bg-zinc-100 text-zinc-800 border border-zinc-200"
+                  }`}>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Gambar</span>
+                  </div>
+                </div>
+
+                {/* Right Side: Model dropdown & Generate Action */}
+                <div className="flex items-center gap-2" ref={dropdownRef}>
+                  {/* Model Selector Pill */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setModelDropdownOpen((prev) => !prev)}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer ${
+                        isDark
+                          ? "bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
+                      }`}
+                    >
+                      <span>Ming Design</span>
+                      <svg className="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {modelDropdownOpen && (
+                      <div className={`absolute right-0 bottom-full mb-2 w-48 rounded-2xl border shadow-xl p-1.5 z-30 animate-in fade-in-0 zoom-in-95 ${
+                        isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+                      }`}>
+                        <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
+                          Model AI Generator
+                        </div>
+                        <div className={`px-2.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                          isDark ? "bg-zinc-800 text-white" : "bg-zinc-100 text-black"
+                        }`}>
+                          <span>Ming Image 0.1</span>
+                          <span className="text-[10px] text-emerald-400">Aktif</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mic / Generate Button */}
+                  <button
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => {
+                      if (prompt.trim()) {
+                        handleGenerate();
+                      } else {
+                        // Quick suggestion or focus
+                        setPrompt("A cinematic portrait of a creative designer, studio lighting, highly detailed, 8k");
+                      }
+                    }}
+                    className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer ${
+                      prompt.trim()
+                        ? (isDark ? "bg-white hover:bg-zinc-200 text-black shadow-xs" : "bg-black hover:bg-zinc-800 text-white shadow-xs")
+                        : (isDark ? "bg-zinc-800/60 hover:bg-zinc-800 text-zinc-400 hover:text-white" : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600")
+                    }`}
+                    title={prompt.trim() ? "Buat gambar sekarang (Enter)" : "Ide prompt"}
+                  >
+                    {isGenerating ? (
                       <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                       </svg>
-                      <span>Merender...</span>
-                    </>
-                  ) : (
-                    <>
+                    ) : prompt.trim() ? (
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
-                      <span>Hasilkan Desain</span>
-                    </>
-                  )}
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Capsule Bar: Rasio Aspek */}
+              <div className="pt-2 border-t border-zinc-800/40 relative">
+                <button
+                  type="button"
+                  onClick={() => setRatioDropdownOpen((prev) => !prev)}
+                  className={`w-full py-2.5 px-4 rounded-full flex items-center justify-center gap-2 text-xs font-medium transition cursor-pointer ${
+                    isDark
+                      ? "bg-transparent hover:bg-zinc-800/40 text-zinc-300 hover:text-white border border-zinc-700/60"
+                      : "bg-transparent hover:bg-zinc-100 text-zinc-700 border border-zinc-300"
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth={2} />
+                  </svg>
+                  <span>Rasio aspek</span>
+                  <svg className="w-3 h-3 text-zinc-400 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+
+                {/* Aspect Ratio Dropdown Menu */}
+                {ratioDropdownOpen && (
+                  <div className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border shadow-2xl p-2 z-40 animate-in fade-in-0 zoom-in-95 grid grid-cols-2 gap-1.5 ${
+                    isDark ? "bg-[#1e1e21] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+                  }`}>
+                    {ASPECT_RATIOS.map((ratio) => (
+                      <button
+                        key={ratio.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedRatio(ratio.id);
+                          setRatioDropdownOpen(false);
+                        }}
+                        className={`p-2.5 rounded-xl text-left transition cursor-pointer border flex flex-col gap-0.5 ${
+                          selectedRatio === ratio.id
+                            ? (isDark ? "bg-zinc-800 border-zinc-600 text-white font-semibold" : "bg-zinc-100 border-zinc-300 text-black font-semibold")
+                            : (isDark ? "border-transparent hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "border-transparent hover:bg-zinc-50 text-zinc-600 hover:text-black")
+                        }`}
+                      >
+                        <span className="text-xs font-semibold">{ratio.label}</span>
+                        <span className="text-[10px] text-zinc-500">{ratio.size} • {ratio.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* 2. MAIN PREVIEW DISPLAY AREA */}
-          <div className="space-y-4">
-            {isGenerating ? (
-              /* Shimmering Loading Card */
-              <div className={`aspect-square sm:aspect-video w-full rounded-3xl border flex flex-col items-center justify-center p-6 text-center animate-pulse ${
-                isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-100 border-zinc-200"
-              }`}>
-                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl mb-4 border ${
-                  isDark ? "bg-zinc-800/80 border-zinc-700 text-white" : "bg-white border-zinc-200 text-black shadow-sm"
+          {/* 3. GENERATION PREVIEW / ACTIVE IMAGE SHOWCASE */}
+          {(isGenerating || currentImage) && (
+            <div className="w-full mt-6 animate-in fade-in-0 duration-300">
+              {isGenerating ? (
+                <div className={`aspect-square sm:aspect-video w-full rounded-3xl border flex flex-col items-center justify-center p-6 text-center animate-pulse ${
+                  isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-100 border-zinc-200"
                 }`}>
-                  <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                </div>
-                <h4 className="text-sm font-bold mb-1">Sedang Membuat Desain Gambar</h4>
-                <p className={`text-xs max-w-sm ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  {generationStep || "Model Ming Image 0.1 Design sedang menyusun grafis dan tipografi resolusi tinggi..."}
-                </p>
-              </div>
-            ) : currentImage ? (
-              /* Active Image Showcase */
-              <div className={`rounded-3xl border overflow-hidden shadow-md ${
-                isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-white border-zinc-200"
-              }`}>
-                {/* Image Container with Lightbox Click */}
-                <div
-                  className="relative group bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden"
-                  onClick={() => setPreviewImage(currentImage.url)}
-                  style={{ maxHeight: "680px" }}
-                >
-                  <img
-                    src={currentImage.url}
-                    alt={currentImage.prompt}
-                    className="w-full h-auto object-contain transition duration-300 group-hover:scale-[1.01]"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 pointer-events-none">
-                    <span className="px-3 py-1.5 rounded-full bg-black/75 text-white text-xs font-semibold backdrop-blur-md">
-                      🔍 Klik untuk perbesar layar penuh
-                    </span>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl mb-3 border ${
+                    isDark ? "bg-zinc-800 border-zinc-700 text-white" : "bg-white border-zinc-200 text-black shadow-sm"
+                  }`}>
+                    <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
                   </div>
+                  <h4 className="text-sm font-semibold mb-1">Sedang Membuat Gambar</h4>
+                  <p className={`text-xs max-w-sm ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                    {generationStep || "Model Ming Image 0.1 Design sedang merender visual..."}
+                  </p>
                 </div>
-
-                {/* Info & Action Bar */}
-                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
-                      &ldquo;{currentImage.prompt}&rdquo;
-                    </p>
-                    {currentImage.translatedPrompt && currentImage.translatedPrompt !== currentImage.prompt && (
-                      <p className={`text-[11px] mt-1.5 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                        <span className="font-semibold text-zinc-500 mr-1">[Prompt Optimal]:</span>
-                        &ldquo;{currentImage.translatedPrompt}&rdquo;
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2 text-[11px] text-zinc-500">
-                      <span>Model: <b className="text-zinc-400">Ming Image 0.1 Design (Novita AI)</b></span>
-                      <span>•</span>
-                      <span>Ukuran: <b className="text-zinc-400">{currentImage.aspectRatio} ({currentImage.width}×{currentImage.height})</b></span>
+              ) : currentImage ? (
+                <div className={`rounded-3xl border overflow-hidden shadow-2xl ${
+                  isDark ? "bg-[#1c1c1f] border-zinc-800" : "bg-white border-zinc-200"
+                }`}>
+                  <div
+                    className="relative group bg-black/40 flex items-center justify-center cursor-zoom-in overflow-hidden"
+                    onClick={() => setPreviewImage(currentImage.url)}
+                    style={{ maxHeight: "640px" }}
+                  >
+                    <img
+                      src={currentImage.url}
+                      alt={currentImage.prompt}
+                      className="w-full h-auto object-contain transition duration-300 group-hover:scale-[1.01]"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 pointer-events-none">
+                      <span className="px-3 py-1.5 rounded-full bg-black/80 text-white text-xs font-semibold backdrop-blur-md">
+                        🔍 Layar Penuh
+                      </span>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    {/* Re-generate button */}
-                    <button
-                      type="button"
-                      onClick={() => handleGenerate(currentImage.prompt)}
-                      className={`px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                        isDark
-                          ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                          : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 hover:text-black"
-                      }`}
-                      title="Generate variasi baru dengan prompt yang sama"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      <span>Variasi Baru</span>
-                    </button>
-
-                    {/* Copy Prompt */}
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(currentImage.prompt, "prompt")}
-                      className={`px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-                        isDark
-                          ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                          : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 hover:text-black"
-                      }`}
-                      title="Salin deskripsi prompt"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                      </svg>
-                      <span>{copiedText === "prompt" ? "Disalin!" : "Salin Prompt"}</span>
-                    </button>
-
-                    {/* Download HD PNG */}
-                    <button
-                      type="button"
-                      disabled={downloading}
-                      onClick={() => handleDownload(currentImage)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm ${
-                        isDark
-                          ? "bg-white hover:bg-zinc-200 text-black"
-                          : "bg-black hover:bg-zinc-800 text-white"
-                      }`}
-                    >
-                      {downloading ? (
-                        <span>Mengunduh...</span>
-                      ) : (
-                        <>
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                          <span>Unduh PNG</span>
-                        </>
+                  {/* Info & Action Bar */}
+                  <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                        &ldquo;{currentImage.prompt}&rdquo;
+                      </p>
+                      {currentImage.translatedPrompt && currentImage.translatedPrompt !== currentImage.prompt && (
+                        <p className={`text-[11px] mt-1 italic ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                          <span className="font-semibold not-italic mr-1 text-zinc-500">[Optimal]:</span>
+                          &ldquo;{currentImage.translatedPrompt}&rdquo;
+                        </p>
                       )}
-                    </button>
+                      <div className="flex items-center gap-2.5 mt-2 text-[11px] text-zinc-500">
+                        <span>Model: <b className="text-zinc-400">Ming Image 0.1 Design</b></span>
+                        <span>•</span>
+                        <span>Ukuran: <b className="text-zinc-400">{currentImage.aspectRatio}</b></span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerate(currentImage.prompt)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                          isDark
+                            ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        }`}
+                        title="Buat ulang"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Variasi Baru</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(currentImage.prompt, "prompt")}
+                        className={`px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                          isDark
+                            ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        <span>{copiedText === "prompt" ? "Disalin!" : "Salin Prompt"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={downloading}
+                        onClick={() => handleDownload(currentImage)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                          isDark
+                            ? "bg-white hover:bg-zinc-200 text-black"
+                            : "bg-black hover:bg-zinc-800 text-white"
+                        }`}
+                      >
+                        {downloading ? "Mengunduh..." : "Unduh PNG"}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              /* Empty State */
-              <div className={`p-10 rounded-3xl border text-center flex flex-col items-center justify-center ${
-                isDark ? "bg-zinc-900/30 border-zinc-800/80" : "bg-zinc-50 border-zinc-200"
-              }`}>
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl mb-3 border ${
-                  isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-white text-zinc-700 border-zinc-200 shadow-xs"
-                }`}>
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-bold mb-1">Mulai Generate Desain Pertamamu</h3>
-                <p className={`text-xs max-w-md ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                  Ketik ide desain di kotak atas untuk membuat gambar beresolusi tinggi dengan tipografi dan grafis presisi dari model <b>Ming Image 0.1 Design</b>.
-                </p>
-              </div>
-            )}
+              ) : null}
+            </div>
+          )}
+
+          {/* 4. TEMPLATE INSPIRATION CARDS (Exact match to uploaded layout) */}
+          <div className="w-full mt-8 sm:mt-10">
+            <div className="flex items-center gap-3.5 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x justify-start sm:justify-center">
+              {TEMPLATES.map((tmpl) =>
+                tmpl.isGrid ? (
+                  /* 6th item: 2x2 Circular Avatars cluster */
+                  <div
+                    key={tmpl.id}
+                    onClick={() => handleSelectTemplate(tmpl)}
+                    className="h-40 w-28 sm:h-48 sm:w-32 flex items-center justify-center p-1 shrink-0 snap-start cursor-pointer hover:scale-105 transition-all duration-300"
+                    title="Buat ragam karakter avatar"
+                  >
+                    <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                      {tmpl.circleImages?.map((imgUrl, idx) => (
+                        <div
+                          key={idx}
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-white/20 shadow-md bg-zinc-800"
+                        >
+                          <img
+                            src={imgUrl}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* 1st - 5th items: Rounded stadium cards */
+                  <div
+                    key={tmpl.id}
+                    onClick={() => handleSelectTemplate(tmpl)}
+                    className={`group relative h-40 w-28 sm:h-48 sm:w-32 rounded-[28px] overflow-hidden cursor-pointer transition-all duration-300 shrink-0 snap-start border hover:scale-105 shadow-xl bg-zinc-900 ${
+                      isDark ? "border-zinc-800/80 hover:border-zinc-600" : "border-zinc-300 hover:border-zinc-400"
+                    }`}
+                  >
+                    {tmpl.previewUrl ? (
+                      <img
+                        src={tmpl.previewUrl}
+                        alt={tmpl.title}
+                        className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition duration-500"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-br ${tmpl.gradient}`} />
+                    )}
+
+                    {/* Bottom Gradient Overlay & Title Label */}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent p-3 pt-8 flex flex-col justify-end pointer-events-none">
+                      <span className="text-xs sm:text-sm font-semibold text-white tracking-tight drop-shadow-md whitespace-pre-line leading-tight">
+                        {tmpl.title}
+                      </span>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
           </div>
 
-          {/* 3. RECENT GENERATIONS GALLERY */}
+          {/* 5. HISTORY GALLERY (If any exist) */}
           {history.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-zinc-800/50">
+            <div className="w-full mt-10 space-y-3 pt-6 border-t border-zinc-800/40">
               <div className="flex items-center justify-between">
-                <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  Riwayat Desain ({history.length})
-                </h3>
+                <span className={`text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                  Riwayat Karya ({history.length})
+                </span>
                 <span className="text-[11px] text-zinc-500">Tersimpan di browser</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
                 {history.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => setCurrentImage(item)}
-                    className={`group relative rounded-2xl border overflow-hidden cursor-pointer transition-all aspect-square ${
+                    className={`group relative rounded-2xl border overflow-hidden cursor-pointer transition aspect-square ${
                       currentImage?.id === item.id
-                        ? (isDark ? "border-white ring-2 ring-white/30" : "border-black ring-2 ring-black/20")
-                        : (isDark ? "border-zinc-800 hover:border-zinc-700 bg-zinc-900/60" : "border-zinc-200 hover:border-zinc-300 bg-zinc-50")
+                        ? "border-white ring-2 ring-white/30"
+                        : (isDark ? "border-zinc-800 bg-zinc-900/60" : "border-zinc-200 bg-zinc-100")
                     }`}
                   >
                     <img
                       src={item.url}
                       alt={item.prompt}
-                      className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                      className="w-full h-full object-cover transition group-hover:scale-105"
                       loading="lazy"
                     />
-                    {/* Delete item button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteHistoryItem(item.id, e)}
-                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/70 hover:bg-red-600 text-white/80 hover:text-white transition opacity-0 group-hover:opacity-100 cursor-pointer"
-                      title="Hapus gambar ini"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                    {/* Bottom gradient with prompt preview */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-2 opacity-0 group-hover:opacity-100 transition">
-                      <p className="text-[10px] text-white font-medium truncate">
-                        {item.prompt}
-                      </p>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition">
+                      <p className="text-[9px] text-white truncate font-medium">{item.prompt}</p>
                     </div>
                   </div>
                 ))}

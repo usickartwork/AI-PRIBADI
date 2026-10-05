@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
             translatedPrompt = content.replace(/^["']|["']$/g, "").trim();
             modelUsed = target.model.includes("gpt-oss-120b")
               ? "openai/gpt-oss-120b"
-              : "openai/gpt-oss-120b"; // Sesuai permintaan user
+              : "openai/gpt-oss-120b";
             break;
           }
         }
