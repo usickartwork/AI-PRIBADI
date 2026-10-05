@@ -543,6 +543,7 @@ export default function Home() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"appearance" | "usage">("appearance");
+  const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -553,6 +554,14 @@ export default function Home() {
     content?: string;
     dataUrl?: string;
   } | null>(null);
+
+  // Close session 3-dots popup on outside click
+  useEffect(() => {
+    if (!sessionMenuId) return;
+    const handleClick = () => setSessionMenuId(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [sessionMenuId]);
 
   // Supabase Auth Session listener
   useEffect(() => {
@@ -1876,26 +1885,8 @@ export default function Home() {
             </button>
           </div>
 
-          {/* New Thread Button */}
-          <div className="p-3">
-            <button
-              onClick={() => {
-                setActiveView("chats");
-                newChat();
-              }}
-              className={`group flex w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm cursor-pointer ${
-                isDark
-                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/5"
-                  : "bg-black hover:bg-zinc-800 text-white shadow-black/25"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              <span>New Thread</span>
-            </button>
-          </div>
-
           {/* Quick Navigation Sections */}
-          <div className="px-3 py-1 space-y-0.5 text-xs font-medium">
+          <div className="px-3 pt-3 pb-1 space-y-0.5 text-xs font-medium">
             <div
               onClick={() => {
                 setActiveView("chats");
@@ -1984,22 +1975,6 @@ export default function Home() {
               </svg>
               <span>Image</span>
             </div>
-
-            <div
-              onClick={() => {
-                refreshSubscription();
-                setSettingsOpen(true);
-              }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
-                isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-black hover:text-black font-medium"
-              }`}
-            >
-              {/* Custom Designed Control Sliders Icon (No Emojis) */}
-              <svg className={`w-4 h-4 shrink-0 ${isDark ? "text-zinc-400" : "text-black"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
-              </svg>
-              <span>Pengaturan</span>
-            </div>
           </div>
 
           {/* History / Recent Threads */}
@@ -2059,22 +2034,51 @@ export default function Home() {
                           {sess.messages.length} pesan {isActive && "· Aktif"}
                         </p>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSession(sess.id);
-                        }}
-                        className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition ${
-                          isDark
-                            ? "text-zinc-500 hover:text-red-400 hover:bg-zinc-700/50"
-                            : "text-zinc-400 hover:text-red-500 hover:bg-zinc-200"
-                        }`}
-                        title="Hapus obrolan ini"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSessionMenuId((prev) => (prev === sess.id ? null : sess.id));
+                          }}
+                          className={`p-1 rounded-md transition cursor-pointer ${
+                            sessionMenuId === sess.id
+                              ? (isDark ? "opacity-100 bg-zinc-800 text-white" : "opacity-100 bg-zinc-200 text-black")
+                              : (isDark ? "opacity-0 group-hover:opacity-100 text-zinc-400 hover:bg-zinc-800 hover:text-white" : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:bg-zinc-200 hover:text-black")
+                          }`}
+                          title="Opsi obrolan"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75" />
+                            <circle cx="12" cy="12" r="1.75" />
+                            <circle cx="12" cy="19" r="1.75" />
+                          </svg>
+                        </button>
+
+                        {sessionMenuId === sess.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className={`absolute right-0 top-full mt-1 w-28 rounded-xl border p-1 shadow-xl z-30 animate-in fade-in-0 zoom-in-95 ${
+                              isDark ? "bg-[#1c1c1f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteSession(sess.id);
+                                setSessionMenuId(null);
+                              }}
+                              className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition cursor-pointer text-left"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -2084,34 +2088,16 @@ export default function Home() {
 
           {/* Bottom User Card / Status */}
           <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
-            {/* Tombol Pricing (Simple seperti tab Chat, Code, Schedule - Tepat di atas email pengguna di panel) */}
+            {/* Tombol Pricing */}
             <div
               onClick={() => setShowPricingModal(true)}
-              className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition mb-2 text-xs font-medium ${
+              className={`flex items-center rounded-xl px-3 py-2 cursor-pointer transition mb-2 text-xs font-medium ${
                 isDark
-                  ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                  ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white"
                   : "hover:bg-zinc-100 text-black hover:text-black font-medium"
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Pricing</span>
-              </div>
-              {(subscription?.plan || "free") === "pro" ? (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-                  isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-100 text-zinc-700 border border-zinc-300"
-                }`}>
-                  PRO
-                </span>
-              ) : (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-                  isDark ? "bg-zinc-800 text-zinc-400 border border-zinc-700" : "bg-zinc-100 text-zinc-600 border border-zinc-200"
-                }`}>
-                  Rp49K
-                </span>
-              )}
+              <span>Pricing</span>
             </div>
 
             <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
@@ -2122,9 +2108,6 @@ export default function Home() {
                   isDark ? "bg-white text-black" : "bg-black text-white"
                 }`}>
                   {userInitial}
-                  <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ${user ? "bg-emerald-500" : "bg-zinc-400"} ring-2 ${
-                    isDark ? "ring-[#18181b]" : "ring-white"
-                  }`} />
                 </div>
                 <div className="truncate">
                   <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
@@ -2136,31 +2119,35 @@ export default function Home() {
                 </div>
               </div>
 
-              {user ? (
+              <div className="flex items-center gap-1 shrink-0">
+                {!user && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthModal(true)}
+                    title="Masuk / Daftar"
+                    className={`rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                      isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                    }`}
+                  >
+                    Masuk
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={handleSignOut}
-                  title="Keluar (Logout)"
-                  className={`rounded-lg p-1.5 transition cursor-pointer shrink-0 ${
-                    isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-red-400" : "text-zinc-600 hover:bg-zinc-100 hover:text-red-600"
+                  onClick={() => {
+                    refreshSubscription();
+                    setSettingsOpen(true);
+                  }}
+                  title="Pengaturan"
+                  className={`rounded-lg p-1.5 transition cursor-pointer ${
+                    isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-black"
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
                   </svg>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(true)}
-                  title="Masuk / Daftar"
-                  className={`rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer shrink-0 ${
-                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                  }`}
-                >
-                  Masuk
-                </button>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -3295,6 +3282,39 @@ export default function Home() {
                     }`}
                   >
                     Lihat Riwayat Pemakaian Kredit →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sesi Akun: Keluar (Logout) */}
+            {user && (
+              <div className={`mt-3 pt-3 border-t ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className={`text-xs font-semibold block ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                      Keluar dari Akun
+                    </span>
+                    <span className={`text-[10px] mt-0.5 block ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
+                      Akhiri sesi login Anda saat ini
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      handleSignOut();
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                      isDark
+                        ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white"
+                        : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Keluar</span>
                   </button>
                 </div>
               </div>
