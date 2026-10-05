@@ -394,4 +394,3 @@ export async function deleteUserData(userId: string): Promise<boolean> {
   memoryUserSubscriptions.delete(userId);
   return true;
 }
-

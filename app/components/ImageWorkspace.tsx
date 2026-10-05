@@ -13,6 +13,7 @@ interface GeneratedImage {
   id: string;
   url: string;
   prompt: string;
+  translatedPrompt?: string;
   model: "flux" | "turbo";
   aspectRatio: string;
   width: number;
@@ -94,20 +95,38 @@ export function ImageWorkspace({
     if (!textToUse || isGenerating) return;
 
     setIsGenerating(true);
-    setGenerationStep("Menghubungkan ke FLUX.1 Engine...");
+    setGenerationStep("Menerjemahkan & mengoptimasi prompt dengan GPT OSS 120B...");
+
+    let finalPrompt = textToUse;
+    let translatedPrompt: string | undefined = undefined;
+
+    try {
+      const transRes = await fetch("/api/image/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: textToUse }),
+      });
+      if (transRes.ok) {
+        const transData = await transRes.json();
+        if (transData.translatedPrompt) {
+          finalPrompt = transData.translatedPrompt;
+          translatedPrompt = transData.translatedPrompt;
+        }
+      }
+    } catch (e) {
+      console.warn("Translation failed, using raw prompt:", e);
+    }
+
+    setGenerationStep("Merender piksel gambar FLUX.1 beresolusi tinggi...");
 
     const ratioConfig = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
     const seed = customSeed ?? Math.floor(Math.random() * 100000000);
-    const encodedPrompt = encodeURIComponent(textToUse);
+    const encodedPrompt = encodeURIComponent(finalPrompt);
 
-    // Pollinations AI URL (Option 1 - 100% Free & Fast)
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${ratioConfig.width}&height=${ratioConfig.height}&model=${selectedModel}&seed=${seed}&nologo=true${
-      isEnhance ? "&enhance=true" : ""
-    }`;
+    // Pollinations AI URL (Option 1 - 100% Free & Fast with GPT OSS 120B Translation)
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${ratioConfig.width}&height=${ratioConfig.height}&model=${selectedModel}&seed=${seed}&nologo=true`;
 
     try {
-      setGenerationStep("Merender piksel gambar beresolusi tinggi...");
-
       // Preload image to ensure it loads before displaying
       await new Promise<void>((resolve, reject) => {
         const img = new Image();
@@ -120,6 +139,7 @@ export function ImageWorkspace({
         id: `img-${Date.now()}-${seed}`,
         url: imageUrl,
         prompt: textToUse,
+        translatedPrompt,
         model: selectedModel,
         aspectRatio: selectedRatio,
         width: ratioConfig.width,
@@ -226,6 +246,11 @@ export function ImageWorkspace({
                 isDark ? "bg-zinc-900 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
               }`}>
                 FLUX.1 • Free
+              </span>
+              <span className={`hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                isDark ? "bg-zinc-800/80 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-700 border-zinc-200"
+              }`}>
+                GPT OSS 120B Translator
               </span>
             </div>
           </div>
@@ -447,6 +472,12 @@ export function ImageWorkspace({
                     <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                       &ldquo;{currentImage.prompt}&rdquo;
                     </p>
+                    {currentImage.translatedPrompt && currentImage.translatedPrompt !== currentImage.prompt && (
+                      <p className={`text-[11px] mt-1.5 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        <span className="font-semibold text-zinc-500 mr-1">[GPT OSS 120B]:</span>
+                        &ldquo;{currentImage.translatedPrompt}&rdquo;
+                      </p>
+                    )}
                     <div className="flex items-center gap-3 mt-2 text-[11px] text-zinc-500">
                       <span>Model: <b className="capitalize text-zinc-400">{currentImage.model}</b></span>
                       <span>•</span>
