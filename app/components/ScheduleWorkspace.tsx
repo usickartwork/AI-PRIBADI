@@ -1035,79 +1035,54 @@ export function ScheduleWorkspace({
     >
       {/* ─── Top Header Bar ────────────────────────────────────────────────── */}
       <header
-        className={`shrink-0 z-20 flex items-center justify-between border-b px-3.5 sm:px-6 py-3 backdrop-blur-md ${
-          isDark ? "bg-[#121215]/95 border-zinc-800/80 text-white" : "bg-white/95 border-zinc-200 text-zinc-900"
+        className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
+          isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
         }`}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* 3-line hamburger menu button on the LEFT */}
-          <button
-            onClick={onTogglePanel}
-            className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer ${
-              isDark
-                ? "border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-black"
-            }`}
-            title="Menu Panel"
-            aria-label="Menu Panel"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl shadow-xs ${
-              isDark ? "bg-white text-black" : "bg-black text-white"
-            }`}>
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          {onTogglePanel && (
+            <button
+              onClick={onTogglePanel}
+              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+              }`}
+              title="Menu Panel"
+              aria-label="Menu Panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-bold tracking-tight">Schedule</h1>
-              <p className="text-[11px] text-zinc-400 hidden sm:block">
-                Manage your personal schedules and reminders.
-              </p>
-            </div>
-          </div>
+            </button>
+          )}
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button */}
+        {/* Header Action: Daftar Agenda Toggle Button (Icon only) */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+            className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
               currentTab === "list"
                 ? isDark
                   ? "bg-white text-black border-white shadow-xs"
                   : "bg-black text-white border-black shadow-xs"
                 : isDark
-                ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                : "bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200 hover:text-black"
+                ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
             }`}
+            title={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
+            aria-label={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
           >
             {currentTab === "list" ? (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span>Chat Jadwal</span>
-              </>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
             ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>Daftar Agenda</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    isDark ? "bg-zinc-800 text-zinc-200" : "bg-zinc-200 text-zinc-700"
-                  }`}
-                >
-                  {schedules.length}
-                </span>
-              </>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             )}
           </button>
         </div>
