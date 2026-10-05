@@ -60,7 +60,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
     });
 
     return await transporter.sendMail({
-      from: `"Usick AI" <${cleanUser}>`,
+      from: `"One Mind" <${cleanUser}>`,
       to: toEmail,
       subject,
       html,
@@ -83,7 +83,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
     });
 
     return await transporter465.sendMail({
-      from: `"Usick AI" <${cleanUser}>`,
+      from: `"One Mind" <${cleanUser}>`,
       to: toEmail,
       subject,
       html,
@@ -93,7 +93,7 @@ async function sendViaGmail(user: string, pass: string, toEmail: string, subject
 
 // Helper pengiriman email via Resend
 async function sendViaResend(apiKey: string, toEmail: string, subject: string, html: string) {
-  const sender = process.env.RESEND_FROM_EMAIL?.trim() || "Usick AI Schedule <onboarding@resend.dev>";
+  const sender = process.env.RESEND_FROM_EMAIL?.trim() || "One Mind Schedule <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -196,7 +196,7 @@ async function sendViaBrevo(apiKey: string, toEmail: string, subject: string, ht
       "accept": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "Usick AI", email: senderEmail },
+      sender: { name: "One Mind", email: senderEmail },
       to: [{ email: toEmail.trim() }],
       subject,
       htmlContent: html,
@@ -327,7 +327,7 @@ export function buildScheduleReminderHtml({
 
       <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #27272a;">
         <p style="color: #71717a; font-size: 12px; margin: 0 0 12px 0;">
-          Email ini dikirim otomatis oleh asisten <strong>Usick AI Schedule</strong> untuk agenda pribadi Anda.
+          Email ini dikirim otomatis oleh asisten <strong>One Mind</strong> untuk agenda pribadi Anda.
         </p>
       </div>
     </div>

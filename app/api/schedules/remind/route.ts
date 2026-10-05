@@ -256,12 +256,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const title = schedule?.title || "Tes Pengingat Jadwal Usick One";
+      const title = schedule?.title || "Tes Pengingat Jadwal One Mind";
       const dateText = schedule?.date ? formatScheduleDate(schedule.date) : "Hari Ini";
       const timeText = schedule?.time ? formatScheduleTime(schedule.time) : "09:00 WIB";
       const scheduledTimeText = `${dateText}, Pukul ${timeText}`;
       const durationText = schedule?.duration_minutes ? formatDuration(schedule.duration_minutes) : undefined;
-      const notes = schedule?.description || "Ini adalah pesan verifikasi bahwa sistem email pengingat Usick AI Schedule Anda sudah terhubung dengan baik.";
+      const notes = schedule?.description || "Ini adalah pesan verifikasi bahwa sistem email pengingat One Mind Anda sudah terhubung dengan baik.";
 
       const html = buildScheduleReminderHtml({
         scheduleTitle: title,
