@@ -538,6 +538,7 @@ export default function Home() {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"appearance" | "usage">("appearance");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -1886,7 +1887,10 @@ export default function Home() {
             </div>
 
             <div
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => {
+                refreshSubscription();
+                setSettingsOpen(true);
+              }}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
                 isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-black hover:text-black font-medium"
               }`}
@@ -1981,106 +1985,34 @@ export default function Home() {
 
           {/* Bottom User Card / Status */}
           <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
-            {/* Credit Status & Pricing Button (Tepat di atas email/user card di panel) */}
-            <div className="mb-2.5 space-y-2">
-              <div className={`rounded-2xl p-2.5 border transition ${
-                isDark ? "bg-[#18181b]/80 border-zinc-800/80 text-zinc-200" : "bg-white border-zinc-200 text-zinc-800"
-              }`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      (subscription?.plan || "free") === "pro"
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-extrabold"
-                        : isDark
-                        ? "bg-zinc-800 text-zinc-300 border border-zinc-700"
-                        : "bg-zinc-100 text-zinc-700 border border-zinc-300"
-                    }`}>
-                      {subscription?.plan ? subscription.plan.toUpperCase() : "FREE"}
-                    </span>
-                    <span className={`text-[10px] ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                      • {subscription ? `Reset ${subscription.resetsInDays}h` : "30h"}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowUsageHistoryModal(true)}
-                    title="Lihat Riwayat Pemakaian Kredit"
-                    className={`text-[10px] font-medium transition hover:underline cursor-pointer ${
-                      isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
-                    }`}
-                  >
-                    Riwayat
-                  </button>
-                </div>
-
-                {/* AI Credits Bar */}
-                <div className="space-y-1 mb-2">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className={isDark ? "text-zinc-400" : "text-zinc-500"}>AI Credits</span>
-                    <span className="font-mono font-semibold">
-                      {formatCreditNumber(subscription?.aiCredits ?? 10000)} / {formatCreditNumber(subscription?.aiCreditLimit ?? 10000)}
-                    </span>
-                  </div>
-                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`}>
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, ((subscription?.aiCredits ?? 10000) / (subscription?.aiCreditLimit ?? 10000)) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Code Credits Bar */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className={isDark ? "text-zinc-400" : "text-zinc-500"}>Code Credits</span>
-                    <span className="font-mono font-semibold">
-                      {formatCreditNumber(subscription?.codeCredits ?? 50)} / {formatCreditNumber(subscription?.codeCreditLimit ?? 50)}
-                    </span>
-                  </div>
-                  <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-100"}`}>
-                    <div
-                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, ((subscription?.codeCredits ?? 50) / (subscription?.codeCreditLimit ?? 50)) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+            {/* Tombol Pricing (Simple seperti tab Chat, Code, Schedule - Tepat di atas email pengguna di panel) */}
+            <div
+              onClick={() => setShowPricingModal(true)}
+              className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer transition mb-2 text-xs font-medium ${
+                isDark
+                  ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                  : "hover:bg-zinc-100 text-black hover:text-black font-medium"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Pricing</span>
               </div>
-
-              {/* Tombol Pricing (Tepat di atas email pengguna di panel) */}
-              <button
-                type="button"
-                onClick={() => setShowPricingModal(true)}
-                className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold transition shadow-xs cursor-pointer ${
-                  (subscription?.plan || "free") === "pro"
-                    ? isDark
-                      ? "bg-zinc-800/90 hover:bg-zinc-750 text-white border border-zinc-700/80"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border border-zinc-300"
-                    : isDark
-                    ? "bg-white text-black hover:bg-zinc-200 shadow-md shadow-white/10"
-                    : "bg-black text-white hover:bg-zinc-800 shadow-md shadow-black/10"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>
-                    {(subscription?.plan || "free") === "pro" ? "Usick One Pro • Pricing" : "Pricing & Plans"}
-                  </span>
-                </div>
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
-                  (subscription?.plan || "free") === "pro"
-                    ? isDark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-200 text-zinc-800"
-                    : isDark ? "bg-black text-white" : "bg-white text-black font-semibold"
+              {(subscription?.plan || "free") === "pro" ? (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+                  isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-100 text-zinc-700 border border-zinc-300"
                 }`}>
-                  {(subscription?.plan || "free") === "pro" ? "ACTIVE" : "Rp49K"}
+                  PRO
                 </span>
-              </button>
+              ) : (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+                  isDark ? "bg-zinc-800 text-zinc-400 border border-zinc-700" : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                }`}>
+                  Rp49K
+                </span>
+              )}
             </div>
 
             <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
@@ -2844,10 +2776,10 @@ export default function Home() {
                                         ) : isLocked ? (
                                           <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border ${
                                             isDark
-                                              ? "bg-zinc-800/90 text-zinc-400 border-zinc-700"
-                                              : "bg-zinc-100 text-zinc-600 border-zinc-300"
+                                              ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                                              : "bg-zinc-100 text-zinc-700 border-zinc-300"
                                           }`}>
-                                            <svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                             </svg>
                                             PRO
@@ -2981,7 +2913,11 @@ export default function Home() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold tracking-tight">Pengaturan</h2>
-                  <p className={`text-[11px] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>Sesuaikan preferensi tampilan antarmuka</p>
+                  <p className={`text-[11px] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                    {settingsTab === "appearance"
+                      ? "Sesuaikan preferensi tampilan antarmuka"
+                      : "Pantau kuota dan riwayat pemakaian kredit"}
+                  </p>
                 </div>
               </div>
               <button
@@ -2997,85 +2933,257 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Modal Body: Theme Selector */}
-            <div className="py-4 space-y-4">
-              <div>
-                <label className={`text-xs font-bold uppercase tracking-wider block mb-2.5 ${
-                  isDark ? "text-zinc-400" : "text-black"
-                }`}>
-                  Tema Tampilan
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Dark Mode Card */}
-                  <button
-                    type="button"
-                    onClick={() => setTheme("dark")}
-                    className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
-                      theme === "dark"
-                        ? (isDark
-                            ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
-                            : "border-black bg-zinc-900 text-white shadow-md")
-                        : (isDark
-                            ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
-                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black border border-zinc-700 text-white">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                        </svg>
-                      </div>
-                      {theme === "dark" && (
-                        <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
-                          isDark ? "bg-white text-black" : "bg-white text-black"
-                        }`}>
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold block">Dark Mode</span>
-                    <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Obsidian & gelap (Default)</span>
-                  </button>
+            {/* Sub-Navigation Tabs: Tampilan | Usage */}
+            <div className={`flex items-center gap-1.5 p-1 rounded-xl mt-4 mb-2 border ${
+              isDark ? "bg-zinc-900/80 border-zinc-800" : "bg-zinc-100 border-zinc-200"
+            }`}>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("appearance")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  settingsTab === "appearance"
+                    ? (isDark ? "bg-zinc-800 text-white shadow-xs" : "bg-white text-black shadow-xs")
+                    : (isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-900")
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+                <span>Tampilan</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("usage")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  settingsTab === "usage"
+                    ? (isDark ? "bg-zinc-800 text-white shadow-xs" : "bg-white text-black shadow-xs")
+                    : (isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-900")
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Usage</span>
+              </button>
+            </div>
 
-                  {/* Light Mode Card */}
+            {/* Modal Body: Theme Selector */}
+            {settingsTab === "appearance" && (
+              <div className="py-3 space-y-4">
+                <div>
+                  <label className={`text-xs font-bold uppercase tracking-wider block mb-2.5 ${
+                    isDark ? "text-zinc-400" : "text-black"
+                  }`}>
+                    Tema Tampilan
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Dark Mode Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme("dark")}
+                      className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
+                        theme === "dark"
+                          ? (isDark
+                              ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
+                              : "border-black bg-zinc-900 text-white shadow-md")
+                          : (isDark
+                              ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
+                              : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black border border-zinc-700 text-white">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                          </svg>
+                        </div>
+                        {theme === "dark" && (
+                          <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                            isDark ? "bg-white text-black" : "bg-white text-black"
+                          }`}>
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold block">Dark Mode</span>
+                      <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Obsidian & gelap (Default)</span>
+                    </button>
+
+                    {/* Light Mode Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme("light")}
+                      className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
+                        theme === "light"
+                          ? (isDark
+                              ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
+                              : "border-black bg-white text-black shadow-md ring-1 ring-black/15")
+                          : (isDark
+                              ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
+                              : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 border border-zinc-200 text-black">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </div>
+                        {theme === "light" && (
+                          <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                            isDark ? "bg-white text-black" : "bg-black text-white"
+                          }`}>
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold block">Light Mode</span>
+                      <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Monochrome & terang</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Body: Usage Tab */}
+            {settingsTab === "usage" && (
+              <div className="py-3 space-y-3.5">
+                {/* Plan status card */}
+                <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
+                  isDark ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                }`}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
+                        {(subscription?.plan || "free") === "pro" ? "Usick One Pro" : "Usick One Free"}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        (subscription?.plan || "free") === "pro"
+                          ? (isDark ? "bg-white text-black" : "bg-black text-white")
+                          : (isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-200 text-zinc-800 border border-zinc-300")
+                      }`}>
+                        {(subscription?.plan || "free").toUpperCase()}
+                      </span>
+                    </div>
+                    <div className={`text-[11px] mt-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                      Reset dalam {subscription?.resetsInDays ?? 30} hari • Tanpa akumulasi sisa
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setTheme("light")}
-                    className={`flex flex-col items-start rounded-2xl p-3.5 border transition cursor-pointer text-left ${
-                      theme === "light"
-                        ? (isDark
-                            ? "border-white bg-zinc-800/90 shadow-md ring-1 ring-white/30 text-white"
-                            : "border-black bg-white text-black shadow-md ring-1 ring-black/15")
-                        : (isDark
-                            ? "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
-                            : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-black")
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setShowPricingModal(true);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+                      (subscription?.plan || "free") === "pro"
+                        ? (isDark ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700" : "bg-zinc-200 hover:bg-zinc-300 text-black")
+                        : (isDark ? "bg-white hover:bg-zinc-200 text-black font-bold shadow-sm" : "bg-black hover:bg-zinc-800 text-white font-bold shadow-sm")
                     }`}
                   >
-                    <div className="flex items-center justify-between w-full mb-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 border border-zinc-200 text-black">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      </div>
-                      {theme === "light" && (
-                        <span className={`flex h-4 w-4 items-center justify-center rounded-full ${
-                          isDark ? "bg-white text-black" : "bg-black text-white"
-                        }`}>
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold block">Light Mode</span>
-                    <span className={`text-[10px] mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-600 font-medium"}`}>Monochrome & terang</span>
+                    {(subscription?.plan || "free") === "pro" ? "Kelola Paket" : "Upgrade to Pro"}
+                  </button>
+                </div>
+
+                {/* AI Credits Meter */}
+                <div className={`p-3.5 rounded-2xl border space-y-2 ${
+                  isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50/70 border-zinc-200"
+                }`}>
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className={`font-semibold ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                      AI Credits
+                    </span>
+                    <span className="font-mono text-xs">
+                      {formatCreditNumber(subscription?.aiCredits ?? 10000)} / {formatCreditNumber(subscription?.aiCreditLimit ?? 10000)}
+                    </span>
+                  </div>
+                  {/* Progress Bar */}
+                  <div className={`w-full h-2 rounded-full overflow-hidden ${
+                    isDark ? "bg-zinc-800" : "bg-zinc-200"
+                  }`}>
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isDark ? "bg-white" : "bg-black"
+                      }`}
+                      style={{
+                        width: `${Math.max(0, Math.min(100, Math.round(((subscription?.aiCredits ?? 10000) / (subscription?.aiCreditLimit ?? 10000)) * 100)))}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                    <span>Digunakan untuk chat AI, model analisis, dan percakapan</span>
+                    <span className="font-medium">
+                      {Math.max(0, Math.min(100, Math.round(((subscription?.aiCredits ?? 10000) / (subscription?.aiCreditLimit ?? 10000)) * 100)))}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Code Credits Meter */}
+                <div className={`p-3.5 rounded-2xl border space-y-2 ${
+                  isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50/70 border-zinc-200"
+                }`}>
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className={`font-semibold ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                      Code Credits
+                    </span>
+                    <span className="font-mono text-xs">
+                      {formatCreditNumber(subscription?.codeCredits ?? 50)} / {formatCreditNumber(subscription?.codeCreditLimit ?? 50)}
+                    </span>
+                  </div>
+                  {/* Progress Bar */}
+                  <div className={`w-full h-2 rounded-full overflow-hidden ${
+                    isDark ? "bg-zinc-800" : "bg-zinc-200"
+                  }`}>
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isDark ? "bg-zinc-300" : "bg-zinc-700"
+                      }`}
+                      style={{
+                        width: `${Math.max(0, Math.min(100, Math.round(((subscription?.codeCredits ?? 50) / (subscription?.codeCreditLimit ?? 50)) * 100)))}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                    <span>Digunakan khusus untuk PRD, requirement, dan task generator</span>
+                    <span className="font-medium">
+                      {Math.max(0, Math.min(100, Math.round(((subscription?.codeCredits ?? 50) / (subscription?.codeCreditLimit ?? 50)) * 100)))}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Schedule Limit */}
+                <div className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                  isDark ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50/50 border-zinc-200"
+                }`}>
+                  <span className={`font-medium ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
+                    Schedules Aktif
+                  </span>
+                  <span className="font-semibold">
+                    {subscription?.activeSchedulesCount ?? 0} / {subscription?.scheduleLimit ?? 3}
+                  </span>
+                </div>
+
+                {/* Link to Usage History Modal */}
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setShowUsageHistoryModal(true);
+                    }}
+                    className={`text-xs font-semibold underline underline-offset-4 transition cursor-pointer ${
+                      isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                    }`}
+                  >
+                    Lihat Riwayat Pemakaian Kredit →
                   </button>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Modal Footer */}
             <div className={`pt-3 border-t flex justify-end ${

@@ -90,9 +90,11 @@ export function UpgradePromptModal({
         </button>
 
         {/* Lock Icon */}
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800/80 border border-zinc-700/60 shadow-inner">
+        <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border shadow-inner ${
+          isDark ? "bg-zinc-800/80 border-zinc-700/60" : "bg-zinc-100 border-zinc-200"
+        }`}>
           <svg
-            className="w-7 h-7 text-emerald-400"
+            className={`w-7 h-7 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

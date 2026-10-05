@@ -119,7 +119,9 @@ export function PricingModal({
 
         {/* Header Section */}
         <div className="text-center max-w-xl mx-auto mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase mb-3 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase mb-3 border ${
+            isDark ? "bg-zinc-800/90 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
+          }`}>
             Usick One Subscription
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
@@ -137,7 +139,9 @@ export function PricingModal({
           </div>
         )}
         {successMsg && (
-          <div className="mb-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3.5 text-xs text-emerald-400 text-center font-medium">
+          <div className={`mb-6 rounded-2xl border p-3.5 text-xs text-center font-medium ${
+            isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
+          }`}>
             {successMsg}
           </div>
         )}
@@ -161,7 +165,9 @@ export function PricingModal({
                 {/* Popular / Status Badges */}
                 {isPopular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="px-3 py-0.5 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-emerald-500 to-teal-400 text-black shadow-md shadow-emerald-500/20">
+                    <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-md ${
+                      isDark ? "bg-white text-black font-extrabold" : "bg-black text-white font-extrabold"
+                    }`}>
                       MOST POPULAR
                     </span>
                   </div>
@@ -182,7 +188,7 @@ export function PricingModal({
                     <h3 className="text-base font-bold uppercase tracking-wider">{plan.name}</h3>
                     {isCurrent && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                        isDark ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border border-emerald-300"
+                        isDark ? "bg-zinc-800 text-zinc-300 border border-zinc-700" : "bg-zinc-200 text-zinc-800 border border-zinc-300"
                       }`}>
                         Current Plan
                       </span>
@@ -223,7 +229,7 @@ export function PricingModal({
                     {plan.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2">
                         {feat.included ? (
-                          <svg className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? "text-zinc-100" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (

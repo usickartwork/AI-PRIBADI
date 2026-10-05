@@ -147,9 +147,11 @@ export function UsageHistoryModal({
                       className={`font-mono font-bold text-sm ${
                         isNegative
                           ? isDark
-                            ? "text-rose-400"
-                            : "text-rose-600"
-                          : "text-emerald-500"
+                            ? "text-zinc-400"
+                            : "text-zinc-600"
+                          : isDark
+                          ? "text-white"
+                          : "text-black"
                       }`}
                     >
                       {isNegative ? tx.amount : `+${tx.amount}`}
