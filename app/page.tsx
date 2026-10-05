@@ -2202,6 +2202,7 @@ export default function Home() {
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             userId={user?.id}
+            userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : (

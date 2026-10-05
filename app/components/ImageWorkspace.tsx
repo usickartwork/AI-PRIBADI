@@ -6,7 +6,16 @@ interface ImageWorkspaceProps {
   isDark: boolean;
   onClose: () => void;
   userId?: string | null;
+  userName?: string | null;
   onTogglePanel?: () => void;
+}
+
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 4 && hour < 11) return "Good Morning";
+  if (hour >= 11 && hour < 15) return "Good Afternoon";
+  if (hour >= 15 && hour < 19) return "Good Evening";
+  return "Good Night";
 }
 
 interface GeneratedImage {
@@ -93,6 +102,7 @@ export function ImageWorkspace({
   isDark,
   onClose,
   userId,
+  userName,
   onTogglePanel,
 }: ImageWorkspaceProps) {
   const [prompt, setPrompt] = useState("");
@@ -153,8 +163,11 @@ export function ImageWorkspace({
     const textToUse = (customPrompt ?? prompt).trim();
     if (!textToUse || isGenerating) return;
 
+    // Bersihkan text box input segera setelah di-submit (Enter/Klik)
+    setPrompt("");
+
     setIsGenerating(true);
-    setGenerationStep("Memproses permintaan dengan Ming Image 0.1 Design...");
+    setGenerationStep("");
     setRatioDropdownOpen(false);
 
     const ratioConfig = ASPECT_RATIOS.find((r) => r.id === selectedRatio) || ASPECT_RATIOS[0];
@@ -266,27 +279,28 @@ export function ImageWorkspace({
 
           {/* 1. HERO HEADER */}
           <div className="text-center mb-6 sm:mb-8">
-            {/* Usick One Logo Badge */}
-            <div className="flex justify-center mb-3">
-              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-md ${
-                isDark ? "bg-white text-black shadow-white/10" : "bg-black text-white shadow-black/25"
-              }`}>
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                </svg>
-              </div>
+            {/* Pure Star Icon only (No Box/Kotak - Identical to chat & schedule tabs) */}
+            <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+              <svg
+                className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                  isDark ? "text-white fill-white" : "text-black fill-black"
+                }`}
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+              </svg>
             </div>
 
-            {/* Title */}
-            <h1 className={`text-2xl sm:text-3xl font-medium tracking-tight mb-2 ${
-              isDark ? "text-white" : "text-zinc-900"
+            {/* Headline */}
+            <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
+              isDark ? "text-white" : "text-black"
             }`}>
-              Buat gambar
+              {getTimeGreeting()}, {userName || "Usick One"}
             </h1>
 
             {/* Subtitle */}
-            <p className={`text-xs sm:text-sm max-w-md mx-auto ${
-              isDark ? "text-zinc-400" : "text-zinc-500"
+            <p className={`mt-2 text-base sm:text-lg font-medium max-w-md mx-auto px-2 ${
+              isDark ? "text-zinc-400" : "text-black"
             }`}>
               Try a template or describe an idea in chat. Create with One image.
             </p>
@@ -428,7 +442,7 @@ export function ImageWorkspace({
                   </div>
                   <h4 className="text-sm font-semibold mb-1">Sedang Membuat Gambar</h4>
                   <p className={`text-xs max-w-sm ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                    {generationStep || "Model Ming Image 0.1 Design sedang merender visual..."}
+                    Mempersiapkan visual berkualitas tinggi...
                   </p>
                 </div>
               ) : currentImage ? (
@@ -458,14 +472,8 @@ export function ImageWorkspace({
                       <p className={`text-xs font-medium leading-relaxed ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                         &ldquo;{currentImage.prompt}&rdquo;
                       </p>
-                      {currentImage.translatedPrompt && currentImage.translatedPrompt !== currentImage.prompt && (
-                        <p className={`text-[11px] mt-1 italic ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                          <span className="font-semibold not-italic mr-1 text-zinc-500">[Optimal]:</span>
-                          &ldquo;{currentImage.translatedPrompt}&rdquo;
-                        </p>
-                      )}
                       <div className="flex items-center gap-2.5 mt-2 text-[11px] text-zinc-500">
-                        <span>Model: <b className="text-zinc-400">Ming Image 0.1 Design</b></span>
+                        <span>Model: <b className="text-zinc-400">One design</b></span>
                         <span>•</span>
                         <span>Ukuran: <b className="text-zinc-400">{currentImage.aspectRatio}</b></span>
                       </div>

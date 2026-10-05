@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Optimasi & Terjemahkan prompt jika bukan bahasa Inggris
+    // 1. Optimasi & Maksimalkan prompt menggunakan gpt-oss-120b
     let finalPrompt = rawPrompt;
     try {
       const groqKey = process.env.GROQ_API_KEY?.trim();
@@ -33,48 +33,79 @@ export async function POST(req: NextRequest) {
       const customKey = process.env.CUSTOM_API_KEY?.trim();
 
       const systemPrompt =
-        "You are an expert AI image prompt optimizer and translator. " +
-        "If the user prompt is in Indonesian or another language, translate it into vivid English. " +
-        "Enrich it with visual design details (typography, colors, composition, lighting, professional graphic design style). " +
-        "Output ONLY the final English prompt as plain text. No introductory words, no quotes.";
+        "You are an expert AI image prompt optimizer and visual director. " +
+        "Task: Take the user raw prompt (whether in Indonesian or any language) and maximize it into an extraordinary, detailed, high-impact English prompt for image generation. " +
+        "Enrich it with visual aesthetics, subject details, composition, artistic style, lighting (e.g., cinematic lighting, soft diffused studio light, golden hour, chiaroscuro), textures, colors, and atmosphere. " +
+        "Keep the core subject, intent, and message completely faithful to the user request. " +
+        "Output ONLY the final maximized English prompt as plain text. No introductory words, no conversational filler, no markdown formatting, no quotes.";
 
-      let transUrl = "https://api.novita.ai/v3/openai/chat/completions";
-      let transKey = novitaKey;
-      let transModel = "qwen/qwen3.8-flash";
+      // Prioritas utama sesuai brief user: gpt-oss-120b (Groq / Novita)
+      const optimizerCandidates: Array<{ url: string; key: string; model: string }> = [];
 
       if (groqKey) {
-        transUrl = "https://api.groq.com/openai/v1/chat/completions";
-        transKey = groqKey;
-        transModel = "openai/gpt-oss-120b";
-      } else if (customBase && customKey) {
-        transUrl = customBase.endsWith("/chat/completions")
-          ? customBase
-          : `${customBase.replace(/\/+$/, "")}/v1/chat/completions`;
-        transKey = customKey;
-        transModel = "clario/deepseek-v4.1-flash-auto";
+        optimizerCandidates.push({
+          url: "https://api.groq.com/openai/v1/chat/completions",
+          key: groqKey,
+          model: "openai/gpt-oss-120b",
+        });
       }
 
-      const transRes = await fetch(transUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${transKey}`,
-        },
-        body: JSON.stringify({
-          model: transModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: rawPrompt },
-          ],
-          max_tokens: 100,
-        }),
-      });
+      if (novitaKey) {
+        optimizerCandidates.push({
+          url: "https://api.novita.ai/v3/openai/chat/completions",
+          key: novitaKey,
+          model: "openai/gpt-oss-120b",
+        });
+      }
 
-      if (transRes.ok) {
-        const transData = await transRes.json();
-        const content = transData.choices?.[0]?.message?.content?.trim();
-        if (content) {
-          finalPrompt = content.replace(/^["']|["']$/g, "").trim();
+      if (customBase && customKey) {
+        const endpoint = customBase.endsWith("/chat/completions")
+          ? customBase
+          : `${customBase.replace(/\/+$/, "")}/v1/chat/completions`;
+        optimizerCandidates.push({
+          url: endpoint,
+          key: customKey,
+          model: "clario/deepseek-v4.1-flash-auto",
+        });
+      }
+
+      if (novitaKey) {
+        optimizerCandidates.push({
+          url: "https://api.novita.ai/v3/openai/chat/completions",
+          key: novitaKey,
+          model: "qwen/qwen3.8-flash",
+        });
+      }
+
+      for (const target of optimizerCandidates) {
+        try {
+          const transRes = await fetch(target.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${target.key}`,
+            },
+            body: JSON.stringify({
+              model: target.model,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: rawPrompt },
+              ],
+              max_tokens: 220,
+              temperature: 0.7,
+            }),
+          });
+
+          if (transRes.ok) {
+            const transData = await transRes.json();
+            const content = transData.choices?.[0]?.message?.content?.trim();
+            if (content) {
+              finalPrompt = content.replace(/^["']|["']$/g, "").trim();
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn(`[image/generate] Optimizer candidate ${target.model} failed, trying next:`, e);
         }
       }
     } catch (e) {
