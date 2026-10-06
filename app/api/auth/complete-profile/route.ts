@@ -48,16 +48,12 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 2. Simpan username ke Supabase (jika service role tersedia)
+    // 2. Simpan username ke Supabase profiles table (jika service role tersedia)
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
     if (serviceRoleKey && isSupabaseConfigured) {
       try {
         const adminClient = createClient(supabaseUrl, serviceRoleKey);
-        await adminClient.auth.admin.updateUserById(userId, {
-          user_metadata: { username: cleanUsername },
-        });
-
         await adminClient.from("profiles").upsert({
           id: userId,
           username: cleanUsername,

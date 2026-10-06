@@ -28,7 +28,7 @@ const memoryTransactions: CreditTransaction[] = [];
  * Mendapatkan detail langganan, kuota kredit, dan penggunaan jadwal user.
  */
 export async function getUserSubscription(userId: string = "guest"): Promise<UserSubscriptionInfo> {
-  const isGuest = !userId || userId === "guest" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  const isGuest = !userId || userId === "guest";
 
   // Jika guest, gunakan in-memory / default Free
   if (isGuest) {

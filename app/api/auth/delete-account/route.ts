@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { deleteUserData } from "@/lib/subscriptionServer";
 import { clerkClient } from "@clerk/nextjs/server";
 
@@ -18,42 +18,34 @@ export async function POST(req: NextRequest) {
 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-    const authHeader = req.headers.get("authorization");
 
-    // Tentukan client yang akan digunakan
-    let client = supabase;
-    if (serviceRoleKey && isSupabaseConfigured) {
-      client = createClient(supabaseUrl, serviceRoleKey);
-    } else if (authHeader && isSupabaseConfigured) {
-      client = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "", {
-        global: { headers: { Authorization: authHeader } },
-      });
-    }
-
-    // 1. Hapus data dari seluruh tabel publik di Supabase
-    if (isSupabaseConfigured) {
-      await Promise.allSettled([
-        client.from("chat_history").delete().eq("user_id", userId),
-        client.from("schedules").delete().eq("user_id", userId),
-        client.from("credit_transactions").delete().eq("user_id", userId),
-        client.from("credit_balances").delete().eq("user_id", userId),
-        client.from("subscriptions").delete().eq("user_id", userId),
+    // 1. Hapus data dari seluruh tabel publik di Supabase (gunakan service role untuk bypass RLS)
+    if (isSupabaseConfigured && serviceRoleKey) {
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const results = await Promise.allSettled([
+        adminClient.from("chat_history").delete().eq("user_id", userId),
+        adminClient.from("schedules").delete().eq("user_id", userId),
+        adminClient.from("credit_transactions").delete().eq("user_id", userId),
+        adminClient.from("credit_balances").delete().eq("user_id", userId),
+        adminClient.from("subscriptions").delete().eq("user_id", userId),
+        adminClient.from("profiles").delete().eq("id", userId),
       ]);
+
+      // Log hasil deletion untuk debugging
+      const tableNames = ["chat_history", "schedules", "credit_transactions", "credit_balances", "subscriptions", "profiles"];
+      results.forEach((result, i) => {
+        if (result.status === "rejected") {
+          console.warn(`[delete-account] Failed to delete from ${tableNames[i]}:`, result.reason);
+        }
+      });
+    } else if (isSupabaseConfigured) {
+      console.warn("[delete-account] SUPABASE_SERVICE_ROLE_KEY not configured — cannot delete Supabase data (RLS will block).");
     }
 
     // 2. Hapus cache langganan dari memori
     await deleteUserData(userId);
 
-    // 3. Jika service role key tersedia, hapus akun dari Supabase Auth secara permanen
-    if (serviceRoleKey && isSupabaseConfigured) {
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { error: adminErr } = await adminClient.auth.admin.deleteUser(userId);
-      if (adminErr) {
-        console.warn("[delete-account] Admin deleteUser warning:", adminErr.message);
-      }
-    }
-
-    // 4. Hapus akun dari Clerk secara permanen
+    // 3. Hapus akun dari Clerk secara permanen
     if (clerkUserId && typeof clerkUserId === "string") {
       try {
         const clerk = await clerkClient();
@@ -75,4 +67,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

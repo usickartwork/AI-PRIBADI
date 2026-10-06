@@ -595,42 +595,7 @@ export default function Home() {
     }
   }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
 
-  // Supabase Auth Session listener (Fallback / Legacy)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      if (code) {
-        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-          if (!error && data?.session) {
-            setUser(data.session.user);
-            setShowAuthModal(false);
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        });
-      }
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isClerkSignedIn) {
-        setUser(session?.user ?? null);
-      }
-      setAuthLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isClerkSignedIn) {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setShowAuthModal(false);
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isClerkSignedIn]);
+  // Auth is now fully managed by Clerk — no Supabase auth session listener needed
 
   const handleSignOut = async () => {
     try {
@@ -638,7 +603,6 @@ export default function Home() {
         await clerkSignOut();
       }
     } catch {}
-    await supabase.auth.signOut();
     sessionsOwnerIdRef.current = null;
     setUser(null);
     const guestSessions = loadSessions(null);
@@ -657,13 +621,10 @@ export default function Home() {
     if (!user) return;
     setIsDeletingAccount(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
       const res = await fetch("/api/auth/delete-account", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ userId: user.id, clerkUserId: clerkUser?.id }),
       });
@@ -684,9 +645,6 @@ export default function Home() {
           localStorage.removeItem("usick-active-view");
         } catch {}
       }
-
-      // Logout dari Supabase
-      await supabase.auth.signOut();
 
       // Logout dari Clerk
       await clerkSignOut();

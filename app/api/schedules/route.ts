@@ -116,11 +116,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(user_id || ""));
-    const validUserId = isUuid ? user_id : undefined;
-
     const newSchedule: any = {
-      ...(validUserId ? { user_id: validUserId } : {}),
+      user_id: user_id,
       title: title.trim(),
       description: description ? description.trim() : "",
       date,
@@ -138,13 +135,13 @@ export async function POST(req: NextRequest) {
       const client = getSupabaseClient(req) || supabase;
 
       // Cek Batasan Jumlah Jadwal Berdasarkan Paket Langganan (Free max 3, Pro max 50)
-      if (validUserId) {
+      if (user_id) {
         try {
-          const sub = await getUserSubscription(validUserId);
+          const sub = await getUserSubscription(user_id);
           const { count: activeCount } = await client
             .from("schedules")
             .select("id", { count: "exact", head: true })
-            .eq("user_id", validUserId)
+            .eq("user_id", user_id)
             .eq("status", "upcoming");
 
           if ((activeCount || 0) >= sub.scheduleLimit) {
