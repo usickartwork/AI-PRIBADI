@@ -145,10 +145,10 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
               </svg>
             </div>
             <h1 className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
-              Usick One
+              Welcome back
             </h1>
-            <p className={`text-sm mt-1.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              One Mind
+            <p className={`text-sm mt-1.5 max-w-[280px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              Sign in to access to your dashboard, settings and projects.
             </p>
           </div>
 

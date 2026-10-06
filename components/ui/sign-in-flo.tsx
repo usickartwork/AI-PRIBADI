@@ -239,3 +239,4 @@ export const FloatingParticles: React.FC<{ isDark?: boolean }> = ({ isDark = tru
     />
   );
 };
+
