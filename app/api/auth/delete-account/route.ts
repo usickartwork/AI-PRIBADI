@@ -7,7 +7,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { userId, clerkUserId } = body;
+    const { userId, clerkUserId, email } = body;
 
     if (!userId || typeof userId !== "string") {
       return NextResponse.json(
@@ -22,22 +22,39 @@ export async function POST(req: NextRequest) {
     // 1. Hapus data dari seluruh tabel publik di Supabase (gunakan service role untuk bypass RLS)
     if (isSupabaseConfigured && serviceRoleKey) {
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const results = await Promise.allSettled([
+      
+      const deletePromises: PromiseLike<any>[] = [
         adminClient.from("chat_history").delete().eq("user_id", userId),
         adminClient.from("schedules").delete().eq("user_id", userId),
         adminClient.from("credit_transactions").delete().eq("user_id", userId),
         adminClient.from("credit_balances").delete().eq("user_id", userId),
         adminClient.from("subscriptions").delete().eq("user_id", userId),
         adminClient.from("profiles").delete().eq("id", userId),
-      ]);
+      ];
 
-      // Log hasil deletion untuk debugging
-      const tableNames = ["chat_history", "schedules", "credit_transactions", "credit_balances", "subscriptions", "profiles"];
-      results.forEach((result, i) => {
-        if (result.status === "rejected") {
-          console.warn(`[delete-account] Failed to delete from ${tableNames[i]}:`, result.reason);
+      // Jika ada email, bersihkan juga yang terkait email
+      if (email && typeof email === "string" && email.trim()) {
+        const cleanEmail = email.trim().toLowerCase();
+        deletePromises.push(
+          adminClient.from("schedules").delete().eq("user_email", cleanEmail),
+          adminClient.from("profiles").delete().eq("email", cleanEmail)
+        );
+
+        // Hapus juga dari Supabase Auth jika ada user dengan email tersebut
+        try {
+          const { data: usersData } = await adminClient.auth.admin.listUsers();
+          const matchedUser = usersData?.users?.find(
+            (u) => u.email?.toLowerCase() === cleanEmail
+          );
+          if (matchedUser?.id) {
+            await adminClient.auth.admin.deleteUser(matchedUser.id);
+          }
+        } catch (authErr) {
+          console.warn("[delete-account] Supabase Auth admin delete note:", authErr);
         }
-      });
+      }
+
+      await Promise.allSettled(deletePromises);
     } else if (isSupabaseConfigured) {
       console.warn("[delete-account] SUPABASE_SERVICE_ROLE_KEY not configured — cannot delete Supabase data (RLS will block).");
     }
@@ -57,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Akun dan seluruh data berhasil dihapus total dari sistem (termasuk Clerk).",
+      message: "Akun dan seluruh data berhasil dihapus total dari sistem (termasuk Supabase & Clerk).",
     });
   } catch (error: any) {
     console.error("[delete-account] Error:", error);

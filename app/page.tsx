@@ -626,7 +626,11 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId: user.id, clerkUserId: clerkUser?.id }),
+        body: JSON.stringify({
+          userId: user.id,
+          clerkUserId: clerkUser?.id,
+          email: user.email || clerkUser?.primaryEmailAddress?.emailAddress || "",
+        }),
       });
 
       if (!res.ok) {
