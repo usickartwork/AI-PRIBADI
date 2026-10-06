@@ -592,6 +592,10 @@ export default function Home() {
       } as unknown as User);
       setAuthLoading(false);
       setShowAuthModal(false);
+    } else {
+      setUser(null);
+      setAuthLoading(false);
+      setShowAuthModal(true);
     }
   }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
 
