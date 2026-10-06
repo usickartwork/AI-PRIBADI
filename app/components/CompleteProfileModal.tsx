@@ -6,7 +6,7 @@ type CompleteProfileModalProps = {
   isDark: boolean;
   userId: string;
   email: string;
-  onSuccess: () => void;
+  onSuccess: (newUsername: string) => void;
 };
 
 export function CompleteProfileModal({
@@ -17,6 +17,7 @@ export function CompleteProfileModal({
 }: CompleteProfileModalProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -36,8 +37,13 @@ export function CompleteProfileModal({
       return;
     }
 
-    if (password.length < 4) {
-      setErrorMsg("Password minimal 4 karakter.");
+    if (password.length < 6) {
+      setErrorMsg("Password minimal 6 karakter.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg("Konfirmasi password tidak cocok dengan password di atas.");
       return;
     }
 
@@ -60,7 +66,7 @@ export function CompleteProfileModal({
         return;
       }
 
-      onSuccess();
+      onSuccess(cleanUsername);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Terjadi kesalahan.");
       setLoading(false);
@@ -76,7 +82,7 @@ export function CompleteProfileModal({
             : "bg-white/95 border border-black/10 text-black shadow-zinc-900/15"
         } liquid-glass`}
       >
-        {/* Subtle Ambient Glow */}
+        {/* Ambient Glow */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-32 bg-white/5 blur-3xl pointer-events-none rounded-full" />
 
         {/* Header */}
@@ -91,10 +97,10 @@ export function CompleteProfileModal({
             </svg>
           </div>
           <h2 className="text-xl font-bold tracking-tight">
-            Buat Username & Password
+            Lengkapi Akun Baru
           </h2>
           <p className={`text-xs mt-1.5 font-normal ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-            Selesaikan pendaftaran akun dengan membuat username dan password singkat Anda.
+            Buat username dan password agar akun Anda bisa masuk via Google maupun email/username.
           </p>
         </div>
 
@@ -137,7 +143,7 @@ export function CompleteProfileModal({
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Masukkan username"
+              placeholder="Contoh: filius99"
               className={`w-full px-4 py-3 rounded-2xl text-xs border outline-none transition ${
                 isDark
                   ? "bg-[#202024]/70 border-white/5 text-white placeholder-zinc-500 focus:border-white/20 focus:bg-[#202024]"
@@ -146,7 +152,7 @@ export function CompleteProfileModal({
             />
           </div>
 
-          {/* Password (singkat, tanpa perlu konfirmasi panjang) */}
+          {/* Password (standar umum min 6) */}
           <div>
             <div className="flex items-center justify-between mb-1.5 px-1">
               <label className="block text-[10px] uppercase font-semibold tracking-wider text-zinc-400 dark:text-zinc-500">
@@ -165,7 +171,26 @@ export function CompleteProfileModal({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimal 4 karakter"
+              placeholder="Minimal 6 karakter"
+              className={`w-full px-4 py-3 rounded-2xl text-xs border outline-none transition ${
+                isDark
+                  ? "bg-[#202024]/70 border-white/5 text-white placeholder-zinc-500 focus:border-white/20 focus:bg-[#202024]"
+                  : "bg-zinc-100/80 border-black/5 text-black placeholder-zinc-400 focus:border-black/20 focus:bg-zinc-100"
+              }`}
+            />
+          </div>
+
+          {/* Konfirmasi Password */}
+          <div>
+            <label className="block text-[10px] uppercase font-semibold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5 px-1">
+              Konfirmasi Password <span className="text-red-400">*</span>
+            </label>
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Ulangi password di atas"
               className={`w-full px-4 py-3 rounded-2xl text-xs border outline-none transition ${
                 isDark
                   ? "bg-[#202024]/70 border-white/5 text-white placeholder-zinc-500 focus:border-white/20 focus:bg-[#202024]"

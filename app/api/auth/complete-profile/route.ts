@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,30 +25,53 @@ export async function POST(req: NextRequest) {
     const cleanUsername = username.trim().toLowerCase();
     if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(cleanUsername)) {
       return NextResponse.json(
-        { error: "Username minimal 3 karakter (huruf, angka, strip, atau titik)." },
+        { error: "Username harus 3-30 karakter (huruf, angka, strip, atau titik)." },
         { status: 400 }
       );
     }
 
-    if (!password || typeof password !== "string" || password.length < 4) {
+    if (!password || typeof password !== "string" || password.length < 6) {
       return NextResponse.json(
-        { error: "Password minimal 4 karakter." },
+        { error: "Password minimal 6 karakter." },
         { status: 400 }
       );
     }
 
+    // 1. Simpan username dan password di Clerk
     const clerk = await clerkClient();
-
-    // Update user di Clerk: set username dan password (skipPasswordChecks agar bisa password pendek)
     await clerk.users.updateUser(userId, {
       username: cleanUsername,
       password: password,
-      skipPasswordChecks: true,
+      skipPasswordChecks: true, // Izinkan standar umum 6 karakter tanpa batasan 15 karakter
+      publicMetadata: {
+        username: cleanUsername,
+      },
     });
+
+    // 2. Simpan username ke Supabase (jika service role tersedia)
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    if (serviceRoleKey && isSupabaseConfigured) {
+      try {
+        const adminClient = createClient(supabaseUrl, serviceRoleKey);
+        await adminClient.auth.admin.updateUserById(userId, {
+          user_metadata: { username: cleanUsername },
+        });
+
+        await adminClient.from("profiles").upsert({
+          id: userId,
+          username: cleanUsername,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (sbErr) {
+        console.warn("[complete-profile] Supabase sync note:", sbErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Profil berhasil disimpan.",
+      username: cleanUsername,
+      message: "Profil dan password berhasil disimpan.",
     });
   } catch (error: any) {
     console.error("[complete-profile] Error:", error);

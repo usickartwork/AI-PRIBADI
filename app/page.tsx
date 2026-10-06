@@ -582,7 +582,8 @@ export default function Home() {
         id: clerkUser.id,
         app_metadata: {},
         user_metadata: {
-          full_name: clerkUser.fullName || clerkUser.firstName || "User",
+          username: clerkUser.username || (clerkUser.publicMetadata?.username as string) || "",
+          full_name: clerkUser.username || (clerkUser.publicMetadata?.username as string) || clerkUser.fullName || clerkUser.firstName || "User",
           avatar_url: clerkUser.imageUrl,
         },
         aud: "authenticated",
@@ -1857,11 +1858,13 @@ export default function Home() {
   });
 
   const userDisplayName =
+    user?.user_metadata?.username ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Tamu";
 
   const chatAccountName =
+    user?.user_metadata?.username?.trim() ||
     user?.user_metadata?.full_name?.trim() ||
     user?.user_metadata?.name?.trim() ||
     (user?.email ? user.email.split("@")[0] : null) ||
@@ -3462,7 +3465,15 @@ export default function Home() {
           isDark={isDark}
           userId={clerkUser.id}
           email={clerkUser.primaryEmailAddress?.emailAddress || ""}
-          onSuccess={() => {
+          onSuccess={(newUsername) => {
+            setUser((prev) => prev ? {
+              ...prev,
+              user_metadata: {
+                ...prev.user_metadata,
+                username: newUsername,
+                full_name: newUsername,
+              }
+            } : null);
             window.location.reload();
           }}
         />
