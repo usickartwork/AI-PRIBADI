@@ -1,22 +1,93 @@
 -- ==============================================================================
 -- MIGRATION: Ubah user_id dari UUID ke TEXT di semua tabel
--- Alasan: Clerk user ID menggunakan format string (user_2xxx...) bukan UUID
--- Jalankan SQL ini di Supabase SQL Editor (Dashboard → SQL Editor → New Query)
+-- PENTING: Semua RLS Policy yang menggunakan kolom user_id harus di-DROP terlebih
+-- dahulu sebelum tipe kolom bisa diubah di PostgreSQL, baru kemudian di-create ulang.
 -- ==============================================================================
 
--- 1. Tabel schedules: ubah user_id dari UUID ke TEXT
-ALTER TABLE public.schedules ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+-- ─── LANGKAH 1: DROP SEMUA POLICY LAMA YANG BERGANTUNG PADA user_id ─────────
 
--- 2. Tabel subscriptions: ubah user_id dari UUID ke TEXT
-ALTER TABLE public.subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+-- Schedules policies
+DROP POLICY IF EXISTS "Users can view their own schedules" ON public.schedules;
+DROP POLICY IF EXISTS "Users can insert their own schedules" ON public.schedules;
+DROP POLICY IF EXISTS "Users can update their own schedules" ON public.schedules;
+DROP POLICY IF EXISTS "Users can delete their own schedules" ON public.schedules;
 
--- 3. Tabel credit_balances: ubah user_id dari UUID ke TEXT
-ALTER TABLE public.credit_balances ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+-- Subscriptions policies
+DROP POLICY IF EXISTS "Users can view their own subscription" ON public.subscriptions;
+DROP POLICY IF EXISTS "Users can update their own subscription" ON public.subscriptions;
 
--- 4. Tabel credit_transactions: ubah user_id dari UUID ke TEXT
-ALTER TABLE public.credit_transactions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+-- Credit Balances policies
+DROP POLICY IF EXISTS "Users can view their own credits" ON public.credit_balances;
+DROP POLICY IF EXISTS "Users can update their own credits" ON public.credit_balances;
 
--- 5. Buat tabel chat_history jika belum ada (dengan user_id TEXT)
+-- Credit Transactions policies
+DROP POLICY IF EXISTS "Users can view their own transactions" ON public.credit_transactions;
+DROP POLICY IF EXISTS "Users can insert transactions" ON public.credit_transactions;
+
+-- Chat History & Profiles policies (jika sudah ada)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'chat_history') THEN
+    DROP POLICY IF EXISTS "Users can view their own chat" ON public.chat_history;
+    DROP POLICY IF EXISTS "Users can manage their own chat" ON public.chat_history;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'profiles') THEN
+    DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+    DROP POLICY IF EXISTS "Users can manage their own profile" ON public.profiles;
+  END IF;
+END $$;
+
+
+-- ─── LANGKAH 2: ALTER TIPE KOLOM user_id DARI UUID KE TEXT ──────────────────
+
+-- 1. Schedules
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'schedules' AND column_name = 'user_id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE public.schedules ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+  END IF;
+END $$;
+
+-- 2. Subscriptions
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'subscriptions' AND column_name = 'user_id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE public.subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+  END IF;
+END $$;
+
+-- 3. Credit Balances
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'credit_balances' AND column_name = 'user_id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE public.credit_balances ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+  END IF;
+END $$;
+
+-- 4. Credit Transactions
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'credit_transactions' AND column_name = 'user_id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE public.credit_transactions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+  END IF;
+END $$;
+
+
+-- ─── LANGKAH 3: BUAT TABEL TAMBAHAN JIKA BELUM ADA ──────────────────────────
+
+-- Tabel chat_history
 CREATE TABLE IF NOT EXISTS public.chat_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
@@ -26,7 +97,6 @@ CREATE TABLE IF NOT EXISTS public.chat_history (
   CONSTRAINT unique_user_chat UNIQUE (user_id)
 );
 
--- Jika tabel chat_history sudah ada tapi user_id masih UUID, ubah ke TEXT
 DO $$
 BEGIN
   IF EXISTS (
@@ -37,42 +107,19 @@ BEGIN
   END IF;
 END $$;
 
--- 6. Buat tabel profiles jika belum ada
+-- Tabel profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   username TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- RLS untuk chat_history
-ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view their own chat" ON public.chat_history;
-CREATE POLICY "Users can view their own chat"
-  ON public.chat_history FOR SELECT
-  USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
+-- ─── LANGKAH 4: PASANG KEMBALI RLS POLICIES DENGAN DUKUNGAN TEXT ────────────
 
-DROP POLICY IF EXISTS "Users can manage their own chat" ON public.chat_history;
-CREATE POLICY "Users can manage their own chat"
-  ON public.chat_history FOR ALL
-  USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
-
--- RLS untuk profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
-CREATE POLICY "Users can view their own profile"
-  ON public.profiles FOR SELECT
-  USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
-
-DROP POLICY IF EXISTS "Users can manage their own profile" ON public.profiles;
-CREATE POLICY "Users can manage their own profile"
-  ON public.profiles FOR ALL
-  USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
-
--- 7. Update RLS policies untuk tabel yang sudah ada agar support TEXT user_id
 -- Schedules
-DROP POLICY IF EXISTS "Users can view their own schedules" ON public.schedules;
+ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
+
 CREATE POLICY "Users can view their own schedules"
   ON public.schedules FOR SELECT
   USING (
@@ -81,7 +128,6 @@ CREATE POLICY "Users can view their own schedules"
     OR (status = 'upcoming' AND reminder_status != 'sent')
   );
 
-DROP POLICY IF EXISTS "Users can insert their own schedules" ON public.schedules;
 CREATE POLICY "Users can insert their own schedules"
   ON public.schedules FOR INSERT
   WITH CHECK (
@@ -90,7 +136,6 @@ CREATE POLICY "Users can insert their own schedules"
     OR auth.uid() IS NULL
   );
 
-DROP POLICY IF EXISTS "Users can update their own schedules" ON public.schedules;
 CREATE POLICY "Users can update their own schedules"
   ON public.schedules FOR UPDATE
   USING (
@@ -100,7 +145,6 @@ CREATE POLICY "Users can update their own schedules"
   )
   WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Users can delete their own schedules" ON public.schedules;
 CREATE POLICY "Users can delete their own schedules"
   ON public.schedules FOR DELETE
   USING (
@@ -109,39 +153,63 @@ CREATE POLICY "Users can delete their own schedules"
   );
 
 -- Subscriptions
-DROP POLICY IF EXISTS "Users can view their own subscription" ON public.subscriptions;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+
 CREATE POLICY "Users can view their own subscription"
   ON public.subscriptions FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-DROP POLICY IF EXISTS "Users can update their own subscription" ON public.subscriptions;
 CREATE POLICY "Users can update their own subscription"
   ON public.subscriptions FOR ALL
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Credit Balances
-DROP POLICY IF EXISTS "Users can view their own credits" ON public.credit_balances;
+ALTER TABLE public.credit_balances ENABLE ROW LEVEL SECURITY;
+
 CREATE POLICY "Users can view their own credits"
   ON public.credit_balances FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-DROP POLICY IF EXISTS "Users can update their own credits" ON public.credit_balances;
 CREATE POLICY "Users can update their own credits"
   ON public.credit_balances FOR ALL
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Credit Transactions
-DROP POLICY IF EXISTS "Users can view their own transactions" ON public.credit_transactions;
+ALTER TABLE public.credit_transactions ENABLE ROW LEVEL SECURITY;
+
 CREATE POLICY "Users can view their own transactions"
   ON public.credit_transactions FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-DROP POLICY IF EXISTS "Users can insert transactions" ON public.credit_transactions;
 CREATE POLICY "Users can insert transactions"
   ON public.credit_transactions FOR INSERT
   WITH CHECK (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
--- 8. Update function deduct_credits agar parameter p_user_id TEXT
+-- Chat History
+ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own chat"
+  ON public.chat_history FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
+
+CREATE POLICY "Users can manage their own chat"
+  ON public.chat_history FOR ALL
+  USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
+
+-- Profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
+
+CREATE POLICY "Users can manage their own profile"
+  ON public.profiles FOR ALL
+  USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
+
+
+-- ─── LANGKAH 5: UPDATE RPC deduct_credits DENGAN PARAMETER TEXT ─────────────
+
 CREATE OR REPLACE FUNCTION public.deduct_credits(
   p_user_id TEXT,
   p_credit_type TEXT,
@@ -249,8 +317,3 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.deduct_credits TO anon, authenticated, service_role;
-
--- ==============================================================================
--- SELESAI. Setelah menjalankan SQL ini, semua tabel akan menerima Clerk user ID
--- format TEXT (contoh: user_2abc123...) bukan hanya UUID.
--- ==============================================================================

@@ -187,9 +187,7 @@ export async function deductCredits(params: {
 }): Promise<{ success: boolean; error?: string; remainingCredits?: number }> {
   const { userId, creditType, amount, modelId, taskType, inputTokens, outputTokens } = params;
 
-  if (amount <= 0) return { success: true };
-
-  const isGuest = !userId || userId === "guest" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  const isGuest = !userId || userId === "guest";
 
   // Jika di Supabase
   if (!isGuest && isSupabaseConfigured) {
@@ -278,7 +276,7 @@ export async function deductCredits(params: {
  * Melakukan upgrade user ke Pro (langsung aktifkan kuota & model).
  */
 export async function upgradeUserToPro(userId: string): Promise<{ success: boolean; plan: string; message: string }> {
-  const isGuest = !userId || userId === "guest" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  const isGuest = !userId || userId === "guest";
   const now = new Date().toISOString();
   const nextReset = getNextMonthlyResetDate();
 
@@ -350,7 +348,7 @@ export async function upgradeUserToPro(userId: string): Promise<{ success: boole
  * Mengambil riwayat transaksi kredit pengguna.
  */
 export async function getCreditTransactions(userId: string): Promise<CreditTransaction[]> {
-  const isGuest = !userId || userId === "guest" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  const isGuest = !userId || userId === "guest";
 
   if (!isGuest && isSupabaseConfigured) {
     try {
