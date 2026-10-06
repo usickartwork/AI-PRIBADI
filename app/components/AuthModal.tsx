@@ -14,7 +14,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
   const [identifier, setIdentifier] = useState(""); // email or username
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Clerk Instance
   const clerk = useClerk();
@@ -133,23 +132,22 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
         />
 
         <div className="relative z-10">
-          {/* Header Brand: Usick One Star Logo & One Mind */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <div
-              className={`relative inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3 shadow-lg transition-transform duration-300 hover:scale-105 ${
-                isDark
-                  ? "bg-white text-black shadow-white/10 ring-1 ring-white/20"
-                  : "bg-black text-white shadow-black/25 ring-1 ring-black/10"
-              }`}
-            >
-              <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24">
+          {/* Header Brand: Usick One Standalone Star Logo & One Mind */}
+          <div className="flex flex-col items-center text-center mb-7">
+            <div className="mb-3.5 flex items-center justify-center">
+              <svg
+                className={`w-12 h-12 transition-transform duration-300 hover:scale-110 drop-shadow-sm ${
+                  isDark ? "text-white fill-white" : "text-black fill-black"
+                }`}
+                viewBox="0 0 24 24"
+              >
                 <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
               </svg>
             </div>
-            <h1 className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
+            <h1 className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
               Usick One
             </h1>
-            <p className={`text-xs font-medium tracking-widest uppercase mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+            <p className={`text-sm mt-1.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
               One Mind
             </p>
           </div>
@@ -197,32 +195,6 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
               required
               isDark={isDark}
             />
-
-            <div className="flex items-center justify-between text-xs px-0.5">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className={`w-3.5 h-3.5 rounded transition ${
-                    isDark
-                      ? "accent-white bg-zinc-800 border-zinc-700"
-                      : "accent-black bg-zinc-100 border-zinc-300"
-                  }`}
-                />
-                <span className={isDark ? "text-zinc-400" : "text-zinc-600"}>Ingat saya</span>
-              </label>
-
-              <button
-                type="button"
-                onClick={() => handleOAuth("oauth_google")}
-                className={`transition hover:underline cursor-pointer ${
-                  isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
-                }`}
-              >
-                Lupa password?
-              </button>
-            </div>
 
             {/* Tombol Sign In dengan Gradient Shine Sweep Effect */}
             <button
