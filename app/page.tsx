@@ -14,6 +14,7 @@ import { UsageHistoryModal } from "./components/UsageHistoryModal";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { useUser, useClerk } from "@clerk/nextjs";
 
 type Role = "user" | "assistant";
 
@@ -394,6 +395,9 @@ function ModelCategoryIcon({ category }: { category: string }) {
 }
 
 export default function Home() {
+  const { isSignedIn: isClerkSignedIn, user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { signOut: clerkSignOut } = useClerk();
+
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const sessionsOwnerIdRef = useRef<string | null>(null);
@@ -563,7 +567,27 @@ export default function Home() {
     return () => document.removeEventListener("click", handleClick);
   }, [sessionMenuId]);
 
-  // Supabase Auth Session listener
+  // Clerk user session sync
+  useEffect(() => {
+    if (!isClerkLoaded) return;
+    if (isClerkSignedIn && clerkUser) {
+      setUser({
+        id: clerkUser.id,
+        app_metadata: {},
+        user_metadata: {
+          full_name: clerkUser.fullName || clerkUser.firstName || "User",
+          avatar_url: clerkUser.imageUrl,
+        },
+        aud: "authenticated",
+        created_at: clerkUser.createdAt ? new Date(clerkUser.createdAt).toISOString() : new Date().toISOString(),
+        email: clerkUser.primaryEmailAddress?.emailAddress || "",
+      } as unknown as User);
+      setAuthLoading(false);
+      setShowAuthModal(false);
+    }
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
+
+  // Supabase Auth Session listener (Fallback / Legacy)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -580,23 +604,32 @@ export default function Home() {
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      if (!isClerkSignedIn) {
+        setUser(session?.user ?? null);
+      }
       setAuthLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setShowAuthModal(false);
+      if (!isClerkSignedIn) {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          setShowAuthModal(false);
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isClerkSignedIn]);
 
   const handleSignOut = async () => {
+    try {
+      if (isClerkSignedIn) {
+        await clerkSignOut();
+      }
+    } catch {}
     await supabase.auth.signOut();
     sessionsOwnerIdRef.current = null;
     setUser(null);
