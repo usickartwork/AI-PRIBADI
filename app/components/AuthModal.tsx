@@ -67,54 +67,40 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
         return;
       }
 
-      let loginId = identifier.trim();
-
-      // Jika input bukan email (berupa username), resolve ke email akun Clerk
-      if (!loginId.includes("@")) {
-        try {
-          const res = await fetch("/api/auth/resolve-identifier", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: loginId }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (data?.email) {
-            loginId = data.email;
-          }
-        } catch (resolveErr) {
-          console.warn("Could not resolve identifier:", resolveErr);
-        }
-      }
-
-      // Langkah 1: Buat sesi sign-in dengan identifier
-      let signInAttempt = await clerk.client.signIn.create({
-        identifier: loginId,
+      // Verifikasi kredensial via backend API resmi Clerk
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password,
+        }),
       });
 
-      // Langkah 2: Jika butuh verifikasi faktor password, submit password
-      if (signInAttempt.status === "needs_first_factor") {
-        signInAttempt = await signInAttempt.attemptFirstFactor({
-          strategy: "password",
-          password,
-        });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.token) {
+        setErrorMsg(data.error || "Gagal masuk. Periksa kembali username/email dan password Anda.");
+        setLoading(false);
+        return;
       }
 
-      // Langkah 3: Jika berhasil, aktifkan session dan tutup modal
+      // Aktifkan sesi menggunakan Clerk SignInToken resmi (strategy ticket)
+      const signInAttempt = await clerk.client.signIn.create({
+        strategy: "ticket",
+        ticket: data.token,
+      });
+
       if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
         await clerk.setActive({ session: signInAttempt.createdSessionId });
         onSuccess();
       } else {
-        setErrorMsg("Login tidak berhasil. Periksa kembali username/email dan password Anda.");
+        setErrorMsg("Login tidak berhasil. Silakan coba lagi.");
       }
     } catch (err: unknown) {
       console.error("Clerk login error:", err);
       if (err instanceof Error) {
-        const clerkErr = err as any;
-        const msg =
-          clerkErr?.errors?.[0]?.longMessage ||
-          clerkErr?.errors?.[0]?.message ||
-          err.message;
-        setErrorMsg(msg);
+        setErrorMsg(err.message);
       } else {
         setErrorMsg("Terjadi kesalahan saat masuk.");
       }

@@ -179,3 +179,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_due_reminders() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.mark_reminder_sent(UUID, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.deduct_credits TO anon, authenticated, service_role;
+
