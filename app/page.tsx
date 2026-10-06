@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
+import { CompleteProfileModal } from "./components/CompleteProfileModal";
 import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
@@ -397,6 +398,12 @@ function ModelCategoryIcon({ category }: { category: string }) {
 export default function Home() {
   const { isSignedIn: isClerkSignedIn, user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { signOut: clerkSignOut } = useClerk();
+  const needsProfileSetup = Boolean(
+    isClerkLoaded &&
+    isClerkSignedIn &&
+    clerkUser &&
+    (!clerkUser.username || !clerkUser.passwordEnabled)
+  );
 
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -3446,6 +3453,18 @@ export default function Home() {
         <AuthModal
           isDark={isDark}
           onSuccess={() => setShowAuthModal(false)}
+        />
+      ) : null}
+
+      {/* ─── MANDATORY SETUP MODAL FOR NEW ACCOUNTS (USERNAME & PASSWORD) ─── */}
+      {needsProfileSetup && clerkUser ? (
+        <CompleteProfileModal
+          isDark={isDark}
+          userId={clerkUser.id}
+          email={clerkUser.primaryEmailAddress?.emailAddress || ""}
+          onSuccess={() => {
+            window.location.reload();
+          }}
         />
       ) : null}
 
