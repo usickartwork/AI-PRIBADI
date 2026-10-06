@@ -21,37 +21,36 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanUsername = username.trim().toLowerCase();
-    // Validasi format username (alphanumeric, underscore, dash)
-    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(cleanUsername)) {
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(cleanUsername)) {
       return NextResponse.json(
-        { error: "Username harus 3-20 karakter dan hanya boleh berisi huruf, angka, tanda strip, atau garis bawah." },
+        { error: "Username minimal 3 karakter (huruf, angka, strip, atau titik)." },
         { status: 400 }
       );
     }
 
-    if (!password || typeof password !== "string" || password.length < 8) {
+    if (!password || typeof password !== "string" || password.length < 4) {
       return NextResponse.json(
-        { error: "Password minimal harus terdiri dari 8 karakter." },
+        { error: "Password minimal 4 karakter." },
         { status: 400 }
       );
     }
 
     const clerk = await clerkClient();
 
-    // Update user di Clerk: set username dan password
+    // Update user di Clerk: set username dan password (skipPasswordChecks agar bisa password pendek)
     await clerk.users.updateUser(userId, {
       username: cleanUsername,
       password: password,
+      skipPasswordChecks: true,
     });
 
     return NextResponse.json({
       success: true,
-      message: "Profil dan password berhasil disimpan.",
+      message: "Profil berhasil disimpan.",
     });
   } catch (error: any) {
     console.error("[complete-profile] Error:", error);
 
-    // Ambil pesan error spesifik dari Clerk (misal: username taken, password pwned, dll)
     const clerkErrors = error?.errors;
     if (Array.isArray(clerkErrors) && clerkErrors.length > 0) {
       const first = clerkErrors[0];
