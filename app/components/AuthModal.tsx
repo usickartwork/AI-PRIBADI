@@ -54,7 +54,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!identifier || !password) {
+    if (!identifier.trim() || !password) {
       setErrorMsg("Harap masukkan email/username dan password.");
       return;
     }
@@ -62,27 +62,53 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
     setLoading(true);
     try {
       if (!clerk.loaded) {
-        setErrorMsg("Clerk belum siap. Silakan tunggu sebentar.");
+        setErrorMsg("Layanan autentikasi belum siap. Silakan tunggu sebentar.");
         setLoading(false);
         return;
       }
 
-      const result = await clerk.client.signIn.create({
-        strategy: "password" as const,
-        identifier: identifier.trim(),
-        password,
+      let loginId = identifier.trim();
+
+      // Jika input bukan email (berupa username), resolve ke email akun Clerk
+      if (!loginId.includes("@")) {
+        try {
+          const res = await fetch("/api/auth/resolve-identifier", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: loginId }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (data?.email) {
+            loginId = data.email;
+          }
+        } catch (resolveErr) {
+          console.warn("Could not resolve identifier:", resolveErr);
+        }
+      }
+
+      // Langkah 1: Buat sesi sign-in dengan identifier
+      let signInAttempt = await clerk.client.signIn.create({
+        identifier: loginId,
       });
 
-      if (result.status === "complete" && result.createdSessionId) {
-        await clerk.setActive({ session: result.createdSessionId });
+      // Langkah 2: Jika butuh verifikasi faktor password, submit password
+      if (signInAttempt.status === "needs_first_factor") {
+        signInAttempt = await signInAttempt.attemptFirstFactor({
+          strategy: "password",
+          password,
+        });
+      }
+
+      // Langkah 3: Jika berhasil, aktifkan session dan tutup modal
+      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
+        await clerk.setActive({ session: signInAttempt.createdSessionId });
         onSuccess();
       } else {
-        setErrorMsg("Login tidak berhasil. Silakan coba lagi.");
+        setErrorMsg("Login tidak berhasil. Periksa kembali username/email dan password Anda.");
       }
     } catch (err: unknown) {
       console.error("Clerk login error:", err);
       if (err instanceof Error) {
-        // Clerk errors often have a nested `errors` array with better messages
         const clerkErr = err as any;
         const msg =
           clerkErr?.errors?.[0]?.longMessage ||
