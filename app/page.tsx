@@ -657,7 +657,7 @@ export default function Home() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user.id, clerkUserId: clerkUser?.id }),
       });
 
       if (!res.ok) {
@@ -679,6 +679,9 @@ export default function Home() {
 
       // Logout dari Supabase
       await supabase.auth.signOut();
+
+      // Logout dari Clerk
+      await clerkSignOut();
       sessionsOwnerIdRef.current = null;
       setUser(null);
       setSubscription(null);

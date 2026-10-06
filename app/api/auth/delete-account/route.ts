@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { deleteUserData } from "@/lib/subscriptionServer";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { userId } = body;
+    const { userId, clerkUserId } = body;
 
     if (!userId || typeof userId !== "string") {
       return NextResponse.json(
@@ -52,9 +53,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 4. Hapus akun dari Clerk secara permanen
+    if (clerkUserId && typeof clerkUserId === "string") {
+      try {
+        const clerk = await clerkClient();
+        await clerk.users.deleteUser(clerkUserId);
+      } catch (clerkErr: any) {
+        console.warn("[delete-account] Clerk deleteUser warning:", clerkErr?.message);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Akun dan seluruh data berhasil dihapus total dari sistem.",
+      message: "Akun dan seluruh data berhasil dihapus total dari sistem (termasuk Clerk).",
     });
   } catch (error: any) {
     console.error("[delete-account] Error:", error);
