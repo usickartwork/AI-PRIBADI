@@ -40,7 +40,7 @@ export function AuthModal({ isDark, onSuccess }: AuthModalProps) {
       await clerk.client.signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: "/sso-callback",
       });
     } catch (err: unknown) {
       console.error("Clerk OAuth redirect error:", err);

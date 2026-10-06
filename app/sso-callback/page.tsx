@@ -1,23 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
 
 /**
- * After Clerk redirects back from Google/Apple, this page runs.
+ * SSO Callback page — two phases:
  *
- * 1. <AuthenticateWithRedirectCallback /> completes the OAuth handshake and
- *    sets the session cookie.
- * 2. Once the session is ready (`useUser` fires with `isLoaded && user`),
- *    we check `user.passwordEnabled`:
- *    - false → first-time user, MUST set a username and password before entering.
- *    - true  → returning user, redirect straight to "/".
+ * Phase A: Clerk redirects here with OAuth tokens in the URL.
+ *   → Render <AuthenticateWithRedirectCallback /> to complete the handshake.
+ *   → Clerk then redirects to /sso-callback (redirectUrlComplete) WITHOUT tokens.
+ *
+ * Phase B: Page loads without OAuth tokens — the user session is now active.
+ *   → Check user.passwordEnabled:
+ *     - false → first-time user, MUST set username + password.
+ *     - true  → returning user, redirect to "/".
  */
 export default function SSOCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#fafafc] dark:bg-[#09090b]">
+          <div className="h-6 w-6 rounded-full border-2 border-zinc-400 border-t-transparent animate-spin" />
+        </div>
+      }
+    >
+      <SSOCallbackContent />
+    </Suspense>
+  );
+}
+
+function SSOCallbackContent() {
   const { isLoaded, user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Detect if this is the initial OAuth callback (has Clerk params in the URL)
+  const hasCallbackParams =
+    searchParams.has("__clerk_status") ||
+    searchParams.has("__clerk_created_session") ||
+    // fallback: if user isn't loaded yet and we have ANY query params, treat as callback
+    (!isLoaded && searchParams.toString().length > 0);
 
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
   const [username, setUsername] = useState("");
@@ -28,6 +52,8 @@ export default function SSOCallbackPage() {
 
   // ---------- detect first sign-in ----------
   useEffect(() => {
+    // Don't run while the callback is still being processed
+    if (hasCallbackParams) return;
     if (!isLoaded || !user) return;
 
     if (!user.passwordEnabled) {
@@ -38,7 +64,7 @@ export default function SSOCallbackPage() {
       setNeedsSetup(false);
       router.replace("/");
     }
-  }, [isLoaded, user, router]);
+  }, [isLoaded, user, router, hasCallbackParams]);
 
   // ---------- setup form handler ----------
   const handleSetup = async (e: React.FormEvent) => {
@@ -86,8 +112,8 @@ export default function SSOCallbackPage() {
 
   // ---------- render ----------
 
-  // Phase 1: Clerk is still completing the OAuth handshake
-  if (!isLoaded || needsSetup === null) {
+  // Phase A: OAuth callback in progress — let Clerk handle it
+  if (hasCallbackParams) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#fafafc] dark:bg-[#09090b]">
         <AuthenticateWithRedirectCallback />
@@ -95,7 +121,16 @@ export default function SSOCallbackPage() {
     );
   }
 
-  // Phase 2: brand-new user — MUST set username & password (no skip)
+  // Still loading user after callback completed
+  if (!isLoaded || needsSetup === null) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#fafafc] dark:bg-[#09090b]">
+        <div className="h-6 w-6 rounded-full border-2 border-zinc-400 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  // Phase B: brand-new user — MUST set username & password (no skip)
   if (needsSetup) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafc] dark:bg-[#09090b] p-4">
@@ -159,7 +194,7 @@ export default function SSOCallbackPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              placeholder="Username (wajib)"
               className="w-full px-4 py-3 rounded-2xl text-xs border outline-none transition
                 bg-zinc-100/80 dark:bg-[#202024]/70
                 border-black/5 dark:border-white/5
@@ -217,6 +252,6 @@ export default function SSOCallbackPage() {
     );
   }
 
-  // Phase 3: existing user — should have been redirected already
+  // Phase C: existing user — should have been redirected already
   return null;
 }
