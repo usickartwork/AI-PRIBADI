@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- USICK ONE: MIGRATION CLERK USER_ID (UUID -> TEXT)
--- SCRIPT INI MENGGUNAKAN EXPLICIT CAST (::TEXT) DI SEMUA POLICY SEHINGGA TIDAK
--- MUNGKIN TERJADI ERROR "operator does not exist: text = uuid"
+-- SCRIPT INI OTOMATIS MENCARI DAN MENGHAPUS SEMUA FOREIGN KEY (TERMASUK chat_history)
+-- SEHINGGA TIDAK AKAN MUNCUL ERROR TIPE INKOMPATIBEL (text and uuid)
 -- ==============================================================================
 
 -- ─── 1. HAPUS FUNGSI YANG MENGUNCI TIPE DATA ─────────────────────────────────
@@ -26,22 +26,39 @@ BEGIN
     END LOOP;
 END $$;
 
--- ─── 3. LEPAS FOREIGN KEY CONSTRAINTS JIKA ADA ───────────────────────────────
+-- ─── 3. LEPAS SEMUA FOREIGN KEY PADA KOLOM user_id DAN id DARI SEMUA TABEL ──
 DO $$
+DECLARE
+    fk RECORD;
 BEGIN
-    ALTER TABLE IF EXISTS public.schedules DROP CONSTRAINT IF EXISTS schedules_user_id_fkey;
-    ALTER TABLE IF EXISTS public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_user_id_fkey;
-    ALTER TABLE IF EXISTS public.credit_balances DROP CONSTRAINT IF EXISTS credit_balances_user_id_fkey;
-    ALTER TABLE IF EXISTS public.credit_transactions DROP CONSTRAINT IF EXISTS credit_transactions_user_id_fkey;
-    ALTER TABLE IF EXISTS public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
-EXCEPTION WHEN OTHERS THEN NULL;
+    FOR fk IN (
+        SELECT tc.table_schema, tc.table_name, tc.constraint_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_schema = 'public'
+          AND (kcu.column_name IN ('user_id', 'id'))
+    ) LOOP
+        EXECUTE format('ALTER TABLE %I.%I DROP CONSTRAINT IF EXISTS %I', fk.table_schema, fk.table_name, fk.constraint_name);
+    END LOOP;
 END $$;
+
+-- Drop eksplisit untuk memastikan
+ALTER TABLE IF EXISTS public.chat_history DROP CONSTRAINT IF EXISTS chat_history_user_id_fkey;
+ALTER TABLE IF EXISTS public.schedules DROP CONSTRAINT IF EXISTS schedules_user_id_fkey;
+ALTER TABLE IF EXISTS public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_user_id_fkey;
+ALTER TABLE IF EXISTS public.credit_balances DROP CONSTRAINT IF EXISTS credit_balances_user_id_fkey;
+ALTER TABLE IF EXISTS public.credit_transactions DROP CONSTRAINT IF EXISTS credit_transactions_user_id_fkey;
+ALTER TABLE IF EXISTS public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- ─── 4. UBAH TIPE KOLOM MENJADI TEXT (MENDUKUNG CLERK ID STRING) ─────────────
 ALTER TABLE IF EXISTS public.schedules ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
 ALTER TABLE IF EXISTS public.subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
 ALTER TABLE IF EXISTS public.credit_balances ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
 ALTER TABLE IF EXISTS public.credit_transactions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+ALTER TABLE IF EXISTS public.chat_history ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
 ALTER TABLE IF EXISTS public.profiles ALTER COLUMN id TYPE TEXT USING id::TEXT;
 ALTER TABLE IF EXISTS public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
 
@@ -54,7 +71,6 @@ CREATE TABLE IF NOT EXISTS public.chat_history (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   CONSTRAINT unique_user_chat UNIQUE (user_id)
 );
-ALTER TABLE IF EXISTS public.chat_history ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
