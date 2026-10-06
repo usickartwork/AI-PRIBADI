@@ -1,93 +1,90 @@
 -- ==============================================================================
--- MIGRATION: Ubah user_id dari UUID ke TEXT di semua tabel
--- PENTING: Semua RLS Policy yang menggunakan kolom user_id harus di-DROP terlebih
--- dahulu sebelum tipe kolom bisa diubah di PostgreSQL, baru kemudian di-create ulang.
+-- USICK ONE: MIGRATION CLERK USER_ID (UUID -> TEXT)
+-- SCRIPT INI 100% AMAN & OTOMATIS MENGHAPUS SEMUA DEPENDENSI SEBELUM ALTER TABLE
 -- ==============================================================================
 
--- ─── LANGKAH 1: DROP SEMUA POLICY LAMA YANG BERGANTUNG PADA user_id ─────────
+-- ─── 1. HAPUS FUNGSI YANG BERGANTUNG PADA TIPE schedules ─────────────────────
+DROP FUNCTION IF EXISTS public.get_due_reminders();
+DROP FUNCTION IF EXISTS public.mark_reminder_sent(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.mark_reminder_sent(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.deduct_credits(UUID, TEXT, INTEGER, TEXT, TEXT, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS public.deduct_credits(TEXT, TEXT, INTEGER, TEXT, TEXT, INTEGER, INTEGER);
 
--- Schedules policies
-DROP POLICY IF EXISTS "Users can view their own schedules" ON public.schedules;
-DROP POLICY IF EXISTS "Users can insert their own schedules" ON public.schedules;
-DROP POLICY IF EXISTS "Users can update their own schedules" ON public.schedules;
-DROP POLICY IF EXISTS "Users can delete their own schedules" ON public.schedules;
-
--- Subscriptions policies
-DROP POLICY IF EXISTS "Users can view their own subscription" ON public.subscriptions;
-DROP POLICY IF EXISTS "Users can update their own subscription" ON public.subscriptions;
-
--- Credit Balances policies
-DROP POLICY IF EXISTS "Users can view their own credits" ON public.credit_balances;
-DROP POLICY IF EXISTS "Users can update their own credits" ON public.credit_balances;
-
--- Credit Transactions policies
-DROP POLICY IF EXISTS "Users can view their own transactions" ON public.credit_transactions;
-DROP POLICY IF EXISTS "Users can insert transactions" ON public.credit_transactions;
-
--- Chat History & Profiles policies (jika sudah ada)
+-- ─── 2. HAPUS SEMUA RLS POLICY SECARA OTOMATIS DARI SEMUA TABEL TERKAIT ─────
+-- Menggunakan pg_policies agar SEMUA policy lama terhapus apapun namanya
 DO $$
+DECLARE
+    r RECORD;
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'chat_history') THEN
-    DROP POLICY IF EXISTS "Users can view their own chat" ON public.chat_history;
-    DROP POLICY IF EXISTS "Users can manage their own chat" ON public.chat_history;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'profiles') THEN
-    DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
-    DROP POLICY IF EXISTS "Users can manage their own profile" ON public.profiles;
-  END IF;
+    FOR r IN 
+        SELECT schemaname, tablename, policyname 
+        FROM pg_policies 
+        WHERE schemaname = 'public' 
+          AND tablename IN ('schedules', 'subscriptions', 'credit_balances', 'credit_transactions', 'chat_history', 'profiles')
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+    END LOOP;
 END $$;
 
+-- ─── 3. HAPUS FOREIGN KEY CONSTRAINT JIKA ADA ────────────────────────────────
+DO $$
+BEGIN
+    ALTER TABLE IF EXISTS public.schedules DROP CONSTRAINT IF EXISTS schedules_user_id_fkey;
+    ALTER TABLE IF EXISTS public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_user_id_fkey;
+    ALTER TABLE IF EXISTS public.credit_balances DROP CONSTRAINT IF EXISTS credit_balances_user_id_fkey;
+    ALTER TABLE IF EXISTS public.credit_transactions DROP CONSTRAINT IF EXISTS credit_transactions_user_id_fkey;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END $$;
 
--- ─── LANGKAH 2: ALTER TIPE KOLOM user_id DARI UUID KE TEXT ──────────────────
+-- ─── 4. UBAH TIPE KOLOM user_id DARI UUID KE TEXT ───────────────────────────
 
--- 1. Schedules
+-- schedules
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'schedules' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'schedules' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE public.schedules ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
   END IF;
 END $$;
 
--- 2. Subscriptions
+-- subscriptions
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'subscriptions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE public.subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
   END IF;
 END $$;
 
--- 3. Credit Balances
+-- credit_balances
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'credit_balances' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'credit_balances' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE public.credit_balances ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
   END IF;
 END $$;
 
--- 4. Credit Transactions
+-- credit_transactions
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'credit_transactions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'credit_transactions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE public.credit_transactions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
   END IF;
 END $$;
 
+-- ─── 5. BUAT / PASTIKAN TABEL chat_history DAN profiles ─────────────────────
 
--- ─── LANGKAH 3: BUAT TABEL TAMBAHAN JIKA BELUM ADA ──────────────────────────
-
--- Tabel chat_history
 CREATE TABLE IF NOT EXISTS public.chat_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
@@ -100,27 +97,25 @@ CREATE TABLE IF NOT EXISTS public.chat_history (
 DO $$
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chat_history' AND column_name = 'user_id' AND data_type = 'uuid'
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'chat_history' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE public.chat_history ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
   END IF;
 END $$;
 
--- Tabel profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   username TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
-
--- ─── LANGKAH 4: PASANG KEMBALI RLS POLICIES DENGAN DUKUNGAN TEXT ────────────
+-- ─── 6. PASANG KEMBALI ROW LEVEL SECURITY (RLS) & POLICIES BARU (TEXT) ───────
 
 -- Schedules
 ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own schedules"
+CREATE POLICY "schedules_select_policy"
   ON public.schedules FOR SELECT
   USING (
     (auth.uid() IS NOT NULL AND auth.uid()::TEXT = user_id)
@@ -128,7 +123,7 @@ CREATE POLICY "Users can view their own schedules"
     OR (status = 'upcoming' AND reminder_status != 'sent')
   );
 
-CREATE POLICY "Users can insert their own schedules"
+CREATE POLICY "schedules_insert_policy"
   ON public.schedules FOR INSERT
   WITH CHECK (
     auth.uid()::TEXT = user_id
@@ -136,7 +131,7 @@ CREATE POLICY "Users can insert their own schedules"
     OR auth.uid() IS NULL
   );
 
-CREATE POLICY "Users can update their own schedules"
+CREATE POLICY "schedules_update_policy"
   ON public.schedules FOR UPDATE
   USING (
     auth.uid()::TEXT = user_id
@@ -145,7 +140,7 @@ CREATE POLICY "Users can update their own schedules"
   )
   WITH CHECK (true);
 
-CREATE POLICY "Users can delete their own schedules"
+CREATE POLICY "schedules_delete_policy"
   ON public.schedules FOR DELETE
   USING (
     auth.uid()::TEXT = user_id
@@ -155,60 +150,80 @@ CREATE POLICY "Users can delete their own schedules"
 -- Subscriptions
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own subscription"
+CREATE POLICY "subscriptions_select_policy"
   ON public.subscriptions FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-CREATE POLICY "Users can update their own subscription"
+CREATE POLICY "subscriptions_all_policy"
   ON public.subscriptions FOR ALL
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Credit Balances
 ALTER TABLE public.credit_balances ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own credits"
+CREATE POLICY "credit_balances_select_policy"
   ON public.credit_balances FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-CREATE POLICY "Users can update their own credits"
+CREATE POLICY "credit_balances_all_policy"
   ON public.credit_balances FOR ALL
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Credit Transactions
 ALTER TABLE public.credit_transactions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own transactions"
+CREATE POLICY "credit_transactions_select_policy"
   ON public.credit_transactions FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-CREATE POLICY "Users can insert transactions"
+CREATE POLICY "credit_transactions_insert_policy"
   ON public.credit_transactions FOR INSERT
   WITH CHECK (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Chat History
 ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own chat"
+CREATE POLICY "chat_history_select_policy"
   ON public.chat_history FOR SELECT
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
-CREATE POLICY "Users can manage their own chat"
+CREATE POLICY "chat_history_all_policy"
   ON public.chat_history FOR ALL
   USING (auth.uid()::TEXT = user_id OR auth.uid() IS NULL);
 
 -- Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own profile"
+CREATE POLICY "profiles_select_policy"
   ON public.profiles FOR SELECT
   USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
 
-CREATE POLICY "Users can manage their own profile"
+CREATE POLICY "profiles_all_policy"
   ON public.profiles FOR ALL
   USING (auth.uid()::TEXT = id OR auth.uid() IS NULL);
 
+-- ─── 7. PASANG ULANG FUNGSI RPC ──────────────────────────────────────────────
 
--- ─── LANGKAH 5: UPDATE RPC deduct_credits DENGAN PARAMETER TEXT ─────────────
+CREATE OR REPLACE FUNCTION public.get_due_reminders()
+RETURNS SETOF public.schedules
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT * FROM public.schedules
+  WHERE status = 'upcoming'
+    AND reminder_status != 'sent';
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_reminder_sent(schedule_id UUID, new_status TEXT DEFAULT 'sent')
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  UPDATE public.schedules
+  SET reminder_status = new_status,
+      updated_at = timezone('utc'::text, now())
+  WHERE id = schedule_id;
+$$;
 
 CREATE OR REPLACE FUNCTION public.deduct_credits(
   p_user_id TEXT,
@@ -231,14 +246,12 @@ DECLARE
   v_reset_at TIMESTAMPTZ;
   v_plan TEXT := 'free';
 BEGIN
-  -- Pastikan record balance ada dengan locking
   SELECT ai_credits, code_credits, ai_credit_limit, code_credit_limit, reset_at
   INTO v_balance_before, v_balance_before, v_credit_limit, v_credit_limit, v_reset_at
   FROM public.credit_balances
   WHERE user_id = p_user_id
   FOR UPDATE;
 
-  -- Jika belum ada saldo, inisialisasi default
   IF NOT FOUND THEN
     INSERT INTO public.credit_balances (user_id, ai_credits, ai_credit_limit, code_credits, code_credit_limit, reset_at)
     VALUES (p_user_id, 10000, 10000, 50, 50, v_now + interval '30 days')
@@ -316,4 +329,6 @@ BEGIN
 END;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.get_due_reminders() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.mark_reminder_sent(UUID, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.deduct_credits TO anon, authenticated, service_role;
