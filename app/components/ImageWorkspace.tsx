@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { ShiningText } from "@/components/ui/shining-text";
 
 interface ImageWorkspaceProps {
   isDark: boolean;
@@ -336,12 +337,13 @@ export function ImageWorkspace({
           </div>
 
           {/* 2. MAIN CAPSULE INPUT CARD */}
-          <div className={`w-full rounded-[28px] border shadow-2xl transition-all relative ${
-            isDark
-              ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
-              : "bg-white border-zinc-200 shadow-zinc-200/80"
-          }`}>
-            <div className="p-4 sm:p-5 space-y-3">
+          <div className="prompt-bar-glow relative w-full rounded-[30px] p-[1.5px] shadow-2xl transition-all">
+            <div className={`w-full rounded-[28px] border transition-all relative ${
+              isDark
+                ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+                : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+            }`}>
+              <div className="p-4 sm:p-5 space-y-3">
               {/* Textarea Input */}
               <div className="relative">
                 <textarea
@@ -453,6 +455,7 @@ export function ImageWorkspace({
               </div>
             </div>
           </div>
+        </div>
 
           {/* 3. GENERATION PREVIEW / ACTIVE IMAGE SHOWCASE */}
           {(isGenerating || currentImage) && (
@@ -469,7 +472,9 @@ export function ImageWorkspace({
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
                   </div>
-                  <h4 className="text-sm font-semibold mb-1">Sedang Membuat Gambar</h4>
+                  <div className="mb-1">
+                    <ShiningText text="One Image AI is thinking..." />
+                  </div>
                   <p className={`text-xs max-w-sm ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
                     Mempersiapkan visual berkualitas tinggi...
                   </p>

@@ -9,6 +9,7 @@ import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
+import { ShiningText } from "@/components/ui/shining-text";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
@@ -34,6 +35,7 @@ type ChatMessage = {
   fileName?: string;
   sources?: SearchSource[];
   searchError?: string;
+  model?: string;
 };
 
 export type ChatSession = {
@@ -1231,6 +1233,7 @@ export default function Home() {
         id: assistantId,
         role: "assistant",
         content: "",
+        model: cleanModelLabel(currentModelObj.label),
       };
 
       const updatedMessages = [...messages, userMsg, assistantMsg];
@@ -1847,13 +1850,14 @@ export default function Home() {
   )[0].toUpperCase();
 
   const renderChatInputCard = () => (
-    <div
-      className={`w-full rounded-[24px] sm:rounded-[26px] border shadow-2xl transition-all relative ${
-        isDark
-          ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
-          : "bg-white border-zinc-200 shadow-zinc-200/80"
-      }`}
-    >
+    <div className="prompt-bar-glow relative w-full rounded-[26px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
+      <div
+        className={`w-full rounded-[24px] sm:rounded-[26px] border transition-all relative ${
+          isDark
+            ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+            : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+        }`}
+      >
       <div className="p-3 sm:p-3.5 space-y-1.5">
         {/* Photo Attachment Thumbnail Preview */}
         {selectedImage && (
@@ -2274,6 +2278,7 @@ export default function Home() {
         </div>
       </div>
     </div>
+  </div>
   );
 
   return (
@@ -2792,9 +2797,9 @@ export default function Home() {
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
-                          <div className={`flex items-center gap-2 py-1 text-xs font-medium ${isDark ? "text-zinc-400" : "text-black"}`}>
-                            <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
-                            <span>Sedang merumuskan jawaban...</span>
+                          <div className="flex items-center gap-2.5 py-1">
+                            <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
+                            <ShiningText text={`${msg.model || cleanModelLabel(activeModelObj.label)} is thinking...`} />
                           </div>
                         )}
 
@@ -2921,11 +2926,11 @@ export default function Home() {
 
             {/* Status searching pulse */}
             {statusMessage && (
-              <div className={`flex items-center gap-2 text-xs pl-10 sm:pl-11 animate-pulse font-medium ${
+              <div className={`flex items-center gap-2.5 text-xs pl-10 sm:pl-11 font-medium ${
                 isDark ? "text-zinc-200" : "text-black font-semibold"
               }`}>
-                <div className={`h-2 w-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
-                <span>{statusMessage}</span>
+                <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
+                <ShiningText text={statusMessage} />
               </div>
             )}
 

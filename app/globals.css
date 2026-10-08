@@ -229,3 +229,41 @@ textarea:focus {
     0 0 0 1px rgba(255, 255, 255, 0.07) inset,
     0 1px 2px 0 rgba(255, 255, 255, 0.18) inset;
 }
+
+/* ─── Glowing Border Beam Effect for Chat & Input Boxes ─── */
+@property --pb-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.prompt-bar-glow {
+  --pb-angle: 0deg;
+  background-image:
+    conic-gradient(from var(--pb-angle),
+      transparent 0deg, transparent 290deg,
+      rgba(0, 0, 0, 0.2) 305deg,
+      #111111 325deg,
+      rgba(0, 0, 0, 0.2) 345deg,
+      transparent 355deg, transparent 360deg);
+  animation: pb-rotate 6s linear infinite;
+}
+
+.dark .prompt-bar-glow {
+  --pb-angle: 0deg;
+  background-image:
+    conic-gradient(from var(--pb-angle),
+      transparent 0deg, transparent 290deg,
+      #1a1a1a 305deg,
+      #ffffff 325deg,
+      #1a1a1a 345deg,
+      transparent 355deg, transparent 360deg);
+  animation: pb-rotate 6s linear infinite;
+}
+
+@keyframes pb-rotate {
+  to {
+    --pb-angle: 360deg;
+  }
+}
+

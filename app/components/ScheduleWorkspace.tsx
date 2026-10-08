@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { ShiningText } from "@/components/ui/shining-text";
 import {
   ScheduleItem,
   ScheduleRecurrence,
@@ -1030,17 +1031,18 @@ export function ScheduleWorkspace({
   }, [filteredSchedules]);
 
   const renderScheduleInputCard = () => (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSendChatMessage();
-      }}
-      className={`w-full rounded-[24px] sm:rounded-[26px] border shadow-2xl transition-all relative ${
-        isDark
-          ? "bg-[#1c1c1f] border-zinc-800/90 shadow-black/80"
-          : "bg-white border-zinc-200 shadow-zinc-200/80"
-      }`}
-    >
+    <div className="prompt-bar-glow relative w-full rounded-[26px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSendChatMessage();
+        }}
+        className={`w-full rounded-[24px] sm:rounded-[26px] border transition-all relative ${
+          isDark
+            ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+            : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+        }`}
+      >
       <div className="p-3 sm:p-3.5 space-y-1.5">
         <div className="relative">
           <textarea
@@ -1137,6 +1139,7 @@ export function ScheduleWorkspace({
         </div>
       </div>
     </form>
+  </div>
   );
 
   return (
@@ -1554,9 +1557,9 @@ export function ScheduleWorkspace({
                       <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                     </svg>
                   </div>
-                  <div className="flex items-center gap-2 py-1">
-                    <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
-                    <span>Sedang menganalisis jadwal...</span>
+                  <div className="flex items-center gap-2.5 py-1">
+                    <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
+                    <ShiningText text="Schedule AI is thinking..." />
                   </div>
                 </div>
               )}
