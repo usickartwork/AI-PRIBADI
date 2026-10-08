@@ -12,30 +12,6 @@ interface ChatSearchModalProps {
   isDark: boolean;
 }
 
-interface SearchResultItem {
-  session: ChatSession;
-  matchedSnippet: string | null;
-  matchedRole?: "user" | "assistant";
-}
-
-function getSnippet(content: string, query: string, maxLength = 90): string {
-  if (!query) {
-    return content.length > maxLength ? content.slice(0, maxLength) + "..." : content;
-  }
-  const lowerContent = content.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-  const index = lowerContent.indexOf(lowerQuery);
-  if (index === -1) {
-    return content.length > maxLength ? content.slice(0, maxLength) + "..." : content;
-  }
-  const start = Math.max(0, index - 25);
-  const end = Math.min(content.length, index + query.length + 55);
-  let snippet = content.slice(start, end).replace(/\s+/g, " ");
-  if (start > 0) snippet = "..." + snippet;
-  if (end < content.length) snippet = snippet + "...";
-  return snippet;
-}
-
 export function ChatSearchModal({
   isOpen,
   onClose,
@@ -45,14 +21,12 @@ export function ChatSearchModal({
   isDark,
 }: ChatSearchModalProps) {
   const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input on open
+  // Auto-focus input when opened
   useEffect(() => {
     if (isOpen) {
       setQuery("");
-      setSelectedIndex(0);
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
@@ -60,7 +34,7 @@ export function ChatSearchModal({
     }
   }, [isOpen]);
 
-  // Handle ESC and Arrow keys
+  // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,93 +47,20 @@ export function ChatSearchModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Compute search results
-  const searchResults: SearchResultItem[] = useMemo(() => {
+  // Filter sessions based on search query
+  const filteredSessions = useMemo(() => {
     const q = query.trim().toLowerCase();
-
     if (!q) {
-      // If no query, return recent sessions with latest user prompt snippet
-      return sessions.slice(0, 20).map((sess) => {
-        const lastUserMsg = [...sess.messages].reverse().find((m) => m.role === "user");
-        const snippet = lastUserMsg?.content
-          ? getSnippet(lastUserMsg.content, "", 75)
-          : sess.messages[0]?.content
-          ? getSnippet(sess.messages[0].content, "", 75)
-          : null;
-        return {
-          session: sess,
-          matchedSnippet: snippet,
-          matchedRole: lastUserMsg ? "user" : undefined,
-        };
-      });
+      return sessions;
     }
-
-    const matches: SearchResultItem[] = [];
-
-    for (const sess of sessions) {
-      const titleMatches = (sess.title || "").toLowerCase().includes(q);
-
-      // Search inside messages (prioritizing user prompts)
-      let foundSnippet: string | null = null;
-      let matchedRole: "user" | "assistant" | undefined = undefined;
-
-      // First check user messages (what the user actually typed/input)
-      for (const msg of sess.messages) {
-        if (msg.role === "user" && msg.content && msg.content.toLowerCase().includes(q)) {
-          foundSnippet = getSnippet(msg.content, q);
-          matchedRole = "user";
-          break;
-        }
-      }
-
-      // If not in user messages, check assistant messages
-      if (!foundSnippet) {
-        for (const msg of sess.messages) {
-          if (msg.content && msg.content.toLowerCase().includes(q)) {
-            foundSnippet = getSnippet(msg.content, q);
-            matchedRole = msg.role;
-            break;
-          }
-        }
-      }
-
-      if (titleMatches || foundSnippet) {
-        // If title matched but no specific message match found, use latest message as context
-        if (!foundSnippet) {
-          const firstMsg = sess.messages[0];
-          foundSnippet = firstMsg?.content ? getSnippet(firstMsg.content, "", 70) : null;
-          matchedRole = firstMsg?.role;
-        }
-
-        matches.push({
-          session: sess,
-          matchedSnippet: foundSnippet,
-          matchedRole,
-        });
-      }
-    }
-
-    return matches;
+    return sessions.filter((sess) => {
+      const titleMatch = (sess.title || "").toLowerCase().includes(q);
+      const messageMatch = (sess.messages || []).some(
+        (m) => m.content && m.content.toLowerCase().includes(q)
+      );
+      return titleMatch || messageMatch;
+    });
   }, [sessions, query]);
-
-  // Handle arrow key navigation and Enter
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length - 1));
-    } else if (e.key === "Enter" && searchResults[selectedIndex]) {
-      e.preventDefault();
-      handleSelect(searchResults[selectedIndex].session.id);
-    }
-  };
-
-  const handleSelect = (sessionId: string) => {
-    onSelectSession(sessionId);
-    onClose();
-  };
 
   if (!isOpen) return null;
 
@@ -172,190 +73,105 @@ export function ChatSearchModal({
         aria-hidden="true"
       />
 
-      {/* Modal Dialog */}
+      {/* Modal Dialog (Matches user reference screenshot) */}
       <div
-        className={`relative w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden z-10 transition-all animate-in zoom-in-95 duration-200 ${
+        className={`relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden z-10 transition-all animate-in zoom-in-95 duration-150 p-6 sm:p-7 ${
           isDark
-            ? "bg-zinc-900/95 border-zinc-800 text-zinc-100 shadow-black/70"
-            : "bg-white/95 border-zinc-200 text-zinc-900 shadow-xl"
-        } backdrop-blur-xl`}
-        onKeyDown={handleKeyDown}
+            ? "bg-[#212121] border border-zinc-800/80 text-zinc-100"
+            : "bg-white border border-zinc-200 text-zinc-900 shadow-xl"
+        }`}
       >
-        {/* Search Input Bar */}
-        <div
-          className={`flex items-center gap-3 px-4 py-3.5 border-b ${
-            isDark ? "border-zinc-800 bg-zinc-900/50" : "border-zinc-200 bg-zinc-50/50"
-          }`}
-        >
-          <svg
-            className="w-5 h-5 text-zinc-400 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+        {/* Top bar: Search... input on left, Close (X) on right */}
+        <div className="flex items-center justify-between pb-6">
           <input
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
-            placeholder="Cari chat atau pesan yang pernah diinput..."
-            className="flex-1 bg-transparent text-sm sm:text-base focus:outline-none placeholder:text-zinc-400 text-foreground"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search..."
+            className={`w-full bg-transparent text-xl sm:text-2xl font-normal outline-none border-none p-0 pr-4 leading-normal ${
+              isDark
+                ? "text-zinc-100 placeholder:text-zinc-500"
+                : "text-zinc-900 placeholder:text-zinc-400"
+            }`}
           />
-          {query ? (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                inputRef.current?.focus();
-              }}
-              className="text-zinc-400 hover:text-zinc-200 p-1 rounded-md transition cursor-pointer"
-              title="Hapus pencarian"
+          <button
+            type="button"
+            onClick={onClose}
+            className={`p-1.5 rounded-lg transition cursor-pointer shrink-0 ${
+              isDark
+                ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+            }`}
+            title="Close"
+            aria-label="Close"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          ) : (
-            <kbd
-              className={`hidden sm:inline-block text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${
-                isDark ? "border-zinc-700 bg-zinc-800 text-zinc-400" : "border-zinc-300 bg-zinc-100 text-zinc-500"
-              }`}
-            >
-              Esc
-            </kbd>
-          )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
-        {/* Results List */}
-        <div className="max-h-[55vh] overflow-y-auto p-2 space-y-1">
-          {searchResults.length === 0 ? (
-            <div className="py-10 text-center px-4">
-              <div className="w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center bg-zinc-500/10 text-zinc-400">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <p className={`text-sm font-medium ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
-                Tidak ada percakapan ditemukan
-              </p>
-              <p className="text-xs text-zinc-500 mt-1">
-                Coba gunakan kata kunci lain dari chat yang pernah Anda masukkan.
-              </p>
+        {/* Section title: Recent chats */}
+        <div className="text-sm font-normal text-zinc-400 mb-2">
+          {query.trim() ? "Search results" : "Recent chats"}
+        </div>
+
+        {/* List of chats with empty speech bubble icons */}
+        <div className="max-h-[55vh] overflow-y-auto -mx-2 px-2 space-y-0.5">
+          {filteredSessions.length === 0 ? (
+            <div className="py-8 text-center text-sm text-zinc-500">
+              {query.trim()
+                ? `Tidak ada percakapan ditemukan untuk "${query}"`
+                : "Belum ada percakapan"}
             </div>
           ) : (
-            <>
+            filteredSessions.map((sess) => (
               <div
-                className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider ${
-                  isDark ? "text-zinc-500" : "text-zinc-500"
+                key={sess.id}
+                onClick={() => {
+                  onSelectSession(sess.id);
+                  onClose();
+                }}
+                className={`group flex items-center gap-3.5 px-3 py-3 rounded-xl cursor-pointer transition ${
+                  isDark
+                    ? "hover:bg-white/5 text-zinc-200 hover:text-white"
+                    : "hover:bg-zinc-100 text-zinc-800 hover:text-zinc-950"
                 }`}
               >
-                {query.trim() ? "Hasil Pencarian" : "Percakapan Terakhir"}
+                {/* Empty speech bubble icon (exact match to screenshot) */}
+                <svg
+                  className={`w-5 h-5 shrink-0 transition-colors ${
+                    isDark
+                      ? "text-zinc-400 group-hover:text-zinc-200"
+                      : "text-zinc-500 group-hover:text-zinc-800"
+                  }`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+
+                <span className="text-[15px] sm:text-base font-normal truncate">
+                  {sess.title || "Percakapan baru"}
+                </span>
               </div>
-              {searchResults.map((item, idx) => {
-                const isActive = item.session.id === activeSessionId;
-                const isHighlighted = idx === selectedIndex;
-                return (
-                  <div
-                    key={item.session.id}
-                    onClick={() => handleSelect(item.session.id)}
-                    onMouseEnter={() => setSelectedIndex(idx)}
-                    className={`flex items-start gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer transition text-left ${
-                      isHighlighted
-                        ? isDark
-                          ? "bg-zinc-800/90 text-white"
-                          : "bg-zinc-100 text-zinc-900"
-                        : isDark
-                        ? "text-zinc-300 hover:bg-zinc-800/50"
-                        : "text-zinc-700 hover:bg-zinc-100/60"
-                    } ${isActive ? (isDark ? "border border-zinc-700/80" : "border border-zinc-300/80") : ""}`}
-                  >
-                    <div className="mt-0.5 shrink-0 text-zinc-400">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                        />
-                      </svg>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`text-xs sm:text-sm font-semibold truncate ${
-                          isDark ? "text-white" : "text-zinc-900"
-                        }`}>
-                          {item.session.title || "Percakapan"}
-                        </p>
-                        {isActive && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                            isDark ? "bg-zinc-700 text-zinc-200" : "bg-zinc-200 text-zinc-800"
-                          }`}>
-                            Aktif
-                          </span>
-                        )}
-                      </div>
-
-                      {item.matchedSnippet && (
-                        <p className={`text-xs mt-0.5 line-clamp-2 leading-relaxed ${
-                          isDark ? "text-zinc-400" : "text-zinc-600"
-                        }`}>
-                          {item.matchedRole === "user" && (
-                            <span className="font-semibold text-zinc-300 dark:text-zinc-300 mr-1">
-                              Input:
-                            </span>
-                          )}
-                          {item.matchedSnippet}
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
-                        <span>{item.session.messages.length} pesan</span>
-                        <span>•</span>
-                        <span>
-                          {new Date(item.session.updatedAt || Date.now()).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
+            ))
           )}
-        </div>
-
-        {/* Footer */}
-        <div
-          className={`flex items-center justify-between px-4 py-2.5 text-[11px] border-t ${
-            isDark ? "border-zinc-800 bg-zinc-900/60 text-zinc-500" : "border-zinc-200 bg-zinc-50/60 text-zinc-500"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span>
-              <kbd className={`px-1 py-0.5 rounded border text-[10px] ${
-                isDark ? "border-zinc-700 bg-zinc-800" : "border-zinc-300 bg-zinc-100"
-              }`}>↵</kbd> untuk buka
-            </span>
-            <span>
-              <kbd className={`px-1 py-0.5 rounded border text-[10px] ${
-                isDark ? "border-zinc-700 bg-zinc-800" : "border-zinc-300 bg-zinc-100"
-              }`}>↑↓</kbd> untuk navigasi
-            </span>
-          </div>
-          <span>Tekan Esc untuk tutup</span>
         </div>
       </div>
     </div>

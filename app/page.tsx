@@ -502,6 +502,8 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
+  // Visual model level slider (0: Faster, 1: Balanced, 2: Max) - UI only
+  const [modelSpeedLevel, setModelSpeedLevel] = useState<0 | 1 | 2>(1);
   // Simpan model yang limit beserta timestamp kapan bisa di-reset kembali (default reset: 5 menit)
   const [disabledModels, setDisabledModels] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
@@ -2246,8 +2248,79 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Right Side: Send / Stop Circular Button */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Side: Model Speed Slider + Send / Stop Circular Button */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* 3-Level Interactive Model Level Slider (Faster -> Balanced -> Max) */}
+            <div
+              className={`relative flex items-center p-0.5 rounded-full border transition-all select-none h-8 cursor-pointer ${
+                isDark
+                  ? "bg-zinc-900/90 border-zinc-700/60 text-zinc-300"
+                  : "bg-zinc-100 border-zinc-200/90 text-zinc-700"
+              }`}
+              title="Atur level model AI: Faster, Balanced, atau Max"
+              onPointerDown={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                const ratio = x / rect.width;
+                if (ratio < 0.33) setModelSpeedLevel(0);
+                else if (ratio < 0.66) setModelSpeedLevel(1);
+                else setModelSpeedLevel(2);
+              }}
+              onPointerMove={(e) => {
+                if (e.buttons === 1) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                  const ratio = x / rect.width;
+                  if (ratio < 0.33) setModelSpeedLevel(0);
+                  else if (ratio < 0.66) setModelSpeedLevel(1);
+                  else setModelSpeedLevel(2);
+                }
+              }}
+            >
+              {/* Sliding Pill Indicator */}
+              <div
+                className={`absolute top-0.5 bottom-0.5 rounded-full transition-all duration-200 ease-out shadow-xs pointer-events-none ${
+                  isDark
+                    ? "bg-zinc-700/95 text-white shadow-black/40"
+                    : "bg-white text-zinc-950 shadow-xs border border-zinc-200/60"
+                }`}
+                style={{
+                  left:
+                    modelSpeedLevel === 0
+                      ? "2px"
+                      : modelSpeedLevel === 1
+                      ? "calc(33.333% + 1px)"
+                      : "calc(66.666% - 1px)",
+                  width: "calc(33.333% - 2px)",
+                }}
+              />
+
+              {(["Faster", "Balanced", "Max"] as const).map((levelName, idx) => {
+                const isActive = modelSpeedLevel === idx;
+                return (
+                  <button
+                    key={levelName}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModelSpeedLevel(idx as 0 | 1 | 2);
+                    }}
+                    className={`relative z-10 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer rounded-full shrink-0 ${
+                      isActive
+                        ? isDark
+                          ? "text-white font-semibold"
+                          : "text-zinc-950 font-semibold"
+                        : isDark
+                        ? "text-zinc-400 hover:text-zinc-200"
+                        : "text-zinc-500 hover:text-zinc-800"
+                    }`}
+                  >
+                    {levelName}
+                  </button>
+                );
+              })}
+            </div>
+
             {isStreaming ? (
               <button
                 type="button"
