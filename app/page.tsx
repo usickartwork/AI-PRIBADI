@@ -14,6 +14,7 @@ import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
 import { UsageHistoryModal } from "./components/UsageHistoryModal";
+import { ChatSearchModal } from "./components/ChatSearchModal";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -469,6 +470,7 @@ export default function Home() {
   );
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
@@ -576,6 +578,18 @@ export default function Home() {
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, [sessionMenuId]);
+
+  // Global keyboard shortcut: Cmd+K / Ctrl+K to open chat search modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearchModal((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Clerk user session sync
   useEffect(() => {
@@ -2299,23 +2313,26 @@ export default function Home() {
       >
         <div className="w-72 md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
           {/* Brand & Logo Header */}
-          <div className={`flex items-center justify-between px-4 py-4 md:px-5 md:py-4.5 border-b ${
+          <div className={`flex items-center justify-between px-4 py-3.5 md:px-5 md:py-4 border-b ${
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center">
-              <span className={`tracking-tight text-base md:text-lg select-none ${isDark ? "text-white" : "text-zinc-900"}`}>
-                <span className="font-bold">One</span> <span className="font-normal">Mind</span>
+              <span className={`tracking-tight text-2xl md:text-[26px] select-none ${isDark ? "text-white" : "text-zinc-950"}`}>
+                <span className="font-extrabold">One</span>{" "}
+                <span className="font-normal opacity-90">Mind</span>
               </span>
             </div>
             <button
-              onClick={() => setSidebarOpen(false)}
-              className={`rounded-lg p-1.5 md:p-2 transition cursor-pointer ${
-                isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
+              type="button"
+              onClick={() => setShowSearchModal(true)}
+              className={`rounded-xl p-2 transition cursor-pointer ${
+                isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-black"
               }`}
-              title="Tutup menu"
+              title="Cari riwayat chat (Search chats)"
+              aria-label="Cari riwayat chat"
             >
               <svg className="w-5 h-5 md:w-5.5 md:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
           </div>
@@ -3449,6 +3466,16 @@ export default function Home() {
         isOpen={showUsageHistoryModal}
         onClose={() => setShowUsageHistoryModal(false)}
         userId={user?.id || "guest"}
+        isDark={isDark}
+      />
+
+      {/* ─── CHAT SEARCH MODAL (ChatGPT-Style Search Chats) ───────────────── */}
+      <ChatSearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={switchSession}
         isDark={isDark}
       />
 
