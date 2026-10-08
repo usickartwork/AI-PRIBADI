@@ -2302,17 +2302,10 @@ export default function Home() {
           <div className={`flex items-center justify-between px-4 py-4 md:px-5 md:py-4.5 border-b ${
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
-            <div className="flex items-center gap-2.5 md:gap-3">
-              <div className={`relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl ${
-                isDark ? "bg-white text-black shadow-md shadow-white/10" : "bg-black text-white shadow-md shadow-black/25"
-              }`}>
-                <svg className="w-4 h-4 md:w-5 md:h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                </svg>
-              </div>
-              <div>
-                <span className={`font-bold tracking-tight text-[15px] md:text-base ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
-              </div>
+            <div className="flex items-center">
+              <span className={`tracking-tight text-base md:text-lg select-none ${isDark ? "text-white" : "text-zinc-900"}`}>
+                <span className="font-bold">One</span> <span className="font-normal">Mind</span>
+              </span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
