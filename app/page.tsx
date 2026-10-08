@@ -502,8 +502,9 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
-  // Visual model level slider (0: Faster, 1: Balanced, 2: Max) - UI only
-  const [modelSpeedLevel, setModelSpeedLevel] = useState<0 | 1 | 2>(1);
+  // Visual model reasoning effort settings (Upaya: Rendah, Sedang, Tinggi, Ekstra, Maks) - UI only
+  const [effortLevel, setEffortLevel] = useState<"Rendah" | "Sedang" | "Tinggi" | "Ekstra" | "Maks">("Ekstra");
+  const [effortMenuOpen, setEffortMenuOpen] = useState(false);
   // Simpan model yang limit beserta timestamp kapan bisa di-reset kembali (default reset: 5 menit)
   const [disabledModels, setDisabledModels] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
@@ -966,6 +967,7 @@ export default function Home() {
         !inputDropdownRef.current.contains(e.target as Node)
       ) {
         setModelDropdownOpen(false);
+        setEffortMenuOpen(false);
       }
       if (
         attachMenuRef.current &&
@@ -2079,7 +2081,10 @@ export default function Home() {
                   }`}>
                     <span>Pilih Model LLM ({models.length})</span>
                     <button
-                      onClick={() => setModelDropdownOpen(false)}
+                      onClick={() => {
+                        setModelDropdownOpen(false);
+                        setEffortMenuOpen(false);
+                      }}
                       className={`sm:hidden ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-400 hover:text-black"}`}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2087,6 +2092,39 @@ export default function Home() {
                       </svg>
                     </button>
                   </div>
+
+                  {/* Upaya Item (Reasoning Effort Menu Row) */}
+                  <div className={`py-1 border-b ${isDark ? "border-zinc-800" : "border-zinc-100"}`}>
+                    <button
+                      type="button"
+                      onClick={() => setEffortMenuOpen((prev) => !prev)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer ${
+                        effortMenuOpen
+                          ? isDark
+                            ? "bg-white/10 text-white font-semibold"
+                            : "bg-black/5 text-zinc-950 font-semibold"
+                          : isDark
+                          ? "hover:bg-white/5 text-zinc-200"
+                          : "hover:bg-zinc-100 text-zinc-800"
+                      }`}
+                    >
+                      <span className="font-medium">Upaya</span>
+                      <div className="flex items-center gap-1.5 text-zinc-400">
+                        <span className="text-xs">{effortLevel}</span>
+                        <svg
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                            effortMenuOpen ? "translate-x-0.5 text-white" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </button>
+                  </div>
+
                   <div className={`py-1 divide-y ${isDark ? "divide-zinc-800" : "divide-zinc-100"}`}>
                     {groupedCategories.map((group) => {
                       const isUsickGroup = group.name === "Usick";
@@ -2216,6 +2254,76 @@ export default function Home() {
                   </div>
                 </div>
               )}
+
+              {/* Sub-panel Upaya (Floating beside model menu on desktop, or popup on mobile) */}
+              {modelDropdownOpen && effortMenuOpen && (
+                <div
+                  className={`fixed inset-x-3 bottom-[80px] z-50 rounded-2xl border p-3 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 sm:fixed-none sm:absolute sm:bottom-full sm:left-[calc(100%+8px)] sm:inset-x-auto sm:mb-2 sm:w-80 ${
+                    isDark
+                      ? "bg-[#212121] border-zinc-800/90 text-zinc-100 shadow-black/80"
+                      : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
+                  }`}
+                >
+                  {/* Top explanation text */}
+                  <p className={`text-xs leading-relaxed px-1 pt-1 pb-3 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                    Upaya yang lebih tinggi berarti respons yang lebih menyeluruh, tetapi membutuhkan waktu lebih lama dan menggunakan batas Anda lebih cepat.
+                  </p>
+
+                  {/* Options List */}
+                  <div className="space-y-1">
+                    {[
+                      { id: "Rendah", label: "Rendah" },
+                      { id: "Sedang", label: "Sedang", badge: "Direkomendasikan" },
+                      { id: "Tinggi", label: "Tinggi" },
+                      { id: "Ekstra", label: "Ekstra" },
+                      { id: "Maks", label: "Maks", warningBadge: "Penggunaan 5× atau lebih" },
+                    ].map((opt) => {
+                      const isSelected = effortLevel === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setEffortLevel(opt.id as any);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer text-left ${
+                            isSelected
+                              ? isDark
+                                ? "bg-white/10 text-white font-semibold"
+                                : "bg-zinc-100 text-zinc-950 font-semibold"
+                              : isDark
+                              ? "hover:bg-white/5 text-zinc-300 hover:text-white"
+                              : "hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{opt.label}</span>
+                            {opt.badge && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                                isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-100 text-zinc-600"
+                              }`}>
+                                {opt.badge}
+                              </span>
+                            )}
+                            {opt.warningBadge && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium bg-amber-950/70 border border-amber-800/60 text-amber-400 flex items-center gap-1">
+                                <span>⚠️</span>
+                                <span>{opt.warningBadge}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {isSelected && (
+                            <svg className="w-4 h-4 text-blue-500 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Browse Toggle Switch */}
@@ -2248,79 +2356,8 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Right Side: Model Speed Slider + Send / Stop Circular Button */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* 3-Level Interactive Model Level Slider (Faster -> Balanced -> Max) */}
-            <div
-              className={`relative flex items-center p-0.5 rounded-full border transition-all select-none h-8 cursor-pointer ${
-                isDark
-                  ? "bg-zinc-900/90 border-zinc-700/60 text-zinc-300"
-                  : "bg-zinc-100 border-zinc-200/90 text-zinc-700"
-              }`}
-              title="Atur level model AI: Faster, Balanced, atau Max"
-              onPointerDown={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-                const ratio = x / rect.width;
-                if (ratio < 0.33) setModelSpeedLevel(0);
-                else if (ratio < 0.66) setModelSpeedLevel(1);
-                else setModelSpeedLevel(2);
-              }}
-              onPointerMove={(e) => {
-                if (e.buttons === 1) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-                  const ratio = x / rect.width;
-                  if (ratio < 0.33) setModelSpeedLevel(0);
-                  else if (ratio < 0.66) setModelSpeedLevel(1);
-                  else setModelSpeedLevel(2);
-                }
-              }}
-            >
-              {/* Sliding Pill Indicator */}
-              <div
-                className={`absolute top-0.5 bottom-0.5 rounded-full transition-all duration-200 ease-out shadow-xs pointer-events-none ${
-                  isDark
-                    ? "bg-zinc-700/95 text-white shadow-black/40"
-                    : "bg-white text-zinc-950 shadow-xs border border-zinc-200/60"
-                }`}
-                style={{
-                  left:
-                    modelSpeedLevel === 0
-                      ? "2px"
-                      : modelSpeedLevel === 1
-                      ? "calc(33.333% + 1px)"
-                      : "calc(66.666% - 1px)",
-                  width: "calc(33.333% - 2px)",
-                }}
-              />
-
-              {(["Faster", "Balanced", "Max"] as const).map((levelName, idx) => {
-                const isActive = modelSpeedLevel === idx;
-                return (
-                  <button
-                    key={levelName}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModelSpeedLevel(idx as 0 | 1 | 2);
-                    }}
-                    className={`relative z-10 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer rounded-full shrink-0 ${
-                      isActive
-                        ? isDark
-                          ? "text-white font-semibold"
-                          : "text-zinc-950 font-semibold"
-                        : isDark
-                        ? "text-zinc-400 hover:text-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-800"
-                    }`}
-                  >
-                    {levelName}
-                  </button>
-                );
-              })}
-            </div>
-
+          {/* Right Side: Send / Stop Circular Button */}
+          <div className="flex items-center gap-2 shrink-0">
             {isStreaming ? (
               <button
                 type="button"
