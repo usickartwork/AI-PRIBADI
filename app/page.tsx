@@ -2298,54 +2298,54 @@ export default function Home() {
             : "border-black/10 bg-white/20 text-zinc-900"
         } backdrop-blur-xl md:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
-            ? "translate-x-0 opacity-100 scale-100 md:w-64"
+            ? "translate-x-0 opacity-100 scale-100 md:w-72 lg:w-80"
             : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
-        <div className="w-72 md:w-64 flex flex-col h-full min-w-[16rem]">
+        <div className="w-72 md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
           {/* Brand & Logo Header */}
-          <div className={`flex items-center justify-between px-4 py-4 border-b ${
+          <div className={`flex items-center justify-between px-4 py-4 md:px-5 md:py-4.5 border-b ${
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
-            <div className="flex items-center gap-2.5">
-              <div className={`relative flex h-8 w-8 items-center justify-center rounded-xl ${
+            <div className="flex items-center gap-2.5 md:gap-3">
+              <div className={`relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl ${
                 isDark ? "bg-white text-black shadow-md shadow-white/10" : "bg-black text-white shadow-md shadow-black/25"
               }`}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-5 md:h-5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                 </svg>
               </div>
               <div>
-                <span className={`font-bold tracking-tight text-[15px] ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
+                <span className={`font-bold tracking-tight text-[15px] md:text-base ${isDark ? "text-white" : "text-black"}`}>Usick One</span>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className={`rounded-lg p-1.5 transition cursor-pointer ${
+              className={`rounded-lg p-1.5 md:p-2 transition cursor-pointer ${
                 isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-400 hover:bg-zinc-100 hover:text-black"
               }`}
               title="Tutup menu"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5.5 md:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
           {/* Quick Navigation Sections */}
-          <div className="px-3 pt-3 pb-1 space-y-0.5 text-xs font-medium">
+          <div className="px-3 md:px-3.5 pt-3 md:pt-4 pb-1 space-y-1 text-xs md:text-sm font-medium">
             <div
               onClick={() => {
                 setActiveView("chats");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "chats"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               <span>Chats</span>
@@ -2357,13 +2357,13 @@ export default function Home() {
                 setActiveView("code");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "code"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               <span>Code</span>
@@ -2375,13 +2375,13 @@ export default function Home() {
                 setActiveView("schedule");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "schedule"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>Schedule</span>
@@ -2393,13 +2393,13 @@ export default function Home() {
                 setActiveView("faith");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "faith"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
               </svg>
               <span>Faith</span>
@@ -2411,13 +2411,13 @@ export default function Home() {
                 setActiveView("image");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 cursor-pointer transition ${
+              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "image"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
               }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>Image</span>
@@ -2425,8 +2425,8 @@ export default function Home() {
           </div>
 
           {/* History / Recent Threads */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            <div className={`flex items-center justify-between px-2 mb-2 text-[11px] font-bold tracking-wider uppercase ${
+          <div className="flex-1 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4">
+            <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2 md:mb-2.5 text-[11px] md:text-xs font-bold tracking-wider uppercase ${
               isDark ? "text-zinc-500" : "text-black"
             }`}>
               <span>Recent</span>
@@ -2434,7 +2434,7 @@ export default function Home() {
                 <button
                   onClick={clearAllSessions}
                   title="Hapus semua riwayat"
-                  className={`text-[10px] transition cursor-pointer ${
+                  className={`text-[10px] md:text-xs transition cursor-pointer ${
                     isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"
                   }`}
                 >
@@ -2444,18 +2444,18 @@ export default function Home() {
             </div>
 
             {sessions.length === 0 ? (
-              <div className={`px-2 py-6 text-center text-xs ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
+              <div className={`px-2 py-6 text-center text-xs md:text-sm ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
                 Belum ada percakapan.
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-1 md:space-y-1.5">
                 {sessions.map((sess) => {
                   const isActive = sess.id === activeSessionId;
                   return (
                     <div
                       key={sess.id}
                       onClick={() => switchSession(sess.id)}
-                      className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition border ${
+                      className={`group flex items-center justify-between rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 text-xs md:text-sm cursor-pointer transition border ${
                         isActive
                           ? (isDark
                               ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
@@ -2473,7 +2473,7 @@ export default function Home() {
                         }`}>
                           {sess.title || "Percakapan"}
                         </p>
-                        <p className={`text-[10px] mt-0.5 truncate ${
+                        <p className={`text-[10px] md:text-xs mt-0.5 truncate ${
                           isActive
                             ? (isDark ? "text-zinc-400" : "text-zinc-600")
                             : (isDark ? "text-zinc-500" : "text-zinc-500")
@@ -2488,14 +2488,14 @@ export default function Home() {
                             e.stopPropagation();
                             setSessionMenuId((prev) => (prev === sess.id ? null : sess.id));
                           }}
-                          className={`p-1 rounded-md transition cursor-pointer ${
+                          className={`p-1 md:p-1.5 rounded-md transition cursor-pointer ${
                             sessionMenuId === sess.id
                               ? (isDark ? "opacity-100 bg-zinc-800 text-white" : "opacity-100 bg-zinc-200 text-black")
                               : (isDark ? "opacity-0 group-hover:opacity-100 text-zinc-400 hover:bg-zinc-800 hover:text-white" : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:bg-zinc-200 hover:text-black")
                           }`}
                           title="Opsi obrolan"
                         >
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="12" cy="5" r="1.75" />
                             <circle cx="12" cy="12" r="1.75" />
                             <circle cx="12" cy="19" r="1.75" />
@@ -2534,11 +2534,11 @@ export default function Home() {
           </div>
 
           {/* Bottom User Card / Status */}
-          <div className={`p-3 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <div className={`p-3 md:p-3.5 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
             {/* Tombol Pricing */}
             <div
               onClick={() => setShowPricingModal(true)}
-              className={`flex items-center rounded-xl px-3 py-2 cursor-pointer transition mb-2 text-xs font-medium ${
+              className={`flex items-center rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition mb-2 text-xs md:text-sm font-medium ${
                 isDark
                   ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white"
                   : "hover:bg-zinc-100 text-black hover:text-black font-medium"
@@ -2547,20 +2547,20 @@ export default function Home() {
               <span>Pricing</span>
             </div>
 
-            <div className={`flex items-center justify-between rounded-2xl p-2.5 shadow-xs border ${
+            <div className={`flex items-center justify-between rounded-2xl p-2.5 md:p-3 shadow-xs border ${
               isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
             }`}>
-              <div className="flex items-center gap-2.5 min-w-0 pr-1">
-                <div className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm ${
+              <div className="flex items-center gap-2.5 md:gap-3 min-w-0 pr-1">
+                <div className={`relative flex h-8 w-8 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full text-xs md:text-sm font-bold shadow-sm ${
                   isDark ? "bg-white text-black" : "bg-black text-white"
                 }`}>
                   {userInitial}
                 </div>
                 <div className="truncate">
-                  <div className={`text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
+                  <div className={`text-xs md:text-sm font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
                     {user ? userDisplayName : "Belum Masuk"}
                   </div>
-                  <div className={`text-[10px] font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  <div className={`text-[10px] md:text-xs font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                     {user ? user.email : "Akun Diperlukan"}
                   </div>
                 </div>
@@ -2572,7 +2572,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setShowAuthModal(true)}
                     title="Masuk / Daftar"
-                    className={`rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                    className={`rounded-xl px-2.5 md:px-3 py-1 md:py-1.5 text-[11px] md:text-xs font-bold transition cursor-pointer ${
                       isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                     }`}
                   >
@@ -2586,11 +2586,11 @@ export default function Home() {
                     setSettingsOpen(true);
                   }}
                   title="Pengaturan"
-                  className={`rounded-lg p-1.5 transition cursor-pointer ${
+                  className={`rounded-lg p-1.5 md:p-2 transition cursor-pointer ${
                     isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-black"
                   }`}
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
                   </svg>
                 </button>
@@ -2645,10 +2645,10 @@ export default function Home() {
             {/* 3-line hamburger menu button on the LEFT */}
             <button
               onClick={() => setSidebarOpen((prev) => !prev)}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
               }`}
               title="Menu Panel"
               aria-label="Menu Panel"
@@ -2662,10 +2662,10 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={newChat}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
               }`}
               title="New Chat"
               aria-label="New Chat"

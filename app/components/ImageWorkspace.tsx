@@ -287,14 +287,14 @@ export function ImageWorkspace({
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-xl border shadow-2xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
               }`}
               title="Menu Panel"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>

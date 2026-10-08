@@ -1156,10 +1156,10 @@ export function ScheduleWorkspace({
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
                 isDark
-                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
               }`}
               title="Menu Panel"
               aria-label="Menu Panel"
@@ -1175,14 +1175,14 @@ export function ScheduleWorkspace({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
-            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl border shadow-xs transition cursor-pointer shrink-0 ${
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
               currentTab === "list"
                 ? isDark
-                  ? "bg-white text-black border-white shadow-xs"
-                  : "bg-black text-white border-black shadow-xs"
+                  ? "bg-white text-black shadow-xs"
+                  : "bg-black text-white shadow-xs"
                 : isDark
-                ? "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black"
+                ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
             }`}
             title={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
             aria-label={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
