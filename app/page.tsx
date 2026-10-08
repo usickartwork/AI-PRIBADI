@@ -1436,13 +1436,7 @@ export default function Home() {
 
       const processContentChunk = async (contentText: string) => {
         rawContentBuffer += contentText;
-        const { answer, isThinking } = extractCleanAnswer(rawContentBuffer);
-
-        if (isThinking && !answer) {
-          setStatusMessage("Sedang berpikir...");
-        } else {
-          setStatusMessage(null);
-        }
+        const { answer } = extractCleanAnswer(rawContentBuffer);
 
         if (answer.length > lastProcessedLength) {
           const delta = answer.slice(lastProcessedLength);
@@ -1511,13 +1505,9 @@ export default function Home() {
               } else if (reasoningText) {
                 // Khusus model coder (qwen3-coder) yang seluruh jawabannya dibungkus oleh provider di reasoning_content
                 if (isCoderModel) {
-                  setStatusMessage(null);
                   await appendSmoothly(reasoningText);
                 } else {
                   reasoningBuffer += reasoningText;
-                  if (!statusMessage) {
-                    setStatusMessage("Sedang berpikir...");
-                  }
                 }
               }
             }
@@ -2285,7 +2275,7 @@ export default function Home() {
     <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
       isDark ? "text-zinc-100" : "text-zinc-900"
     } font-sans antialiased p-0`}>
-      <MeshDriftBackground />
+      <MeshDriftBackground isDark={isDark} />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -2300,7 +2290,7 @@ export default function Home() {
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r ${
           isDark
             ? "border-white/10 bg-black/20 text-zinc-200"
-            : "border-black/10 bg-white/20 text-zinc-900"
+            : "border-zinc-200/80 bg-white/80 text-zinc-900"
         } backdrop-blur-xl md:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
             ? "translate-x-0 opacity-100 scale-100 md:w-72 lg:w-80"
@@ -2347,7 +2337,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "chats"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2365,7 +2355,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "code"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2383,7 +2373,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "schedule"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2401,7 +2391,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "faith"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2419,7 +2409,7 @@ export default function Home() {
               className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
                 activeView === "image"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-black hover:text-black font-medium")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
               <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2432,7 +2422,7 @@ export default function Home() {
           {/* History / Recent Threads */}
           <div className="flex-1 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4">
             <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2 md:mb-2.5 text-[11px] md:text-xs font-bold tracking-wider uppercase ${
-              isDark ? "text-zinc-500" : "text-black"
+              isDark ? "text-zinc-500" : "text-zinc-500"
             }`}>
               <span>Recent</span>
               {sessions.length > 0 && (
@@ -2714,7 +2704,7 @@ export default function Home() {
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-12 sm:-translate-y-16">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-2 sm:-translate-y-3">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
@@ -2729,10 +2719,10 @@ export default function Home() {
                 </div>
 
                 {/* Headline */}
-                <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
                   {getTimeGreeting()}, {chatAccountName}
                 </h1>
-                <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                   What would you like to build or explore today?
                 </p>
               </div>
@@ -2923,16 +2913,6 @@ export default function Home() {
                 </div>
               );
             })}
-
-            {/* Status searching pulse */}
-            {statusMessage && (
-              <div className={`flex items-center gap-2.5 text-xs pl-10 sm:pl-11 font-medium ${
-                isDark ? "text-zinc-200" : "text-black font-semibold"
-              }`}>
-                <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
-                <ShiningText text={statusMessage} />
-              </div>
-            )}
 
             <div ref={bottomRef} />
           </div>

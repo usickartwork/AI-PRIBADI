@@ -41,6 +41,7 @@ uniform vec4 u_finish;     // hue, vignette, blur, grain
 uniform vec4 u_transform;  // seed, rotation, drift, OKLab toggle
 uniform vec4 u_space;      // offset.xy, pointer.xy
 uniform vec4 u_cursor;
+uniform float u_isDark;
 
 #define u_resolution u_scene.xy
 #define u_time u_scene.z
@@ -293,7 +294,12 @@ void main() {
   if (u_grain > 0.0001)
     col += (grainHash(
       gl_FragCoord.xy + vec2(u_seed * 17.0, u_seed * 31.0)) - 0.5) * u_grain;
-  gl_FragColor = vec4(clamp(col * 0.32, 0.0, 1.0), 1.0);
+  if (u_isDark > 0.5) {
+    gl_FragColor = vec4(clamp(col * 0.32, 0.0, 1.0), 1.0);
+  } else {
+    vec3 lightCol = mix(vec3(0.985, 0.985, 0.99), vec3(0.91, 0.92, 0.95), clamp(col, 0.0, 1.0));
+    gl_FragColor = vec4(clamp(lightCol, 0.0, 1.0), 1.0);
+  }
 }
 `;
 
@@ -310,8 +316,13 @@ function createShader(gl: WebGLRenderingContext, type: number, source: string): 
   return shader;
 }
 
-export function MeshDriftBackground() {
+export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDarkRef = useRef(isDark);
+
+  useEffect(() => {
+    isDarkRef.current = isDark;
+  }, [isDark]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -370,6 +381,7 @@ export function MeshDriftBackground() {
     const uTransformLoc = gl.getUniformLocation(program, "u_transform");
     const uSpaceLoc = gl.getUniformLocation(program, "u_space");
     const uCursorLoc = gl.getUniformLocation(program, "u_cursor");
+    const uIsDarkLoc = gl.getUniformLocation(program, "u_isDark");
 
     // Colors (low → high): #101010, #F5F5F5, #B0B0B0, #3A3A3A
     const colorsData = new Float32Array([
@@ -427,6 +439,10 @@ export function MeshDriftBackground() {
       if (uSceneLoc) {
         // resolution.xy, time (seconds * 0.73), colour count (4.0)
         gl.uniform4f(uSceneLoc, canvas.width, canvas.height, elapsedSeconds * 0.73, 4.0);
+      }
+
+      if (uIsDarkLoc) {
+        gl.uniform1f(uIsDarkLoc, isDarkRef.current ? 1.0 : 0.0);
       }
 
       gl.drawArrays(gl.TRIANGLES, 0, 3);

@@ -330,7 +330,7 @@ export function ImageWorkspace({
 
             {/* Subtitle */}
             <p className={`mt-2 text-base sm:text-lg font-medium max-w-md mx-auto px-2 ${
-              isDark ? "text-zinc-400" : "text-black"
+              isDark ? "text-zinc-400" : "text-zinc-500"
             }`}>
               Try a template or describe an idea in chat. Create with One image.
             </p>

@@ -1316,7 +1316,7 @@ export function ScheduleWorkspace({
               }`}
             >
               {chatMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-12 sm:-translate-y-16">
+                <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-2 sm:-translate-y-3">
                   {/* Pure Star Icon only (No Box/Kotak, identical to main chat tab) */}
                   <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
                     <svg
@@ -1346,10 +1346,10 @@ export function ScheduleWorkspace({
                   </div>
 
                   {/* Headline identik dengan tab chat */}
-                  <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                  <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
                     {getTimeGreeting()}, Usick One
                   </h1>
-                  <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                  <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                     What would you like to schedule today?
                   </p>
                 </div>
