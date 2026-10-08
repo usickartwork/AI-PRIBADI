@@ -18,10 +18,12 @@ export const metadata: Metadata = {
   description: "Personal AI Assistant",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg?v=3", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=3", sizes: "16x16", type: "image/png" },
     ],
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    shortcut: "/favicon.ico?v=3",
+    apple: "/apple-icon.png?v=3",
   },
 };
 
@@ -42,6 +44,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
         <head>
+          <link rel="icon" type="image/svg+xml" href="/icon.svg?v=3" />
+          <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3" />
+          <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3" />
+          <link rel="shortcut icon" href="/favicon.ico?v=3" />
+          <link rel="apple-touch-icon" href="/apple-icon.png?v=3" />
           <script
             dangerouslySetInnerHTML={{
               __html: `
