@@ -467,7 +467,7 @@ export function MeshDriftBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none -z-10"
+      className="fixed inset-0 w-full h-full pointer-events-none"
       style={{
         position: "fixed",
         top: 0,
@@ -475,9 +475,10 @@ export function MeshDriftBackground() {
         width: "100vw",
         height: "100vh",
         pointerEvents: "none",
-        zIndex: -1,
+        zIndex: 0,
       }}
       aria-hidden="true"
     />
   );
 }
+

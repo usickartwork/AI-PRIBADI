@@ -2277,28 +2277,28 @@ export default function Home() {
   );
 
   return (
-    <div className={`relative flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+    <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
       isDark ? "text-zinc-100" : "text-zinc-900"
-    } font-sans antialiased p-0 sm:p-3 md:p-4`}>
+    } font-sans antialiased p-0`}>
       <MeshDriftBackground />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
 
       {/* ─── SIDEBAR (Slide Morphing Smooth Drawer) ─────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r sm:border ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r ${
           isDark
-            ? "border-zinc-800/80 bg-[#121215]/95 text-zinc-200"
-            : "border-zinc-200/80 bg-white/95 text-zinc-900"
-        } backdrop-blur-xl sm:rounded-3xl shadow-2xl md:shadow-sm overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
+            ? "border-white/10 bg-black/20 text-zinc-200"
+            : "border-black/10 bg-white/20 text-zinc-900"
+        } backdrop-blur-xl md:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
-            ? "translate-x-0 opacity-100 scale-100 md:w-64 md:mr-3"
+            ? "translate-x-0 opacity-100 scale-100 md:w-64"
             : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
@@ -2601,11 +2601,7 @@ export default function Home() {
       </aside>
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
-      <main className={`relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-colors ${
-        isDark
-          ? "bg-[#121215]/80 backdrop-blur-xl border-zinc-800/80 shadow-2xl shadow-black/80 text-zinc-100"
-          : "bg-white/80 backdrop-blur-xl border-zinc-200/80 shadow-2xl shadow-black/20 text-zinc-900"
-      }`}>
+      <main className="relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-transparent border-0 shadow-none">
         {activeView === "code" ? (
           <CodeWorkspace
             key={user?.id || "guest"}
@@ -2731,14 +2727,9 @@ export default function Home() {
                 <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {getTimeGreeting()}, {chatAccountName}
                 </h1>
-                <p className={`mt-1.5 mb-5 sm:mb-6 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                   What would you like to build or explore today?
                 </p>
-
-                {/* Obrolan Baru: Chat Box persis di tengah seperti tab image tapi dipersempit ke bawah */}
-                <div className="w-full text-left">
-                  {renderChatInputCard()}
-                </div>
               </div>
             )}
 
@@ -2966,18 +2957,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* ─── FLOATING ELEVATED INPUT BAR (Hanya saat ada percakapan / messages.length > 0) ─── */}
-        {messages.length > 0 && (
-          <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-            isDark
-              ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
-              : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
-          }`}>
-            <div className="mx-auto max-w-3xl w-full">
-              {renderChatInputCard()}
-            </div>
+        {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
+          <div className="mx-auto max-w-3xl w-full">
+            {renderChatInputCard()}
           </div>
-        )}
+        </div>
       </>
     )}
   </main>

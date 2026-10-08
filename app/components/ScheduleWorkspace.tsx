@@ -1274,7 +1274,7 @@ export function ScheduleWorkspace({
       {!user && (
         <div
           className={`shrink-0 px-4 py-2 border-b flex items-center justify-between text-xs ${
-            isDark ? "bg-zinc-900/80 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+            isDark ? "bg-black/20 border-white/10 text-zinc-300 backdrop-blur-xs" : "bg-white/20 border-black/10 text-zinc-700 backdrop-blur-xs"
           }`}
         >
           <div className="flex items-center gap-2 truncate">
@@ -1346,14 +1346,9 @@ export function ScheduleWorkspace({
                   <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                     {getTimeGreeting()}, Usick One
                   </h1>
-                  <p className={`mt-1.5 mb-5 sm:mb-6 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
+                  <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-black"}`}>
                     What would you like to schedule today?
                   </p>
-
-                  {/* Obrolan Baru: Chat Box persis di tengah seperti tab image tapi dipersempit ke bawah */}
-                  <div className="w-full text-left">
-                    {renderScheduleInputCard()}
-                  </div>
                 </div>
               ) : (
                 chatMessages.map((msg) => {
@@ -1570,20 +1565,12 @@ export function ScheduleWorkspace({
             </div>
           </div>
 
-          {/* ─── FLOATING ELEVATED INPUT BAR (Hanya saat ada percakapan / chatMessages.length > 0) ─── */}
-          {chatMessages.length > 0 && (
-            <div
-              className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-                isDark
-                  ? "bg-gradient-to-t from-[#121215]/95 via-[#121215]/60 to-transparent"
-                  : "bg-gradient-to-t from-white/95 via-white/60 to-transparent"
-              }`}
-            >
-              <div className="mx-auto max-w-3xl w-full">
-                {renderScheduleInputCard()}
-              </div>
+          {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
+          <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
+            <div className="mx-auto max-w-3xl w-full">
+              {renderScheduleInputCard()}
             </div>
-          )}
+          </div>
         </div>
       )}
 
