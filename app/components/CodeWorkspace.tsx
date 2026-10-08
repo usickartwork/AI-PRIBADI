@@ -6939,7 +6939,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
   // ─────────────────────────────────────────────────────────────────────────────
   if (!activeProject) {
     return (
-      <div className={`flex flex-col h-full w-full overflow-y-auto ${isDark ? "bg-[#0c0c0e] text-white" : "bg-[#fafafc] text-black"}`}>
+      <div className={`flex flex-col h-full w-full overflow-y-auto bg-transparent ${isDark ? "text-white" : "text-black"}`}>
         {/* Header Bar */}
         <div className={`sticky top-0 z-10 flex items-center justify-between px-4 sm:px-8 py-3.5 border-b backdrop-blur-md ${
           isDark ? "bg-[#0c0c0e]/90 border-zinc-850" : "bg-white/90 border-zinc-200"
@@ -7181,7 +7181,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
   const displayArch = isPlannerFinished ? activeProject.architecture : undefined;
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden ${isDark ? "bg-[#0b0f19] text-white" : "bg-[#f8fafc] text-slate-900"}`}>
+    <div className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${isDark ? "text-white" : "text-slate-900"}`}>
       {/* Toast Feedback */}
       {copyFeedback && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-black border border-zinc-700 dark:border-zinc-300 shadow-xl animate-in fade-in-0 duration-200">

@@ -117,6 +117,40 @@ export function ImageWorkspace({
   const [downloading, setDownloading] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const templateScrollRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const container = templateScrollRef.current;
+    if (!container) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - container.offsetLeft;
+    scrollLeftRef.current = container.scrollLeft;
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return;
+    e.preventDefault();
+    const container = templateScrollRef.current;
+    if (!container) return;
+    const x = e.pageX - container.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    container.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const scrollTemplates = (direction: "left" | "right") => {
+    if (templateScrollRef.current) {
+      const amount = direction === "left" ? -320 : 320;
+      templateScrollRef.current.scrollBy({ left: amount, behavior: "smooth" });
+    }
+  };
+
   const storageKey = `usick-image-history-${userId || "guest"}`;
 
   // Close dropdown on click outside
@@ -241,14 +275,9 @@ export function ImageWorkspace({
 
   return (
     <div
-      className={`flex flex-col h-full w-full overflow-hidden ${
-        isDark ? "text-zinc-100" : "bg-[#f8f9fa] text-zinc-900"
+      className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${
+        isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
-      style={{
-        background: isDark
-          ? "radial-gradient(ellipse 90% 75% at 50% 60%, #151824 0%, #0c0d12 60%, #08080b 100%)"
-          : undefined,
-      }}
     >
       {/* ─── TOP APP HEADER ─────────────────────────────────────────────── */}
       <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
@@ -528,8 +557,53 @@ export function ImageWorkspace({
           )}
 
           {/* 4. TEMPLATE INSPIRATION CARDS (Exact match to uploaded layout) */}
-          <div className="w-full mt-8 sm:mt-10">
-            <div className="flex items-center gap-3.5 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x justify-start sm:justify-center">
+          <div className="w-full mt-8 sm:mt-10 relative group/templates">
+            {/* Desktop Left / Right Scroll Buttons */}
+            <button
+              type="button"
+              onClick={() => scrollTemplates("left")}
+              className={`hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-9 h-9 items-center justify-center rounded-full shadow-xl border transition-all cursor-pointer opacity-70 hover:opacity-100 ${
+                isDark
+                  ? "bg-zinc-900/95 hover:bg-zinc-800 text-white border-zinc-700 hover:scale-105"
+                  : "bg-white/95 hover:bg-zinc-100 text-zinc-900 border-zinc-300 hover:scale-105"
+              }`}
+              title="Geser ke kiri"
+              aria-label="Geser ke kiri"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => scrollTemplates("right")}
+              className={`hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-9 h-9 items-center justify-center rounded-full shadow-xl border transition-all cursor-pointer opacity-70 hover:opacity-100 ${
+                isDark
+                  ? "bg-zinc-900/95 hover:bg-zinc-800 text-white border-zinc-700 hover:scale-105"
+                  : "bg-white/95 hover:bg-zinc-100 text-zinc-900 border-zinc-300 hover:scale-105"
+              }`}
+              title="Geser ke kanan"
+              aria-label="Geser ke kanan"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <div
+              ref={templateScrollRef}
+              onWheel={(e) => {
+                if (e.deltaY !== 0) {
+                  e.currentTarget.scrollLeft += e.deltaY;
+                }
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseLeave={handleMouseLeaveOrUp}
+              onMouseUp={handleMouseLeaveOrUp}
+              onMouseMove={handleMouseMove}
+              className="flex items-center gap-3.5 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x justify-start select-none cursor-grab active:cursor-grabbing"
+            >
               {TEMPLATES.map((tmpl) =>
                 tmpl.isGrid ? (
                   /* 6th item: 2x2 Circular Avatars cluster */

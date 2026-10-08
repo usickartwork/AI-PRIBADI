@@ -539,10 +539,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const isDeepSeekR1 =
-      modelName.toLowerCase().includes("deepseek-r1") ||
-      modelId.toLowerCase().includes("deepseek-r1");
-    const timeoutMs = isDeepSeekR1 ? 60000 : 35000;
+    const isDeepSeek =
+      modelName.toLowerCase().includes("deepseek") ||
+      modelId.toLowerCase().includes("deepseek");
+    const timeoutMs = isDeepSeek ? 60000 : 35000;
 
     let upstream = await fetch(provider.endpoint, {
       method: "POST",
@@ -571,6 +571,34 @@ export async function POST(request: Request) {
         if (nativeUpstream.ok) {
           upstream = nativeUpstream;
         }
+      }
+    }
+
+    // ── DeepSeek Fallback (If custom deepseek model hits 429 rate limit or 503, fallback to deepseek-v4.1-flash-auto) ─
+    if (
+      !upstream.ok &&
+      (upstream.status === 429 || upstream.status === 503 || upstream.status === 504 || upstream.status === 500) &&
+      providerName === "custom" &&
+      modelName.startsWith("clario/deepseek-") &&
+      modelName !== "clario/deepseek-v4.1-flash-auto"
+    ) {
+      console.warn(
+        `[api/chat] DeepSeek model ${modelName} returned ${upstream.status}, trying fallback clario/deepseek-v4.1-flash-auto`
+      );
+      const fallbackBody = JSON.stringify({
+        model: "clario/deepseek-v4.1-flash-auto",
+        messages,
+        stream: true,
+        max_tokens: 4096,
+      });
+      const fallbackUpstream = await fetch(provider.endpoint, {
+        method: "POST",
+        headers: reqHeaders,
+        body: fallbackBody,
+        signal: AbortSignal.timeout(60000),
+      });
+      if (fallbackUpstream.ok) {
+        upstream = fallbackUpstream;
       }
     }
 

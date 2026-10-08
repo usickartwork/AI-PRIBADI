@@ -1141,8 +1141,8 @@ export function ScheduleWorkspace({
 
   return (
     <div
-      className={`flex flex-col h-full w-full overflow-hidden ${
-        isDark ? "bg-[#0c0c0e] text-zinc-100" : "bg-white text-zinc-900"
+      className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${
+        isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
       {/* ─── Top Header Bar ────────────────────────────────────────────────── */}

@@ -8,6 +8,7 @@ import { CodeWorkspace } from "./components/CodeWorkspace";
 import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
+import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
@@ -1169,7 +1170,8 @@ export default function Home() {
       }, ms);
     };
 
-    resetActivityTimer(45000);
+    const isCurrentDeepSeek = model.toLowerCase().includes("deepseek");
+    resetActivityTimer(isCurrentDeepSeek ? 65000 : 45000);
 
     let assistantId = "";
     let userMsgId = "";
@@ -1453,7 +1455,7 @@ export default function Home() {
         if (done || controller.signal.aborted) break;
 
         // Reset timer heartbeat: selama token/data masih mengalir dari AI, jangan pernah abort!
-        resetActivityTimer(35000);
+        resetActivityTimer(isCurrentDeepSeek ? 65000 : 35000);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -1596,7 +1598,8 @@ export default function Home() {
         return;
       } else {
         console.error("Chat error:", err);
-        setError((err as Error).message);
+        const errMsg = (err as Error).message;
+        setError(errMsg);
         if (assistantId) {
           setMessages((prev) =>
             prev.map((m) =>
@@ -1604,8 +1607,9 @@ export default function Home() {
                 ? {
                     ...m,
                     content:
-                      "Maaf, terjadi kesalahan saat menghubungi AI. " +
-                      "Periksa koneksi atau periksa pesan error di atas.",
+                      errMsg && errMsg !== "Failed to fetch"
+                        ? errMsg
+                        : "Maaf, terjadi kesalahan saat menghubungi AI. Periksa koneksi atau periksa pesan error di atas.",
                   }
                 : m
             )
@@ -2273,9 +2277,10 @@ export default function Home() {
   );
 
   return (
-    <div className={`flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
-      isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
+    <div className={`relative flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+      isDark ? "text-zinc-100" : "text-zinc-900"
     } font-sans antialiased p-0 sm:p-3 md:p-4`}>
+      <MeshDriftBackground />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -2596,10 +2601,10 @@ export default function Home() {
       </aside>
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
-      <main className={`flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-colors ${
+      <main className={`relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden sm:rounded-3xl border sm:border transition-colors ${
         isDark
-          ? "bg-[#121215] border-zinc-800/90 shadow-2xl shadow-black/80 text-zinc-100"
-          : "bg-white border-zinc-200/90 shadow-2xl shadow-black/40 text-zinc-900"
+          ? "bg-[#121215]/80 backdrop-blur-xl border-zinc-800/80 shadow-2xl shadow-black/80 text-zinc-100"
+          : "bg-white/80 backdrop-blur-xl border-zinc-200/80 shadow-2xl shadow-black/20 text-zinc-900"
       }`}>
         {activeView === "code" ? (
           <CodeWorkspace
