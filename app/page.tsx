@@ -553,6 +553,10 @@ export default function Home() {
   });
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, "like" | "dislike">>({});
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>("");
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("usick-theme");
@@ -1169,7 +1173,7 @@ export default function Home() {
     );
   };
 
-  const sendMessage = async (customPrompt?: string) => {
+  const sendMessage = async (customPrompt?: string, historyOverride?: ChatMessage[]) => {
     if (!user) {
       setShowAuthModal(true);
       return;
@@ -1241,7 +1245,8 @@ export default function Home() {
         content: getVisionUnsupportedNotice(currentModelObj.label),
       };
 
-      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      const baseHistory = historyOverride !== undefined ? historyOverride : messages;
+      setMessages([...baseHistory, userMsg, assistantMsg]);
       if (!customPrompt) setInput("");
       setSelectedImage(null);
       setSelectedFile(null);
@@ -1275,7 +1280,8 @@ export default function Home() {
         model: cleanModelLabel(currentModelObj.label),
       };
 
-      const updatedMessages = [...messages, userMsg, assistantMsg];
+      const baseHistory = historyOverride !== undefined ? historyOverride : messages;
+      const updatedMessages = [...baseHistory, userMsg, assistantMsg];
       setMessages(updatedMessages);
       if (!customPrompt) setInput("");
 
@@ -1700,6 +1706,10 @@ export default function Home() {
       } catch {}
       readerRef.current = null;
     }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+    }
     closeSidebarOnMobile();
     setError(null);
     setIsStreaming(false);
@@ -1732,6 +1742,10 @@ export default function Home() {
         readerRef.current.cancel();
       } catch {}
       readerRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
     }
     closeSidebarOnMobile();
     setError(null);
@@ -1821,6 +1835,116 @@ export default function Home() {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const handleToggleSpeech = (id: string, text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+    if (speakingMessageId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    // Bersihkan format markdown sebelum dibacakan oleh suara AI
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, " bagian kode terlampir ")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[#*_~>]/g, "")
+      .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const voices = window.speechSynthesis.getVoices();
+    const idVoice =
+      voices.find((v) => v.lang.toLowerCase().startsWith("id")) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith("en"));
+    if (idVoice) utterance.voice = idVoice;
+    utterance.rate = 1.0;
+
+    utterance.onend = () => {
+      setSpeakingMessageId(null);
+    };
+    utterance.onerror = () => {
+      setSpeakingMessageId(null);
+    };
+
+    setSpeakingMessageId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleToggleFeedback = (id: string, type: "like" | "dislike") => {
+    setMessageFeedback((prev) => {
+      const current = prev[id];
+      if (current === type) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: type };
+    });
+  };
+
+  const handleRegenerateAssistant = (assistantMsgId: string) => {
+    if (isStreaming) return;
+    const assistantIdx = messages.findIndex((m) => m.id === assistantMsgId);
+    if (assistantIdx === -1) return;
+    const priorMessages = messages.slice(0, assistantIdx);
+    const userMsgIndex = [...priorMessages]
+      .map((m, i) => ({ m, i }))
+      .reverse()
+      .find((x) => x.m.role === "user")?.i;
+
+    if (userMsgIndex !== undefined && userMsgIndex >= 0) {
+      const userMsg = priorMessages[userMsgIndex];
+      const historyBeforeUser = messages.slice(0, userMsgIndex);
+      sendMessage(userMsg.content, historyBeforeUser);
+    }
+  };
+
+  const handleRegenerateUser = (userMsgId: string) => {
+    if (isStreaming) return;
+    const userIdx = messages.findIndex((m) => m.id === userMsgId);
+    if (userIdx === -1) return;
+    const userMsg = messages[userIdx];
+    const historyBeforeUser = messages.slice(0, userIdx);
+    sendMessage(userMsg.content, historyBeforeUser);
+  };
+
+  const handleStartEdit = (msgId: string, currentText: string) => {
+    if (isStreaming) return;
+    setEditingMessageId(msgId);
+    setEditingContent(currentText);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent("");
+  };
+
+  const handleSaveEdit = (userMsgId: string) => {
+    if (isStreaming) return;
+    const trimmed = editingContent.trim();
+    if (!trimmed) return;
+    const userIdx = messages.findIndex((m) => m.id === userMsgId);
+    if (userIdx === -1) return;
+    const historyBefore = messages.slice(0, userIdx);
+    setEditingMessageId(null);
+    setEditingContent("");
+    sendMessage(trimmed, historyBefore);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const activeModelObj = models.find((m) => m.id === model) || models[0] || FALLBACK_MODELS[0];
 
@@ -2957,34 +3081,143 @@ export default function Home() {
                 >
                   {isUser ? (
                     /* User Message: Tetap pakai bubble */
-                    <div
-                      className={`relative max-w-[85%] sm:max-w-[75%] rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
-                        isDark
-                          ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm font-normal"
-                          : "bg-zinc-900 border border-zinc-800 text-white shadow-sm font-normal"
-                      }`}
-                    >
-                      {msg.image && (
-                        <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-sm max-w-xs sm:max-w-sm">
-                          <img
-                            src={msg.image}
-                            alt="Foto terlampir"
-                            className="max-h-64 sm:max-h-80 w-auto rounded-xl object-contain cursor-pointer hover:opacity-90 transition bg-black/20"
-                            onClick={() => setPreviewImage(msg.image || null)}
-                            title="Klik untuk melihat ukuran penuh"
-                          />
+                    <div className="flex flex-col items-end gap-1 max-w-[85%] sm:max-w-[75%]">
+                      <div
+                        className={`relative w-full rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
+                          isDark
+                            ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm font-normal"
+                            : "bg-zinc-900 border border-zinc-800 text-white shadow-sm font-normal"
+                        }`}
+                      >
+                        {msg.image && (
+                          <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-sm max-w-xs sm:max-w-sm">
+                            <img
+                              src={msg.image}
+                              alt="Foto terlampir"
+                              className="max-h-64 sm:max-h-80 w-auto rounded-xl object-contain cursor-pointer hover:opacity-90 transition bg-black/20"
+                              onClick={() => setPreviewImage(msg.image || null)}
+                              title="Klik untuk melihat ukuran penuh"
+                            />
+                          </div>
+                        )}
+                        {msg.fileName && (
+                          <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/10 border border-white/15 text-white shadow-xs">
+                            <svg className="w-4 h-4 shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="truncate max-w-[200px]">{msg.fileName}</span>
+                          </div>
+                        )}
+                        {editingMessageId === msg.id ? (
+                          <div className="w-full min-w-[220px] sm:min-w-[320px] py-1">
+                            <textarea
+                              value={editingContent}
+                              onChange={(e) => setEditingContent(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSaveEdit(msg.id);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  handleCancelEdit();
+                                }
+                              }}
+                              rows={Math.min(8, Math.max(2, editingContent.split("\n").length))}
+                              className="w-full rounded-xl p-2.5 text-[14px] leading-relaxed resize-none border bg-zinc-900/90 border-zinc-600/70 text-white focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-zinc-400"
+                              placeholder="Edit pesan Anda..."
+                              autoFocus
+                            />
+                            <div className="mt-2 flex items-center justify-end gap-2 text-xs">
+                              <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="px-3 py-1.5 rounded-lg font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(msg.id)}
+                                disabled={!editingContent.trim() || isStreaming}
+                                className="px-3.5 py-1.5 rounded-lg font-semibold bg-white text-black hover:bg-zinc-200 disabled:opacity-50 transition cursor-pointer shadow-xs"
+                              >
+                                Kirim
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          msg.content && (
+                            <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
+                          )
+                        )}
+                      </div>
+
+                      {/* Tombol Aksi di Bawah Bubble User (Gambar 1: Reload, Edit, Copy) */}
+                      {msg.content && editingMessageId !== msg.id && (
+                        <div className="flex items-center gap-0.5 sm:gap-1 px-1">
+                          {/* 1. Reload / Kirim ulang prompt */}
+                          <button
+                            type="button"
+                            onClick={() => handleRegenerateUser(msg.id)}
+                            disabled={isStreaming}
+                            title="Kirim ulang prompt"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                            } ${
+                              isDark
+                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                            }`}
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-9-9c2.52 0 4.9 1 6.7 2.7L21 8" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 3v5h-5" />
+                            </svg>
+                          </button>
+
+                          {/* 2. Edit pesan */}
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(msg.id, msg.content)}
+                            disabled={isStreaming}
+                            title="Edit pesan"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                            } ${
+                              isDark
+                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                            }`}
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m15 5 4 4" />
+                            </svg>
+                          </button>
+
+                          {/* 3. Salin pesan */}
+                          <button
+                            type="button"
+                            onClick={() => copyMessage(msg.id, msg.content)}
+                            title={copiedId === msg.id ? "Tersalin!" : "Salin pesan"}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isDark
+                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                            }`}
+                          >
+                            {copiedId === msg.id ? (
+                              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                              </svg>
+                            )}
+                          </button>
                         </div>
-                      )}
-                      {msg.fileName && (
-                        <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/10 border border-white/15 text-white shadow-xs">
-                          <svg className="w-4 h-4 shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <span className="truncate max-w-[200px]">{msg.fileName}</span>
-                        </div>
-                      )}
-                      {msg.content && (
-                        <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
                       )}
                     </div>
                   ) : (
@@ -3068,33 +3301,128 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Copy Action */}
-                        {msg.content && (
-                          <div className="mt-2.5 flex items-center justify-start gap-1.5 pt-1">
+                        {/* Tombol Aksi di Bawah Jawaban AI (Gambar 2: Salin, Baca Suara, Like, Dislike, Regenerate) */}
+                        {msg.content && (!isStreaming || msg.id !== messages[messages.length - 1]?.id) && (
+                          <div className="mt-2.5 flex items-center justify-start gap-0.5 sm:gap-1 pt-1">
+                            {/* 1. Salin / Copy */}
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
-                              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition cursor-pointer ${
+                              title={copiedId === msg.id ? "Tersalin!" : "Salin jawaban"}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                 isDark
-                                  ? "text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                                  : "text-zinc-600 hover:bg-zinc-200/80 hover:text-black font-medium"
+                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
                               }`}
                             >
                               {copiedId === msg.id ? (
-                                <>
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  <span className="font-semibold">Tersalin</span>
-                                </>
+                                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
                               ) : (
-                                <>
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                  </svg>
-                                  <span>Salin</span>
-                                </>
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
                               )}
+                            </button>
+
+                            {/* 2. Baca Suara / Read aloud */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSpeech(msg.id, msg.content)}
+                              title={speakingMessageId === msg.id ? "Hentikan suara" : "Baca dengan suara"}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                speakingMessageId === msg.id
+                                  ? "text-blue-400 bg-blue-500/10 animate-pulse"
+                                  : isDark
+                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                              </svg>
+                            </button>
+
+                            {/* 3. Thumbs Up / Suka */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeedback(msg.id, "like")}
+                              title={messageFeedback[msg.id] === "like" ? "Batal suka" : "Jawaban bagus"}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                messageFeedback[msg.id] === "like"
+                                  ? "text-emerald-400 bg-emerald-500/10"
+                                  : isDark
+                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 24 24"
+                                fill={messageFeedback[msg.id] === "like" ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth={1.8}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 10v12" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* 4. Thumbs Down / Tidak Suka */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeedback(msg.id, "dislike")}
+                              title={messageFeedback[msg.id] === "dislike" ? "Batal tidak suka" : "Jawaban kurang bagus"}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                messageFeedback[msg.id] === "dislike"
+                                  ? "text-red-400 bg-red-500/10"
+                                  : isDark
+                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                viewBox="0 0 24 24"
+                                fill={messageFeedback[msg.id] === "dislike" ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth={1.8}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 14V2" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* 5. Buat Ulang Respons / Regenerate */}
+                            <button
+                              type="button"
+                              onClick={() => handleRegenerateAssistant(msg.id)}
+                              disabled={isStreaming}
+                              title="Buat ulang respons"
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                              } ${
+                                isDark
+                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-9-9c2.52 0 4.9 1 6.7 2.7L21 8" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 3v5h-5" />
+                              </svg>
                             </button>
                           </div>
                         )}
