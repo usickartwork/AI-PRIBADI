@@ -50,16 +50,16 @@ const TrustElements: React.FC = () => {
 };
 
 const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
-  const numBars = 17;
+  const numBars = 15;
 
   const calculateHeight = (index: number, total: number) => {
     const position = index / (total - 1);
     const maxHeight = 100;
-    const minHeight = 24;
+    const minHeight = 30;
 
     const center = 0.5;
     const distanceFromCenter = Math.abs(position - center);
-    const heightPercentage = Math.pow(distanceFromCenter * 2, 1.25);
+    const heightPercentage = Math.pow(distanceFromCenter * 2, 1.2);
 
     return minHeight + (maxHeight - minHeight) * heightPercentage;
   };
@@ -67,7 +67,7 @@ const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
       <div
-        className="flex h-full w-full items-end"
+        className="flex h-full w-full"
         style={{
           transform: "translateZ(0)",
           backfaceVisibility: "hidden",
@@ -76,24 +76,26 @@ const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
       >
         {Array.from({ length: numBars }).map((_, index) => {
           const height = calculateHeight(index, numBars);
+          const barScale = height / 100;
           return (
             <div
               key={index}
               style={{
-                flex: "1 0 calc(100% / 17)",
-                maxWidth: "calc(100% / 17)",
+                flex: "1 0 calc(100% / 15)",
+                maxWidth: "calc(100% / 15)",
                 height: "100%",
                 background: isDark
-                  ? "linear-gradient(to top, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, transparent 85%)"
-                  : "linear-gradient(to top, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.02) 45%, transparent 85%)",
-                transform: `scaleY(${height / 100})`,
+                  ? "linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.72) 25%, rgba(255, 255, 255, 0.22) 55%, transparent 100%)"
+                  : "linear-gradient(to top, #000000 0%, rgba(0, 0, 0, 0.65) 25%, rgba(0, 0, 0, 0.18) 55%, transparent 100%)",
+                transform: `scaleY(${barScale})`,
                 transformOrigin: "bottom",
                 transition: "transform 0.5s ease-in-out",
-                animation: "pulseBar 2.8s ease-in-out infinite alternate",
-                animationDelay: `${index * 0.12}s`,
+                animation: "pulseBar 2s ease-in-out infinite alternate",
+                animationDelay: `${index * 0.1}s`,
                 outline: "1px solid rgba(0, 0, 0, 0)",
                 boxSizing: "border-box",
-              }}
+                ["--bar-scale" as string]: barScale,
+              } as React.CSSProperties}
             />
           );
         })}
@@ -198,18 +200,18 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
     <section
       className={cn(
         "relative min-h-screen flex flex-col items-center justify-between px-6 sm:px-8 md:px-12 overflow-hidden transition-colors selection:bg-white/20",
-        isDark ? "bg-[#09090b] text-white" : "bg-[#fafafc] text-zinc-900"
+        isDark ? "bg-black text-white" : "bg-[#fafafc] text-zinc-900"
       )}
     >
       <style>{`
         @keyframes pulseBar {
           0% {
-            opacity: 0.55;
-            transform: scaleY(0.85);
+            opacity: 0.85;
+            transform: scaleY(var(--bar-scale));
           }
           100% {
             opacity: 1;
-            transform: scaleY(1.2);
+            transform: scaleY(calc(var(--bar-scale) * 1.12));
           }
         }
         @keyframes fadeIn {
@@ -283,15 +285,14 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
 
         {/* Bottom Models Slider (Replacing Instagram, LinkedIn, GitHub icons as instructed) */}
         <div className="w-full max-w-2xl px-4 flex flex-col items-center animate-in fade-in-0 duration-1000">
-          <p
-            className={cn(
-              "text-[11px] sm:text-xs uppercase tracking-widest font-semibold mb-2.5 select-none",
-              isDark ? "text-zinc-500" : "text-zinc-500"
-            )}
-          >
-            Powered by Leading LLM & AI Models
-          </p>
-          <LogoCloud isDark={isDark} duration={8} className="w-full py-1.5" />
+          <div className="w-full bg-black/65 backdrop-blur-md rounded-2xl py-2 px-4 border border-white/10 shadow-2xl flex flex-col items-center">
+            <p
+              className="text-[11px] sm:text-xs uppercase tracking-widest font-semibold mb-1 select-none text-zinc-400"
+            >
+              Powered by Leading LLM & AI Models
+            </p>
+            <LogoCloud isDark={true} duration={8} className="w-full py-1" />
+          </div>
         </div>
       </div>
     </section>

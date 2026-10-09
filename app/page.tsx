@@ -2630,7 +2630,7 @@ export default function Home() {
   // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
   if (!user) {
     return (
-      <div className={`relative min-h-screen w-full ${isDark ? "bg-[#09090b] text-white" : "bg-[#fafafc] text-zinc-900"}`}>
+      <div className={`relative min-h-screen w-full ${isDark ? "bg-black text-white" : "bg-[#fafafc] text-zinc-900"}`}>
         <GradientBarHeroSection
           isDark={isDark}
           onGetStarted={(targetMode) => {
