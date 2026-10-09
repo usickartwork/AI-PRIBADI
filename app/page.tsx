@@ -2455,11 +2455,6 @@ export default function Home() {
                       : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
                   }`}
                 >
-                  {/* Top explanation text */}
-                  <p className={`text-xs leading-relaxed px-1 pt-1 pb-2.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                    Pilih tingkat respons dari <b>Faster</b> (paling cepat & ringkas) hingga <b>Max</b> (kualitas terbaik & mendalam).
-                  </p>
-
                   {/* Options List: 3 Categories (Faster -> Balanced -> Max) */}
                   <div className="space-y-1">
                     {[
@@ -2758,24 +2753,6 @@ export default function Home() {
               <span>Schedule</span>
             </div>
 
-            {/* Faith Feature Button (Integrasi Web Rohani / Salib) */}
-            <div
-              onClick={() => {
-                setActiveView("faith");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "faith"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
-              </svg>
-              <span>Faith</span>
-            </div>
-
             {/* Image Feature Button (Generator Gambar AI - FLUX.1 Free) */}
             <div
               onClick={() => {
@@ -2792,6 +2769,24 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>Image</span>
+            </div>
+
+            {/* Faith Feature Button (Integrasi Web Rohani / Salib - Paling Bawah) */}
+            <div
+              onClick={() => {
+                setActiveView("faith");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "faith"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+              </svg>
+              <span>Faith</span>
             </div>
           </div>
 
@@ -3123,9 +3118,15 @@ export default function Home() {
               </div>
             </header>
 
-            {/* Top short black fade overlay (intensitas pendek) */}
+            {/* Top short fade overlay (intensitas pendek, adaptif tema: putih saat light mode, hitam saat dark mode) */}
             {messages.length > 0 && (
-              <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 bg-gradient-to-b from-black via-black/50 to-transparent z-10" />
+              <div
+                className={`pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 ${
+                  isDark
+                    ? "bg-gradient-to-b from-black via-black/50 to-transparent"
+                    : "bg-gradient-to-b from-white via-white/50 to-transparent"
+                }`}
+              />
             )}
 
         {/* ─── SCROLLABLE CHAT CONTENT ─── */}
