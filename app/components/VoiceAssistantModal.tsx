@@ -27,6 +27,8 @@ export function VoiceAssistantModal({
   const statusRef = useRef(status);
   const conversationHistoryRef = useRef(conversationHistory);
   const isProcessingRef = useRef(false);
+  const aiReplyRef = useRef("");
+  const speechStartedAtRef = useRef<number>(0);
 
   const recognitionRef = useRef<any>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -119,6 +121,7 @@ export function VoiceAssistantModal({
       stopCurrentAudio();
       setStatus("speaking");
       isProcessingRef.current = false;
+      speechStartedAtRef.current = Date.now();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.volume = 1.0;
@@ -144,11 +147,12 @@ export function VoiceAssistantModal({
     }
   }, [stopCurrentAudio, handleSpeechFinished]);
 
-  // High fidelity Web Audio playback (handles WAV & MP3) with volume booster & limiter
+  // High fidelity Web Audio playback with balanced volume booster & anti-peaking compressor
   const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
     stopCurrentAudio();
     setStatus("speaking");
-    isProcessingRef.current = false; // Allow user interruption while speaking!
+    isProcessingRef.current = false; // Allow user interruption while speaking
+    speechStartedAtRef.current = Date.now();
 
     try {
       const binaryString = window.atob(base64Data);
@@ -166,17 +170,17 @@ export function VoiceAssistantModal({
         const source = ctx.createBufferSource();
         source.buffer = decodedBuffer;
 
-        // Boost volume (2.4x amplification)
+        // Balanced clean volume boost (1.35x / +2.6dB) to avoid peaking distortion
         const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(2.4, ctx.currentTime);
+        gainNode.gain.setValueAtTime(1.35, ctx.currentTime);
 
-        // Dynamics compressor prevents distortion and ensures full sound
+        // Transparent studio compressor to prevent any clipping/peaking
         const compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-12, ctx.currentTime);
-        compressor.knee.setValueAtTime(20, ctx.currentTime);
-        compressor.ratio.setValueAtTime(8, ctx.currentTime);
-        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
-        compressor.release.setValueAtTime(0.25, ctx.currentTime);
+        compressor.threshold.setValueAtTime(-6, ctx.currentTime);
+        compressor.knee.setValueAtTime(12, ctx.currentTime);
+        compressor.ratio.setValueAtTime(4, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.005, ctx.currentTime);
+        compressor.release.setValueAtTime(0.1, ctx.currentTime);
 
         source.connect(gainNode);
         gainNode.connect(compressor);
@@ -258,6 +262,7 @@ export function VoiceAssistantModal({
       const data = await res.json();
       const reply = data.text || "Saya mendengarkan Anda.";
       setAiReply(reply);
+      aiReplyRef.current = reply;
       setConversationHistory((prev) => [
         ...prev,
         { role: "user", content: userPrompt },
@@ -275,7 +280,7 @@ export function VoiceAssistantModal({
     }
   }, [playAudioData, fallbackSpeech, handleSpeechFinished]);
 
-  // Continuous Full-Duplex SpeechRecognition with instant Barge-in (Menyela)
+  // Continuous Full-Duplex SpeechRecognition with intelligent Barge-in (Menyela) filtering
   useEffect(() => {
     if (!isOpen) return;
 
@@ -313,8 +318,27 @@ export function VoiceAssistantModal({
       const spokenChunk = (finalChunk || interimChunk).trim();
       if (!spokenChunk) return;
 
-      // ─── INSTANT BARGE-IN (MENYELA): If AI is speaking and user speaks, cut off AI speech immediately! ───
+      // ─── INTELLIGENT BARGE-IN (MENYELA) ───────────────────────────────────────────
       if (statusRef.current === "speaking") {
+        const cleanSpoken = spokenChunk.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanAi = (aiReplyRef.current || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        // 1. Filter out initial speaker transient noise (grace period 600ms)
+        if (Date.now() - speechStartedAtRef.current < 600) {
+          return;
+        }
+
+        // 2. Filter out trivial 1-2 character background sounds (cough, breath, ambient)
+        if (cleanSpoken.length < 3 && !finalChunk.trim()) {
+          return;
+        }
+
+        // 3. Filter out acoustic self-echo: if the mic is just picking up what the AI is speaking
+        if (cleanSpoken.length >= 4 && cleanAi.includes(cleanSpoken)) {
+          return;
+        }
+
+        // Deliberate user interruption detected! Cut off AI speech immediately:
         console.log("[voice-assistant] User interrupted! Cutting off AI audio immediately.");
         stopCurrentAudio();
         setStatus("listening");
@@ -413,6 +437,7 @@ export function VoiceAssistantModal({
       accumulatedSpeechRef.current = "";
       setTranscript("");
       setAiReply("");
+      aiReplyRef.current = "";
       setStatus("listening");
     }
   }, [isOpen, stopCurrentAudio]);
