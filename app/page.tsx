@@ -655,7 +655,7 @@ export default function Home() {
     } else {
       setUser(null);
       setAuthLoading(false);
-      setShowAuthModal(true);
+      setShowAuthModal(false);
     }
   }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
 
@@ -678,7 +678,7 @@ export default function Home() {
       setSessions([fresh]);
       setActiveSessionId(fresh.id);
     }
-    setShowAuthModal(true);
+    setShowAuthModal(false);
   };
 
   const handleDeleteAccount = async () => {
@@ -733,7 +733,7 @@ export default function Home() {
 
       setSettingsOpen(false);
       setShowDeleteModal(false);
-      setShowAuthModal(true);
+      setShowAuthModal(false);
     } catch (err: any) {
       alert(err?.message || "Gagal menghapus akun.");
     } finally {
@@ -2625,6 +2625,35 @@ export default function Home() {
   </div>
   );
 
+  // ─── STEP 1 & 2: UNREGISTERED / UNAUTHENTICATED VISITORS ──────────────────
+  // Menampilkan Page 1 (halaman perkenalan murni tanpa panel dashboard sebelah kiri)
+  // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
+  if (!user) {
+    return (
+      <div className={`relative min-h-screen w-full ${isDark ? "bg-[#09090b] text-white" : "bg-[#fafafc] text-zinc-900"}`}>
+        <GradientBarHeroSection
+          isDark={isDark}
+          onGetStarted={(targetMode) => {
+            setAuthModalMode(targetMode || "signup");
+            setShowAuthModal(true);
+          }}
+        />
+
+        {showAuthModal && (
+          <AuthModal
+            isDark={isDark}
+            initialMode={authModalMode}
+            onSuccess={() => {
+              setShowAuthModal(false);
+            }}
+            onClose={() => setShowAuthModal(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ─── STEP 3: LOGGED-IN USERS ENTER ONE MIND (MAIN WORKSPACE) ───────────────
   return (
     <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
       isDark ? "text-zinc-100" : "text-zinc-900"
@@ -4055,19 +4084,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* ─── WELCOME PAGE FOR UNAUTHENTICATED VISITORS ─────────────────────── */}
-      {!user ? (
-        <div className="fixed inset-0 z-40 bg-background overflow-y-auto">
-          <GradientBarHeroSection
-            isDark={isDark}
-            onGetStarted={(targetMode) => {
-              setAuthModalMode(targetMode || "signup");
-              setShowAuthModal(true);
-            }}
-          />
-        </div>
-      ) : null}
 
       {/* ─── MANDATORY AUTH MODAL (Login & Register via Supabase) ────────── */}
       {showAuthModal ? (
