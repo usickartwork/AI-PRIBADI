@@ -3975,7 +3975,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
 
     const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
 
-Sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silakan pilih preferensi kebutuhan di bawah ini agar perencanaannya 100% presisi dan siap diimplementasikan:`;
+Berdasarkan brief proyek yang Anda berikan, sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silakan tentukan preferensi kebutuhan di bawah ini agar perencanaannya 100% presisi dan siap diimplementasikan:`;
 
     const questionsJson = `\n\n<<<QUESTIONS_JSON>>>\n${JSON.stringify(questions, null, 2)}\n<<<END_QUESTIONS_JSON>>>`;
 
@@ -3988,27 +3988,49 @@ Sebelum saya merumuskan **PRD, Fitur, Arsitektur Teknis, dan Task Board**, silak
     const title = newTitle.trim();
     const desc = newDesc.trim();
 
-    const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
+    const newProjId = "proj-" + Date.now();
+    let initialMessages: ProjectChatMessage[] = [];
+
+    if (desc) {
+      const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(title, desc);
+      initialMessages = [
+        {
+          id: "msg-brief-" + Date.now(),
+          role: "user",
+          content: desc,
+          createdAt: Date.now(),
+        },
+        {
+          id: "msg-questions-" + (Date.now() + 1),
+          role: "assistant",
+          content: `${welcomeText}${questionsJson}`,
+          createdAt: Date.now() + 1,
+        },
+      ];
+    } else {
+      const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
 
 Silakan ceritakan brief atau konsep website/aplikasi yang ingin Anda buat (misalnya: tujuan utama proyek, siapa target penggunanya, dan gambaran fitur atau alur yang Anda bayangkan).
 
 Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan beberapa pertanyaan spesifik untuk menyesuaikan PRD, modul fitur, user flow, arsitektur database, dan task board secara estafet!`;
 
-    const newProjId = "proj-" + Date.now();
+      initialMessages = [
+        {
+          id: "m-welcome-" + Date.now(),
+          role: "assistant",
+          content: welcomeText,
+          createdAt: Date.now(),
+        },
+      ];
+    }
+
     const newProj: ProjectItem = {
       id: newProjId,
       title,
       description: desc || "Proyek perencanaan aplikasi dengan AI.",
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      messages: [
-        {
-          id: "m-welcome",
-          role: "assistant",
-          content: welcomeText,
-          createdAt: Date.now(),
-        },
-      ],
+      messages: initialMessages,
       tasks: [],
     };
 
@@ -4019,12 +4041,6 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
     setInitialPrompt("");
     setNewTitle("");
     setNewDesc("");
-
-    if (desc) {
-      setTimeout(() => {
-        handleSendChatMessage(desc, newProj.id);
-      }, 350);
-    }
   };
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
