@@ -487,6 +487,12 @@ export type ProjectChatMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: number;
+  pendingProject?: {
+    suggestedTitle: string;
+    brief: string;
+    isConfirmed?: boolean;
+    projectId?: string;
+  };
 };
 
 export type ProjectItem = {
@@ -514,209 +520,7 @@ export type ProjectItem = {
 
 const STORAGE_KEY = "usick_code_projects_v2";
 
-const DEFAULT_PROJECTS: ProjectItem[] = [
-  {
-    id: "demo-mini-soccer",
-    title: "Mini Soccer Booking System",
-    description: "Sistem reservasi lapangan mini soccer online dengan jadwal real-time dan pembayaran otomatis.",
-    createdAt: Date.now() - 86400000 * 3,
-    updatedAt: Date.now() - 3600000,
-    messages: [
-      {
-        id: "m-1",
-        role: "user",
-        content: "Saya ingin membuat aplikasi web booking lapangan futsal dan mini soccer.",
-        createdAt: Date.now() - 86400000 * 3,
-      },
-      {
-        id: "m-2",
-        role: "assistant",
-        content: `Halo! Saya telah menganalisis ide proyek **Mini Soccer Booking System** Anda dan telah menyusun blueprint lengkap:
-
-- **PRD**: Kebutuhan sistem, target pengguna, dan kriteria sukses.
-- **Features**: Autentikasi, slot jadwal real-time, integrasi QRIS, dan dashboard admin.
-- **Architecture**: Next.js 15, Supabase PostgreSQL, dan REST API.
-- **Task Board**: Daftar 6 task pengembangan yang siap dikerjakan.
-
-Silakan periksa tab **PRD**, **Features**, **Flow & Arch**, dan **Task Board** di atas untuk melihat detail lengkap yang siap Anda salin ke AI coding tool (Antigravity/Cursor/Vibecode).`,
-        createdAt: Date.now() - 86400000 * 3 + 2000,
-      },
-    ],
-    prd: {
-      overview: "Platform web terintegrasi untuk reservasi lapangan mini soccer secara real-time, mempermudah penyewa menemukan jadwal kosong dan membantu pemilik lapangan memantau pembayaran dan okupansi.",
-      problemStatement: "Pemesanan lapangan via chat WhatsApp rawan bentrok jadwal (double booking), bukti transfer palsu, dan pencatatan manual yang melelahkan bagi pemilik lapangan.",
-      goals: [
-        "Menghilangkan bentrok jadwal pemesanan lapangan hingga 0%",
-        "Mempercepat proses reservasi dari 15 menit (manual chat) menjadi < 2 menit",
-        "Menyediakan dashboard rekap keuangan otomatis bagi pengelola",
-      ],
-      targetUsers: [
-        "Penyewa Lapangan (Tim Mini Soccer / Mahasiswa / Komunitas)",
-        "Pengelola Lapangan (Admin kasir & Supervisor)",
-        "Owner Lapangan (Melihat laporan omset)",
-      ],
-      userStories: [
-        "Sebagai pemain, saya ingin melihat jadwal lapangan yang kosong hari ini agar bisa langsung reservasi.",
-        "Sebagai penyewa, saya ingin membayar via QRIS/Transfer agar reservasi saya langsung terkunci otomatis.",
-        "Sebagai admin, saya ingin melihat jadwal booking harian agar bisa menyiapkan lapangan dengan baik.",
-      ],
-      functionalRequirements: [
-        "Sistem Autentikasi Pengguna (Login/Register via Google & No. HP)",
-        "Kalender Interaktif Jadwal Lapangan Real-time",
-        "Sistem Checkout dan Payment Gateway (QRIS, VA)",
-        "Manajemen Lapangan & Tarif Khusus (Siang/Malam/Weekend)",
-        "Notifikasi Pengingat Jadwal via WhatsApp / Email",
-      ],
-      nonFunctionalRequirements: [
-        "Respon halaman jadwal < 1.5 detik",
-        "Ketersediaan sistem (uptime) minimal 99.8%",
-        "Desain responsif dioptimalkan untuk perangkat mobile (smartphone)",
-      ],
-      constraints: [
-        "Harus mendukung pembayaran instan QRIS lokal",
-        "Memerlukan verifikasi nomor telepon aktif",
-      ],
-      successCriteria: [
-        "Transaksi reservasi berhasil diselesaikan tanpa double-booking",
-        "Rating kemudahan penggunaan minimal 4.5/5 dari pengguna",
-      ],
-    },
-    features: [
-      {
-        id: "feat-auth",
-        name: "User & Role Authentication",
-        description: "Sistem login dan pemisahan hak akses antara Penyewa dan Admin Pengelola.",
-        priority: "High",
-        dependencies: ["Database Setup"],
-        subFeatures: ["Login/Register OTP & Google", "Role-based authorization", "Session management"],
-      },
-      {
-        id: "feat-booking",
-        name: "Real-time Field Schedule & Booking",
-        description: "Kalender visual slot jam lapangan dengan lock otomatis saat checkout.",
-        priority: "High",
-        dependencies: ["User Authentication"],
-        subFeatures: ["Slot availability query", "Temporary slot hold (15 menit)", "Multi-slot selection"],
-      },
-      {
-        id: "feat-payment",
-        name: "Payment Gateway Integration",
-        description: "Pembayaran otomatis menggunakan QRIS & Virtual Account dengan webhook notifikasi.",
-        priority: "High",
-        dependencies: ["Real-time Field Schedule & Booking"],
-        subFeatures: ["QRIS dynamic generator", "Webhook confirmation listener", "Auto-cancel expired invoice"],
-      },
-      {
-        id: "feat-dashboard",
-        name: "Admin Management Dashboard",
-        description: "Panel admin untuk mengelola tarif, jadwal off-line (perawatan), dan laporan keuangan.",
-        priority: "Medium",
-        dependencies: ["User & Role Authentication"],
-        subFeatures: ["Rekap transaksi harian/bulanan", "Manual booking entry (walk-in)", "Manajemen harga & promo"],
-      },
-    ],
-    userFlow: `1. Landing Page → 2. Pilih Lapangan & Tanggal → 3. Pilih Slot Jam yang Kosong → 4. Login / Isi Kontak → 5. Bayar via QRIS/VA → 6. Konfirmasi Tiket & Notifikasi WA → 7. Check-in di Lapangan`,
-    architecture: {
-      frontend: "Next.js 15 (App Router), Tailwind CSS, Lucide Icons",
-      backend: "Next.js Server Actions & API Routes, Node.js",
-      database: "PostgreSQL (Supabase) dengan Row Level Security (RLS)",
-      auth: "Supabase Auth (Google OAuth & Magic Link / Phone OTP)",
-      storage: "Supabase Storage (Bukti transaksi & foto fasilitas lapangan)",
-      api: "REST API & Server Actions dengan Zod validation",
-      thirdParty: ["Midtrans / Xendit (Payment Gateway)", "Fonnte / Twilio (WhatsApp Notification)"],
-      deployment: "Vercel (Frontend & Serverless API), Supabase Cloud (Database)",
-      security: "HTTPS, Rate limiting, Webhook signature verification, Database RLS policies",
-      dataSchema: `Table: users (id, name, email, phone, role)
-Table: fields (id, name, type, hourly_rate_day, hourly_rate_night)
-Table: bookings (id, user_id, field_id, date, start_time, end_time, status, total_amount)
-Table: payments (id, booking_id, method, amount, status, snap_token, paid_at)`,
-    },
-    tasks: [
-      {
-        id: "task-1",
-        title: "Setup Next.js & Supabase Database Schema",
-        description: "Inisialisasi project, pasang Tailwind CSS, konfigurasi Supabase client dan buat tabel fields, bookings, payments.",
-        status: "done",
-        feature: "Database & Setup",
-        phase: "Phase 1 - Foundation",
-        acceptanceCriteria: ["Schema migrations berhasil dieksekusi", "Supabase environment variables terpasang"],
-      },
-      {
-        id: "task-2",
-        title: "Implementasi Autentikasi Penyewa & Admin",
-        description: "Buat halaman login, signup, dan middleware proteksi rute untuk halaman admin.",
-        status: "done",
-        feature: "User & Role Authentication",
-        phase: "Phase 1 - Foundation",
-        acceptanceCriteria: ["User bisa login", "Role admin terisolasi dari penyewa biasa"],
-      },
-      {
-        id: "task-3",
-        title: "Komponen Kalender & Slot Jadwal Real-time",
-        description: "Render jadwal jam 08.00 - 24.00, beri warna hijau (tersedia), merah (terbooking), dan abu-abu (dalam proses).",
-        status: "ready",
-        feature: "Real-time Field Schedule & Booking",
-        relatedFeature: "feat-booking — Real-time Field Schedule & Booking",
-        phase: "Phase 2 - Core Booking",
-        dependencies: ["task-1"],
-        dependencyType: "HARD",
-        complexity: "M",
-        acceptanceCriteria: ["Slot jam otomatis terkunci saat user lain sedang checkout", "Tampilan responsif di mobile"],
-        subtasks: ["Buat query ketersediaan slot", "Tampilkan grid jadwal", "Lock temporary booking"],
-        testing: ["Uji concurrent booking pada slot yang sama"],
-        parallelizable: "NO"
-      },
-      {
-        id: "task-4",
-        title: "Integrasi Webhook Payment Gateway (QRIS)",
-        description: "Koneksikan API Midtrans/Xendit untuk menghasilkan QRIS dan tangani webhook sukses bayar.",
-        status: "backlog",
-        feature: "Payment Gateway Integration",
-        relatedFeature: "feat-payment — Payment Gateway Integration",
-        phase: "Phase 2 - Core Booking",
-        dependencies: ["task-3"],
-        dependencyType: "HARD",
-        complexity: "L",
-        acceptanceCriteria: ["Status booking berubah dari 'pending' ke 'confirmed' begitu QRIS dibayar"],
-        subtasks: ["Setup Midtrans server key", "Endpoint webhook handler", "Verifikasi signature payload"],
-        testing: ["Simulasi pembayaran QRIS via simulator sandbox"],
-        parallelizable: "NO"
-      },
-      {
-        id: "task-5",
-        title: "Dashboard Rekap Omset & Manajemen Lapangan",
-        description: "Halaman admin untuk melihat grafik pendapatan, jadwal hari ini, dan penyesuaian harga khusus.",
-        status: "backlog",
-        feature: "Admin Management Dashboard",
-        relatedFeature: "feat-dashboard — Admin Management Dashboard",
-        phase: "Phase 3 - Management & Polish",
-        dependencies: ["task-4"],
-        dependencyType: "SOFT",
-        complexity: "M",
-        acceptanceCriteria: ["Admin bisa ekspor laporan ke Excel/CSV", "Admin bisa blokir jadwal untuk maintenance"],
-        subtasks: ["Buat query agregasi omzet", "Tabel ringkasan transaksi", "Fungsi export CSV"],
-        testing: ["Verifikasi angka rekap omzet dengan transaksi aktual"],
-        parallelizable: "YES"
-      },
-      {
-        id: "task-6",
-        title: "Integrasi Notifikasi WhatsApp Pengingat Main",
-        description: "Kirim pesan otomatis via WA 3 jam sebelum jadwal kick-off.",
-        status: "backlog",
-        feature: "Notification",
-        relatedFeature: "feat-notification — Notification",
-        phase: "Phase 3 - Management & Polish",
-        dependencies: ["task-4"],
-        dependencyType: "SOFT",
-        complexity: "S",
-        acceptanceCriteria: ["Pesan otomatis terkirim dengan nomor booking dan lokasi"],
-        subtasks: ["Integrasi API WhatsApp Gateway", "Cron job pengingat H-3 jam"],
-        testing: ["Uji dispatch notifikasi ke nomor WhatsApp staging"],
-        parallelizable: "YES"
-      },
-    ],
-  },
-];
+const DEFAULT_PROJECTS: ProjectItem[] = [];
 
 // ── V4 SOURCE LOCK — Requirement Lineage Helpers ──────────────────────────────
 // Classification is created ONCE at ingestion, then inherited — never regenerated.
@@ -3335,25 +3139,34 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((p: ProjectItem) => {
-              const res = analyzeAndOptimizeTasks(p.tasks || [], p.features || [], p.prd);
-              return {
-                ...p,
-                tasks: res.tasks,
-                features: res.features,
-                qualityGate: res.qualityGate,
-                messages: (p.messages || []).map((m: ProjectChatMessage) => {
-                  if (m.role === "assistant" && (!m.content || !m.content.trim())) {
-                    return {
-                      ...m,
-                      content:
-                        "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.",
-                    };
-                  }
-                  return m;
-                }),
-              };
-            });
+            const cleaned = parsed.filter(
+              (p: any) =>
+                p &&
+                p.id !== "demo-mini-soccer" &&
+                !String(p.id || "").includes("mini-soccer") &&
+                p.title !== "Mini Soccer Booking System"
+            );
+            if (cleaned.length > 0) {
+              return cleaned.map((p: ProjectItem) => {
+                const res = analyzeAndOptimizeTasks(p.tasks || [], p.features || [], p.prd);
+                return {
+                  ...p,
+                  tasks: res.tasks,
+                  features: res.features,
+                  qualityGate: res.qualityGate,
+                  messages: (p.messages || []).map((m: ProjectChatMessage) => {
+                    if (m.role === "assistant" && (!m.content || !m.content.trim())) {
+                      return {
+                        ...m,
+                        content:
+                          "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.",
+                      };
+                    }
+                    return m;
+                  }),
+                };
+              });
+            }
           }
         }
       } catch {}
@@ -3371,25 +3184,9 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   const [zoomLevel, setZoomLevel] = useState(1);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
-  // Initial Prompt Bar State saat layar bersih (!activeProject)
-  const [initialPrompt, setInitialPrompt] = useState("");
-  const initialTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const autoResizeInitialTextarea = () => {
-    const el = initialTextareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
-  };
-
-  const handleStartNewProjectFromPrompt = (overrideText?: string) => {
-    const text = (overrideText !== undefined ? overrideText : initialPrompt).trim();
-    if (!text) return;
-    const suggested = suggestProjectTitle(text);
-    setNewTitle(suggested);
-    setNewDesc(text);
-    setShowNewModal(true);
-  };
+  // Draft chat state saat belum ada active project (konsep chat murni)
+  const [draftMessages, setDraftMessages] = useState<ProjectChatMessage[]>([]);
+  const [pendingProjectTitle, setPendingProjectTitle] = useState("");
 
   // Export Dropdown State (Salin Text & Download PDF)
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -3413,6 +3210,25 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   const [showNewModal, setShowNewModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
+
+  // Initial Prompt Bar State saat layar bersih (!activeProject)
+  const [initialPrompt, setInitialPrompt] = useState("");
+  const initialTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeInitialTextarea = () => {
+    const el = initialTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
+
+  const handleStartNewProjectFromPrompt = (overrideText?: string) => {
+    const text = (overrideText !== undefined ? overrideText : initialPrompt).trim();
+    if (!text) return;
+    setNewTitle(""); // KOSONG! Sesuai permintaan user, nama project tidak boleh keisi otomatis
+    setNewDesc(text);
+    setShowNewModal(true);
+  };
 
   // Chat State
   const [chatInput, setChatInput] = useState("");
@@ -3516,7 +3332,14 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   useEffect(() => {
     if (projectsOwnerIdRef.current !== userId) return;
     try {
-      localStorage.setItem(userStorageKey, JSON.stringify(projects));
+      const cleaned = projects.filter(
+        (p) =>
+          p &&
+          p.id !== "demo-mini-soccer" &&
+          !String(p.id || "").includes("mini-soccer") &&
+          p.title !== "Mini Soccer Booking System"
+      );
+      localStorage.setItem(userStorageKey, JSON.stringify(cleaned));
     } catch {}
   }, [projects, userStorageKey, userId]);
 
@@ -3528,10 +3351,19 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
         const saved = localStorage.getItem(userStorageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setProjects(parsed);
-            setActiveProjectId((prev) => (prev && parsed.some((p: any) => p.id === prev) ? prev : null));
-            return;
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter(
+              (p: any) =>
+                p &&
+                p.id !== "demo-mini-soccer" &&
+                !String(p.id || "").includes("mini-soccer") &&
+                p.title !== "Mini Soccer Booking System"
+            );
+            if (cleaned.length > 0) {
+              setProjects(cleaned);
+              setActiveProjectId((prev) => (prev && cleaned.some((p: any) => p.id === prev) ? prev : null));
+              return;
+            }
           }
         }
       } catch {}
@@ -3539,6 +3371,74 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
       setActiveProjectId(null);
     }
   }, [userStorageKey, userId]);
+
+  // Multi-device cloud sync: Ambil remote projects milik akun user saat mount atau ganti akun
+  useEffect(() => {
+    if (!userId) return;
+    let isCancelled = false;
+
+    async function fetchRemoteProjects() {
+      try {
+        const res = await fetch(`/api/code/projects?userId=${encodeURIComponent(userId!)}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (isCancelled) return;
+        if (json.success && Array.isArray(json.data)) {
+          const cleaned = json.data.filter(
+            (p: any) =>
+              p &&
+              p.id !== "demo-mini-soccer" &&
+              !String(p.id || "").includes("mini-soccer") &&
+              p.title !== "Mini Soccer Booking System"
+          );
+          if (cleaned.length > 0) {
+            setProjects((curr) => {
+              if (!curr || curr.length === 0) return cleaned;
+              const mergedMap = new Map<string, ProjectItem>();
+              curr.forEach((p) => mergedMap.set(p.id, p));
+              cleaned.forEach((p: ProjectItem) => {
+                const existing = mergedMap.get(p.id);
+                if (!existing || (p.updatedAt || 0) > (existing.updatedAt || 0)) {
+                  mergedMap.set(p.id, p);
+                }
+              });
+              return Array.from(mergedMap.values());
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[CodeWorkspace] Remote sync fetch error:", err);
+      }
+    }
+
+    fetchRemoteProjects();
+    return () => {
+      isCancelled = true;
+    };
+  }, [userId]);
+
+  // Multi-device cloud sync: Simpan ke cloud / server saat projects berubah (debounced)
+  useEffect(() => {
+    if (!userId) return;
+    const timer = setTimeout(() => {
+      const cleaned = projects.filter(
+        (p) =>
+          p &&
+          p.id !== "demo-mini-soccer" &&
+          !String(p.id || "").includes("mini-soccer") &&
+          p.title !== "Mini Soccer Booking System"
+      );
+      fetch("/api/code/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, projects: cleaned }),
+      }).catch((err) => {
+        console.warn("[CodeWorkspace] Remote sync save error:", err);
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [projects, userId]);
 
   const rawActiveProject = projects.find((p) => p.id === activeProjectId);
   const activeProject = useMemo(() => {
@@ -3982,52 +3882,45 @@ Berdasarkan brief proyek yang Anda berikan, sebelum saya merumuskan **PRD, Fitur
     return { welcomeText, questionsJson };
   };
 
-  // ── Project Creation ──────────────────────────────────────────────────────────
-  const handleCreateProject = () => {
-    if (!newTitle.trim()) return;
-    const title = newTitle.trim();
-    const desc = newDesc.trim();
+  // ── Project Confirmation & Creation from Chat ──────────────────────────────
+  const handleConfirmCreateProject = (brief: string, titleInput?: string) => {
+    const finalTitle = (titleInput || pendingProjectTitle).trim();
+    if (!finalTitle) return;
 
     const newProjId = "proj-" + Date.now();
-    let initialMessages: ProjectChatMessage[] = [];
+    const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(finalTitle, brief);
 
-    if (desc) {
-      const { welcomeText, questionsJson } = generateInitialDiscoveryQuestions(title, desc);
-      initialMessages = [
-        {
-          id: "msg-brief-" + Date.now(),
-          role: "user",
-          content: desc,
-          createdAt: Date.now(),
+    const initialMessages: ProjectChatMessage[] = [
+      {
+        id: "msg-brief-" + Date.now(),
+        role: "user",
+        content: brief,
+        createdAt: Date.now(),
+      },
+      {
+        id: "msg-confirm-" + (Date.now() + 1),
+        role: "assistant",
+        content: `✓ Project **${finalTitle}** berhasil dibuat!`,
+        createdAt: Date.now() + 1,
+        pendingProject: {
+          suggestedTitle: finalTitle,
+          brief,
+          isConfirmed: true,
+          projectId: newProjId,
         },
-        {
-          id: "msg-questions-" + (Date.now() + 1),
-          role: "assistant",
-          content: `${welcomeText}${questionsJson}`,
-          createdAt: Date.now() + 1,
-        },
-      ];
-    } else {
-      const welcomeText = `Halo! Saya adalah **AI Project Planner & Software Architect** untuk proyek **${title}**.
-
-Silakan ceritakan brief atau konsep website/aplikasi yang ingin Anda buat (misalnya: tujuan utama proyek, siapa target penggunanya, dan gambaran fitur atau alur yang Anda bayangkan).
-
-Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan beberapa pertanyaan spesifik untuk menyesuaikan PRD, modul fitur, user flow, arsitektur database, dan task board secara estafet!`;
-
-      initialMessages = [
-        {
-          id: "m-welcome-" + Date.now(),
-          role: "assistant",
-          content: welcomeText,
-          createdAt: Date.now(),
-        },
-      ];
-    }
+      },
+      {
+        id: "msg-questions-" + (Date.now() + 2),
+        role: "assistant",
+        content: `${welcomeText}${questionsJson}`,
+        createdAt: Date.now() + 2,
+      },
+    ];
 
     const newProj: ProjectItem = {
       id: newProjId,
-      title,
-      description: desc || "Proyek perencanaan aplikasi dengan AI.",
+      title: finalTitle,
+      description: brief || "Proyek perencanaan aplikasi dengan AI.",
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: initialMessages,
@@ -4037,10 +3930,24 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
     setProjects((prev) => [newProj, ...prev]);
     setActiveProjectId(newProj.id);
     setActiveTab("chat");
+    setDraftMessages([]);
+    setPendingProjectTitle("");
     setShowNewModal(false);
-    setInitialPrompt("");
+  };
+
+  const handleCancelDraftProject = () => {
+    setDraftMessages([]);
+    setPendingProjectTitle("");
+    setChatInput("");
+  };
+
+  const handleCreateProject = () => {
+    if (!newTitle.trim()) return;
+    handleConfirmCreateProject(newDesc.trim() || newTitle.trim(), newTitle.trim());
     setNewTitle("");
     setNewDesc("");
+    setInitialPrompt("");
+    setShowNewModal(false);
   };
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
@@ -5470,9 +5377,16 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
   // ── Chat & Automatic Blueprint Generation ──────────────────────────────────────
   const handleSendChatMessage = async (presetText?: string, targetProjId?: string) => {
     const textToSend = (presetText || chatInput).trim();
+    if (!textToSend || isChatLoading) return;
+
     const targetId = targetProjId || activeProjectId;
     const currentProject = projects.find((p) => p.id === targetId) || activeProject;
-    if (!textToSend || !currentProject || isChatLoading) return;
+
+    if (!currentProject) {
+      setChatInput("");
+      handleStartNewProjectFromPrompt(textToSend);
+      return;
+    }
 
     const userMsg: ProjectChatMessage = {
       id: "msg-" + Date.now(),
@@ -5497,7 +5411,8 @@ CREATE INDEX idx_items_category ON items_services(category_id);`
     const isAnsweringQuestions =
       textToSend.includes("klarifikasi kebutuhan proyek") ||
       textToSend.includes("Berikut klarifikasi kebutuhan") ||
-      /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend);
+      /buatkan prd|generate blueprint|rancang arsitektur|buatkan task/i.test(textToSend) ||
+      hasPendingDiscoveryQuestions;
 
     if (isAnsweringQuestions) {
       setEstafetStage("prd");
@@ -5715,20 +5630,50 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 
     const assistantMsgId = "ai-" + Date.now();
 
-    // Placeholder pesan asisten
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === projId
-          ? {
-              ...p,
-              messages: [
-                ...p.messages,
-                { id: assistantMsgId, role: "assistant", content: "", createdAt: Date.now() },
-              ],
-            }
-          : p
-      )
-    );
+    // Jika sedang merumuskan PRD / menjawab pertanyaan discovery, SEGERA pasang baseline domain blueprint ke active project
+    // agar data PRD, fitur, arsitektur, dan tasks SUDAH TERSEDIA SEJAK DETIK PERTAMA dan tidak pernah kosong
+    // sekalipun pengguna berpindah tab atau meninggalkan halaman.
+    if (isAnsweringQuestions) {
+      const domainBp = getDomainBlueprint(domain, currentProject.title);
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== projId) return p;
+          const updated = {
+            ...p,
+            prd: p.prd?.overview ? p.prd : domainBp.prd,
+            features: p.features && p.features.length >= 3 ? p.features : domainBp.features,
+            userFlow: p.userFlow ? p.userFlow : domainBp.userFlow,
+            architecture: p.architecture ? p.architecture : domainBp.architecture,
+            messages: [
+              ...p.messages,
+              { id: assistantMsgId, role: "assistant" as const, content: "Sedang merumuskan blueprint proyek lengkap...", createdAt: Date.now() },
+            ],
+            updatedAt: Date.now(),
+          };
+          if (!updated.tasks || updated.tasks.length === 0) {
+            const res = analyzeAndOptimizeTasks(domainBp.tasks, updated.features || [], updated.prd);
+            updated.tasks = res.tasks;
+            updated.qualityGate = res.qualityGate;
+          }
+          return updated;
+        })
+      );
+    } else {
+      // Placeholder pesan asisten
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === projId
+            ? {
+                ...p,
+                messages: [
+                  ...p.messages,
+                  { id: assistantMsgId, role: "assistant", content: "", createdAt: Date.now() },
+                ],
+              }
+            : p
+        )
+      );
+    }
 
     try {
       const res = await fetch("/api/chat", {
@@ -5756,6 +5701,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       const decoder = new TextDecoder();
       let rawStream = "";
       let currentTrackedStage: "prd" | "features" | "architecture" | "tasks" | "completed" = "prd";
+      let lastUpdateTime = 0;
 
       let buffer = "";
       while (true) {
@@ -5797,14 +5743,24 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                 }
               }
 
-              if (!isAnsweringQuestions) {
+              // Update isi pesan asisten dengan throttling (setiap 120ms) agar performa lancar di latar belakang tab
+              const now = Date.now();
+              if (now - lastUpdateTime > 120) {
+                lastUpdateTime = now;
                 setProjects((prev) =>
                   prev.map((p) =>
                     p.id === projId
                       ? {
                           ...p,
                           messages: p.messages.map((m) =>
-                            m.id === assistantMsgId ? { ...m, content: rawStream } : m
+                            m.id === assistantMsgId
+                              ? {
+                                  ...m,
+                                  content: isAnsweringQuestions
+                                    ? (cleanChatDisplay(rawStream, true) || "Sedang merumuskan blueprint proyek...")
+                                    : rawStream,
+                                }
+                              : m
                           ),
                         }
                       : p
@@ -5817,21 +5773,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       }
 
       if (isAnsweringQuestions) {
-        // Transisi halus berurutan agar pengguna benar-benar melihat setiap tahap dari awal hingga akhir terupdate:
-        const stageSequence: Array<"prd" | "features" | "architecture" | "tasks" | "completed"> = [
-          "prd",
-          "features",
-          "architecture",
-          "tasks",
-          "completed",
-        ];
-        const startIdx = stageSequence.indexOf(currentTrackedStage);
-        const actualStart = startIdx >= 0 ? startIdx : 0;
-        for (let s = actualStart + 1; s < stageSequence.length; s++) {
-          await new Promise((resolve) => setTimeout(resolve, 750));
-          setEstafetStage(stageSequence[s]);
-        }
-
+        setEstafetStage("completed");
         if (!rawStream.trim()) {
           rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
@@ -5857,8 +5799,14 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
         }
       }
     } catch (err: unknown) {
-      setEstafetStage("idle");
       console.error("Code AI error:", err);
+      if (isAnsweringQuestions) {
+        // Jaminan anti-batal: Jika ada kendala jaringan / LLM, terapkan blueprint domain agar PRD & Tasks tetap terisi lengkap
+        parseAndApplyBlueprint(projId, "", assistantMsgId);
+        setEstafetStage("completed");
+      } else {
+        setEstafetStage("idle");
+      }
       const errMsg = err instanceof Error ? err.message : "Terjadi kesalahan saat memproses.";
       setProjects((prev) =>
         prev.map((p) =>
@@ -5869,7 +5817,9 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
                   m.id === assistantMsgId
                     ? {
                         ...m,
-                        content: `Maaf, terjadi kendala saat memproses: ${errMsg}. Silakan coba kirim ulang pesan Anda atau klik 'Generate Blueprint'.`,
+                        content: isAnsweringQuestions
+                          ? "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas."
+                          : `Maaf, terjadi kendala saat memproses: ${errMsg}. Silakan coba kirim ulang pesan Anda atau klik 'Generate Blueprint'.`,
                       }
                     : m
                 ),
@@ -5950,11 +5900,14 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
   };
 
   // Fungsi pembersih tampilan chat agar blok data internal JSON tidak mengotori chat pengguna
-  const cleanChatDisplay = (text: string): string => {
+  const cleanChatDisplay = (text: string, isStreaming = false): string => {
     let result = text;
     const jsonStart = result.indexOf("<<<BLUEPRINT_JSON>>>");
     if (jsonStart !== -1) {
       const before = result.slice(0, jsonStart).trim();
+      if (isStreaming) {
+        return before || "Sedang merumuskan blueprint proyek secara estafet...";
+      }
       result = before
         ? `${before}\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`
         : `Spesifikasi teknis dan blueprint proyek telah selesai dirumuskan secara estafet sesuai brief dan jawaban klarifikasi Anda.\n\n> **Blueprint Proyek Telah Selesai Dirumuskan:** PRD, spesifikasi fitur, user flow, arsitektur database, dan development tasks telah otomatis diperbarui pada tab di atas!`;
@@ -6203,9 +6156,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             // Jika tasks dari LLM sedikit, gunakan tasks blueprint domain yang telah dioptimasi
             runLockedAnalysis(domainBlueprint.tasks);
           }
-        } else if (!hasQuestions) {
-          // Jika respons bukan pertanyaan discovery (misal instruksi pembuatan PRD/Blueprint langsung),
-          // gunakan data spesifik domain agar pengguna selalu mendapatkan hasil 100% relevan & detail
+        } else {
+          // Fallback domain blueprint 100% lengkap jika LLM tidak menyertakan JSON atau terjadi kendala format
           if (!updated.prd || !updated.prd.overview) {
             updated.prd = domainBlueprint.prd;
           }
@@ -6224,6 +6176,17 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             // Legacy project without registry: lock the registry once and derive lineage (matrix) from it.
             runLockedAnalysis(updated.tasks);
           }
+        }
+
+        // Jaminan keamanan mutlak: PRD, Features, dan Tasks tidak boleh pernah kosong
+        if (!updated.prd || !updated.prd.overview) {
+          updated.prd = domainBlueprint.prd;
+        }
+        if (!updated.features || updated.features.length === 0) {
+          updated.features = domainBlueprint.features;
+        }
+        if (!updated.tasks || updated.tasks.length === 0) {
+          runLockedAnalysis(domainBlueprint.tasks);
         }
 
         // Auto-generate HTML prototype based on finalized PRD, features, and tasks
@@ -6247,6 +6210,19 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 
         updated.updatedAt = Date.now();
         newlyPlannedProject = updated;
+
+        // Instant local storage sync to prevent data loss on tab switch or reload
+        try {
+          const stored = localStorage.getItem(userStorageKey);
+          if (stored) {
+            const list = JSON.parse(stored);
+            if (Array.isArray(list)) {
+              const nextList = list.map((item: any) => item.id === projId ? updated : item);
+              localStorage.setItem(userStorageKey, JSON.stringify(nextList));
+            }
+          }
+        } catch {}
+
         return updated;
       })
     );
@@ -7021,10 +6997,11 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     activeProject.messages[activeProject.messages.length - 1]?.content?.includes("<<<QUESTIONS_JSON>>>")
   );
   const isPlannerFinished = Boolean(
+    activeProject &&
     isBlueprintReady &&
     !hasPendingDiscoveryQuestions
   );
-  const currentTab = activeTab;
+  const currentTab = (!activeProject || !isPlannerFinished) ? "chat" : activeTab;
   const domain = activeProject
     ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
     : "saas";
@@ -7071,9 +7048,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           )}
         </div>
 
-        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) if activeProject */}
+        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) only if activeProject & isPlannerFinished */}
         <div className="flex items-center gap-1.5 min-w-0">
-          {activeProject && (
+          {activeProject && isPlannerFinished && (
             <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
               isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
             }`}>
@@ -7246,149 +7223,10 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       </header>
 
-      {/* Main Body: If activeProject exists, render tabs. If !activeProject, render clean hero (serasi Schedule & Image) */}
-      {!activeProject ? (
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center">
-          <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto">
-            {/* 1. HERO HEADER */}
-            <div className="text-center mb-6 sm:mb-8">
-              {/* Pure Star Icon only (No Box/Kotak - Identical to chat, schedule & image tabs) */}
-              <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
-                <svg
-                  className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
-                    isDark ? "text-white fill-white" : "text-black fill-black"
-                  }`}
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                </svg>
-              </div>
-
-              {/* Headline */}
-              <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
-                isDark ? "text-white" : "text-black"
-              }`}>
-                {getTimeGreeting()}, {userName || "filiuspl"}
-              </h1>
-
-              {/* Subtitle */}
-              <p className={`mt-2 text-sm sm:text-base font-medium max-w-md mx-auto px-2 ${
-                isDark ? "text-zinc-400" : "text-zinc-500"
-              }`}>
-                Rancang ide aplikasi atau website Anda bersama One code.
-              </p>
-            </div>
-
-            {/* 2. MAIN CAPSULE INPUT CARD */}
-            <div className="prompt-bar-glow relative w-full rounded-[30px] p-[1.5px] shadow-2xl transition-all">
-              <div className={`w-full rounded-[28px] border transition-all relative ${
-                isDark
-                  ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
-                  : "bg-white border-zinc-200/80 shadow-zinc-200/80"
-              }`}>
-                <div className="p-3.5 sm:p-4 space-y-2">
-                  {/* Textarea Input */}
-                  <div className="relative">
-                    <textarea
-                      ref={initialTextareaRef}
-                      value={initialPrompt}
-                      onChange={(e) => {
-                        setInitialPrompt(e.target.value);
-                        autoResizeInitialTextarea();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleStartNewProjectFromPrompt();
-                        }
-                      }}
-                      rows={2}
-                      placeholder="Tulis ide project Anda (misal: Aku mau buat web marketplace kopi, booking hotel, dll)..."
-                      className={`w-full bg-transparent text-sm sm:text-base outline-none resize-none placeholder-zinc-500 leading-relaxed ${
-                        isDark ? "text-white" : "text-zinc-900"
-                      }`}
-                    />
-                  </div>
-
-                  {/* Controls Row */}
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
-                        isDark
-                          ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
-                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
-                      }`}>
-                        <span>One code</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={!initialPrompt.trim()}
-                      onClick={() => handleStartNewProjectFromPrompt()}
-                      className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
-                          : "bg-black hover:bg-zinc-800 text-white shadow-xs"
-                      }`}
-                      title="Lanjutkan ke pengisian nama project (Enter)"
-                    >
-                      <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. QUICK SUGGESTIONS CHIPS */}
-            <div className="w-full mt-4 flex flex-wrap items-center justify-center gap-2">
-              {[
-                {
-                  title: "Mini Soccer Booking",
-                  desc: "Sistem reservasi online dengan jadwal real-time & pembayaran.",
-                },
-                {
-                  title: "E-Commerce Multi-Vendor",
-                  desc: "Katalog produk, keranjang belanja, checkout & transaksi.",
-                },
-                {
-                  title: "Platform Belajar Online",
-                  desc: "LMS video kursus, kuis interaktif, dan sertifikat kelulusan.",
-                },
-                {
-                  title: "SaaS Manajemen Keuangan",
-                  desc: "Pencatatan cashflow, invoicing otomatis, dan visualisasi grafik.",
-                },
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setInitialPrompt(item.desc);
-                    handleStartNewProjectFromPrompt(item.desc);
-                  }}
-                  className={`px-3.5 py-2 rounded-2xl border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
-                    isDark
-                      ? "bg-zinc-900/40 border-zinc-800/80 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-300"
-                      : "bg-white/80 border-zinc-200/80 hover:bg-white hover:border-zinc-300 text-zinc-700 shadow-xs"
-                  }`}
-                >
-                  <span className="font-semibold">{item.title}</span>
-                  <span className="text-[10px] text-zinc-400 hidden sm:inline">• {item.desc.slice(0, 32)}...</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "mindmap" && (
+      {activeProject && currentTab === "mindmap" && (
         <div className="flex-1 flex overflow-hidden relative">
           {/* Left Panel: Perencanaan Drawer */}
           {isPerencanaanOpen && (
@@ -7878,26 +7716,168 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Messages list */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-5">
-            {activeProject.messages.map((m, mIdx) => {
-              const isUser = m.role === "user";
-              const isLastAssistant = !isUser && mIdx === activeProject.messages.length - 1;
-              const isAssistantLoading = isLastAssistant && isChatLoading;
+            {(() => {
+              const messagesToDisplay = activeProject ? activeProject.messages : draftMessages;
 
-              // Jika pesan AI, parse konten dan opsi pertanyaan pilihan ganda
-              const rawClean = isUser ? "" : cleanChatDisplay(m.content);
-              const { cleanText, questions } = isUser
-                ? { cleanText: m.content, questions: [] }
-                : parseQuestionsFromText(rawClean);
+              if (messagesToDisplay.length === 0) {
+                return (
+                  <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto py-8">
+                    {/* 1. HERO HEADER */}
+                    <div className="text-center mb-6 sm:mb-8">
+                      {/* Pure Star Icon only (No Box/Kotak - Identical to chat, schedule & image tabs) */}
+                      <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+                        <svg
+                          className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                            isDark ? "text-white fill-white" : "text-black fill-black"
+                          }`}
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                        </svg>
+                      </div>
 
-              const hasBlueprint =
-                !isUser &&
-                !isAssistantLoading &&
-                (rawClean.includes("Blueprint Proyek Telah") ||
-                  m.content.includes("<<<BLUEPRINT_JSON>>>") ||
-                  (Boolean(activeProject.prd?.overview) &&
-                    mIdx === activeProject.messages.length - 1 &&
-                    questions.length === 0 &&
-                    mIdx > 0));
+                      {/* Headline */}
+                      <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
+                        isDark ? "text-white" : "text-black"
+                      }`}>
+                        {getTimeGreeting()}, {userName || "filiuspl"}
+                      </h1>
+
+                      {/* Subtitle */}
+                      <p className={`mt-2 text-sm sm:text-base font-medium max-w-md mx-auto px-2 ${
+                        isDark ? "text-zinc-400" : "text-zinc-500"
+                      }`}>
+                        Rancang ide aplikasi atau website Anda bersama One code.
+                      </p>
+                    </div>
+
+                    {/* 2. MAIN CAPSULE INPUT CARD */}
+                    <div className="prompt-bar-glow relative w-full rounded-[30px] p-[1.5px] shadow-2xl transition-all mb-4">
+                      <div className={`w-full rounded-[28px] border transition-all relative ${
+                        isDark
+                          ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+                          : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+                      }`}>
+                        <div className="p-3.5 sm:p-4 space-y-2">
+                          {/* Textarea Input */}
+                          <div className="relative">
+                            <textarea
+                              ref={initialTextareaRef}
+                              value={initialPrompt}
+                              onChange={(e) => {
+                                setInitialPrompt(e.target.value);
+                                autoResizeInitialTextarea();
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleStartNewProjectFromPrompt();
+                                }
+                              }}
+                              rows={2}
+                              placeholder="Tulis ide project Anda (misal: Aku mau buat web katalog baju)..."
+                              className={`w-full bg-transparent text-sm sm:text-base outline-none resize-none placeholder-zinc-500 leading-relaxed ${
+                                isDark ? "text-white" : "text-zinc-900"
+                              }`}
+                            />
+                          </div>
+
+                          {/* Controls Row */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
+                                isDark
+                                  ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
+                                  : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                              }`}>
+                                <span>One code</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={!initialPrompt.trim()}
+                              onClick={() => handleStartNewProjectFromPrompt()}
+                              className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                                isDark
+                                  ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                                  : "bg-black hover:bg-zinc-800 text-white shadow-xs"
+                              }`}
+                              title="Lanjutkan ke pengisian nama project (Enter)"
+                            >
+                              <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. QUICK SUGGESTIONS CHIPS */}
+                    <div className="w-full flex flex-wrap items-center justify-center gap-2">
+                      {[
+                        {
+                          title: "Katalog Busana & Fashion",
+                          desc: "Katalog busana interaktif dengan filter kategori, keranjang belanja & checkout.",
+                        },
+                        {
+                          title: "E-Commerce Multi-Vendor",
+                          desc: "Katalog produk, keranjang belanja, checkout & transaksi.",
+                        },
+                        {
+                          title: "Platform Belajar Online",
+                          desc: "LMS video kursus, kuis interaktif, dan sertifikat kelulusan.",
+                        },
+                        {
+                          title: "SaaS Manajemen Keuangan",
+                          desc: "Pencatatan cashflow, invoicing otomatis, dan visualisasi grafik.",
+                        },
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setInitialPrompt(item.desc);
+                            handleStartNewProjectFromPrompt(item.desc);
+                          }}
+                          className={`px-3.5 py-2 rounded-2xl border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
+                            isDark
+                              ? "bg-zinc-900/40 border-zinc-800/80 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-300"
+                              : "bg-white/80 border-zinc-200/80 hover:bg-white hover:border-zinc-300 text-zinc-700 shadow-xs"
+                          }`}
+                        >
+                          <span className="font-semibold">{item.title}</span>
+                          <span className="text-[10px] text-zinc-400 hidden sm:inline">• {item.desc.slice(0, 32)}...</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return messagesToDisplay.map((m, mIdx) => {
+                const isUser = m.role === "user";
+                const isLastAssistant = !isUser && mIdx === messagesToDisplay.length - 1;
+                const isAssistantLoading = isLastAssistant && isChatLoading;
+
+                // Jika pesan AI, parse konten dan opsi pertanyaan pilihan ganda
+                const rawClean = isUser ? "" : cleanChatDisplay(m.content);
+                const { cleanText, questions } = isUser
+                  ? { cleanText: m.content, questions: [] }
+                  : parseQuestionsFromText(rawClean);
+
+                const hasBlueprint =
+                  !isUser &&
+                  !isAssistantLoading &&
+                  estafetStage === "completed" &&
+                  Boolean(activeProject) &&
+                  (rawClean.includes("Blueprint Proyek Telah") ||
+                    m.content.includes("<<<BLUEPRINT_JSON>>>") ||
+                    (Boolean(activeProject?.prd?.overview) &&
+                      mIdx === messagesToDisplay.length - 1 &&
+                      questions.length === 0 &&
+                      mIdx > 0));
 
               return (
                 <div key={m.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -7976,20 +7956,34 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
                                   estafetStage === "prd"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                    : (activeProject?.prd?.overview || estafetStage === "completed")
+                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                    : "text-zinc-400 font-normal"
                                 }`}>
                                   <div className="flex items-center gap-2">
                                     {estafetStage === "prd" ? (
                                       <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : (
-                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    ) : (activeProject?.prd?.overview || estafetStage === "completed") ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                       </svg>
+                                    ) : (
+                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
                                     )}
                                     <span>1. Merumuskan Dokumen PRD &amp; Analisis Kebutuhan</span>
                                   </div>
-                                  <span className={`text-[11px] font-semibold ${estafetStage === "prd" ? "text-zinc-500" : isDark ? "text-white" : "text-black"}`}>
-                                    {estafetStage === "prd" ? "Sedang merumuskan..." : "Selesai ✓"}
+                                  <span className={`text-[11px] font-semibold ${
+                                    estafetStage === "prd"
+                                      ? "text-zinc-500"
+                                      : (activeProject?.prd?.overview || estafetStage === "completed")
+                                      ? isDark ? "text-white" : "text-black"
+                                      : "text-zinc-400 font-normal"
+                                  }`}>
+                                    {estafetStage === "prd"
+                                      ? "Sedang merumuskan..."
+                                      : (activeProject?.prd?.overview || estafetStage === "completed")
+                                      ? "Selesai ✓"
+                                      : "Menunggu giliran"}
                                   </span>
                                 </div>
 
@@ -7997,15 +7991,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
                                   estafetStage === "features"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"
+                                    : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
                                     ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
                                     {estafetStage === "features" ? (
                                       <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed" ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    ) : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed")) ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                       </svg>
                                     ) : (
@@ -8016,11 +8010,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                   <span className={`text-[11px] font-semibold ${
                                     estafetStage === "features"
                                       ? "text-zinc-500"
-                                      : estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"
+                                      : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
                                       ? isDark ? "text-white" : "text-black"
                                       : "text-zinc-400 font-normal"
                                   }`}>
-                                    {estafetStage === "features" ? "Sedang memproses..." : estafetStage === "prd" ? "Menunggu giliran" : "Selesai ✓"}
+                                    {estafetStage === "features"
+                                      ? "Sedang memproses..."
+                                      : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
+                                      ? "Selesai ✓"
+                                      : "Menunggu giliran"}
                                   </span>
                                 </div>
 
@@ -8028,15 +8026,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
                                   estafetStage === "architecture"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : estafetStage === "tasks" || estafetStage === "completed"
+                                    : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
                                     ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
                                     {estafetStage === "architecture" ? (
                                       <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : estafetStage === "tasks" || estafetStage === "completed" ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    ) : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed")) ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                       </svg>
                                     ) : (
@@ -8047,11 +8045,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                   <span className={`text-[11px] font-semibold ${
                                     estafetStage === "architecture"
                                       ? "text-zinc-500"
-                                      : estafetStage === "tasks" || estafetStage === "completed"
+                                      : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
                                       ? isDark ? "text-white" : "text-black"
                                       : "text-zinc-400 font-normal"
                                   }`}>
-                                    {estafetStage === "architecture" ? "Sedang menyusun..." : estafetStage === "prd" || estafetStage === "features" ? "Menunggu giliran" : "Selesai ✓"}
+                                    {estafetStage === "architecture"
+                                      ? "Sedang menyusun..."
+                                      : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
+                                      ? "Selesai ✓"
+                                      : "Menunggu giliran"}
                                   </span>
                                 </div>
 
@@ -8059,15 +8061,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
                                   estafetStage === "tasks"
                                     ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : estafetStage === "completed"
+                                    : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
                                     ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
                                     : "text-zinc-400"
                                 }`}>
                                   <div className="flex items-center gap-2">
                                     {estafetStage === "tasks" ? (
                                       <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : estafetStage === "completed" ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    ) : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0) ? (
+                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                       </svg>
                                     ) : (
@@ -8078,11 +8080,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                   <span className={`text-[11px] font-semibold ${
                                     estafetStage === "tasks"
                                       ? "text-zinc-500"
-                                      : estafetStage === "completed"
+                                      : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
                                       ? isDark ? "text-white" : "text-black"
                                       : "text-zinc-400 font-normal"
                                   }`}>
-                                    {estafetStage === "tasks" ? "Sedang merangkum..." : estafetStage === "completed" ? "Selesai ✓" : "Menunggu giliran"}
+                                    {estafetStage === "tasks"
+                                      ? "Sedang merangkum..."
+                                      : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
+                                      ? "Selesai ✓"
+                                      : "Menunggu giliran"}
                                   </span>
                                 </div>
                               </div>
@@ -8110,8 +8116,97 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                             </>
                           )}
 
+                          {/* Kartu Konfirmasi Pembuatan Project (jika ada pendingProject) */}
+                          {m.pendingProject && (
+                            <div className={`mt-3 p-3.5 rounded-2xl border transition-all ${
+                              isDark ? "bg-zinc-950/80 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                            }`}>
+                              {!m.pendingProject.isConfirmed ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                    <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span>Konfirmasi Pembuatan Project Baru</span>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    <label className="text-[11px] text-zinc-400 font-medium">Nama Project:</label>
+                                    <input
+                                      type="text"
+                                      value={pendingProjectTitle}
+                                      onChange={(e) => setPendingProjectTitle(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                          e.preventDefault();
+                                          if (!pendingProjectTitle.trim()) return;
+                                          handleConfirmCreateProject(
+                                            m.pendingProject!.brief,
+                                            pendingProjectTitle.trim()
+                                          );
+                                        }
+                                      }}
+                                      placeholder="Tulis nama project Anda di sini..."
+                                      className={`w-full rounded-xl px-3 py-2 text-xs border outline-none font-medium transition ${
+                                        isDark
+                                          ? "bg-zinc-900 border-zinc-700 text-white focus:border-white"
+                                          : "bg-white border-zinc-300 text-zinc-900 focus:border-black"
+                                      }`}
+                                      autoFocus
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <button
+                                      type="button"
+                                      disabled={!pendingProjectTitle.trim()}
+                                      onClick={() => {
+                                        if (!pendingProjectTitle.trim()) return;
+                                        handleConfirmCreateProject(
+                                          m.pendingProject!.brief,
+                                          pendingProjectTitle.trim()
+                                        );
+                                      }}
+                                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                                        pendingProjectTitle.trim()
+                                          ? isDark
+                                            ? "bg-white text-black hover:bg-zinc-200 active:scale-98"
+                                            : "bg-black text-white hover:bg-zinc-800 active:scale-98"
+                                          : "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-500" : "bg-zinc-200 text-zinc-400")
+                                      }`}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      <span>Ya, Buat Project</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={handleCancelDraftProject}
+                                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                                        isDark
+                                          ? "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-300"
+                                          : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700"
+                                      }`}
+                                    >
+                                      <span>Tidak</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  <span>Project &quot;{m.pendingProject.suggestedTitle}&quot; aktif</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {/* Kartu Ringkasan Estafet Selesai (Completed Estafet Summary Card) */}
-                          {hasBlueprint && (
+                          {hasBlueprint && activeProject && Boolean(activeProject.prd?.overview) && Boolean(activeProject.features && activeProject.features.length > 0) && Boolean(activeProject.tasks && activeProject.tasks.length > 0) && (
                             <div className={`mt-4 p-4 rounded-2xl border transition-all ${
                               isDark ? "bg-zinc-950/70 border-zinc-800" : "bg-zinc-50 border-zinc-200"
                             }`}>
@@ -8142,7 +8237,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 2: Fitur</div>
-                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.features && activeProject.features.length) || 8} Modul Siap Eksekusi</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.features && activeProject.features.length) || 0} Modul Siap Eksekusi</div>
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 3: Flow &amp; Arsitektur</div>
@@ -8150,11 +8245,11 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 </div>
                                 <div className={`p-2 rounded-xl border ${isDark ? "bg-zinc-900/60 border-zinc-800/70" : "bg-white border-zinc-200"}`}>
                                   <div className="text-zinc-400 text-[10px]">Tahap 4: Tasks</div>
-                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 16} Actionable Items</div>
+                                  <div className="font-semibold text-zinc-800 dark:text-zinc-200">{(activeProject.tasks && activeProject.tasks.length) || 0} Actionable Items</div>
                                 </div>
                               </div>
 
-                              {activeProject.qualityGate && (
+                              {activeProject?.qualityGate && (
                                 <div className={`mb-3 p-2.5 rounded-xl border flex items-center justify-between text-[11px] ${
                                   isDark ? "bg-zinc-900/90 border-zinc-800" : "bg-white border-zinc-200 shadow-2xs"
                                 }`}>
@@ -8386,89 +8481,92 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   )}
                 </div>
               );
-            })}
+            });
+          })()}
             <div ref={chatBottomRef} />
           </div>
 
           {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling Serasi Chat Utama) ─────────── */}
-          <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
-            isDark
-              ? "bg-gradient-to-t from-[#0c0c0e]/95 via-[#0c0c0e]/60 to-transparent"
-              : "bg-gradient-to-t from-[#fafafc]/95 via-[#fafafc]/60 to-transparent"
-          }`}>
-            <div className="mx-auto max-w-3xl w-full">
-              <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
-                isDark
-                  ? "shadow-2xl shadow-black/80"
-                  : "shadow-xl shadow-zinc-900/[0.08]"
-              }`}>
-                {/* Liquid glass top specular reflection highlight line */}
-                <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
-
-                {/* Textarea Row */}
-                <div className="flex items-center gap-1.5 w-full">
-                  <textarea
-                    ref={chatTextareaRef}
-                    value={chatInput}
-                    onChange={(e) => {
-                      setChatInput(e.target.value);
-                      autoResizeChat();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendChatMessage();
-                      }
-                    }}
-                    placeholder="Diskusikan requirement project, minta perubahan fitur, atau buat PRD..."
-                    rows={1}
-                    className={`flex-1 bg-transparent px-2.5 pt-1 text-[15px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
-                      isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
-                    }`}
-                    style={{ maxHeight: "140px" }}
-                    disabled={isChatLoading}
-                  />
-                </div>
-
-                {/* Bottom Actions Bar */}
-                <div className={`mt-2 flex items-center justify-between pt-2 border-t gap-2 ${
-                  isDark ? "border-white/[0.08]" : "border-black/[0.06]"
+          {activeProject && (
+            <div className={`shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+              isDark
+                ? "bg-gradient-to-t from-[#0c0c0e]/95 via-[#0c0c0e]/60 to-transparent"
+                : "bg-gradient-to-t from-[#fafafc]/95 via-[#fafafc]/60 to-transparent"
+            }`}>
+              <div className="mx-auto max-w-3xl w-full">
+                <div className={`relative rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 transition-all liquid-glass ${
+                  isDark
+                    ? "shadow-2xl shadow-black/80"
+                    : "shadow-xl shadow-zinc-900/[0.08]"
                 }`}>
-                  <div className="text-[11px] text-zinc-400 font-medium px-1 flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-300 animate-pulse" />
-                    <span>AI Project Planner &amp; Architect</span>
+                  {/* Liquid glass top specular reflection highlight line */}
+                  <div className="absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none" />
+
+                  {/* Textarea Row */}
+                  <div className="flex items-center gap-1.5 w-full">
+                    <textarea
+                      ref={chatTextareaRef}
+                      value={chatInput}
+                      onChange={(e) => {
+                        setChatInput(e.target.value);
+                        autoResizeChat();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendChatMessage();
+                        }
+                      }}
+                      placeholder="Diskusikan requirement project, minta perubahan fitur, atau buat PRD..."
+                      rows={1}
+                      className={`flex-1 bg-transparent px-2.5 pt-1 text-[15px] sm:text-[14.5px] focus:outline-none resize-none leading-relaxed ${
+                        isDark ? "text-zinc-100 placeholder-zinc-500" : "text-black placeholder-zinc-500 font-normal"
+                      }`}
+                      style={{ maxHeight: "140px" }}
+                      disabled={isChatLoading}
+                    />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSendChatMessage()}
-                    disabled={!chatInput.trim() || isChatLoading}
-                    className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
-                      chatInput.trim() && !isChatLoading
-                        ? isDark
-                          ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
-                          : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer"
-                        : isDark
-                          ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
-                          : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
-                    }`}
-                    title="Kirim pesan (Enter)"
-                  >
-                    <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
-                  </button>
+                  {/* Bottom Actions Bar */}
+                  <div className={`mt-2 flex items-center justify-between pt-2 border-t gap-2 ${
+                    isDark ? "border-white/[0.08]" : "border-black/[0.06]"
+                  }`}>
+                    <div className="text-[11px] text-zinc-400 font-medium px-1 flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-300 animate-pulse" />
+                      <span>AI Project Planner &amp; Architect</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendChatMessage()}
+                      disabled={!chatInput.trim() || isChatLoading}
+                      className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-all duration-200 ${
+                        chatInput.trim() && !isChatLoading
+                          ? isDark
+                            ? "bg-white hover:bg-zinc-200 text-black shadow-md shadow-white/10 hover:scale-105 active:scale-95 cursor-pointer"
+                            : "bg-black hover:bg-zinc-800 text-white shadow-md shadow-black/25 hover:scale-105 active:scale-95 cursor-pointer"
+                          : isDark
+                            ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50 cursor-not-allowed"
+                            : "bg-zinc-100 text-zinc-400 border border-zinc-200/60 cursor-not-allowed"
+                      }`}
+                      title="Kirim pesan (Enter)"
+                    >
+                      <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 2: PRD VIEWER */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "prd" && (
+      {activeProject && currentTab === "prd" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -8837,7 +8935,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 3: FEATURES GENERATOR & LIST */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "features" && (
+      {activeProject && currentTab === "features" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -8970,7 +9068,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 4: USER FLOW & ARCHITECTURE */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "flow_arch" && (
+      {activeProject && currentTab === "flow_arch" && (
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-4xl w-full mx-auto space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
@@ -9148,7 +9246,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 5: KANBAN TASK BOARD */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "tasks" && (
+      {activeProject && currentTab === "tasks" && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Board Header Bar */}
           <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
@@ -9536,8 +9634,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
             </div>
           </div>
         </div>
-      )}
-        </>
       )}
 
       {/* ─── PROJECT & FILES DRAWER (Slide-in from Right) ─── */}

@@ -3027,16 +3027,19 @@ export default function Home() {
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-transparent border-0 shadow-none">
-        {activeView === "code" ? (
+        {/* CodeWorkspace dijaga tetap ter-mount di latar belakang agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
+        <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
           <CodeWorkspace
-            key={user?.id || "guest"}
+            key="code-workspace-instance"
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             userId={user?.id}
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "schedule" ? (
+        </div>
+
+        {activeView === "schedule" ? (
           <ScheduleWorkspace
             key={user?.id || "guest"}
             isDark={isDark}
@@ -3061,7 +3064,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : (
+        ) : activeView === "code" ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
