@@ -3689,155 +3689,474 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   };
 
   const generateInitialDiscoveryQuestions = (title: string, desc?: string): { welcomeText: string; questionsJson: string } => {
-    const domain = detectProjectDomain([], title, desc);
+    const combined = `${title || ""} ${desc || ""}`.toLowerCase();
     let questions: { id: string; question: string; options: string[] }[] = [];
 
-    if (domain.categories.includes("Portfolio")) {
+    if (/\b(baju|busana|fashion|pakaian|katalog\s*baju|distro|butik|hijab|apparel|kaos|wardrobe|gamis|tunik|outfit|ootd|jaket|celana|clothing|dress|sepatu)\b/i.test(combined)) {
       questions = [
         {
           id: "q1",
-          question: "Bagaimana format dan gaya showcase karya portofolio yang Anda inginkan?",
+          question: "Bagaimana struktur katalog dan navigasi kategori pakaian yang diinginkan?",
           options: [
-            "Grid interaktif (Masonry) dengan modal Lightbox dan filter kategori",
-            "Studi kasus komprehensif (Case Study) per proyek dengan ringkasan brief & hasil",
-            "Showcase minimalis satu halaman (Single-page portfolio) yang fokus visual",
+            "Katalog multi-kategori (Pria, Wanita, Anak, Hijab/Muslim, Aksesoris) dengan filter ukuran (S/M/L/XL) & warna",
+            "Format Lookbook editorial / katalog OOTD interaktif per season/koleksi (Drop Collection)",
+            "Etalase minimalis satu halaman (Single-page catalog) dengan pencarian instan dan sortir harga/terbaru",
           ],
         },
         {
           id: "q2",
-          question: "Apakah diperlukan fitur seleksi/proofing karya untuk klien atau client portal?",
+          question: "Bagaimana mekanisme pemesanan atau pembelian baju oleh pengunjung?",
           options: [
-            "Hanya showcase portofolio publik tanpa login klien",
-            "Portal seleksi privat ber-watermark untuk review & approval klien",
-            "Galeri hasil karya final yang siap diunduh batch (ZIP)",
+            "Pemesanan langsung via chat WhatsApp (tombol 'Beli via WA' otomatis menyertakan nama busana, ukuran, & format order)",
+            "Sistem keranjang belanja (Shopping Cart) lengkap dengan kalkulasi ongkir kurir otomatis & payment gateway (QRIS/VA)",
+            "Showcase katalog display / portofolio karya desainer busana (hanya kontak kemitraan/pre-order)",
           ],
         },
         {
           id: "q3",
-          question: "Bagaimana calon klien dapat menghubungi atau memesan jasa Anda?",
+          question: "Fitur interaktif apa yang perlu disediakan pada halaman detail produk pakaian?",
           options: [
-            "Formulir brief/inquiry pemesanan terstruktur dengan validasi data",
-            "Tombol direct ke chat WhatsApp dan kontak Email",
-            "Kalender reservasi tanggal konsultasi / photoshoot real-time",
+            "Panduan ukuran interaktif (Size Chart & rekomendasi TB/BB), zoom foto bahan kain, & panduan perawatan pakaian",
+            "Indikator stok varian real-time (Ready Stock per size / Pre-Order / Habis)",
+            "Rekomendasi padu padan (Mix & Match / 'Lengkapi Gaya Anda') dan testimoni pembeli",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Bagaimana skema manajemen katalog oleh pemilik toko / brand?",
+          options: [
+            "Dashboard admin untuk upload foto produk, atur promo diskon/voucher, dan update inventori stok",
+            "Katalog terhubung dengan file spreadsheet / Google Sheet untuk kemudahan update harga berkala",
+            "Manajemen multi-cabang atau multi-toko dengan laporan transaksi harian",
           ],
         },
       ];
-    } else if (domain.categories.includes("Booking / Reservation")) {
+    } else if (/\b(restoran|kafe|cafe|kopi|coffee|kuliner|makanan|minuman|menu|catering|bakery|resto|warung|f&b|dapur|snack|roti|kedai)\b/i.test(combined)) {
       questions = [
         {
           id: "q1",
-          question: "Bagaimana mekanisme pemilihan jadwal dan alokasi slot waktu?",
+          question: "Bagaimana format penyajian buku menu dan daftar harga kuliner?",
           options: [
-            "Kalender slot jam real-time dengan penguncian slot otomatis (15 menit)",
-            "Jadwal fleksibel berbasis request tanggal & konfirmasi persetujuan admin",
-            "Pemesanan sesi berulang (membership / paket berkala)",
+            "Buku menu digital interaktif dengan foto resolusi tinggi, filter kategori (Makanan, Minuman, Dessert), & label halal/spicy",
+            "Menu QR-code meja yang dapat diakses langsung oleh pelanggan di tempat (Dine-in menu)",
+            "Daftar paket catering / paket hemat berkala dengan opsi kustomisasi porsi",
           ],
         },
         {
           id: "q2",
-          question: "Metode pembayaran apa yang direncanakan untuk reservasi?",
+          question: "Bagaimana alur pemesanan makanan/minuman yang diinginkan?",
           options: [
-            "Otomatis via QRIS & Virtual Account (Payment Gateway)",
-            "Pembayaran Down Payment (DP) di awal, pelunasan sisa di lokasi",
-            "Manual transfer bank dengan konfirmasi admin kasir",
+            "Pemesanan langsung via WhatsApp dengan ringkasan pesanan & total harga otomatis",
+            "Online ordering mandiri (Dine-in / Takeaway / Delivery) dengan pelacak status pesanan di dapur",
+            "Hanya display profil resto, daftar menu, & reservasi meja tanpa delivery online",
           ],
         },
         {
           id: "q3",
-          question: "Apakah memerlukan notifikasi pengingat otomatis ke pemesan?",
+          question: "Apakah memerlukan sistem reservasi meja makan di lokasi?",
           options: [
-            "Ya, kirim WhatsApp / Email pengingat jadwal H-1 dan bukti invoice",
-            "Cukup riwayat booking di akun dashboard pengguna",
+            "Ya, kalender reservasi tanggal & jam dengan pemilihan jumlah kursi/meja serta DP booking",
+            "Tidak perlu reservasi meja, cukup menu digital & kontak lokasi (Google Maps)",
+            "Pemesanan khusus ruangan VIP / event gathering dengan konfirmasi admin",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Fitur operasional apa yang paling penting untuk kasir dan dapur?",
+          options: [
+            "Manajemen status meja & cetak struk pesanan otomatis (POS sederhana)",
+            "Pengelolaan stok bahan baku / menu habis (Sold Out badge otomatis)",
+            "Laporan rekap penjualan harian dan metode bayar QRIS instan",
           ],
         },
       ];
-    } else if (domain.categories.includes("E-commerce") || domain.categories.includes("Marketplace")) {
+    } else if (/\b(booking|reservasi|reserv|sewa|rental|lapangan|futsal|soccer|badminton|padel|salon|barbershop|studio|hotel|villa|olahraga|tenis|gym|fitness)\b/i.test(combined)) {
       questions = [
         {
           id: "q1",
-          question: "Jenis produk apa yang dijual dan bagaimana alur transaksinya?",
+          question: "Bagaimana alur pemilihan jadwal dan slot reservasi pelanggan?",
           options: [
-            "Produk fisik dengan kalkulasi ongkir ekspedisi otomatis (Biteship/RajaOngkir)",
-            "Produk digital (file unduh instan / lisensi software)",
-            "Katalog produk dengan pemesanan langsung via chat WhatsApp",
+            "Kalender slot waktu interaktif real-time dengan penguncian slot otomatis selama transaksi (15 menit)",
+            "Pengajuan jadwal fleksibel berbasis request tanggal dengan persetujuan (approval) manual admin",
+            "Pemesanan paket sesi berulang / membership bulanan dengan jatah slot prioritas",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana sistem akun pelanggan dan alur checkout?",
+          question: "Metode dan skema pembayaran apa yang diterapkan untuk booking?",
           options: [
-            "Bisa checkout instan tanpa login (Guest Checkout) dan opsi login Google",
-            "Wajib login akun member untuk mengumpulkan riwayat pesanan & poin",
-            "Multi-vendor di mana setiap penjual memiliki dasbor toko sendiri",
+            "Pembayaran Down Payment (DP 50% atau tarif sewa awal) via QRIS / VA, pelunasan sisa di lokasi",
+            "Wajib lunas 100% di awal melalui Payment Gateway otomatis (otomatis konfirmasi tanpa cek manual)",
+            "Pemesanan tanpa bayar di awal (Bayar tunai di lokasi) dengan konfirmasi kehadiran via WhatsApp H-1",
           ],
         },
         {
           id: "q3",
-          question: "Metode pembayaran apa yang diprioritaskan?",
+          question: "Bagaimana pengelolaan ketersediaan fasilitas atau staf pelayanan?",
           options: [
-            "Payment gateway otomatis (QRIS, E-Wallet, Virtual Account)",
-            "Transfer bank manual dengan upload bukti bayar",
-            "Cash on Delivery (COD) / Bayar di Tempat",
+            "Multi-lapangan / multi-staf kapster/fotografer dengan jadwal operasional masing-masing",
+            "Satu unit fasilitas tunggal dengan pembagian jam buka dan tutup harian",
+            "Jadwal khusus member reguler yang otomatis terblokir untuk umum setiap minggu",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Apakah memerlukan notifikasi otomatis dan kebijakan pembatalan (Reschedule)?",
+          options: [
+            "Kirim bukti booking & WhatsApp pengingat otomatis H-1 dengan fitur reschedule mandiri",
+            "Cukup tiket QR-code / invoice digital yang tersimpan di riwayat akun pengguna",
+            "Kebijakan tanpa refund / pembatalan hanya dapat dilakukan melalui kontak admin",
           ],
         },
       ];
-    } else if (domain.categories.includes("Company Profile") || domain.categories.includes("Marketing Website")) {
+    } else if (/\b(klinik|dokter|kesehatan|medis|apotek|pasien|rekam\s*medis|janji\s*temu|terapis|gigi|skincare|estetika|rumah\s*sakit)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana alur pendaftaran pasien dan pembuatan janji temu dokter?",
+          options: [
+            "Booking antrean online dengan estimasi nomor giliran dan pemilihan dokter spesialis",
+            "Pendaftaran pasien baru dengan pengisian data rekam medis awal & keluhan",
+            "Konsultasi telemedicine / chat dokter online terintegrasi",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana manajemen jadwal praktek dokter dan ketersediaan kuota?",
+          options: [
+            "Jadwal shift dokter per hari dengan batasan kuota pasien otomatis (Closed saat penuh)",
+            "Jadwal fleksibel on-call dengan notifikasi konfirmasi dokter",
+            "Jadwal terpadu klinik multi-cabang",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Apakah memerlukan modul rekam medis digital atau katalog obat apotek?",
+          options: [
+            "Portal pasien untuk melihat riwayat diagnosa, resep obat digital, & jadwal kontrol",
+            "Katalog produk apotek / obat bebas dengan pemesanan langsung",
+            "Cukup sistem antrean & profil layanan klinik tanpa rekam medis online",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Metode pembayaran dan integrasi asuransi apa yang dibutuhkan?",
+          options: [
+            "Pembayaran mandiri (QRIS/Transfer) dan klaim asuransi / BPJS dengan upload dokumen",
+            "Pembayaran langsung di kasir klinik saat kunjungan berlangsung",
+            "Kombinasi deposit saldo klinik dan pembayaran tunai",
+          ],
+        },
+      ];
+    } else if (/\b(laundry|cuci|kiloan|dry\s*clean|bengkel|servis|cleaning|montir|service\s*ac)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana skema layanan dan penentuan harga jasa?",
+          options: [
+            "Kalkulator tarif otomatis berbasis bobot (Kiloan) dan satuan per item (Satuan/Express)",
+            "Paket langganan bulanan / deposit kuota cuci dengan barcode member",
+            "Tarif berbasis inspeksi kondisi awal / estimasi jasa perbaikan",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana alur penjemputan (Pick-up) dan pengantaran (Delivery)?",
+          options: [
+            "Layanan antar-jemput dengan penentuan titik maps lokasi & pilihan jam penjemputan",
+            "Pelanggan drop-off mandiri ke outlet fisik dengan nota digital via WhatsApp",
+            "Kerja sama kurir pihak ketiga (Gosend / GrabExpress)",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Bagaimana pelanggan memantau progres pengerjaan cucian/servis?",
+          options: [
+            "Pelacak status real-time (Diterima → Dicuci → Disetrika → Siap Ambil / Diantar)",
+            "Notifikasi otomatis via WhatsApp saat pengerjaan telah selesai",
+            "Cek status manual menggunakan nomor resi/nota pada halaman utama",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Modul apa yang diperlukan kasir outlet untuk operasional?",
+          options: [
+            "Pencatatan nota kasir, cetak label barcode pakaian, dan pembukuan kas harian",
+            "Manajemen rak penyimpanan cucian agar tidak tertukar antar-pelanggan",
+            "Manajemen komisi staf / tim pencuci",
+          ],
+        },
+      ];
+    } else if (/\b(kost|kos|properti|rumah|apartemen|kontrakan|real\s*estate|sewa\s*kamar|perumahan)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana cara calon penyewa/pembeli mencari dan memfilter properti?",
+          options: [
+            "Filter detail (Lokasi/Area, Rentang Harga, Tipe Kamar Putra/Putri/Campur, Fasilitas AC/WiFi)",
+            "Tampilan peta interaktif (Google Maps) yang menampilkan titik lokasi properti di sekitar",
+            "Tur visual 360° / Galeri video kamar lengkap dengan denah lantai",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana alur reservasi atau survei lokasi properti?",
+          options: [
+            "Jadwalkan survei lokasi fisik dengan pemilihan tanggal/jam dan kontak pengelola",
+            "Booking kamar langsung secara online dengan pembayaran DP / sewa bulan pertama",
+            "Tanya jawab langsung dengan pemilik properti via WhatsApp",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Fitur apa yang dibutuhkan untuk manajemen tagihan dan sewa berkala?",
+          options: [
+            "Pengingat tagihan sewa bulanan otomatis via WhatsApp dan invoice PDF",
+            "Pelaporan komplain / kerusakan fasilitas kamar oleh penghuni kos",
+            "Cukup pencatatan manual oleh pengelola",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Apakah platform ini untuk properti tunggal atau multi-pemilik (Listing kos)?",
+          options: [
+            "Properti pribadi milik satu pengelola (Website resmi kos/perumahan)",
+            "Portal agregator listing di mana pemilik kos lain dapat mendaftarkan kamar miliknya",
+            "Platform agen properti independen",
+          ],
+        },
+      ];
+    } else if (/\b(kursus|lms|belajar|sekolah|bimbel|elearning|e-learning|akademi|materi|siswa|guru|ujian|kelas)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana format materi pembelajaran yang disediakan untuk siswa?",
+          options: [
+            "Video on-demand bertahap (Drip content) dengan kuis kelulusan di setiap modul",
+            "Kelas interaktif live streaming (Zoom/Meet) dengan jadwal sesi mingguan",
+            "Modul materi bacaan teks/PDF dan latihan soal tryout dengan pembahasan",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana sistem akses dan monetisasi kursus/sekolah?",
+          options: [
+            "Beli per kursus (Pay-per-course) dengan akses seumur hidup",
+            "Langganan keanggotaan berkala (Membership bulanan/tahunan) untuk akses semua materi",
+            "Platform gratis untuk internal sekolah/organisasi dengan absensi siswa",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Fitur evaluasi dan bukti kelulusan apa yang dibutuhkan?",
+          options: [
+            "Sertifikat digital otomatis dengan nomor verifikasi unik dan QR-code pasca lulus kuis",
+            "Ujian akhir berbatas waktu (Timer test) dengan pengacakan urutan soal",
+            "Pengumpulan tugas proyek portofolio dengan penilaian langsung oleh mentor",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Bagaimana peran dan hak akses akun dalam platform?",
+          options: [
+            "Multi-role (Siswa, Instruktur/Guru pembuat materi, dan Superadmin)",
+            "Forum diskusi tanya-jawab per materi kursus antara siswa dan pengajar",
+            "Single role terfokus untuk siswa mandiri",
+          ],
+        },
+      ];
+    } else if (/\b(kasir|pos|point\s*of\s*sale|keuangan|invoicing|invoice|pembukuan|cashflow|inventory|stok\s*barang|toko\s*kelontong)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana lingkungan operasional penggunaan aplikasi kasir (POS)?",
+          options: [
+            "Aplikasi Web responsif yang optimal diakses dari tablet / iPad dan layar desktop kasir",
+            "Mendukung pemindaian barcode kamera/scanner dan cetak struk thermal Bluetooth",
+            "Dapat mencatat transaksi offline saat koneksi internet terputus (Offline-first)",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana skema pencatatan transaksi dan metode pembayaran kasir?",
+          options: [
+            "Multi-metode bayar (Tunai dengan hitung kembalian, QRIS statis/dinamis, Transfer, Debit)",
+            "Pemisahan struk (Split bill) dan penambahan diskon / pajak / biaya layanan otomatis",
+            "Pencatatan kas kasir buka/tutup shift (Cash drawer reconciliation)",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Bagaimana pengelolaan inventori stok dan peringatan barang menipis?",
+          options: [
+            "Pengurangan stok otomatis saat transaksi dengan notifikasi stok menipis (Low Stock Alert)",
+            "Pencatatan mutasi barang masuk (Purchase Order), retur, dan penyesuaian stok opname",
+            "Dukungan varian produk multi-satuan (Pcs, Box, Lusin, Gram/Kg)",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Laporan analitik apa yang paling krusial untuk pemilik usaha?",
+          options: [
+            "Laporan laba rugi real-time, produk terlaris (Top Selling), dan omzet per shift/hari",
+            "Ekspor laporan keuangan format Excel / CSV dan ringkasan PDF",
+            "Analisis tren penjualan mingguan/bulanan",
+          ],
+        },
+      ];
+    } else if (/\b(portofolio|portfolio|fotografi|fotografer|photo|agency|desain|karya|showcase|videografi)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana gaya presentasi karya dan galeri visual yang diinginkan?",
+          options: [
+            "Grid visual dinamis (Masonry) dengan modal Lightbox, zoom resolusi tinggi, & filter kategori",
+            "Studi kasus komprehensif (Case Study) per proyek dengan penjelasan brief, proses, & hasil",
+            "Showcase minimalis satu halaman (Single-page) yang fokus estetika karya",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Apakah memerlukan portal client proofing / seleksi karya untuk klien?",
+          options: [
+            "Portal seleksi foto privat ber-watermark untuk review & pemilihan foto oleh klien",
+            "Galeri pengunduhan file resolusi tinggi terproteksi PIN / pembayaran lunas",
+            "Cukup portofolio display publik tanpa perlu login atau proofing klien",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Bagaimana calon klien dapat memesan jasa atau meminta penawaran harga?",
+          options: [
+            "Formulir brief proyek terstruktur dengan rincian anggaran, tanggal, & kebutuhan",
+            "Paket harga layanan transparan dengan tombol reservasi tanggal pemotretan/proyek",
+            "Tombol kontak direct ke WhatsApp & Email studio",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Apakah memerlukan manajemen jadwal sesi dan pembayaran bertahap (DP)?",
+          options: [
+            "Kalender jadwal ketersediaan sesi dengan pembayaran DP 50% dan invoice digital",
+            "Cukup kontak manual tanpa integrasi pembayaran online",
+            "Kontrak kerja digital dengan tanda tangan elektronik",
+          ],
+        },
+      ];
+    } else if (/\b(toko\s*online|olshop|e-?commerce|marketplace|belanja|jual\s*beli|keranjang|toko)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Apa jenis produk yang dijual dan bagaimana alur pengirimannya?",
+          options: [
+            "Produk fisik dengan kalkulasi ongkos kirim real-time (JNE, J&T, SiCepat) & nomor resi",
+            "Produk digital (File download instan, lisensi, e-book) dengan akses otomatis pasca-bayar",
+            "Katalog grosir / B2B dengan minimum pembelian dan negosiasi harga",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Bagaimana pengalaman checkout dan sistem akun pengguna?",
+          options: [
+            "Guest Checkout instan (tanpa wajib daftar akun) serta opsi login Google cepat",
+            "Akun member wajib dengan fitur wishlist, poin belanja, dan riwayat pesanan",
+            "Platform multi-vendor di mana setiap penjual memiliki dasbor toko masing-masing",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Metode pembayaran apa yang wajib disediakan?",
+          options: [
+            "Payment Gateway otomatis (QRIS, GoPay, OVO, ShopeePay, Virtual Account)",
+            "Transfer bank manual dengan form upload bukti pembayaran",
+            "Bayar di Tempat (COD) dengan verifikasi OTP nomor telepon",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Fitur promosi dan retensi apa yang ingin diprioritaskan?",
+          options: [
+            "Kupon voucher diskon, flash sale berkala, dan bundling produk hemat",
+            "Sistem review & testimoni foto/video pembeli dengan rating bintang",
+            "Notifikasi keranjang tertinggal (Abandoned Cart reminder)",
+          ],
+        },
+      ];
+    } else if (/\b(saas|crm|hrm|absensi|karyawan|payroll|manajemen\s*tugas|project\s*management|admin\s*dashboard)\b/i.test(combined)) {
+      questions = [
+        {
+          id: "q1",
+          question: "Bagaimana model akses pengguna dan peran hak akses (RBAC)?",
+          options: [
+            "Multi-role terproteksi (Superadmin, Manager Tim, Anggota/Staff, dan Klien)",
+            "Multi-tenant workspace di mana setiap perusahaan/organisasi terisolasi mandiri",
+            "Model langganan bertingkat (Free Tier, Pro, Enterprise)",
+          ],
+        },
+        {
+          id: "q2",
+          question: "Modul fungsional apa yang menjadi inti sistem ini?",
+          options: [
+            "Papan alur kerja visual (Kanban board / Gantt chart) dengan penugasan tugas & deadline",
+            "Pelacakan pipeline prospek penjualan (Leads pipeline) dan riwayat komunikasi klien",
+            "Pencatatan absensi geotagging GPS / selfie serta kalkulasi payroll bulanan",
+          ],
+        },
+        {
+          id: "q3",
+          question: "Bagaimana penyajian data metrik dan laporan analitik?",
+          options: [
+            "Dashboard analitik interaktif dengan widget grafik KPI, filter rentang tanggal, & ekspor CSV",
+            "Aktivitas log audit real-time untuk memantau perubahan data penting",
+            "Ringkasan ringkas satu kartu metrik",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Integrasi dan otomasi apa yang direncanakan?",
+          options: [
+            "Notifikasi email / WhatsApp otomatis berdasarkan pemicu status (Trigger-action)",
+            "REST API / Webhook untuk integrasi dengan platform pihak ketiga",
+            "Otomasi ekspor terjadwal ke Google Drive / Cloud Storage",
+          ],
+        },
+      ];
+    } else if (/\b(company\s*profile|profil\s*perusahaan|landing\s*page|profil\s*bisnis|website\s*resmi)\b/i.test(combined)) {
       questions = [
         {
           id: "q1",
           question: "Apa tujuan konversi utama yang ingin dicapai dari website ini?",
           options: [
-            "Menghasilkan leads konsultasi via formulir interaktif & WhatsApp",
-            "Membangun kredibilitas korporat & showcase portofolio klien/proyek",
-            "Mengunduh company profile / brosur digital resmi (PDF)",
+            "Mendapatkan prospek kontak (Leads) via formulir penawaran interaktif & chat WhatsApp",
+            "Membangun reputasi dan kredibilitas profesional dengan showcase portofolio & klien ternama",
+            "Menyediakan informasi resmi profil perusahaan, visi-misi, & unduhan katalog PDF",
           ],
         },
         {
           id: "q2",
-          question: "Bagaimana struktur presentasi layanan dan produk perusahaan?",
+          question: "Bagaimana struktur presentasi layanan dan keunggulan bisnis?",
           options: [
-            "Daftar layanan komprehensif dengan halaman detail per layanan",
-            "Presentasi ringkas 1 halaman (Landing page) yang fokus konversi",
-            "Katalog produk / portofolio proyek terintegrasi",
+            "Halaman beranda modern dengan section Hero persuasif, Keunggulan, Layanan, & Testimoni",
+            "Halaman tersendiri per layanan dengan studi kasus dan rincian spesifikasi teknis",
+            "Katalog interaktif untuk menampilkan portofolio proyek yang telah berhasil diselesaikan",
           ],
         },
         {
           id: "q3",
-          question: "Apakah memerlukan CMS (Admin panel) untuk mengupdate konten?",
+          question: "Apakah memerlukan sistem pengelolaan konten mandiri (CMS)?",
           options: [
-            "Website statis modern (konten diupdate melalui kode/JSON tanpa database)",
-            "Admin dashboard sederhana untuk update blog & portofolio",
-            "Integrasi headless CMS (Sanity / Contentful)",
-          ],
-        },
-      ];
-    } else if (domain.categories.includes("SaaS") || domain.categories.includes("Dashboard / Admin")) {
-      questions = [
-        {
-          id: "q1",
-          question: "Bagaimana model akses dan peran pengguna (RBAC)?",
-          options: [
-            "Multi-role terproteksi (Superadmin, Manager, Staf, Klien)",
-            "Sistem langganan bertingkat (Free, Pro, Enterprise)",
-            "Single workspace untuk penggunaan internal tim",
+            "Dashboard admin sederhana untuk memperbarui artikel berita/blog dan galeri proyek",
+            "Website statis modern berkecepatan tinggi tanpa database (diperbarui melalui kode/JSON)",
+            "Integrasi form langsung ke Google Sheets / Notifikasi Email internal perusahaan",
           ],
         },
         {
-          id: "q2",
-          question: "Apa modul analitik dan pelaporan data yang paling esensial?",
+          id: "q4",
+          question: "Fitur pendukung kredibilitas apa yang ingin ditampilkan?",
           options: [
-            "Grafik metrik performa real-time dan ringkasan KPI",
-            "Tabel data interaktif dengan filter instan dan ekspor CSV/PDF",
-            "Alur kerja otomasi dan webhook log",
-          ],
-        },
-        {
-          id: "q3",
-          question: "Bagaimana preferensi arsitektur database dan keamanan?",
-          options: [
-            "PostgreSQL dengan Row Level Security (RLS) & session cookie",
-            "REST API terenkripsi dengan audit logging aktivitas user",
-            "Multi-tenant database terisolasi",
+            "Sertifikasi resmi, penghargaan industri, dan kalkulator estimasi kebutuhan klien",
+            "Peta lokasi kantor interaktif (Google Maps) dan form lowongan karir perusahaan",
+            "Live chat widget atau floating contact button",
           ],
         },
       ];
@@ -3845,29 +4164,38 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
       questions = [
         {
           id: "q1",
-          question: `Siapa target pengguna utama untuk proyek ${title}?`,
+          question: `Siapa target pengguna utama yang akan mengakses ${title}?`,
           options: [
-            "Pengguna publik / Konsumen akhir (B2C)",
-            "Pelaku bisnis, UMKM, atau korporasi (B2B)",
-            "Internal tim operasional perusahaan",
+            "Pengguna umum / Konsumen perorangan yang membutuhkan kemudahan akses instan (B2C)",
+            "Pelaku usaha, UMKM, atau profesional dengan alur kerja spesifik (B2B)",
+            "Internal tim operasional atau pengelola sistem organisasi",
           ],
         },
         {
           id: "q2",
-          question: "Apakah aplikasi ini memerlukan sistem login akun pengguna?",
+          question: "Bagaimana model interaksi dan alur transaksi utama pada aplikasi/website ini?",
           options: [
-            "Dapat diakses publik tanpa perlu login (Public / Static)",
-            "Perlu autentikasi aman (Email & Password / Google OAuth)",
-            "Multi-role dengan hak akses bertingkat (Admin, Staff, User)",
+            "Eksplorasi konten interaktif dengan fitur pencarian cepat & filter presisi",
+            "Formulir pengajuan atau pemesanan langsung terintegrasi dengan chat WhatsApp",
+            "Transaksi digital lengkap dengan akun pengguna & sistem pembayaran online",
           ],
         },
         {
           id: "q3",
-          question: "Apa fungsi dan interaksi paling krusial yang wajib ada di versi awal (MVP)?",
+          question: "Fitur kunci apa yang wajib tersedia pada versi awal (MVP)?",
           options: [
-            "Pencarian data cepat, navigasi responsif & katalog interaktif",
-            "Formulir interaktif dengan validasi data dan feedback instan",
-            "Dashboard manajemen data terintegrasi dan laporan ringkas",
+            "Tampilan antarmuka responsif modern dengan navigasi intuitif tanpa kendala",
+            "Pengelolaan data tersimpan (database) dengan validasi formulir yang aman",
+            "Fitur analitik data ringkas & notifikasi pembaruan status",
+          ],
+        },
+        {
+          id: "q4",
+          question: "Bagaimana preferensi hak akses dan pengelolaan sistem (Admin)?",
+          options: [
+            "Dapat diakses publik secara bebas tanpa wajib login akun",
+            "Wajib autentikasi akun (Login Email / Google) dengan profil personal",
+            "Dashboard admin terproteksi untuk memantau data dan mengelola konten",
           ],
         },
       ];
@@ -5675,6 +6003,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       );
     }
 
+    let currentTrackedStage: "prd" | "features" | "architecture" | "tasks" = "prd";
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -5700,7 +6030,7 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let rawStream = "";
-      let currentTrackedStage: "prd" | "features" | "architecture" | "tasks" | "completed" = "prd";
+      let stageStartTime = Date.now();
       let lastUpdateTime = 0;
 
       let buffer = "";
@@ -5723,23 +6053,33 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
             if (chunk) {
               rawStream += chunk;
 
-              // Deteksi progres estafet berbasis bagian nyata yang sedang digenerate AI:
+              // Deteksi progres estafet secara berurutan & bertahap:
               if (isAnsweringQuestions) {
-                if (rawStream.includes('"tasks"') || rawStream.includes('tasks":') || rawStream.includes('"Actionable') || rawStream.length > 3800) {
-                  if (currentTrackedStage !== "tasks") {
-                    currentTrackedStage = "tasks";
-                    setEstafetStage("tasks");
-                  }
-                } else if (rawStream.includes('"architecture"') || rawStream.includes('"userFlow"') || rawStream.includes('"dataSchema"') || rawStream.includes('CREATE TABLE') || rawStream.length > 2400) {
-                  if (currentTrackedStage === "prd" || currentTrackedStage === "features") {
-                    currentTrackedStage = "architecture";
-                    setEstafetStage("architecture");
-                  }
-                } else if (rawStream.includes('"features"') || rawStream.includes('features":') || rawStream.includes('"Feature Breakdown"') || rawStream.length > 900) {
-                  if (currentTrackedStage === "prd") {
-                    currentTrackedStage = "features";
-                    setEstafetStage("features");
-                  }
+                const now = Date.now();
+                if (
+                  currentTrackedStage === "prd" &&
+                  (rawStream.includes('"features"') || rawStream.includes('features":') || rawStream.includes('"Feature Breakdown"') || rawStream.length > 900) &&
+                  now - stageStartTime >= 800
+                ) {
+                  currentTrackedStage = "features";
+                  stageStartTime = now;
+                  setEstafetStage("features");
+                } else if (
+                  currentTrackedStage === "features" &&
+                  (rawStream.includes('"architecture"') || rawStream.includes('"userFlow"') || rawStream.includes('"dataSchema"') || rawStream.includes('CREATE TABLE') || rawStream.length > 2200) &&
+                  now - stageStartTime >= 800
+                ) {
+                  currentTrackedStage = "architecture";
+                  stageStartTime = now;
+                  setEstafetStage("architecture");
+                } else if (
+                  currentTrackedStage === "architecture" &&
+                  (rawStream.includes('"tasks"') || rawStream.includes('tasks":') || rawStream.includes('"Actionable') || rawStream.length > 3600) &&
+                  now - stageStartTime >= 800
+                ) {
+                  currentTrackedStage = "tasks";
+                  stageStartTime = now;
+                  setEstafetStage("tasks");
                 }
               }
 
@@ -5773,7 +6113,28 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       }
 
       if (isAnsweringQuestions) {
-        setEstafetStage("completed");
+        // Jaminan transisi berurutan (Step 1 -> Step 2 loading -> Step 3 loading -> Step 4 loading -> Selesai)
+        if (currentTrackedStage === "prd") {
+          await new Promise((r) => setTimeout(r, 650));
+          setEstafetStage("features");
+          currentTrackedStage = "features";
+        }
+        if (currentTrackedStage === "features") {
+          await new Promise((r) => setTimeout(r, 650));
+          setEstafetStage("architecture");
+          currentTrackedStage = "architecture";
+        }
+        if (currentTrackedStage === "architecture") {
+          await new Promise((r) => setTimeout(r, 650));
+          setEstafetStage("tasks");
+          currentTrackedStage = "tasks";
+        }
+        if (currentTrackedStage === "tasks") {
+          await new Promise((r) => setTimeout(r, 650));
+          setEstafetStage("completed");
+          await new Promise((r) => setTimeout(r, 400));
+        }
+
         if (!rawStream.trim()) {
           rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
@@ -5801,9 +6162,21 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     } catch (err: unknown) {
       console.error("Code AI error:", err);
       if (isAnsweringQuestions) {
-        // Jaminan anti-batal: Jika ada kendala jaringan / LLM, terapkan blueprint domain agar PRD & Tasks tetap terisi lengkap
-        parseAndApplyBlueprint(projId, "", assistantMsgId);
+        // Jaminan anti-batal & transisi berurutan saat fallback
+        if (currentTrackedStage === "prd") {
+          setEstafetStage("features");
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        if (currentTrackedStage === "features") {
+          setEstafetStage("architecture");
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        if (currentTrackedStage === "architecture") {
+          setEstafetStage("tasks");
+          await new Promise((r) => setTimeout(r, 400));
+        }
         setEstafetStage("completed");
+        parseAndApplyBlueprint(projId, "", assistantMsgId);
       } else {
         setEstafetStage("idle");
       }
@@ -7951,147 +8324,161 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                 </span>
                               </div>
 
-                              <div className="space-y-1.5">
-                                {/* Tahap 1: PRD */}
-                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
-                                  estafetStage === "prd"
-                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : (activeProject?.prd?.overview || estafetStage === "completed")
-                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
-                                    : "text-zinc-400 font-normal"
-                                }`}>
-                                  <div className="flex items-center gap-2">
-                                    {estafetStage === "prd" ? (
-                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : (activeProject?.prd?.overview || estafetStage === "completed") ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
-                                    )}
-                                    <span>1. Merumuskan Dokumen PRD &amp; Analisis Kebutuhan</span>
-                                  </div>
-                                  <span className={`text-[11px] font-semibold ${
-                                    estafetStage === "prd"
-                                      ? "text-zinc-500"
-                                      : (activeProject?.prd?.overview || estafetStage === "completed")
-                                      ? isDark ? "text-white" : "text-black"
-                                      : "text-zinc-400 font-normal"
-                                  }`}>
-                                    {estafetStage === "prd"
-                                      ? "Sedang merumuskan..."
-                                      : (activeProject?.prd?.overview || estafetStage === "completed")
-                                      ? "Selesai ✓"
-                                      : "Menunggu giliran"}
-                                  </span>
-                                </div>
+                              {(() => {
+                                const stageOrderMap: Record<string, number> = {
+                                  idle: 0,
+                                  prd: 1,
+                                  features: 2,
+                                  architecture: 3,
+                                  tasks: 4,
+                                  completed: 5,
+                                };
+                                const currentStepNumber = stageOrderMap[estafetStage] || 0;
 
-                                {/* Tahap 2: Fitur */}
-                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
-                                  estafetStage === "features"
-                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
-                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
-                                    : "text-zinc-400"
-                                }`}>
-                                  <div className="flex items-center gap-2">
-                                    {estafetStage === "features" ? (
-                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed")) ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
-                                    )}
-                                    <span>2. Memecah Modul &amp; Spesifikasi Fitur Terperinci</span>
-                                  </div>
-                                  <span className={`text-[11px] font-semibold ${
-                                    estafetStage === "features"
-                                      ? "text-zinc-500"
-                                      : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
-                                      ? isDark ? "text-white" : "text-black"
-                                      : "text-zinc-400 font-normal"
-                                  }`}>
-                                    {estafetStage === "features"
-                                      ? "Sedang memproses..."
-                                      : ((activeProject?.features && activeProject.features.length > 0) && (estafetStage === "architecture" || estafetStage === "tasks" || estafetStage === "completed"))
-                                      ? "Selesai ✓"
-                                      : "Menunggu giliran"}
-                                  </span>
-                                </div>
+                                return (
+                                  <div className="space-y-1.5">
+                                    {/* Tahap 1: PRD */}
+                                    <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                      currentStepNumber === 1
+                                        ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                        : currentStepNumber > 1
+                                        ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                        : "text-zinc-400 font-normal"
+                                    }`}>
+                                      <div className="flex items-center gap-2">
+                                        {currentStepNumber === 1 ? (
+                                          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                        ) : currentStepNumber > 1 ? (
+                                          <svg className="w-3.5 h-3.5 shrink-0 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        ) : (
+                                          <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                        )}
+                                        <span>1. Merumuskan Dokumen PRD &amp; Analisis Kebutuhan</span>
+                                      </div>
+                                      <span className={`text-[11px] font-semibold ${
+                                        currentStepNumber === 1
+                                          ? "text-zinc-500"
+                                          : currentStepNumber > 1
+                                          ? isDark ? "text-white" : "text-black"
+                                          : "text-zinc-400 font-normal"
+                                      }`}>
+                                        {currentStepNumber === 1
+                                          ? "Sedang merumuskan..."
+                                          : currentStepNumber > 1
+                                          ? "Selesai ✓"
+                                          : "Menunggu giliran"}
+                                      </span>
+                                    </div>
 
-                                {/* Tahap 3: Flow & Arsitektur */}
-                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
-                                  estafetStage === "architecture"
-                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
-                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
-                                    : "text-zinc-400"
-                                }`}>
-                                  <div className="flex items-center gap-2">
-                                    {estafetStage === "architecture" ? (
-                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed")) ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
-                                    )}
-                                    <span>3. Merancang User Flow &amp; Arsitektur Database SQL</span>
-                                  </div>
-                                  <span className={`text-[11px] font-semibold ${
-                                    estafetStage === "architecture"
-                                      ? "text-zinc-500"
-                                      : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
-                                      ? isDark ? "text-white" : "text-black"
-                                      : "text-zinc-400 font-normal"
-                                  }`}>
-                                    {estafetStage === "architecture"
-                                      ? "Sedang menyusun..."
-                                      : (activeProject?.architecture && (estafetStage === "tasks" || estafetStage === "completed"))
-                                      ? "Selesai ✓"
-                                      : "Menunggu giliran"}
-                                  </span>
-                                </div>
+                                    {/* Tahap 2: Fitur */}
+                                    <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                      currentStepNumber === 2
+                                        ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                        : currentStepNumber > 2
+                                        ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                        : "text-zinc-400 font-normal"
+                                    }`}>
+                                      <div className="flex items-center gap-2">
+                                        {currentStepNumber === 2 ? (
+                                          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                        ) : currentStepNumber > 2 ? (
+                                          <svg className="w-3.5 h-3.5 shrink-0 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        ) : (
+                                          <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                        )}
+                                        <span>2. Memecah Modul &amp; Spesifikasi Fitur Terperinci</span>
+                                      </div>
+                                      <span className={`text-[11px] font-semibold ${
+                                        currentStepNumber === 2
+                                          ? "text-zinc-500"
+                                          : currentStepNumber > 2
+                                          ? isDark ? "text-white" : "text-black"
+                                          : "text-zinc-400 font-normal"
+                                      }`}>
+                                        {currentStepNumber === 2
+                                          ? "Sedang memproses..."
+                                          : currentStepNumber > 2
+                                          ? "Selesai ✓"
+                                          : "Menunggu giliran"}
+                                      </span>
+                                    </div>
 
-                                {/* Tahap 4: Tasks */}
-                                <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
-                                  estafetStage === "tasks"
-                                    ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
-                                    : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
-                                    ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
-                                    : "text-zinc-400"
-                                }`}>
-                                  <div className="flex items-center gap-2">
-                                    {estafetStage === "tasks" ? (
-                                      <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                                    ) : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0) ? (
-                                      <svg className="w-3.5 h-3.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
-                                    )}
-                                    <span>4. Menyusun Actionable Development Tasks</span>
+                                    {/* Tahap 3: Flow & Arsitektur */}
+                                    <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                      currentStepNumber === 3
+                                        ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                        : currentStepNumber > 3
+                                        ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                        : "text-zinc-400 font-normal"
+                                    }`}>
+                                      <div className="flex items-center gap-2">
+                                        {currentStepNumber === 3 ? (
+                                          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                        ) : currentStepNumber > 3 ? (
+                                          <svg className="w-3.5 h-3.5 shrink-0 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        ) : (
+                                          <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                        )}
+                                        <span>3. Merancang User Flow &amp; Arsitektur Database SQL</span>
+                                      </div>
+                                      <span className={`text-[11px] font-semibold ${
+                                        currentStepNumber === 3
+                                          ? "text-zinc-500"
+                                          : currentStepNumber > 3
+                                          ? isDark ? "text-white" : "text-black"
+                                          : "text-zinc-400 font-normal"
+                                      }`}>
+                                        {currentStepNumber === 3
+                                          ? "Sedang merancang..."
+                                          : currentStepNumber > 3
+                                          ? "Selesai ✓"
+                                          : "Menunggu giliran"}
+                                      </span>
+                                    </div>
+
+                                    {/* Tahap 4: Tasks */}
+                                    <div className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg transition ${
+                                      currentStepNumber === 4
+                                        ? isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200/80 text-black font-medium"
+                                        : currentStepNumber > 4
+                                        ? isDark ? "text-zinc-100 font-medium" : "text-zinc-900 font-medium"
+                                        : "text-zinc-400 font-normal"
+                                    }`}>
+                                      <div className="flex items-center gap-2">
+                                        {currentStepNumber === 4 ? (
+                                          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                                        ) : currentStepNumber > 4 ? (
+                                          <svg className="w-3.5 h-3.5 shrink-0 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        ) : (
+                                          <span className="w-3.5 h-3.5 rounded-full border border-zinc-400 inline-block shrink-0" />
+                                        )}
+                                        <span>4. Menyusun Actionable Development Tasks</span>
+                                      </div>
+                                      <span className={`text-[11px] font-semibold ${
+                                        currentStepNumber === 4
+                                          ? "text-zinc-500"
+                                          : currentStepNumber > 4
+                                          ? isDark ? "text-white" : "text-black"
+                                          : "text-zinc-400 font-normal"
+                                      }`}>
+                                        {currentStepNumber === 4
+                                          ? "Sedang menyusun..."
+                                          : currentStepNumber > 4
+                                          ? "Selesai ✓"
+                                          : "Menunggu giliran"}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <span className={`text-[11px] font-semibold ${
-                                    estafetStage === "tasks"
-                                      ? "text-zinc-500"
-                                      : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
-                                      ? isDark ? "text-white" : "text-black"
-                                      : "text-zinc-400 font-normal"
-                                  }`}>
-                                    {estafetStage === "tasks"
-                                      ? "Sedang merangkum..."
-                                      : (estafetStage === "completed" && activeProject?.tasks && activeProject.tasks.length > 0)
-                                      ? "Selesai ✓"
-                                      : "Menunggu giliran"}
-                                  </span>
-                                </div>
-                              </div>
+                                );
+                              })()}
                             </div>
                           )}
 
@@ -8124,7 +8511,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                               {!m.pendingProject.isConfirmed ? (
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                                    <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-4 h-4 text-zinc-900 dark:text-zinc-100 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                     </svg>
                                     <span>Konfirmasi Pembuatan Project Baru</span>
@@ -8195,8 +8582,8 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                   </div>
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                  <svg className="w-4 h-4 shrink-0 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                   </svg>
                                   <span>Project &quot;{m.pendingProject.suggestedTitle}&quot; aktif</span>
@@ -9675,15 +10062,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                     setShowProjectDrawer(false);
                     setActiveProjectId(null);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer ${
+                  className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center transition shadow-xs cursor-pointer active:scale-95 ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                   }`}
                   title="Buat Project Baru"
+                  aria-label="Buat Project Baru"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
                   </svg>
-                  <span>Project Baru</span>
                 </button>
 
                 <button
