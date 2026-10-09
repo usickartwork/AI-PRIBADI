@@ -1291,15 +1291,22 @@ export function ScheduleWorkspace({
             >
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-2 sm:-translate-y-3">
-                  {/* Pure Star Icon only (No Box/Kotak, identical to main chat tab) */}
+                  {/* Schedule Calendar Icon (Matching Panel Nav, with Animated Float) */}
                   <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
                     <svg
                       className={`w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md transition-colors ${
-                        isDark ? "text-white fill-white" : "text-black fill-black"
+                        isDark ? "text-white" : "text-black"
                       }`}
+                      fill="none"
                       viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                   </div>
 

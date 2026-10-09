@@ -8100,15 +8100,22 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center my-auto py-2 sm:py-4">
                     {/* 1. HERO HEADER */}
                     <div className="text-center mb-6 sm:mb-8">
-                      {/* Pure Star Icon only (No Box/Kotak - Identical to chat, schedule & image tabs) */}
+                      {/* Code Icon (Matching Panel Nav, with Animated Float) */}
                       <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
                         <svg
                           className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
-                            isDark ? "text-white fill-white" : "text-black fill-black"
+                            isDark ? "text-white" : "text-black"
                           }`}
+                          fill="none"
                           viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.8}
+                            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                          />
                         </svg>
                       </div>
 

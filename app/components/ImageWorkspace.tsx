@@ -310,15 +310,22 @@ export function ImageWorkspace({
 
           {/* 1. HERO HEADER */}
           <div className="text-center mb-6 sm:mb-8">
-            {/* Pure Star Icon only (No Box/Kotak - Identical to chat & schedule tabs) */}
+            {/* Image Photo Icon (Matching Panel Nav, with Animated Float) */}
             <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
               <svg
                 className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
-                  isDark ? "text-white fill-white" : "text-black fill-black"
+                  isDark ? "text-white" : "text-black"
                 }`}
+                fill="none"
                 viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
             </div>
 

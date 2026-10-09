@@ -65,7 +65,7 @@ textarea:focus {
     transform: translateY(0px) scale(1);
   }
   50% {
-    transform: translateY(-6px) scale(1.01);
+    transform: translateY(-7px) scale(1.02);
   }
 }
 
@@ -81,7 +81,7 @@ textarea:focus {
 }
 
 .animate-float {
-  animation: float 5s ease-in-out infinite;
+  animation: float 4s ease-in-out infinite;
 }
 
 .animate-pulse-glow {
