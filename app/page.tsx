@@ -2858,24 +2858,19 @@ export default function Home() {
               </div>
             </header>
 
-        {/* ─── SCROLLABLE CHAT CONTENT (Extends to top of device with top & bottom gradient fade like GPT) ─── */}
+            {/* Top short black fade overlay (intensitas pendek) */}
+            {messages.length > 0 && (
+              <div className="pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 bg-gradient-to-b from-black via-black/50 to-transparent z-10" />
+            )}
+
+        {/* ─── SCROLLABLE CHAT CONTENT ─── */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          style={
-            messages.length > 0
-              ? {
-                  maskImage:
-                    "linear-gradient(to bottom, transparent 0%, black 80px, black calc(100% - 48px), transparent 100%)",
-                  WebkitMaskImage:
-                    "linear-gradient(to bottom, transparent 0%, black 80px, black calc(100% - 48px), transparent 100%)",
-                }
-              : undefined
-          }
-          className={`flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 flex flex-col ${
+          className={`flex-1 overflow-y-auto min-h-0 w-full px-3.5 sm:px-6 flex flex-col ${
             messages.length === 0
               ? "pt-3 sm:pt-4 pb-3 sm:pb-5"
-              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] pb-12 sm:pb-14"
+              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] pb-8 sm:pb-10"
           }`}
         >
           <div className={`mx-auto max-w-3xl w-full ${messages.length === 0 ? "flex-1 flex flex-col items-center justify-center my-auto" : "space-y-4 sm:space-y-6"}`}>
@@ -2934,59 +2929,44 @@ export default function Home() {
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-2.5 sm:gap-3.5 ${isUser ? "justify-end" : "justify-start"} animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"} w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
                 >
-                  {/* Assistant Avatar */}
-                  {!isUser && (
-                    <div className={`relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl shadow-md ${
-                      isDark ? "bg-white text-black shadow-white/10" : "bg-black text-white shadow-black/30"
-                    }`}>
-                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                      </svg>
+                  {isUser ? (
+                    /* User Message: Tetap pakai bubble */
+                    <div
+                      className={`relative max-w-[85%] sm:max-w-[75%] rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
+                        isDark
+                          ? "bg-[#1c447a] border border-[#275899]/50 text-white shadow-sm font-normal"
+                          : "bg-black text-white shadow-sm font-normal"
+                      }`}
+                    >
+                      {msg.image && (
+                        <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-sm max-w-xs sm:max-w-sm">
+                          <img
+                            src={msg.image}
+                            alt="Foto terlampir"
+                            className="max-h-64 sm:max-h-80 w-auto rounded-xl object-contain cursor-pointer hover:opacity-90 transition bg-black/20"
+                            onClick={() => setPreviewImage(msg.image || null)}
+                            title="Klik untuk melihat ukuran penuh"
+                          />
+                        </div>
+                      )}
+                      {msg.fileName && (
+                        <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/10 border border-white/15 text-white shadow-xs">
+                          <svg className="w-4 h-4 shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="truncate max-w-[200px]">{msg.fileName}</span>
+                        </div>
+                      )}
+                      {msg.content && (
+                        <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
+                      )}
                     </div>
-                  )}
-
-                  {/* Message Bubble */}
-                  <div
-                    className={`relative max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 sm:p-4 text-[13.5px] sm:text-sm ${
-                      isUser
-                        ? (isDark
-                            ? "bg-zinc-800 border border-zinc-750 text-white shadow-md rounded-tr-xs font-normal"
-                            : "bg-black text-white shadow-md shadow-black/20 rounded-tr-xs font-normal")
-                        : (isDark
-                            ? "bg-[#18181c] border border-zinc-800 text-zinc-100 shadow-xs rounded-tl-xs"
-                            : "bg-[#f8f8fa] border border-zinc-200/90 text-black shadow-xs rounded-tl-xs")
-                    }`}
-                  >
-                    {isUser ? (
-                      <div>
-                        {msg.image && (
-                          <div className="mb-2.5 overflow-hidden rounded-xl border border-white/20 dark:border-white/10 shadow-sm max-w-xs sm:max-w-sm">
-                            <img
-                              src={msg.image}
-                              alt="Foto terlampir"
-                              className="max-h-64 sm:max-h-80 w-auto rounded-xl object-contain cursor-pointer hover:opacity-90 transition bg-black/20"
-                              onClick={() => setPreviewImage(msg.image || null)}
-                              title="Klik untuk melihat ukuran penuh"
-                            />
-                          </div>
-                        )}
-                        {msg.fileName && (
-                          <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-white/10 border border-white/15 text-white shadow-xs">
-                            <svg className="w-4 h-4 shrink-0 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="truncate max-w-[200px]">{msg.fileName}</span>
-                          </div>
-                        )}
-                        {msg.content && (
-                          <p className="whitespace-pre-wrap leading-relaxed font-normal">{msg.content}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        {!msg.content && isStreaming && (
+                  ) : (
+                    /* AI Message: Tanpa bubble, rata kiri di dalam kolom tengah */
+                    <div className="w-full text-left py-1 text-[14px] sm:text-[15px] leading-relaxed">
+                      {!msg.content && isStreaming && (
                           <div className="flex items-center gap-2 py-0.5">
                             <div className={`h-1.5 w-1.5 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
                             <ShiningText className="text-xs sm:text-[12.5px]" text={`${msg.model || cleanModelLabel(activeModelObj.label)} is thinking...`} />
@@ -3066,16 +3046,14 @@ export default function Home() {
 
                         {/* Copy Action */}
                         {msg.content && (
-                          <div className={`mt-2.5 flex items-center justify-end gap-1.5 pt-2 border-t ${
-                            isDark ? "border-zinc-800/80" : "border-zinc-200/60"
-                          }`}>
+                          <div className="mt-2.5 flex items-center justify-start gap-1.5 pt-1">
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
                               className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition cursor-pointer ${
                                 isDark
                                   ? "text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                                  : "text-black hover:bg-zinc-200/80 hover:text-black font-medium"
+                                  : "text-zinc-600 hover:bg-zinc-200/80 hover:text-black font-medium"
                               }`}
                             >
                               {copiedId === msg.id ? (
@@ -3096,18 +3074,6 @@ export default function Home() {
                             </button>
                           </div>
                         )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* User Avatar */}
-                  {isUser && (
-                    <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold border ${
-                      isDark
-                        ? "bg-zinc-800 text-zinc-100 border-zinc-700"
-                        : "bg-zinc-200 text-black border border-zinc-300"
-                    }`}>
-                      U
                     </div>
                   )}
                 </div>
@@ -3143,7 +3109,11 @@ export default function Home() {
         )}
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent relative">
+          {/* Bottom short black fade overlay (intensitas pendek, tepat saat mau ke chat box) */}
+          {messages.length > 0 && (
+            <div className="pointer-events-none absolute -top-6 sm:-top-8 inset-x-0 h-6 sm:h-8 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
+          )}
           <div className="mx-auto max-w-3xl w-full">
             {renderChatInputCard()}
           </div>
