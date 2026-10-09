@@ -15,6 +15,8 @@ import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
 import { UsageHistoryModal } from "./components/UsageHistoryModal";
 import { ChatSearchModal } from "./components/ChatSearchModal";
+import { VoiceAssistantModal } from "./components/VoiceAssistantModal";
+import { Headphones } from "lucide-react";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -471,6 +473,7 @@ export default function Home() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
@@ -2367,25 +2370,34 @@ export default function Home() {
               >
                 <div className="h-2.5 w-2.5 bg-white rounded-sm" />
               </button>
-            ) : (
+            ) : input.trim() || selectedImage || selectedFile ? (
               <button
                 type="button"
                 onClick={() => sendMessage()}
-                disabled={!input.trim() && !selectedImage}
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                  input.trim() || selectedImage
-                    ? (isDark
-                        ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
-                        : "bg-black hover:bg-zinc-800 text-white shadow-xs")
-                    : (isDark
-                        ? "bg-zinc-800/80 text-zinc-600 border border-zinc-700/50"
-                        : "bg-zinc-100 text-zinc-400 border border-zinc-200/60")
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${
+                  isDark
+                    ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                    : "bg-black hover:bg-zinc-800 text-white shadow-xs"
                 }`}
                 title="Kirim pesan (Enter)"
               >
                 <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                 </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowVoiceModal(true)}
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200 shadow-xs"
+                    : "bg-black text-white hover:bg-zinc-800 shadow-xs"
+                }`}
+                title="Mode Suara Real-time (Voice Assistant)"
+                aria-label="Mode Suara Real-time"
+              >
+                <Headphones className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -3586,6 +3598,13 @@ export default function Home() {
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={switchSession}
+        isDark={isDark}
+      />
+
+      {/* ─── REALTIME VOICE ASSISTANT MODAL (Gemini Voice Powered Orb) ───── */}
+      <VoiceAssistantModal
+        isOpen={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
         isDark={isDark}
       />
 
