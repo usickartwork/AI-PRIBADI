@@ -3167,22 +3167,15 @@ export default function Home() {
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-5 sm:-translate-y-3">
                 
-                {/* Chats Bubble Icon (Matching Panel Nav, with Animated Float) */}
+                {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
                   <svg
                     className={`w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md transition-colors ${
-                      isDark ? "text-white" : "text-zinc-900"
+                      isDark ? "text-white fill-white" : "text-black fill-black"
                     }`}
-                    fill="none"
                     viewBox="0 0 24 24"
-                    stroke="currentColor"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
+                    <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                   </svg>
                 </div>
 

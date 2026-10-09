@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { TechText } from "./TechText";
+import { LogoCloud } from "@/components/ui/logo-cloud-3";
 
 export type AppInitStatus = "initializing" | "ready" | "error";
 
@@ -44,7 +45,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
-      <div className="relative w-full max-w-2xl h-56 sm:h-72 flex items-center justify-center px-4 -translate-y-7 sm:translate-y-0">
+      <div className="relative w-full max-w-2xl h-44 sm:h-56 flex items-center justify-center px-4 -translate-y-4 sm:-translate-y-6">
         <TechText
           text="One Mind"
           fontWeight={700}
@@ -59,6 +60,11 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
           speed={2.8}
           draggable={true}
         />
+      </div>
+
+      {/* ─── Logo Cloud: Model & Tech Provider Slider (Dibawah One Mind) ─────── */}
+      <div className="w-full max-w-md sm:max-w-lg px-6 mt-3 sm:mt-6 flex flex-col items-center animate-in fade-in-0 duration-700">
+        <LogoCloud isDark={isDark} className="w-full py-1.5" />
       </div>
     </div>
   );
