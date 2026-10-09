@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { VoicePoweredOrb } from "@/components/ui/voice-powered-orb";
-import { Mic, MicOff, X, Sparkles } from "lucide-react";
+import { Mic, MicOff, X } from "lucide-react";
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -53,6 +53,16 @@ export function VoiceAssistantModal({
     }
   }, []);
 
+  // Safe restart of speech recognizer
+  const restartRecognition = useCallback(() => {
+    if (!isOpen || !isMicActive || !recognitionRef.current) return;
+    try {
+      recognitionRef.current.start();
+    } catch (e: any) {
+      // If already started or transitioning, ignore
+    }
+  }, [isOpen, isMicActive]);
+
   // Stop currently playing speech audio
   const stopCurrentAudio = useCallback(() => {
     if (currentSourceRef.current) {
@@ -73,6 +83,19 @@ export function VoiceAssistantModal({
     }
   }, []);
 
+  // When AI finishes speaking, return to listening and ensure recognizer is running
+  const handleSpeechFinished = useCallback(() => {
+    currentSourceRef.current = null;
+    setStatus("listening");
+    isProcessingRef.current = false;
+    latestSpeechBufferRef.current = "";
+
+    // Restart recognition immediately after speech ends
+    setTimeout(() => {
+      restartRecognition();
+    }, 150);
+  }, [restartRecognition]);
+
   // Fallback instant browser speech synthesis
   const fallbackSpeech = useCallback((text: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -80,6 +103,7 @@ export function VoiceAssistantModal({
       setStatus("speaking");
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
+      utterance.volume = 1.0; // Max volume
 
       const voices = window.speechSynthesis.getVoices();
       const idVoice = voices.find(
@@ -93,24 +117,18 @@ export function VoiceAssistantModal({
       }
 
       utterance.onend = () => {
-        setStatus("listening");
-        isProcessingRef.current = false;
-        latestSpeechBufferRef.current = "";
+        handleSpeechFinished();
       };
       utterance.onerror = () => {
-        setStatus("listening");
-        isProcessingRef.current = false;
-        latestSpeechBufferRef.current = "";
+        handleSpeechFinished();
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      setStatus("listening");
-      isProcessingRef.current = false;
-      latestSpeechBufferRef.current = "";
+      handleSpeechFinished();
     }
-  }, [stopCurrentAudio]);
+  }, [stopCurrentAudio, handleSpeechFinished]);
 
-  // High fidelity Web Audio PCM playback (bypasses browser data URI limitations)
+  // High fidelity Web Audio PCM playback with volume booster & limiter
   const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
     stopCurrentAudio();
     setStatus("speaking");
@@ -124,23 +142,34 @@ export function VoiceAssistantModal({
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // 2. Play via Web Audio API (Native 24kHz PCM WAV decoding)
+      // 2. Play via Web Audio API with volume booster & compressor limiter
       const ctx = await ensureAudioContext();
       if (ctx) {
-        // Clone buffer to avoid detached ArrayBuffer issues
         const bufferCopy = bytes.buffer.slice(0);
         const decodedBuffer = await ctx.decodeAudioData(bufferCopy);
 
         const source = ctx.createBufferSource();
         source.buffer = decodedBuffer;
-        source.connect(ctx.destination);
+
+        // Boost gain for high, crisp volume (2.4x amplification)
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(2.4, ctx.currentTime);
+
+        // Dynamics compressor prevents any clipping distortion at high volume
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, ctx.currentTime);
+        compressor.knee.setValueAtTime(20, ctx.currentTime);
+        compressor.ratio.setValueAtTime(8, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+        compressor.release.setValueAtTime(0.25, ctx.currentTime);
+
+        source.connect(gainNode);
+        gainNode.connect(compressor);
+        compressor.connect(ctx.destination);
         currentSourceRef.current = source;
 
         source.onended = () => {
-          currentSourceRef.current = null;
-          setStatus("listening");
-          isProcessingRef.current = false;
-          latestSpeechBufferRef.current = "";
+          handleSpeechFinished();
         };
 
         source.start(0);
@@ -165,13 +194,12 @@ export function VoiceAssistantModal({
         audioPlayerRef.current = new Audio();
       }
       const player = audioPlayerRef.current;
+      player.volume = 1.0;
       player.src = blobUrl;
 
       player.onended = () => {
         URL.revokeObjectURL(blobUrl);
-        setStatus("listening");
-        isProcessingRef.current = false;
-        latestSpeechBufferRef.current = "";
+        handleSpeechFinished();
       };
       player.onerror = () => {
         URL.revokeObjectURL(blobUrl);
@@ -183,7 +211,7 @@ export function VoiceAssistantModal({
       console.warn("[blob-audio] play failed, falling back to speech synthesis:", blobErr);
       fallbackSpeech(fallbackText);
     }
-  }, [ensureAudioContext, stopCurrentAudio, fallbackSpeech]);
+  }, [ensureAudioContext, stopCurrentAudio, fallbackSpeech, handleSpeechFinished]);
 
   // Send query to Gemini voice API with ultra-fast turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
@@ -226,17 +254,14 @@ export function VoiceAssistantModal({
       }
     } catch (err) {
       console.warn("[voice-modal] API error:", err);
-      setStatus("listening");
-      isProcessingRef.current = false;
-      latestSpeechBufferRef.current = "";
+      handleSpeechFinished();
     }
-  }, [conversationHistory, playAudioData, fallbackSpeech]);
+  }, [conversationHistory, playAudioData, fallbackSpeech, handleSpeechFinished]);
 
-  // Setup Web Speech Recognition with rapid silence debounce
+  // Setup Web Speech Recognition with auto-reconnection and rapid silence debounce
   useEffect(() => {
     if (!isOpen) return;
 
-    // Unlock audio context right when modal mounts
     ensureAudioContext();
 
     const SpeechRecognition =
@@ -249,6 +274,7 @@ export function VoiceAssistantModal({
       recognizer.lang = "id-ID";
 
       recognizer.onresult = (event: any) => {
+        // Jangan rekam audio jika AI sedang berbicara atau sedang memproses
         if (isProcessingRef.current || statusRef.current === "speaking") return;
 
         let finalTranscript = "";
@@ -273,6 +299,7 @@ export function VoiceAssistantModal({
           silenceTimerRef.current = null;
         }
 
+        // Jika browser sudah memastikan final, langsung kirim
         if (finalTranscript.trim() && !isProcessingRef.current) {
           const textToSend = latestSpeechBufferRef.current;
           latestSpeechBufferRef.current = "";
@@ -280,6 +307,7 @@ export function VoiceAssistantModal({
           return;
         }
 
+        // Debounce hening 650ms agar input responsif dan tidak terlewat
         silenceTimerRef.current = setTimeout(() => {
           if (
             !isProcessingRef.current &&
@@ -290,25 +318,40 @@ export function VoiceAssistantModal({
             latestSpeechBufferRef.current = "";
             sendToGeminiVoice(textToSend);
           }
-        }, 750);
+        }, 650);
       };
 
       recognizer.onerror = (e: any) => {
         if (e.error !== "no-speech") {
           console.warn("[speech-recognition] error:", e.error);
         }
+        // Auto recover on recoverable errors
+        if (isOpen && isMicActive && e.error !== "not-allowed") {
+          setTimeout(() => {
+            if (isOpen && isMicActive && statusRef.current === "listening" && !isProcessingRef.current) {
+              try {
+                recognizer.start();
+              } catch {}
+            }
+          }, 200);
+        }
       };
 
       recognizer.onend = () => {
+        // Auto-restart recognizer jika browser mematikan sesi karena hening
         if (
           isOpen &&
           isMicActive &&
           !isProcessingRef.current &&
           statusRef.current === "listening"
         ) {
-          try {
-            recognizer.start();
-          } catch {}
+          setTimeout(() => {
+            if (isOpen && isMicActive && statusRef.current === "listening" && !isProcessingRef.current) {
+              try {
+                recognizer.start();
+              } catch {}
+            }
+          }, 100);
         }
       };
 
@@ -362,11 +405,13 @@ export function VoiceAssistantModal({
       setIsMicActive(false);
       setStatus("idle");
     } else {
-      try {
-        recognitionRef.current?.start();
-      } catch {}
       setIsMicActive(true);
       setStatus("listening");
+      setTimeout(() => {
+        try {
+          recognitionRef.current?.start();
+        } catch {}
+      }, 100);
     }
   };
 
@@ -390,15 +435,14 @@ export function VoiceAssistantModal({
       <div className="relative z-10 w-full max-w-4xl flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-md transition-colors ${
+            className={`px-4 py-1.5 rounded-full border backdrop-blur-md transition-colors ${
               isDark
                 ? "border-zinc-800 bg-zinc-900/80 text-zinc-200"
                 : "border-zinc-200/90 bg-white/90 text-zinc-800 shadow-xs"
             }`}
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isDark ? "text-zinc-400" : "text-zinc-600"}`} />
             <span className="text-xs font-semibold tracking-wide">
-              Voice Assistant · Gemini 3.8 Live
+              Voice Assistant One Mind
             </span>
           </div>
         </div>
@@ -424,7 +468,7 @@ export function VoiceAssistantModal({
         <div className="w-72 h-72 sm:w-96 sm:h-96 relative flex items-center justify-center">
           <VoicePoweredOrb
             enableVoiceControl={isMicActive}
-            voiceSensitivity={1.6}
+            voiceSensitivity={1.8}
             isMonochrome={true}
             isDark={isDark}
             isAiSpeaking={status === "speaking"}
@@ -436,18 +480,20 @@ export function VoiceAssistantModal({
           />
         </div>
 
-        {/* Dynamic Status Indicator */}
+        {/* Dynamic Status Indicator (Pure Monochrome Theme Colors - No Green/Amber/Blue) */}
         <div className="mt-4 sm:mt-6 flex flex-col items-center space-y-2">
           <div className="flex items-center gap-2">
             <span
-              className={`h-2.5 w-2.5 rounded-full ${
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                isDark ? "bg-white" : "bg-black"
+              } ${
                 status === "listening"
-                  ? "bg-emerald-500 animate-pulse"
+                  ? "animate-pulse"
                   : status === "thinking"
-                  ? "bg-amber-400 animate-ping"
+                  ? "animate-ping opacity-75"
                   : status === "speaking"
-                  ? "bg-blue-500 animate-bounce"
-                  : "bg-zinc-500"
+                  ? "animate-bounce"
+                  : "opacity-30"
               }`}
             />
             <span
@@ -481,9 +527,9 @@ export function VoiceAssistantModal({
         </div>
       </div>
 
-      {/* ─── Bottom Action Controls: Large Icon Buttons ─────────────────── */}
+      {/* ─── Bottom Action Controls: Large Icon Buttons (Pure Monochrome Theme) ─────────────────── */}
       <div className="relative z-10 w-full max-w-sm flex items-center justify-center gap-6 sm:gap-8 pb-4 sm:pb-6">
-        {/* Mic Toggle Button (Only Icon, Large) */}
+        {/* Mic Toggle Button (Only Icon, Large, Theme Consistent) */}
         <button
           type="button"
           onClick={toggleMic}
@@ -493,32 +539,32 @@ export function VoiceAssistantModal({
                 ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-zinc-700 shadow-zinc-950/40"
                 : "bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-200 shadow-zinc-300/40"
               : isDark
-                ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
-                : "bg-red-100 text-red-600 border border-red-200 hover:bg-red-200"
+                ? "bg-zinc-900 text-zinc-500 border border-zinc-800 shadow-zinc-950/40"
+                : "bg-zinc-100 text-zinc-400 border border-zinc-200 shadow-zinc-300/40"
           }`}
-          title={isMicActive ? "Matikan Mikrofon (Mute)" : "Nyalakan Mikrofon"}
+          title={isMicActive ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
           aria-label={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
         >
           {isMicActive ? (
-            <Mic className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-400" />
+            <Mic className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-white" : "text-zinc-900"}`} />
           ) : (
-            <MicOff className="w-7 h-7 sm:w-8 sm:h-8 text-red-500" />
+            <MicOff className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-zinc-500" : "text-zinc-400"}`} />
           )}
         </button>
 
-        {/* End Session Button (Only Icon X, Large) */}
+        {/* End Session Button (Only Icon X, Large, Theme Consistent) */}
         <button
           type="button"
           onClick={onClose}
           className={`h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
             isDark
-              ? "bg-zinc-800/90 hover:bg-red-600 hover:text-white text-zinc-300 border border-zinc-700 shadow-zinc-950/40"
-              : "bg-white hover:bg-red-600 hover:text-white text-zinc-700 border border-zinc-200 shadow-zinc-300/40"
+              ? "bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 shadow-zinc-950/40"
+              : "bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black border border-zinc-200 shadow-zinc-300/40"
           }`}
           title="Akhiri Percakapan Suara"
           aria-label="Tutup Percakapan Suara"
         >
-          <X className="w-7 h-7 sm:w-8 sm:h-8" />
+          <X className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-zinc-200" : "text-zinc-800"}`} />
         </button>
       </div>
     </div>
