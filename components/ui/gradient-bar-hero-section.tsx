@@ -103,7 +103,7 @@ const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
 };
 
 interface NavbarProps {
-  onGetStarted?: () => void;
+  onGetStarted?: (mode?: "signin" | "signup") => void;
   isDark?: boolean;
 }
 
@@ -132,7 +132,7 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
           <div className="hidden md:flex items-center space-x-6">
             <button
               type="button"
-              onClick={onGetStarted}
+              onClick={() => onGetStarted?.("signin")}
               className={cn(
                 "px-5 py-2 rounded-full font-medium text-sm transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-sm",
                 isDark
@@ -169,7 +169,7 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
               type="button"
               onClick={() => {
                 setIsMenuOpen(false);
-                onGetStarted?.();
+                onGetStarted?.("signup");
               }}
               className={cn(
                 "w-full py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer shadow-sm",
@@ -186,7 +186,7 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
 };
 
 export interface GradientBarHeroSectionProps {
-  onGetStarted?: () => void;
+  onGetStarted?: (mode?: "signin" | "signup") => void;
   isDark?: boolean;
 }
 
@@ -268,7 +268,7 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
         <div className="w-full max-w-md mb-10 sm:mb-12 px-4 flex justify-center animate-in fade-in-0 slide-in-from-bottom-5 duration-1000">
           <button
             type="button"
-            onClick={onGetStarted}
+            onClick={() => onGetStarted?.("signup")}
             className={cn(
               "group relative inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-2xl",
               isDark
@@ -299,3 +299,4 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
 };
 
 export default Component;
+

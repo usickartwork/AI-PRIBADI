@@ -475,6 +475,7 @@ export default function Home() {
   );
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"signin" | "signup">("signin");
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
@@ -4060,7 +4061,10 @@ export default function Home() {
         <div className="fixed inset-0 z-40 bg-background overflow-y-auto">
           <GradientBarHeroSection
             isDark={isDark}
-            onGetStarted={() => setShowAuthModal(true)}
+            onGetStarted={(targetMode) => {
+              setAuthModalMode(targetMode || "signup");
+              setShowAuthModal(true);
+            }}
           />
         </div>
       ) : null}
@@ -4069,6 +4073,7 @@ export default function Home() {
       {showAuthModal ? (
         <AuthModal
           isDark={isDark}
+          initialMode={authModalMode}
           onSuccess={() => setShowAuthModal(false)}
           onClose={() => setShowAuthModal(false)}
         />
@@ -4179,7 +4184,7 @@ export default function Home() {
       )}
 
       {/* ─── USICK ONE: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
-      {isInitializing && (
+      {Boolean(user) && isInitializing && (
         <IntroLoader
           state={introState === "exiting" ? "exiting" : "visible"}
           theme={theme}
