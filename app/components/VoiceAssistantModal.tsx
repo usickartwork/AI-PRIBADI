@@ -21,18 +21,35 @@ export function VoiceAssistantModal({
   const [aiReply, setAiReply] = useState<string>("");
   const [conversationHistory, setConversationHistory] = useState<{ role: string; content: string }[]>([]);
 
+  // Refs to guarantee stable event callbacks and avoid React effect re-mounts
+  const isOpenRef = useRef(isOpen);
+  const isMicActiveRef = useRef(isMicActive);
+  const statusRef = useRef(status);
+  const conversationHistoryRef = useRef(conversationHistory);
+  const isProcessingRef = useRef(false);
+
   const recognitionRef = useRef<any>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
-  const isProcessingRef = useRef(false);
-  const statusRef = useRef<"listening" | "thinking" | "speaking" | "idle">("listening");
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const latestSpeechBufferRef = useRef<string>("");
+  const accumulatedSpeechRef = useRef<string>("");
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    isMicActiveRef.current = isMicActive;
+  }, [isMicActive]);
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    conversationHistoryRef.current = conversationHistory;
+  }, [conversationHistory]);
 
   // Warm up / unlock Web Audio API immediately on user action or modal mount
   const ensureAudioContext = useCallback(async () => {
@@ -54,14 +71,15 @@ export function VoiceAssistantModal({
   }, []);
 
   // Safe restart of speech recognizer
-  const restartRecognition = useCallback(() => {
-    if (!isOpen || !isMicActive || !recognitionRef.current) return;
+  const safeStartRecognition = useCallback(() => {
+    if (!isOpenRef.current || !isMicActiveRef.current || !recognitionRef.current) return;
+    if (isProcessingRef.current || statusRef.current === "speaking") return;
     try {
       recognitionRef.current.start();
     } catch (e: any) {
-      // If already started or transitioning, ignore
+      // If already started, ignore error
     }
-  }, [isOpen, isMicActive]);
+  }, []);
 
   // Stop currently playing speech audio
   const stopCurrentAudio = useCallback(() => {
@@ -83,27 +101,28 @@ export function VoiceAssistantModal({
     }
   }, []);
 
-  // When AI finishes speaking, return to listening and ensure recognizer is running
+  // When AI finishes speaking, return to listening and ensure recognizer is actively listening
   const handleSpeechFinished = useCallback(() => {
     currentSourceRef.current = null;
     setStatus("listening");
     isProcessingRef.current = false;
-    latestSpeechBufferRef.current = "";
+    accumulatedSpeechRef.current = "";
+    setTranscript("");
 
     // Restart recognition immediately after speech ends
     setTimeout(() => {
-      restartRecognition();
-    }, 150);
-  }, [restartRecognition]);
+      safeStartRecognition();
+    }, 100);
+  }, [safeStartRecognition]);
 
-  // Fallback instant browser speech synthesis
+  // Fallback browser speech synthesis with max volume
   const fallbackSpeech = useCallback((text: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       stopCurrentAudio();
       setStatus("speaking");
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
-      utterance.volume = 1.0; // Max volume
+      utterance.volume = 1.0;
 
       const voices = window.speechSynthesis.getVoices();
       const idVoice = voices.find(
@@ -133,6 +152,13 @@ export function VoiceAssistantModal({
     stopCurrentAudio();
     setStatus("speaking");
 
+    // Pause mic while AI speaks so the speaker sound doesn't loop back
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
+
     try {
       // 1. Decode base64 bytes
       const binaryString = window.atob(base64Data);
@@ -142,7 +168,7 @@ export function VoiceAssistantModal({
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // 2. Play via Web Audio API with volume booster & compressor limiter
+      // 2. Play via Web Audio API with volume booster & limiter
       const ctx = await ensureAudioContext();
       if (ctx) {
         const bufferCopy = bytes.buffer.slice(0);
@@ -151,11 +177,11 @@ export function VoiceAssistantModal({
         const source = ctx.createBufferSource();
         source.buffer = decodedBuffer;
 
-        // Boost gain for high, crisp volume (2.4x amplification)
+        // Boost volume (2.4x amplification)
         const gainNode = ctx.createGain();
         gainNode.gain.setValueAtTime(2.4, ctx.currentTime);
 
-        // Dynamics compressor prevents any clipping distortion at high volume
+        // Dynamics compressor prevents distortion and ensures full sound
         const compressor = ctx.createDynamicsCompressor();
         compressor.threshold.setValueAtTime(-12, ctx.currentTime);
         compressor.knee.setValueAtTime(20, ctx.currentTime);
@@ -224,13 +250,20 @@ export function VoiceAssistantModal({
       silenceTimerRef.current = null;
     }
 
+    // Abort recognizer while processing/thinking
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
+
     try {
       const res = await fetch("/api/voice/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: userPrompt,
-          history: conversationHistory,
+          history: conversationHistoryRef.current,
         }),
       });
 
@@ -256,9 +289,9 @@ export function VoiceAssistantModal({
       console.warn("[voice-modal] API error:", err);
       handleSpeechFinished();
     }
-  }, [conversationHistory, playAudioData, fallbackSpeech, handleSpeechFinished]);
+  }, [playAudioData, fallbackSpeech, handleSpeechFinished]);
 
-  // Setup Web Speech Recognition with auto-reconnection and rapid silence debounce
+  // Initialize SpeechRecognition ONCE for the modal's open lifetime
   useEffect(() => {
     if (!isOpen) return;
 
@@ -267,113 +300,117 @@ export function VoiceAssistantModal({
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
-      const recognizer = new SpeechRecognition();
-      recognizer.continuous = true;
-      recognizer.interimResults = true;
-      recognizer.lang = "id-ID";
-
-      recognizer.onresult = (event: any) => {
-        // Jangan rekam audio jika AI sedang berbicara atau sedang memproses
-        if (isProcessingRef.current || statusRef.current === "speaking") return;
-
-        let finalTranscript = "";
-        let interimTranscript = "";
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        const currentText = (finalTranscript || interimTranscript).trim();
-        if (!currentText) return;
-
-        latestSpeechBufferRef.current = currentText;
-        setTranscript(currentText);
-
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = null;
-        }
-
-        // Jika browser sudah memastikan final, langsung kirim
-        if (finalTranscript.trim() && !isProcessingRef.current) {
-          const textToSend = latestSpeechBufferRef.current;
-          latestSpeechBufferRef.current = "";
-          sendToGeminiVoice(textToSend);
-          return;
-        }
-
-        // Debounce hening 650ms agar input responsif dan tidak terlewat
-        silenceTimerRef.current = setTimeout(() => {
-          if (
-            !isProcessingRef.current &&
-            statusRef.current === "listening" &&
-            latestSpeechBufferRef.current.trim()
-          ) {
-            const textToSend = latestSpeechBufferRef.current;
-            latestSpeechBufferRef.current = "";
-            sendToGeminiVoice(textToSend);
-          }
-        }, 650);
-      };
-
-      recognizer.onerror = (e: any) => {
-        if (e.error !== "no-speech") {
-          console.warn("[speech-recognition] error:", e.error);
-        }
-        // Auto recover on recoverable errors
-        if (isOpen && isMicActive && e.error !== "not-allowed") {
-          setTimeout(() => {
-            if (isOpen && isMicActive && statusRef.current === "listening" && !isProcessingRef.current) {
-              try {
-                recognizer.start();
-              } catch {}
-            }
-          }, 200);
-        }
-      };
-
-      recognizer.onend = () => {
-        // Auto-restart recognizer jika browser mematikan sesi karena hening
-        if (
-          isOpen &&
-          isMicActive &&
-          !isProcessingRef.current &&
-          statusRef.current === "listening"
-        ) {
-          setTimeout(() => {
-            if (isOpen && isMicActive && statusRef.current === "listening" && !isProcessingRef.current) {
-              try {
-                recognizer.start();
-              } catch {}
-            }
-          }, 100);
-        }
-      };
-
-      recognitionRef.current = recognizer;
-
-      try {
-        if (isMicActive) {
-          recognizer.start();
-        }
-      } catch {}
-
-      return () => {
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = null;
-        }
-        try {
-          recognizer.stop();
-        } catch {}
-      };
+    if (!SpeechRecognition) {
+      console.warn("Browser tidak mendukung SpeechRecognition");
+      return;
     }
-  }, [isOpen, isMicActive, sendToGeminiVoice, ensureAudioContext]);
+
+    const recognizer = new SpeechRecognition();
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.lang = "id-ID";
+
+    recognizer.onresult = (event: any) => {
+      if (isProcessingRef.current || statusRef.current === "speaking") return;
+
+      let finalChunk = "";
+      let interimChunk = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const trans = event.results[i][0]?.transcript || "";
+        if (event.results[i].isFinal) {
+          finalChunk += trans;
+        } else {
+          interimChunk += trans;
+        }
+      }
+
+      if (finalChunk.trim()) {
+        accumulatedSpeechRef.current = (accumulatedSpeechRef.current + " " + finalChunk).trim();
+      }
+
+      const currentFullText = (accumulatedSpeechRef.current + " " + interimChunk).trim();
+      if (!currentFullText) return;
+
+      setTranscript(currentFullText);
+
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+
+      // If user pauses for 750ms after speaking, send the query immediately
+      silenceTimerRef.current = setTimeout(() => {
+        if (
+          !isProcessingRef.current &&
+          statusRef.current === "listening" &&
+          currentFullText.trim()
+        ) {
+          const textToSend = currentFullText.trim();
+          accumulatedSpeechRef.current = "";
+          sendToGeminiVoice(textToSend);
+        }
+      }, 750);
+    };
+
+    recognizer.onerror = (e: any) => {
+      if (e.error !== "no-speech") {
+        console.warn("[speech-recognition] error:", e.error);
+      }
+      // Auto-recover on recoverable errors (network, aborted, etc.)
+      if (isOpenRef.current && isMicActiveRef.current && e.error !== "not-allowed") {
+        setTimeout(() => {
+          if (isOpenRef.current && isMicActiveRef.current && !isProcessingRef.current && statusRef.current === "listening") {
+            try {
+              recognizer.start();
+            } catch {}
+          }
+        }, 150);
+      }
+    };
+
+    recognizer.onend = () => {
+      // Auto-restart recognizer whenever it stops due to idle silence
+      if (
+        isOpenRef.current &&
+        isMicActiveRef.current &&
+        !isProcessingRef.current &&
+        statusRef.current === "listening"
+      ) {
+        setTimeout(() => {
+          if (
+            isOpenRef.current &&
+            isMicActiveRef.current &&
+            !isProcessingRef.current &&
+            statusRef.current === "listening"
+          ) {
+            try {
+              recognizer.start();
+            } catch {}
+          }
+        }, 80);
+      }
+    };
+
+    recognitionRef.current = recognizer;
+
+    try {
+      if (isMicActiveRef.current) {
+        recognizer.start();
+      }
+    } catch {}
+
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      try {
+        recognizer.abort();
+      } catch {}
+      recognitionRef.current = null;
+    };
+  }, [isOpen, sendToGeminiVoice, ensureAudioContext]);
 
   // Stop audio and cleanup on modal close
   useEffect(() => {
@@ -383,13 +420,8 @@ export function VoiceAssistantModal({
         silenceTimerRef.current = null;
       }
       stopCurrentAudio();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
       isProcessingRef.current = false;
-      latestSpeechBufferRef.current = "";
+      accumulatedSpeechRef.current = "";
       setTranscript("");
       setAiReply("");
       setStatus("listening");
@@ -399,19 +431,23 @@ export function VoiceAssistantModal({
   const toggleMic = () => {
     ensureAudioContext();
     if (isMicActive) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {}
       setIsMicActive(false);
+      isMicActiveRef.current = false;
       setStatus("idle");
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      try {
+        recognitionRef.current?.abort();
+      } catch {}
     } else {
       setIsMicActive(true);
+      isMicActiveRef.current = true;
       setStatus("listening");
       setTimeout(() => {
-        try {
-          recognitionRef.current?.start();
-        } catch {}
-      }, 100);
+        safeStartRecognition();
+      }, 50);
     }
   };
 
@@ -464,14 +500,14 @@ export function VoiceAssistantModal({
 
       {/* ─── Center Hero: Voice Powered Orb ──────────────────────────────── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center my-auto w-full max-w-2xl text-center px-4">
-        {/* Orb Container */}
+        {/* Orb Container (enableVoiceControl is false to eliminate mic stream contention) */}
         <div className="w-72 h-72 sm:w-96 sm:h-96 relative flex items-center justify-center">
           <VoicePoweredOrb
-            enableVoiceControl={isMicActive}
-            voiceSensitivity={1.8}
+            enableVoiceControl={false}
+            isUserSpeaking={Boolean(transcript && status === "listening")}
+            isAiSpeaking={status === "speaking"}
             isMonochrome={true}
             isDark={isDark}
-            isAiSpeaking={status === "speaking"}
             className={`w-full h-full transition-all duration-500 ${
               isDark
                 ? "drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
@@ -529,7 +565,7 @@ export function VoiceAssistantModal({
 
       {/* ─── Bottom Action Controls: Large Icon Buttons (Pure Monochrome Theme) ─────────────────── */}
       <div className="relative z-10 w-full max-w-sm flex items-center justify-center gap-6 sm:gap-8 pb-4 sm:pb-6">
-        {/* Mic Toggle Button (Only Icon, Large, Theme Consistent) */}
+        {/* Mic Toggle Button (Only Icon, Large, Pure Theme Monochrome) */}
         <button
           type="button"
           onClick={toggleMic}
@@ -552,7 +588,7 @@ export function VoiceAssistantModal({
           )}
         </button>
 
-        {/* End Session Button (Only Icon X, Large, Theme Consistent) */}
+        {/* End Session Button (Only Icon X, Large, Pure Theme Monochrome) */}
         <button
           type="button"
           onClick={onClose}

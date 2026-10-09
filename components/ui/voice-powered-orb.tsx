@@ -15,6 +15,7 @@ export interface VoicePoweredOrbProps {
   isMonochrome?: boolean;
   isDark?: boolean;
   isAiSpeaking?: boolean;
+  isUserSpeaking?: boolean;
 }
 
 export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
@@ -28,6 +29,7 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   isMonochrome = true,
   isDark = true,
   isAiSpeaking = false,
+  isUserSpeaking = false,
 }) => {
   const ctnDom = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -418,6 +420,14 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
           currentRot += dt * (baseRotationSpeed + aiPulse * maxRotationSpeed * 1.8);
           program.uniforms.hover.value = aiPulse;
           program.uniforms.hoverIntensity.value = aiPulse * maxHoverIntensity;
+          if (onVoiceDetected) {
+            onVoiceDetected(true);
+          }
+        } else if (isUserSpeaking) {
+          const userPulse = (Math.sin(t * 0.009) * 0.5 + 0.5) * 0.5 + 0.3;
+          currentRot += dt * (baseRotationSpeed + userPulse * maxRotationSpeed * 1.8);
+          program.uniforms.hover.value = userPulse;
+          program.uniforms.hoverIntensity.value = userPulse * maxHoverIntensity;
           if (onVoiceDetected) {
             onVoiceDetected(true);
           }
