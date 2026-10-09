@@ -44,7 +44,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
-      <div className="relative w-full max-w-2xl h-56 sm:h-72 flex items-center justify-center px-4">
+      <div className="relative w-full max-w-2xl h-56 sm:h-72 flex items-center justify-center px-4 -translate-y-7 sm:translate-y-0">
         <TechText
           text="One Mind"
           fontWeight={700}
@@ -56,7 +56,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
           dashGap={2}
           specks={15}
           sweep={true}
-          speed={2.2}
+          speed={2.8}
           draggable={true}
         />
       </div>
@@ -207,7 +207,7 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 export function useAppInitializer({
   authLoading,
   sessionsReady,
-  minDurationMs = 2600,
+  minDurationMs = 2900,
   safetyTimeoutMs = 6000,
 }: {
   authLoading: boolean;

@@ -497,7 +497,7 @@ export const TechText: React.FC<TechTextProps> = ({
       let targetX = pointer.x;
       let targetY = pointer.y;
       if (sweeping) {
-        targetX = view.left + (view.right - view.left) * (0.5 - 0.5 * Math.cos(clock * 0.45));
+        targetX = view.left + (view.right - view.left) * (0.5 - 0.52 * Math.cos(clock * 0.45));
         targetY = view.top + (view.bottom - view.top) * (0.45 + 0.1 * Math.sin(clock * 0.8));
       }
       const active = pointer.inside || sweeping || dragging >= 0;
@@ -506,7 +506,7 @@ export const TechText: React.FC<TechTextProps> = ({
         lens.y = targetY;
       }
       if (active) {
-        const lag = pointer.inside ? 0.05 : 0.22;
+        const lag = pointer.inside ? 0.05 : 0.15;
         lens.x = approach(lens.x, targetX, dt, lag);
         lens.y = approach(lens.y, targetY, dt, lag);
       }

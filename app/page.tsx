@@ -577,7 +577,7 @@ export default function Home() {
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
     sessionsReady: sessions.length > 0,
-    minDurationMs: 2600, // ±2.6s rhythm to ensure O -> N -> E analysis sweep completes
+    minDurationMs: 2900, // ±2.9s rhythm to ensure full One Mind analysis sweep completes through 'D'
     safetyTimeoutMs: 6000, // 6s maximum fallback in case network hangs
   });
 
@@ -2922,7 +2922,7 @@ export default function Home() {
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto -translate-y-2 sm:-translate-y-3">
+              <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-5 sm:-translate-y-3">
                 
                 {/* Pure Star Icon only (No Box/Kotak) */}
                 <div className="relative mb-3 sm:mb-4 flex items-center justify-center animate-float">
