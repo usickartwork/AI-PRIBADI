@@ -2970,9 +2970,9 @@ export default function Home() {
                     ) : (
                       <>
                         {!msg.content && isStreaming && (
-                          <div className="flex items-center gap-2.5 py-1">
-                            <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
-                            <ShiningText text={`${msg.model || cleanModelLabel(activeModelObj.label)} is thinking...`} />
+                          <div className="flex items-center gap-2 py-0.5">
+                            <div className={`h-1.5 w-1.5 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />
+                            <ShiningText className="text-xs sm:text-[12.5px]" text={`${msg.model || cleanModelLabel(activeModelObj.label)} is thinking...`} />
                           </div>
                         )}
 

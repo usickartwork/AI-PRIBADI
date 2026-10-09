@@ -57,6 +57,51 @@ function CodeBlock({ children, className }: { children: React.ReactNode; classNa
   );
 }
 
+// Helper to convert any literal <br> or &lt;br&gt; strings in rendered elements to real <br /> JSX
+function renderWithBreaks(node: React.ReactNode): React.ReactNode {
+  if (typeof node === "string") {
+    if (!/<br\s*\/?>/i.test(node) && !/&lt;br\s*\/?&gt;/i.test(node)) {
+      return node;
+    }
+    const parts = node.split(/((?:&lt;|<)\s*br\s*\/?\s*(?:&gt;|>))/gi);
+    return parts.map((part, i) => {
+      if (/^(?:&lt;|<)\s*br\s*\/?\s*(?:&gt;|>)$/i.test(part)) {
+        return <br key={i} />;
+      }
+      return part;
+    });
+  }
+  if (Array.isArray(node)) {
+    return node.map((child, i) => (
+      <span key={i}>{renderWithBreaks(child)}</span>
+    ));
+  }
+  if (node && typeof node === "object" && "props" in node && (node as any).props?.children) {
+    return {
+      ...(node as any),
+      props: {
+        ...(node as any).props,
+        children: renderWithBreaks((node as any).props.children),
+      },
+    };
+  }
+  return node;
+}
+
+// Pre-sanitize raw markdown to convert <br> tags outside tables to Markdown hard breaks
+function sanitizeMarkdown(text: string): string {
+  if (!text) return "";
+  const lines = text.split("\n");
+  const processed = lines.map((line) => {
+    // Keep table rows intact so pipe formatting isn't corrupted; renderWithBreaks handles td/th
+    if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+      return line;
+    }
+    return line.replace(/(&lt;|<)\s*br\s*\/?\s*(&gt;|>)/gi, "  \n");
+  });
+  return processed.join("\n");
+}
+
 export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProps) {
   const textClr = isDark ? "text-zinc-200" : "text-zinc-900";
   const headingClr = isDark ? "text-white" : "text-black";
@@ -68,6 +113,8 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
 
   const inlineTextColor = isDark ? "#f4f4f5" : "#09090b";
   const inlineHeadingColor = isDark ? "#ffffff" : "#000000";
+
+  const processedContent = sanitizeMarkdown(content);
 
   return (
     <div className={`prose max-w-none text-[14.5px] leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>
@@ -89,25 +136,25 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
             return <CodeBlock className={className}>{children}</CodeBlock>;
           },
           h1: ({ children }) => (
-            <h1 className={`mb-3 mt-5 text-lg font-bold tracking-tight first:mt-0 ${headingClr}`} style={{ color: inlineHeadingColor }}>{children}</h1>
+            <h1 className={`mb-3 mt-5 text-lg font-bold tracking-tight first:mt-0 ${headingClr}`} style={{ color: inlineHeadingColor }}>{renderWithBreaks(children)}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className={`mb-2.5 mt-4 text-base font-bold tracking-tight first:mt-0 ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{children}</h2>
+            <h2 className={`mb-2.5 mt-4 text-base font-bold tracking-tight first:mt-0 ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{renderWithBreaks(children)}</h2>
           ),
           h3: ({ children }) => (
-            <h3 className={`mb-2 mt-3.5 text-sm font-semibold tracking-tight ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{children}</h3>
+            <h3 className={`mb-2 mt-3.5 text-sm font-semibold tracking-tight ${subHeadingClr}`} style={{ color: inlineHeadingColor }}>{renderWithBreaks(children)}</h3>
           ),
-          p: ({ children }) => <p className={`mb-3 last:mb-0 leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{children}</p>,
+          p: ({ children }) => <p className={`mb-3 last:mb-0 leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{renderWithBreaks(children)}</p>,
           ul: ({ children }) => <ul className={`mb-3 list-disc pl-5 space-y-1.5 ${textClr}`} style={{ color: inlineTextColor }}>{children}</ul>,
           ol: ({ children }) => <ol className={`mb-3 list-decimal pl-5 space-y-1.5 ${textClr}`} style={{ color: inlineTextColor }}>{children}</ol>,
-          li: ({ children }) => <li className={`leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{children}</li>,
+          li: ({ children }) => <li className={`leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>{renderWithBreaks(children)}</li>,
           blockquote: ({ children }) => (
             <blockquote className={`my-3 border-l-2 py-1.5 pl-3.5 pr-2 italic rounded-r-lg ${
               isDark
                 ? "border-zinc-500 bg-zinc-800/60 text-zinc-300"
                 : "border-zinc-400 bg-zinc-100 text-zinc-900"
             }`}>
-              {children}
+              {renderWithBreaks(children)}
             </blockquote>
           ),
           table: ({ children }) => (
@@ -122,12 +169,12 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
           ),
           th: ({ children }) => (
             <th className={`px-3.5 py-2.5 font-bold border-b ${borderClr} ${headingClr}`} style={{ color: inlineHeadingColor }}>
-              {children}
+              {renderWithBreaks(children)}
             </th>
           ),
           td: ({ children }) => (
             <td className={`px-3.5 py-2.5 border-b ${borderClr} ${textClr}`} style={{ color: inlineTextColor }}>
-              {children}
+              {renderWithBreaks(children)}
             </td>
           ),
           a: ({ href, children }) => (
@@ -137,13 +184,13 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
               rel="noopener noreferrer"
               className={`underline underline-offset-2 transition hover:opacity-75 font-semibold ${headingClr}`}
             >
-              {children}
+              {renderWithBreaks(children)}
             </a>
           ),
           hr: () => <hr className={`my-4 ${borderClr}`} />,
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
