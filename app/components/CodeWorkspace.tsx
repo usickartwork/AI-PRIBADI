@@ -3289,14 +3289,42 @@ function SourceIntegrityPanel({ state, isDark }: { state: SourceIntegrityState; 
   );
 }
 
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 4 && hour < 11) return "Good Morning";
+  if (hour >= 11 && hour < 15) return "Good Afternoon";
+  if (hour >= 15 && hour < 19) return "Good Evening";
+  return "Good Night";
+}
+
+function suggestProjectTitle(prompt: string): string {
+  const clean = prompt
+    .trim()
+    .replace(/^((halo|hi|hai|hei|permisi|tolong|coba|bisa)\s+)+/i, "")
+    .replace(/^((aku|saya|gue|gw|kami|kita)\s+)?((mau|pengen|ingin|butuh|hendak)\s+)?((buat|bikin|rancang|develop|create|build)\s+)?((sebuah|suatu|satu)\s+)?((web|website|aplikasi|app|platform|sistem|program)\s+)?/i, "")
+    .replace(/[.!?\n\r][\s\S]*$/, "")
+    .trim();
+
+  if (!clean) return "Project Baru";
+
+  const words = clean.split(/\s+/).slice(0, 6);
+  const title = words.join(" ");
+
+  return title
+    .split(" ")
+    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
 type CodeWorkspaceProps = {
   isDark: boolean;
   onClose: () => void;
   userId?: string;
+  userName?: string;
   onTogglePanel?: () => void;
 };
 
-export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWorkspaceProps) {
+export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel }: CodeWorkspaceProps) {
   const userStorageKey = userId ? `usick_code_projects_${userId}` : "usick_code_projects_guest";
   const projectsOwnerIdRef = useRef<string | undefined>(userId);
 
@@ -3333,20 +3361,8 @@ export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWo
     return DEFAULT_PROJECTS;
   });
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem(userStorageKey);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed[0].id;
-          }
-        }
-      } catch {}
-    }
-    return DEFAULT_PROJECTS[0]?.id || null;
-  });
+  // Default ke null agar saat user masuk tab code tampilannya bersih
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
@@ -3354,6 +3370,26 @@ export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWo
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
   const [zoomLevel, setZoomLevel] = useState(1);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Initial Prompt Bar State saat layar bersih (!activeProject)
+  const [initialPrompt, setInitialPrompt] = useState("");
+  const initialTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeInitialTextarea = () => {
+    const el = initialTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
+
+  const handleStartNewProjectFromPrompt = (overrideText?: string) => {
+    const text = (overrideText !== undefined ? overrideText : initialPrompt).trim();
+    if (!text) return;
+    const suggested = suggestProjectTitle(text);
+    setNewTitle(suggested);
+    setNewDesc(text);
+    setShowNewModal(true);
+  };
 
   // Export Dropdown State (Salin Text & Download PDF)
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -3494,13 +3530,13 @@ export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWo
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setProjects(parsed);
-            setActiveProjectId((prev) => (prev && parsed.some((p: any) => p.id === prev) ? prev : parsed[0].id));
+            setActiveProjectId((prev) => (prev && parsed.some((p: any) => p.id === prev) ? prev : null));
             return;
           }
         }
       } catch {}
       setProjects(DEFAULT_PROJECTS);
-      setActiveProjectId(DEFAULT_PROJECTS[0]?.id || null);
+      setActiveProjectId(null);
     }
   }, [userStorageKey, userId]);
 
@@ -3980,6 +4016,7 @@ Setelah Anda memberikan brief, saya akan menganalisis kebutuhan dan memberikan b
     setActiveProjectId(newProj.id);
     setActiveTab("chat");
     setShowNewModal(false);
+    setInitialPrompt("");
     setNewTitle("");
     setNewDesc("");
 
@@ -6971,14 +7008,14 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     isBlueprintReady &&
     !hasPendingDiscoveryQuestions
   );
-  const currentTab = !isPlannerFinished ? "chat" : activeTab;
+  const currentTab = activeTab;
   const domain = activeProject
     ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
     : "saas";
-  const displayFeatures = isPlannerFinished ? (activeProject?.features || []) : [];
-  const displayTasks = isPlannerFinished ? (activeProject?.tasks || []) : [];
-  const displayPrd = isPlannerFinished ? activeProject?.prd : undefined;
-  const displayArch = isPlannerFinished ? activeProject?.architecture : undefined;
+  const displayFeatures = activeProject?.features || [];
+  const displayTasks = activeProject?.tasks || [];
+  const displayPrd = activeProject?.prd;
+  const displayArch = activeProject?.architecture;
 
   return (
     <div className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${isDark ? "text-white" : "text-zinc-900"}`}>
@@ -7018,9 +7055,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           )}
         </div>
 
-        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) if activeProject & isPlannerFinished */}
+        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) if activeProject */}
         <div className="flex items-center gap-1.5 min-w-0">
-          {activeProject && isPlannerFinished && (
+          {activeProject && (
             <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
               isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
             }`}>
@@ -7193,92 +7230,139 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       </header>
 
-      {/* Main Body: If activeProject exists, render tabs. If !activeProject, render clean hero */}
+      {/* Main Body: If activeProject exists, render tabs. If !activeProject, render clean hero (serasi Schedule & Image) */}
       {!activeProject ? (
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pb-12 flex flex-col items-center justify-center">
-          <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto pt-4 sm:pt-0">
-            {/* Pure Star Icon only (Identical to chat, schedule & image tabs) */}
-            <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
-              <svg
-                className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
-                  isDark ? "text-white fill-white" : "text-black fill-black"
-                }`}
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-              </svg>
-            </div>
-
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-center mb-2">
-              AI Code Planner &amp; Architect
-            </h2>
-            <p className={`text-xs sm:text-sm text-center max-w-md mb-8 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-              Rancang ide aplikasi atau website Anda menjadi PRD, arsitektur, dan task board yang siap dieksekusi.
-            </p>
-
-            {/* Quick Suggestions */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-8">
-              <button
-                onClick={() => {
-                  setShowNewModal(true);
-                  setNewTitle("Sistem Booking Lapangan Mini Soccer");
-                  setNewDesc("Sistem reservasi online dengan jadwal real-time, slot jam, dan pembayaran otomatis.");
-                }}
-                className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                  isDark
-                    ? "bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
-                    : "bg-white/80 border-zinc-200 hover:border-zinc-300 hover:bg-white shadow-xs"
-                }`}
-              >
-                <div className="text-xs font-bold leading-snug">Mini Soccer Booking</div>
-                <div className="text-[11px] text-zinc-400 mt-1 line-clamp-2">Sistem reservasi online dengan jadwal real-time &amp; pembayaran.</div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowNewModal(true);
-                  setNewTitle("E-Commerce Multi-Vendor");
-                  setNewDesc("Platform belanja online modern dengan katalog produk, keranjang, dan payment gateway.");
-                }}
-                className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                  isDark
-                    ? "bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
-                    : "bg-white/80 border-zinc-200 hover:border-zinc-300 hover:bg-white shadow-xs"
-                }`}
-              >
-                <div className="text-xs font-bold leading-snug">E-Commerce Multi-Vendor</div>
-                <div className="text-[11px] text-zinc-400 mt-1 line-clamp-2">Katalog produk, keranjang belanja, checkout &amp; transaksi.</div>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowNewModal(true)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition shadow-xs cursor-pointer ${
-                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-6 sm:py-8 flex flex-col items-center">
+          <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto">
+            {/* 1. HERO HEADER */}
+            <div className="text-center mb-6 sm:mb-8">
+              {/* Pure Star Icon only (No Box/Kotak - Identical to chat, schedule & image tabs) */}
+              <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+                <svg
+                  className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                    isDark ? "text-white fill-white" : "text-black fill-black"
+                  }`}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
                 </svg>
-                <span>Mulai Project Baru</span>
-              </button>
+              </div>
 
-              {projects.length > 0 && (
+              {/* Headline */}
+              <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
+                isDark ? "text-white" : "text-black"
+              }`}>
+                {getTimeGreeting()}, {userName || "filiuspl"}
+              </h1>
+
+              {/* Subtitle */}
+              <p className={`mt-2 text-sm sm:text-base font-medium max-w-md mx-auto px-2 ${
+                isDark ? "text-zinc-400" : "text-zinc-500"
+              }`}>
+                Rancang ide aplikasi atau website Anda bersama One code.
+              </p>
+            </div>
+
+            {/* 2. MAIN CAPSULE INPUT CARD */}
+            <div className="prompt-bar-glow relative w-full rounded-[30px] p-[1.5px] shadow-2xl transition-all">
+              <div className={`w-full rounded-[28px] border transition-all relative ${
+                isDark
+                  ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+                  : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+              }`}>
+                <div className="p-3.5 sm:p-4 space-y-2">
+                  {/* Textarea Input */}
+                  <div className="relative">
+                    <textarea
+                      ref={initialTextareaRef}
+                      value={initialPrompt}
+                      onChange={(e) => {
+                        setInitialPrompt(e.target.value);
+                        autoResizeInitialTextarea();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleStartNewProjectFromPrompt();
+                        }
+                      }}
+                      rows={2}
+                      placeholder="Tulis ide project Anda (misal: Aku mau buat web marketplace kopi, booking hotel, dll)..."
+                      className={`w-full bg-transparent text-sm sm:text-base outline-none resize-none placeholder-zinc-500 leading-relaxed ${
+                        isDark ? "text-white" : "text-zinc-900"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Controls Row */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
+                        isDark
+                          ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
+                          : "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                      }`}>
+                        <span>One code</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!initialPrompt.trim()}
+                      onClick={() => handleStartNewProjectFromPrompt()}
+                      className={`h-8 w-8 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isDark
+                          ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
+                          : "bg-black hover:bg-zinc-800 text-white shadow-xs"
+                      }`}
+                      title="Lanjutkan ke pengisian nama project (Enter)"
+                    >
+                      <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. QUICK SUGGESTIONS CHIPS */}
+            <div className="w-full mt-4 flex flex-wrap items-center justify-center gap-2">
+              {[
+                {
+                  title: "Mini Soccer Booking",
+                  desc: "Sistem reservasi online dengan jadwal real-time & pembayaran.",
+                },
+                {
+                  title: "E-Commerce Multi-Vendor",
+                  desc: "Katalog produk, keranjang belanja, checkout & transaksi.",
+                },
+                {
+                  title: "Platform Belajar Online",
+                  desc: "LMS video kursus, kuis interaktif, dan sertifikat kelulusan.",
+                },
+                {
+                  title: "SaaS Manajemen Keuangan",
+                  desc: "Pencatatan cashflow, invoicing otomatis, dan visualisasi grafik.",
+                },
+              ].map((item, idx) => (
                 <button
-                  onClick={() => setShowProjectDrawer(true)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold border transition cursor-pointer ${
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setInitialPrompt(item.desc);
+                    handleStartNewProjectFromPrompt(item.desc);
+                  }}
+                  className={`px-3.5 py-2 rounded-2xl border text-xs font-medium transition cursor-pointer flex items-center gap-2 ${
                     isDark
-                      ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300"
-                      : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                      ? "bg-zinc-900/40 border-zinc-800/80 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-300"
+                      : "bg-white/80 border-zinc-200/80 hover:bg-white hover:border-zinc-300 text-zinc-700 shadow-xs"
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  <span>Buka Project ({projects.length})</span>
+                  <span className="font-semibold">{item.title}</span>
+                  <span className="text-[10px] text-zinc-400 hidden sm:inline">• {item.desc.slice(0, 32)}...</span>
                 </button>
-              )}
+              ))}
             </div>
           </div>
         </div>
@@ -9477,7 +9561,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <button
                   onClick={() => {
                     setShowProjectDrawer(false);
-                    setShowNewModal(true);
+                    setActiveProjectId(null);
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
@@ -9706,6 +9790,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTitle.trim()) {
+                      e.preventDefault();
+                      handleCreateProject();
+                    }
+                  }}
                   placeholder="misal: Aplikasi Kasir Laundry, Portal Lowongan Kerja"
                   className={`w-full rounded-xl px-3.5 py-2 text-xs font-medium border outline-none transition ${
                     isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
@@ -9720,6 +9810,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   rows={3}
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && newTitle.trim()) {
+                      e.preventDefault();
+                      handleCreateProject();
+                    }
+                  }}
                   placeholder="Jelaskan garis besar ide aplikasi Anda..."
                   className={`w-full rounded-xl p-3 text-xs font-medium border outline-none transition resize-none ${
                     isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
