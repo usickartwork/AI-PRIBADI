@@ -46,6 +46,7 @@ export type ChatSession = {
   title: string;
   messages: ChatMessage[];
   updatedAt: number;
+  pinned?: boolean;
 };
 
 type ModelEntry = {
@@ -81,6 +82,7 @@ function createFreshSession(): ChatSession {
     title: "Obrolan Baru",
     messages: [],
     updatedAt: Date.now(),
+    pinned: false,
   };
 }
 
@@ -1775,6 +1777,38 @@ export default function Home() {
     });
   };
 
+  const togglePinSession = (sessionId: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, pinned: !s.pinned } : s))
+    );
+    setSessionMenuId(null);
+  };
+
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressTriggeredRef = useRef(false);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const startLongPress = (sessionId: string) => {
+    isLongPressTriggeredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
+      setSessionMenuId(sessionId);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(35);
+        } catch {}
+      }
+    }, 450);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
   const clearAllSessions = () => {
     if (abortRef.current) {
       try {
@@ -2475,7 +2509,7 @@ export default function Home() {
                           </div>
 
                           {isSelected && (
-                            <svg className="w-4 h-4 text-blue-500 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className={`w-4 h-4 shrink-0 ml-auto ${isDark ? "text-white" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
                           )}
@@ -2761,7 +2795,7 @@ export default function Home() {
                   onClick={clearAllSessions}
                   title="Hapus semua riwayat"
                   className={`text-xs md:text-[10px] transition cursor-pointer ${
-                    isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"
+                    isDark ? "text-zinc-500 hover:text-white" : "text-zinc-500 hover:text-black"
                   }`}
                 >
                   Clear
@@ -2775,66 +2809,128 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-1.5 md:space-y-1">
-                {sessions.map((sess) => {
-                  const isActive = sess.id === activeSessionId;
-                  return (
-                    <div
-                      key={sess.id}
-                      onClick={() => switchSession(sess.id)}
-                      className={`group flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 text-[14.5px] md:text-sm cursor-pointer transition border ${
-                        isActive
-                          ? (isDark
-                              ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
-                              : "bg-zinc-200/90 border-zinc-300 text-black font-semibold shadow-xs")
-                          : (isDark
-                              ? "bg-zinc-900/50 hover:bg-zinc-800/60 border-zinc-800/60 text-zinc-300 hover:text-white"
-                              : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800")
-                      }`}
-                    >
-                      <div className="truncate pr-2 flex-1">
-                        <p className={`truncate ${
+                {[...sessions]
+                  .sort((a, b) => {
+                    if (a.pinned && !b.pinned) return -1;
+                    if (!a.pinned && b.pinned) return 1;
+                    return 0;
+                  })
+                  .map((sess) => {
+                    const isActive = sess.id === activeSessionId;
+                    const isMenuOpen = sessionMenuId === sess.id;
+                    return (
+                      <div
+                        key={sess.id}
+                        onTouchStart={(e) => {
+                          const touch = e.touches[0];
+                          touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+                          startLongPress(sess.id);
+                        }}
+                        onTouchMove={(e) => {
+                          if (touchStartPosRef.current) {
+                            const touch = e.touches[0];
+                            const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+                            const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+                            if (dx > 10 || dy > 10) {
+                              cancelLongPress();
+                            }
+                          }
+                        }}
+                        onTouchEnd={() => {
+                          cancelLongPress();
+                        }}
+                        onTouchCancel={() => {
+                          cancelLongPress();
+                        }}
+                        onMouseDown={() => {
+                          startLongPress(sess.id);
+                        }}
+                        onMouseUp={() => {
+                          cancelLongPress();
+                        }}
+                        onMouseLeave={() => {
+                          cancelLongPress();
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          cancelLongPress();
+                          setSessionMenuId((prev) => (prev === sess.id ? null : sess.id));
+                        }}
+                        onClick={() => {
+                          if (isLongPressTriggeredRef.current) {
+                            isLongPressTriggeredRef.current = false;
+                            return;
+                          }
+                          switchSession(sess.id);
+                        }}
+                        className={`group relative flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 text-[14.5px] md:text-sm cursor-pointer transition select-none border ${
                           isActive
-                            ? (isDark ? "text-white font-semibold" : "text-black font-semibold")
-                            : (isDark ? "text-zinc-300 group-hover:text-white" : "text-zinc-800")
-                        }`}>
-                          {sess.title || "Percakapan"}
-                        </p>
-                        <p className={`text-xs md:text-[11px] mt-0.5 truncate ${
-                          isActive
-                            ? (isDark ? "text-zinc-400" : "text-zinc-600")
-                            : (isDark ? "text-zinc-500" : "text-zinc-500")
-                        }`}>
-                          {sess.messages.length} pesan {isActive && "· Aktif"}
-                        </p>
-                      </div>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSessionMenuId((prev) => (prev === sess.id ? null : sess.id));
-                          }}
-                          className={`p-2 md:p-1.5 rounded-md transition cursor-pointer ${
-                            sessionMenuId === sess.id
-                              ? (isDark ? "opacity-100 bg-zinc-800 text-white" : "opacity-100 bg-zinc-200 text-black")
-                              : (isDark ? "opacity-70 group-hover:opacity-100 text-zinc-400 hover:bg-zinc-800 hover:text-white" : "opacity-70 group-hover:opacity-100 text-zinc-500 hover:bg-zinc-200 hover:text-black")
-                          }`}
-                          title="Opsi obrolan"
-                        >
-                          <svg className="w-4 h-4 md:w-3.5 md:h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="12" cy="5" r="1.75" />
-                            <circle cx="12" cy="12" r="1.75" />
-                            <circle cx="12" cy="19" r="1.75" />
-                          </svg>
-                        </button>
+                            ? (isDark
+                                ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
+                                : "bg-zinc-200/90 border-zinc-300 text-black font-semibold shadow-xs")
+                            : (isDark
+                                ? "bg-zinc-900/50 hover:bg-zinc-800/60 border-zinc-800/60 text-zinc-300 hover:text-white"
+                                : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800")
+                        }`}
+                      >
+                        <div className="truncate pr-2 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {sess.pinned && (
+                              <span title="Chat disematkan" className="inline-flex shrink-0">
+                                <svg
+                                  className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}
+                                  viewBox="0 0 24 24"
+                                  fill="currentColor"
+                                >
+                                  <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                                </svg>
+                              </span>
+                            )}
+                            <p className={`truncate ${
+                              isActive
+                                ? (isDark ? "text-white font-semibold" : "text-black font-semibold")
+                                : (isDark ? "text-zinc-300 group-hover:text-white" : "text-zinc-800")
+                            }`}>
+                              {sess.title || "Percakapan"}
+                            </p>
+                          </div>
+                          <p className={`text-xs md:text-[11px] mt-0.5 truncate ${
+                            isActive
+                              ? (isDark ? "text-zinc-400" : "text-zinc-600")
+                              : (isDark ? "text-zinc-500" : "text-zinc-500")
+                          }`}>
+                            {sess.messages.length} pesan {isActive && "· Aktif"}
+                          </p>
+                        </div>
 
-                        {sessionMenuId === sess.id && (
+                        {/* Dropdown Menu Tekan Tahan (Pin & Hapus) */}
+                        {isMenuOpen && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className={`absolute right-0 top-full mt-1 w-28 rounded-xl border p-1 shadow-xl z-30 animate-in fade-in-0 zoom-in-95 ${
-                              isDark ? "bg-[#1c1c1f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+                            className={`absolute right-2 top-full mt-1 w-36 rounded-xl border p-1 shadow-2xl z-40 animate-in fade-in-0 zoom-in-95 duration-150 backdrop-blur-xl ${
+                              isDark
+                                ? "bg-[#18181b] border-zinc-700/80 text-zinc-100 shadow-black/80"
+                                : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
                             }`}
                           >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePinSession(sess.id);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer text-left ${
+                                isDark
+                                  ? "text-zinc-200 hover:text-white hover:bg-zinc-800"
+                                  : "text-zinc-800 hover:text-black hover:bg-zinc-100"
+                              }`}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill={sess.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                              </svg>
+                              <span>{sess.pinned ? "Lepas Pin" : "Pin Chat"}</span>
+                            </button>
+
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2842,19 +2938,22 @@ export default function Home() {
                                 deleteSession(sess.id);
                                 setSessionMenuId(null);
                               }}
-                              className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition cursor-pointer text-left"
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer text-left ${
+                                isDark
+                                  ? "text-zinc-300 hover:text-white hover:bg-zinc-800"
+                                  : "text-zinc-700 hover:text-black hover:bg-zinc-100"
+                              }`}
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                               <span>Hapus</span>
                             </button>
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -3123,7 +3222,11 @@ export default function Home() {
                                 }
                               }}
                               rows={Math.min(8, Math.max(2, editingContent.split("\n").length))}
-                              className="w-full rounded-xl p-2.5 text-[14px] leading-relaxed resize-none border bg-zinc-900/90 border-zinc-600/70 text-white focus:outline-none focus:ring-1 focus:ring-white/40 placeholder-zinc-400"
+                              className={`w-full rounded-xl p-2.5 text-[14px] leading-relaxed resize-none border focus:outline-none focus:ring-1 transition ${
+                                isDark
+                                  ? "bg-[#18181c] border-zinc-700/80 text-white placeholder-zinc-500 focus:ring-white/40"
+                                  : "bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:ring-black/30"
+                              }`}
                               placeholder="Edit pesan Anda..."
                               autoFocus
                             />
@@ -3131,7 +3234,11 @@ export default function Home() {
                               <button
                                 type="button"
                                 onClick={handleCancelEdit}
-                                className="px-3 py-1.5 rounded-lg font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                                className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                                  isDark
+                                    ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                                    : "text-zinc-600 hover:text-black hover:bg-black/10"
+                                }`}
                               >
                                 Batal
                               </button>
@@ -3139,7 +3246,11 @@ export default function Home() {
                                 type="button"
                                 onClick={() => handleSaveEdit(msg.id)}
                                 disabled={!editingContent.trim() || isStreaming}
-                                className="px-3.5 py-1.5 rounded-lg font-semibold bg-white text-black hover:bg-zinc-200 disabled:opacity-50 transition cursor-pointer shadow-xs"
+                                className={`px-3.5 py-1.5 rounded-lg font-semibold transition cursor-pointer shadow-xs ${
+                                  isDark
+                                    ? "bg-white text-black hover:bg-zinc-200 disabled:opacity-40"
+                                    : "bg-black text-white hover:bg-zinc-800 disabled:opacity-40"
+                                }`}
                               >
                                 Kirim
                               </button>
@@ -3165,8 +3276,8 @@ export default function Home() {
                               isStreaming ? "opacity-35 cursor-not-allowed" : ""
                             } ${
                               isDark
-                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                             }`}
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -3185,8 +3296,8 @@ export default function Home() {
                               isStreaming ? "opacity-35 cursor-not-allowed" : ""
                             } ${
                               isDark
-                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                             }`}
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -3201,13 +3312,17 @@ export default function Home() {
                             onClick={() => copyMessage(msg.id, msg.content)}
                             title={copiedId === msg.id ? "Tersalin!" : "Salin pesan"}
                             className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                              isDark
-                                ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                              copiedId === msg.id
+                                ? isDark
+                                  ? "text-white bg-white/10"
+                                  : "text-black bg-black/10"
+                                : isDark
+                                ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                             }`}
                           >
                             {copiedId === msg.id ? (
-                              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                              <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                               </svg>
                             ) : (
@@ -3310,13 +3425,17 @@ export default function Home() {
                               onClick={() => copyMessage(msg.id, msg.content)}
                               title={copiedId === msg.id ? "Tersalin!" : "Salin jawaban"}
                               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                isDark
-                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                copiedId === msg.id
+                                  ? isDark
+                                    ? "text-white bg-white/10"
+                                    : "text-black bg-black/10"
+                                  : isDark
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                               }`}
                             >
                               {copiedId === msg.id ? (
-                                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                                <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                               ) : (
@@ -3334,10 +3453,12 @@ export default function Home() {
                               title={speakingMessageId === msg.id ? "Hentikan suara" : "Baca dengan suara"}
                               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                 speakingMessageId === msg.id
-                                  ? "text-blue-400 bg-blue-500/10 animate-pulse"
+                                  ? isDark
+                                    ? "text-white bg-white/15 animate-pulse"
+                                    : "text-black bg-black/10 animate-pulse"
                                   : isDark
-                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                               }`}
                             >
                               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -3354,10 +3475,12 @@ export default function Home() {
                               title={messageFeedback[msg.id] === "like" ? "Batal suka" : "Jawaban bagus"}
                               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                 messageFeedback[msg.id] === "like"
-                                  ? "text-emerald-400 bg-emerald-500/10"
+                                  ? isDark
+                                    ? "text-white bg-white/15"
+                                    : "text-black bg-black/10"
                                   : isDark
-                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                               }`}
                             >
                               <svg
@@ -3383,10 +3506,12 @@ export default function Home() {
                               title={messageFeedback[msg.id] === "dislike" ? "Batal tidak suka" : "Jawaban kurang bagus"}
                               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                 messageFeedback[msg.id] === "dislike"
-                                  ? "text-red-400 bg-red-500/10"
+                                  ? isDark
+                                    ? "text-white bg-white/15"
+                                    : "text-black bg-black/10"
                                   : isDark
-                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/80"
                               }`}
                             >
                               <svg
@@ -3415,8 +3540,8 @@ export default function Home() {
                                 isStreaming ? "opacity-35 cursor-not-allowed" : ""
                               } ${
                                 isDark
-                                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                                  : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/70"
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/70"
                               }`}
                             >
                               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
