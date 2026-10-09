@@ -112,3 +112,4 @@ export function InfiniteSlider({
     </div>
   );
 }
+

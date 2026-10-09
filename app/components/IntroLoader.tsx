@@ -64,7 +64,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
 
       {/* ─── Logo Cloud: Model & Tech Provider Slider (Dibawah One Mind) ─────── */}
       <div className="w-full max-w-md sm:max-w-lg px-6 mt-3 sm:mt-6 flex flex-col items-center animate-in fade-in-0 duration-700">
-        <LogoCloud isDark={isDark} className="w-full py-1.5" />
+        <LogoCloud isDark={isDark} duration={5} className="w-full py-1.5" />
       </div>
     </div>
   );

@@ -49,9 +49,20 @@ export const DEFAULT_LOGOS: Logo[] = [
 type LogoCloudProps = React.ComponentProps<"div"> & {
   logos?: Logo[];
   isDark?: boolean;
+  duration?: number;
+  speed?: number;
 };
 
-export function LogoCloud({ className, logos = DEFAULT_LOGOS, isDark, ...props }: LogoCloudProps) {
+export function LogoCloud({
+  className,
+  logos = DEFAULT_LOGOS,
+  isDark,
+  duration = 6,
+  speed,
+  ...props
+}: LogoCloudProps) {
+  const actualDuration = speed ?? duration;
+
   return (
     <div
       {...props}
@@ -60,7 +71,7 @@ export function LogoCloud({ className, logos = DEFAULT_LOGOS, isDark, ...props }
         className
       )}
     >
-      <InfiniteSlider gap={42} reverse speed={80} speedOnHover={25}>
+      <InfiniteSlider gap={36} reverse duration={actualDuration} speedOnHover={15}>
         {logos.map((logo) => (
           <img
             alt={logo.alt}
@@ -83,3 +94,4 @@ export function LogoCloud({ className, logos = DEFAULT_LOGOS, isDark, ...props }
     </div>
   );
 }
+
