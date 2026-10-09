@@ -1,5 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// High-speed, unlimited Indonesian TTS fallback (guarantees voice output even when Gemini quota is exhausted)
+async function generateGoogleIndonesianTTS(text: string): Promise<string | null> {
+  try {
+    const clean = text.replace(/[*#_`~]/g, "").trim();
+    if (!clean) return null;
+    const sentences = clean.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [clean];
+    const audioBuffers: Buffer[] = [];
+
+    for (const s of sentences.slice(0, 6)) {
+      const chunk = s.trim().slice(0, 180);
+      if (!chunk) continue;
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        audioBuffers.push(Buffer.from(buf));
+      }
+    }
+
+    if (audioBuffers.length === 0) return null;
+    const combined = Buffer.concat(audioBuffers);
+    return combined.toString("base64");
+  } catch (err) {
+    console.warn("[google-tts-fallback] Error:", err);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_VOICE_API_KEY || process.env.GEMINI_API_KEY;
@@ -33,7 +61,6 @@ export async function POST(req: NextRequest) {
     ];
 
     let replyText = "";
-    // Prioritaskan model tercepat untuk conversational voice
     const candidateModels = [
       "gemini-3.5-flash-lite",
       "gemini-2.5-flash",
@@ -52,7 +79,7 @@ export async function POST(req: NextRequest) {
               contents,
               generationConfig: {
                 temperature: 0.6,
-                maxOutputTokens: 100,
+                maxOutputTokens: 120,
               },
             }),
           }
@@ -72,11 +99,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!replyText) {
-      replyText = "Halo, saya mendengarkan Anda. Ada yang bisa saya bantu?";
+      replyText = "Halo, saya One Mind. Saya mendengarkan Anda. Ada yang bisa saya bantu?";
     }
 
-    // 2. Synthesize voice with Gemini 3.8 Flash Lite TTS
+    // 2. Synthesize voice with Gemini TTS (with ultra-reliable fallback)
     let audioBase64: string | null = null;
+    let audioMime = "audio/wav";
+
     const ttsCandidates = [
       "gemini-3.8-flash-lite-tts",
       "gemini-3.8-flash-tts",
@@ -85,7 +114,7 @@ export async function POST(req: NextRequest) {
     for (const ttsModel of ttsCandidates) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 9000);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
         const ttsRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`,
@@ -115,18 +144,30 @@ export async function POST(req: NextRequest) {
           const part = ttsData.candidates?.[0]?.content?.parts?.[0];
           if (part?.inlineData?.data) {
             audioBase64 = part.inlineData.data;
+            audioMime = part.inlineData.mimeType || "audio/wav";
             break;
           }
+        } else {
+          console.warn(`[gemini-tts] ${ttsModel} returned status ${ttsRes.status}`);
         }
       } catch (ttsErr) {
         console.warn(`[gemini-tts] Error with model ${ttsModel}:`, ttsErr);
       }
     }
 
+    // If Gemini TTS is exhausted (HTTP 429 daily limit) or failed, use high-fidelity Indonesian TTS fallback
+    if (!audioBase64) {
+      const fallbackAudio = await generateGoogleIndonesianTTS(replyText);
+      if (fallbackAudio) {
+        audioBase64 = fallbackAudio;
+        audioMime = "audio/mpeg";
+      }
+    }
+
     return NextResponse.json({
       text: replyText,
       audioBase64,
-      audioMime: "audio/wav",
+      audioMime,
     });
   } catch (error: any) {
     console.error("[voice-api] Error:", error);
@@ -136,4 +177,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

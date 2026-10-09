@@ -21,7 +21,7 @@ export function VoiceAssistantModal({
   const [aiReply, setAiReply] = useState<string>("");
   const [conversationHistory, setConversationHistory] = useState<{ role: string; content: string }[]>([]);
 
-  // Refs to guarantee stable event callbacks and avoid React effect re-mounts
+  // Refs to guarantee stable callbacks and continuous full-duplex listening
   const isOpenRef = useRef(isOpen);
   const isMicActiveRef = useRef(isMicActive);
   const statusRef = useRef(status);
@@ -70,18 +70,7 @@ export function VoiceAssistantModal({
     }
   }, []);
 
-  // Safe restart of speech recognizer
-  const safeStartRecognition = useCallback(() => {
-    if (!isOpenRef.current || !isMicActiveRef.current || !recognitionRef.current) return;
-    if (isProcessingRef.current || statusRef.current === "speaking") return;
-    try {
-      recognitionRef.current.start();
-    } catch (e: any) {
-      // If already started, ignore error
-    }
-  }, []);
-
-  // Stop currently playing speech audio
+  // Stop currently playing speech audio immediately (used for interruption / menyela)
   const stopCurrentAudio = useCallback(() => {
     if (currentSourceRef.current) {
       try {
@@ -101,7 +90,17 @@ export function VoiceAssistantModal({
     }
   }, []);
 
-  // When AI finishes speaking, return to listening and ensure recognizer is actively listening
+  // Safe restart of speech recognizer
+  const safeStartRecognition = useCallback(() => {
+    if (!isOpenRef.current || !isMicActiveRef.current || !recognitionRef.current) return;
+    try {
+      recognitionRef.current.start();
+    } catch (e: any) {
+      // If already active or starting, ignore
+    }
+  }, []);
+
+  // When AI finishes speaking naturally
   const handleSpeechFinished = useCallback(() => {
     currentSourceRef.current = null;
     setStatus("listening");
@@ -109,7 +108,6 @@ export function VoiceAssistantModal({
     accumulatedSpeechRef.current = "";
     setTranscript("");
 
-    // Restart recognition immediately after speech ends
     setTimeout(() => {
       safeStartRecognition();
     }, 100);
@@ -131,8 +129,6 @@ export function VoiceAssistantModal({
       if (idVoice) {
         utterance.voice = idVoice;
         utterance.lang = idVoice.lang;
-      } else {
-        utterance.lang = "id-ID";
       }
 
       utterance.onend = () => {
@@ -147,20 +143,15 @@ export function VoiceAssistantModal({
     }
   }, [stopCurrentAudio, handleSpeechFinished]);
 
-  // High fidelity Web Audio PCM playback with volume booster & limiter
+  // High fidelity Web Audio playback (handles WAV & MP3) with volume booster & limiter
   const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
     stopCurrentAudio();
     setStatus("speaking");
 
-    // Pause mic while AI speaks so the speaker sound doesn't loop back
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-    }
+    // NOTICE: We do NOT abort recognizer here!
+    // The mic stays listening so the user can interrupt (menyela) anytime!
 
     try {
-      // 1. Decode base64 bytes
       const binaryString = window.atob(base64Data);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -168,7 +159,6 @@ export function VoiceAssistantModal({
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // 2. Play via Web Audio API with volume booster & limiter
       const ctx = await ensureAudioContext();
       if (ctx) {
         const bufferCopy = bytes.buffer.slice(0);
@@ -195,7 +185,10 @@ export function VoiceAssistantModal({
         currentSourceRef.current = source;
 
         source.onended = () => {
-          handleSpeechFinished();
+          // Only trigger if this source wasn't interrupted
+          if (currentSourceRef.current === source) {
+            handleSpeechFinished();
+          }
         };
 
         source.start(0);
@@ -205,7 +198,7 @@ export function VoiceAssistantModal({
       console.warn("[web-audio] decode failed, trying Blob URL:", webAudioErr);
     }
 
-    // 3. Fallback: Blob URL on HTMLAudioElement
+    // Fallback: Blob URL on HTMLAudioElement
     try {
       const binaryString = window.atob(base64Data);
       const len = binaryString.length;
@@ -213,7 +206,7 @@ export function VoiceAssistantModal({
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const blob = new Blob([bytes], { type: mime || "audio/wav" });
+      const blob = new Blob([bytes], { type: mime || "audio/mpeg" });
       const blobUrl = URL.createObjectURL(blob);
 
       if (!audioPlayerRef.current) {
@@ -239,7 +232,7 @@ export function VoiceAssistantModal({
     }
   }, [ensureAudioContext, stopCurrentAudio, fallbackSpeech, handleSpeechFinished]);
 
-  // Send query to Gemini voice API with ultra-fast turnaround
+  // Send query to voice API with turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isProcessingRef.current) return;
     isProcessingRef.current = true;
@@ -248,13 +241,6 @@ export function VoiceAssistantModal({
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
-    }
-
-    // Abort recognizer while processing/thinking
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
     }
 
     try {
@@ -291,7 +277,7 @@ export function VoiceAssistantModal({
     }
   }, [playAudioData, fallbackSpeech, handleSpeechFinished]);
 
-  // Initialize SpeechRecognition ONCE for the modal's open lifetime
+  // Continuous Full-Duplex SpeechRecognition with instant Barge-in (Menyela)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -311,7 +297,8 @@ export function VoiceAssistantModal({
     recognizer.lang = "id-ID";
 
     recognizer.onresult = (event: any) => {
-      if (isProcessingRef.current || statusRef.current === "speaking") return;
+      // Don't capture when waiting for AI server response (thinking)
+      if (isProcessingRef.current) return;
 
       let finalChunk = "";
       let interimChunk = "";
@@ -323,6 +310,18 @@ export function VoiceAssistantModal({
         } else {
           interimChunk += trans;
         }
+      }
+
+      const spokenChunk = (finalChunk || interimChunk).trim();
+      if (!spokenChunk) return;
+
+      // ─── INSTANT BARGE-IN (MENYELA): If AI is speaking and user speaks, cut off AI speech immediately! ───
+      if (statusRef.current === "speaking") {
+        console.log("[voice-assistant] User interrupted! Cutting off AI audio immediately.");
+        stopCurrentAudio();
+        setStatus("listening");
+        isProcessingRef.current = false;
+        accumulatedSpeechRef.current = "";
       }
 
       if (finalChunk.trim()) {
@@ -339,7 +338,7 @@ export function VoiceAssistantModal({
         silenceTimerRef.current = null;
       }
 
-      // If user pauses for 750ms after speaking, send the query immediately
+      // Rapid silence debounce (750ms): when user finishes talking, send the question
       silenceTimerRef.current = setTimeout(() => {
         if (
           !isProcessingRef.current &&
@@ -357,36 +356,29 @@ export function VoiceAssistantModal({
       if (e.error !== "no-speech") {
         console.warn("[speech-recognition] error:", e.error);
       }
-      // Auto-recover on recoverable errors (network, aborted, etc.)
       if (isOpenRef.current && isMicActiveRef.current && e.error !== "not-allowed") {
         setTimeout(() => {
-          if (isOpenRef.current && isMicActiveRef.current && !isProcessingRef.current && statusRef.current === "listening") {
-            try {
-              recognizer.start();
-            } catch {}
+          if (isOpenRef.current && isMicActiveRef.current && !isProcessingRef.current) {
+            safeStartRecognition();
           }
         }, 150);
       }
     };
 
     recognizer.onend = () => {
-      // Auto-restart recognizer whenever it stops due to idle silence
+      // Auto-restart recognizer to maintain continuous conversational listening
       if (
         isOpenRef.current &&
         isMicActiveRef.current &&
-        !isProcessingRef.current &&
-        statusRef.current === "listening"
+        !isProcessingRef.current
       ) {
         setTimeout(() => {
           if (
             isOpenRef.current &&
             isMicActiveRef.current &&
-            !isProcessingRef.current &&
-            statusRef.current === "listening"
+            !isProcessingRef.current
           ) {
-            try {
-              recognizer.start();
-            } catch {}
+            safeStartRecognition();
           }
         }, 80);
       }
@@ -410,7 +402,7 @@ export function VoiceAssistantModal({
       } catch {}
       recognitionRef.current = null;
     };
-  }, [isOpen, sendToGeminiVoice, ensureAudioContext]);
+  }, [isOpen, sendToGeminiVoice, ensureAudioContext, stopCurrentAudio, safeStartRecognition]);
 
   // Stop audio and cleanup on modal close
   useEffect(() => {
@@ -467,7 +459,7 @@ export function VoiceAssistantModal({
         }`}
       />
 
-      {/* ─── Top Header Bar ──────────────────────────────────────────────── */}
+      {/* ─── Top Header Bar: Voice Assistant One Mind (without icon) ──────────────────────────────────────────────── */}
       <div className="relative z-10 w-full max-w-4xl flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
@@ -500,7 +492,7 @@ export function VoiceAssistantModal({
 
       {/* ─── Center Hero: Voice Powered Orb ──────────────────────────────── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center my-auto w-full max-w-2xl text-center px-4">
-        {/* Orb Container (enableVoiceControl is false to eliminate mic stream contention) */}
+        {/* Orb Container (decoupled from mic stream to eliminate contention) */}
         <div className="w-72 h-72 sm:w-96 sm:h-96 relative flex items-center justify-center">
           <VoicePoweredOrb
             enableVoiceControl={false}
@@ -539,7 +531,7 @@ export function VoiceAssistantModal({
             >
               {status === "listening" && "Mendengarkan Anda..."}
               {status === "thinking" && "Sedang berpikir..."}
-              {status === "speaking" && "One Mind sedang berbicara..."}
+              {status === "speaking" && "One Mind sedang berbicara... (Bisa Anda sela)"}
               {status === "idle" && "Mikrofon Dijeda"}
             </span>
           </div>
@@ -556,7 +548,7 @@ export function VoiceAssistantModal({
               </p>
             ) : (
               <p className={`text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                Katakan sesuatu seperti "Halo, apa kabar?" atau ajukan pertanyaan apapun.
+                Bicara kapan saja — Anda bisa menyela saat asisten sedang menjelaskan.
               </p>
             )}
           </div>
