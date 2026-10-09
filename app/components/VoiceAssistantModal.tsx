@@ -28,7 +28,6 @@ export function VoiceAssistantModal({
   const conversationHistoryRef = useRef(conversationHistory);
   const isProcessingRef = useRef(false);
   const aiReplyRef = useRef("");
-  const speechStartedAtRef = useRef<number>(0);
 
   const recognitionRef = useRef<any>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -102,7 +101,7 @@ export function VoiceAssistantModal({
     }
   }, []);
 
-  // When AI finishes speaking naturally
+  // When AI finishes speaking naturally -> switch turn back to user (unmute mic)
   const handleSpeechFinished = useCallback(() => {
     currentSourceRef.current = null;
     setStatus("listening");
@@ -110,9 +109,19 @@ export function VoiceAssistantModal({
     accumulatedSpeechRef.current = "";
     setTranscript("");
 
-    setTimeout(() => {
-      safeStartRecognition();
-    }, 100);
+    // Auto unmute / restart mic when AI finishes speaking so user can speak
+    if (isOpenRef.current && isMicActiveRef.current) {
+      setTimeout(() => {
+        if (
+          isOpenRef.current &&
+          isMicActiveRef.current &&
+          statusRef.current === "listening" &&
+          !isProcessingRef.current
+        ) {
+          safeStartRecognition();
+        }
+      }, 150);
+    }
   }, [safeStartRecognition]);
 
   // Fallback browser speech synthesis with max volume
@@ -120,8 +129,15 @@ export function VoiceAssistantModal({
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       stopCurrentAudio();
       setStatus("speaking");
-      isProcessingRef.current = false;
-      speechStartedAtRef.current = Date.now();
+      isProcessingRef.current = true;
+
+      // Mute mic while AI speaks to prevent speaker echo or false cut-offs
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.volume = 1.0;
@@ -151,8 +167,14 @@ export function VoiceAssistantModal({
   const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
     stopCurrentAudio();
     setStatus("speaking");
-    isProcessingRef.current = false; // Allow user interruption while speaking
-    speechStartedAtRef.current = Date.now();
+    isProcessingRef.current = true; // Mute mic while AI speaks
+
+    // Mute mic while AI speaks to ensure speaker sound never triggers false interruptions
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
 
     try {
       const binaryString = window.atob(base64Data);
@@ -236,9 +258,16 @@ export function VoiceAssistantModal({
 
   // Send query to voice API with turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
-    if (!userPrompt.trim()) return;
+    if (!userPrompt.trim() || isProcessingRef.current) return;
     isProcessingRef.current = true;
     setStatus("thinking");
+
+    // Pause / Mute mic while thinking & waiting for response
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -280,7 +309,7 @@ export function VoiceAssistantModal({
     }
   }, [playAudioData, fallbackSpeech, handleSpeechFinished]);
 
-  // Continuous Full-Duplex SpeechRecognition with intelligent Barge-in (Menyela) filtering
+  // Turn-Taking SpeechRecognition (Mute / Unmute Gantian)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -300,8 +329,8 @@ export function VoiceAssistantModal({
     recognizer.lang = "id-ID";
 
     recognizer.onresult = (event: any) => {
-      // Don't capture when waiting for AI server response (thinking)
-      if (statusRef.current === "thinking") return;
+      // Turn-taking rule: Only accept speech when in listening mode and not processing/speaking
+      if (statusRef.current !== "listening" || isProcessingRef.current) return;
 
       let finalChunk = "";
       let interimChunk = "";
@@ -313,37 +342,6 @@ export function VoiceAssistantModal({
         } else {
           interimChunk += trans;
         }
-      }
-
-      const spokenChunk = (finalChunk || interimChunk).trim();
-      if (!spokenChunk) return;
-
-      // ─── INTELLIGENT BARGE-IN (MENYELA) ───────────────────────────────────────────
-      if (statusRef.current === "speaking") {
-        const cleanSpoken = spokenChunk.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const cleanAi = (aiReplyRef.current || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
-        // 1. Filter out initial speaker transient noise (grace period 600ms)
-        if (Date.now() - speechStartedAtRef.current < 600) {
-          return;
-        }
-
-        // 2. Filter out trivial 1-2 character background sounds (cough, breath, ambient)
-        if (cleanSpoken.length < 3 && !finalChunk.trim()) {
-          return;
-        }
-
-        // 3. Filter out acoustic self-echo: if the mic is just picking up what the AI is speaking
-        if (cleanSpoken.length >= 4 && cleanAi.includes(cleanSpoken)) {
-          return;
-        }
-
-        // Deliberate user interruption detected! Cut off AI speech immediately:
-        console.log("[voice-assistant] User interrupted! Cutting off AI audio immediately.");
-        stopCurrentAudio();
-        setStatus("listening");
-        isProcessingRef.current = false;
-        accumulatedSpeechRef.current = "";
       }
 
       if (finalChunk.trim()) {
@@ -360,55 +358,69 @@ export function VoiceAssistantModal({
         silenceTimerRef.current = null;
       }
 
-      // Rapid silence debounce (750ms): when user finishes talking, send the question
+      // Silence debounce (800ms): when user finishes talking, send question and hand over turn to AI
       silenceTimerRef.current = setTimeout(() => {
         if (
           statusRef.current === "listening" &&
+          !isProcessingRef.current &&
           currentFullText.trim()
         ) {
           const textToSend = currentFullText.trim();
           accumulatedSpeechRef.current = "";
           sendToGeminiVoice(textToSend);
         }
-      }, 750);
+      }, 800);
     };
 
     recognizer.onerror = (e: any) => {
       if (e.error !== "no-speech") {
         console.warn("[speech-recognition] error:", e.error);
       }
-      if (isOpenRef.current && isMicActiveRef.current && e.error !== "not-allowed") {
-        setTimeout(() => {
-          if (isOpenRef.current && isMicActiveRef.current && statusRef.current !== "thinking") {
-            safeStartRecognition();
-          }
-        }, 150);
-      }
-    };
-
-    recognizer.onend = () => {
-      // Auto-restart recognizer to maintain continuous conversational listening
       if (
         isOpenRef.current &&
         isMicActiveRef.current &&
-        statusRef.current !== "thinking"
+        statusRef.current === "listening" &&
+        !isProcessingRef.current &&
+        e.error !== "not-allowed"
       ) {
         setTimeout(() => {
           if (
             isOpenRef.current &&
             isMicActiveRef.current &&
-            statusRef.current !== "thinking"
+            statusRef.current === "listening" &&
+            !isProcessingRef.current
           ) {
             safeStartRecognition();
           }
-        }, 80);
+        }, 200);
+      }
+    };
+
+    recognizer.onend = () => {
+      // Turn-taking rule: Only auto-restart when in listening turn, never while AI is thinking/speaking
+      if (
+        isOpenRef.current &&
+        isMicActiveRef.current &&
+        statusRef.current === "listening" &&
+        !isProcessingRef.current
+      ) {
+        setTimeout(() => {
+          if (
+            isOpenRef.current &&
+            isMicActiveRef.current &&
+            statusRef.current === "listening" &&
+            !isProcessingRef.current
+          ) {
+            safeStartRecognition();
+          }
+        }, 100);
       }
     };
 
     recognitionRef.current = recognizer;
 
     try {
-      if (isMicActiveRef.current) {
+      if (isMicActiveRef.current && statusRef.current === "listening") {
         recognizer.start();
       }
     } catch {}
@@ -423,7 +435,7 @@ export function VoiceAssistantModal({
       } catch {}
       recognitionRef.current = null;
     };
-  }, [isOpen, sendToGeminiVoice, ensureAudioContext, stopCurrentAudio, safeStartRecognition]);
+  }, [isOpen, sendToGeminiVoice, ensureAudioContext, safeStartRecognition]);
 
   // Stop audio and cleanup on modal close
   useEffect(() => {
@@ -455,10 +467,12 @@ export function VoiceAssistantModal({
       try {
         recognitionRef.current?.abort();
       } catch {}
+      stopCurrentAudio();
     } else {
       setIsMicActive(true);
       isMicActiveRef.current = true;
       setStatus("listening");
+      isProcessingRef.current = false;
       setTimeout(() => {
         safeStartRecognition();
       }, 50);
