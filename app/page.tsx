@@ -2815,45 +2815,48 @@ export default function Home() {
           />
         ) : (
           <>
-            {/* Top App Bar */}
-        <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
-          isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
-        }`}>
-          <div className="flex items-center gap-2">
-            {/* 3-line hamburger menu button on the LEFT */}
-            <button
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
-                isDark
-                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
-              }`}
-              title="Menu Panel"
-              aria-label="Menu Panel"
-            >
-              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
+            {/* Top App Bar (Pure Transparent Floating Controls without any background or blur obstruction) */}
+            <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+              isDark ? "text-white" : "text-zinc-900"
+            }`}>
+              <div className="flex items-center gap-2 pointer-events-auto">
+                {/* 3-line hamburger menu button on the LEFT */}
+                <button
+                  onClick={() => setSidebarOpen((prev) => !prev)}
+                  className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+                    isDark
+                      ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                      : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                  }`}
+                  title="Menu Panel"
+                  aria-label="Menu Panel"
+                >
+                  <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={newChat}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
-                isDark
-                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
-              }`}
-              title="New Chat"
-              aria-label="New Chat"
-            >
-              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-        </header>
+              <div className="flex items-center gap-2 pointer-events-auto">
+                {/* Only show the Plus (New Chat) button when there is chat content */}
+                {messages.length > 0 && (
+                  <button
+                    onClick={newChat}
+                    className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 animate-in fade-in-0 duration-200 ${
+                      isDark
+                        ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                        : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                    }`}
+                    title="New Chat"
+                    aria-label="New Chat"
+                  >
+                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </header>
 
         {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
         <div
