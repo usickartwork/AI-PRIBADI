@@ -358,7 +358,7 @@ export function VoiceAssistantModal({
         silenceTimerRef.current = null;
       }
 
-      // Silence debounce (800ms): when user finishes talking, send question and hand over turn to AI
+      // Silence debounce (1800ms): Waktu jeda bicara alami yang santai agar tidak terburu-buru
       silenceTimerRef.current = setTimeout(() => {
         if (
           statusRef.current === "listening" &&
@@ -369,7 +369,7 @@ export function VoiceAssistantModal({
           accumulatedSpeechRef.current = "";
           sendToGeminiVoice(textToSend);
         }
-      }, 800);
+      }, 1800);
     };
 
     recognizer.onerror = (e: any) => {
@@ -454,8 +454,26 @@ export function VoiceAssistantModal({
     }
   }, [isOpen, stopCurrentAudio]);
 
+  const isMicLive = isMicActive && status === "listening" && !isProcessingRef.current;
+
   const toggleMic = () => {
     ensureAudioContext();
+
+    // If AI is currently thinking or speaking, clicking this button immediately stops AI and gives the turn to user
+    if (status === "speaking" || status === "thinking" || isProcessingRef.current) {
+      stopCurrentAudio();
+      setIsMicActive(true);
+      isMicActiveRef.current = true;
+      isProcessingRef.current = false;
+      accumulatedSpeechRef.current = "";
+      setTranscript("");
+      setStatus("listening");
+      setTimeout(() => {
+        safeStartRecognition();
+      }, 100);
+      return;
+    }
+
     if (isMicActive) {
       setIsMicActive(false);
       isMicActiveRef.current = false;
@@ -585,23 +603,31 @@ export function VoiceAssistantModal({
 
       {/* ─── Bottom Action Controls: Large Icon Buttons (Pure Monochrome Theme) ─────────────────── */}
       <div className="relative z-10 w-full max-w-sm flex items-center justify-center gap-6 sm:gap-8 pb-4 sm:pb-6">
-        {/* Mic Toggle Button (Only Icon, Large, Pure Theme Monochrome) */}
+        {/* Mic Toggle Button (Only Icon, Large, Pure Theme Monochrome, Auto Mute/Unmute Indicator) */}
         <button
           type="button"
           onClick={toggleMic}
-          className={`h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
-            isMicActive
+          className={`h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
+            isMicLive
               ? isDark
-                ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-zinc-700 shadow-zinc-950/40"
-                : "bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-200 shadow-zinc-300/40"
+                ? "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600 shadow-zinc-950/40 ring-2 ring-white/20"
+                : "bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-300 shadow-zinc-300/40 ring-2 ring-black/10"
               : isDark
-                ? "bg-zinc-900 text-zinc-500 border border-zinc-800 shadow-zinc-950/40"
-                : "bg-zinc-100 text-zinc-400 border border-zinc-200 shadow-zinc-300/40"
+                ? "bg-zinc-900 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 border border-zinc-800 shadow-zinc-950/40"
+                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-600 border border-zinc-200 shadow-zinc-300/40"
           }`}
-          title={isMicActive ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
-          aria-label={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
+          title={
+            isMicLive
+              ? "Mikrofon Aktif (Mendengarkan)"
+              : status === "speaking"
+              ? "Mikrofon Dimute (Klik untuk sela & bicara)"
+              : status === "thinking"
+              ? "Mikrofon Dimute (One Mind sedang berpikir)"
+              : "Mikrofon Dimute (Klik untuk mengaktifkan)"
+          }
+          aria-label={isMicLive ? "Mikrofon Aktif" : "Mikrofon Dimute"}
         >
-          {isMicActive ? (
+          {isMicLive ? (
             <Mic className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-white" : "text-zinc-900"}`} />
           ) : (
             <MicOff className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-zinc-500" : "text-zinc-400"}`} />
