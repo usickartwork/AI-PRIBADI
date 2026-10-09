@@ -2820,13 +2820,13 @@ export default function Home() {
               isDark ? "text-white" : "text-zinc-900"
             }`}>
               <div className="flex items-center gap-2 pointer-events-auto">
-                {/* 3-line hamburger menu button on the LEFT */}
+                {/* 3-line hamburger menu button on the LEFT (liquid glass circle) */}
                 <button
                   onClick={() => setSidebarOpen((prev) => !prev)}
-                  className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+                  className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
-                      ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                      : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                   }`}
                   title="Menu Panel"
                   aria-label="Menu Panel"
@@ -2838,14 +2838,14 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2 pointer-events-auto">
-                {/* Only show the Plus (New Chat) button when there is chat content */}
+                {/* Only show the Plus (New Chat) button when there is chat content (liquid glass circle) */}
                 {messages.length > 0 && (
                   <button
                     onClick={newChat}
-                    className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 animate-in fade-in-0 duration-200 ${
+                    className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 animate-in fade-in-0 duration-200 ${
                       isDark
-                        ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                        : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                        ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                        : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                     }`}
                     title="New Chat"
                     aria-label="New Chat"
@@ -2936,8 +2936,8 @@ export default function Home() {
                     <div
                       className={`relative max-w-[85%] sm:max-w-[75%] rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
                         isDark
-                          ? "bg-[#1c447a] border border-[#275899]/50 text-white shadow-sm font-normal"
-                          : "bg-black text-white shadow-sm font-normal"
+                          ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm font-normal"
+                          : "bg-zinc-900 border border-zinc-800 text-white shadow-sm font-normal"
                       }`}
                     >
                       {msg.image && (
@@ -3109,11 +3109,7 @@ export default function Home() {
         )}
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent relative">
-          {/* Bottom short black fade overlay (intensitas pendek, tepat saat mau ke chat box) */}
-          {messages.length > 0 && (
-            <div className="pointer-events-none absolute -top-6 sm:-top-8 inset-x-0 h-6 sm:h-8 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
-          )}
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
           <div className="mx-auto max-w-3xl w-full">
             {renderChatInputCard()}
           </div>
