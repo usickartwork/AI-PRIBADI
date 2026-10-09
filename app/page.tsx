@@ -10,6 +10,7 @@ import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
+import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { PricingModal } from "./components/PricingModal";
@@ -593,7 +594,7 @@ export default function Home() {
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
-    sessionsReady: sessions.length > 0,
+    sessionsReady: !user || sessions.length > 0,
     minDurationMs: 4500, // ±4.5s agar animasi One Mind dan deretan model LLM terlihat lengkap dan elegan
     safetyTimeoutMs: 7500, // 7.5s maximum fallback in case network hangs
   });
@@ -4054,11 +4055,22 @@ export default function Home() {
         </div>
       )}
 
+      {/* ─── WELCOME PAGE FOR UNAUTHENTICATED VISITORS ─────────────────────── */}
+      {!user ? (
+        <div className="fixed inset-0 z-40 bg-background overflow-y-auto">
+          <GradientBarHeroSection
+            isDark={isDark}
+            onGetStarted={() => setShowAuthModal(true)}
+          />
+        </div>
+      ) : null}
+
       {/* ─── MANDATORY AUTH MODAL (Login & Register via Supabase) ────────── */}
-      {(!authLoading && !user) || showAuthModal ? (
+      {showAuthModal ? (
         <AuthModal
           isDark={isDark}
           onSuccess={() => setShowAuthModal(false)}
+          onClose={() => setShowAuthModal(false)}
         />
       ) : null}
 
