@@ -2858,14 +2858,24 @@ export default function Home() {
               </div>
             </header>
 
-        {/* ─── SCROLLABLE CHAT CONTENT (Extends to top of device; scrolls smoothly past floating controls) ─── */}
+        {/* ─── SCROLLABLE CHAT CONTENT (Extends to top of device with top & bottom gradient fade like GPT) ─── */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className={`flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 pb-3 sm:pb-5 flex flex-col ${
+          style={
+            messages.length > 0
+              ? {
+                  maskImage:
+                    "linear-gradient(to bottom, transparent 0%, black 80px, black calc(100% - 48px), transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, transparent 0%, black 80px, black calc(100% - 48px), transparent 100%)",
+                }
+              : undefined
+          }
+          className={`flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 flex flex-col ${
             messages.length === 0
-              ? "pt-3 sm:pt-4"
-              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))]"
+              ? "pt-3 sm:pt-4 pb-3 sm:pb-5"
+              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] pb-12 sm:pb-14"
           }`}
         >
           <div className={`mx-auto max-w-3xl w-full ${messages.length === 0 ? "flex-1 flex flex-col items-center justify-center my-auto" : "space-y-4 sm:space-y-6"}`}>
@@ -3104,7 +3114,7 @@ export default function Home() {
               );
             })}
 
-            <div ref={bottomRef} />
+            <div ref={bottomRef} className="h-4" />
           </div>
         </div>
 
