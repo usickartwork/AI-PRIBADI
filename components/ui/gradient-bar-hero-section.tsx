@@ -5,49 +5,6 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { LogoCloud } from "@/components/ui/logo-cloud-3";
 import { cn } from "@/lib/utils";
 
-type AvatarProps = {
-  imageSrc: string;
-  delay: number;
-};
-
-const Avatar: React.FC<AvatarProps> = ({ imageSrc, delay }) => {
-  return (
-    <div
-      className="relative h-6 w-6 sm:h-8 sm:w-8 md:h-9 md:w-9 rounded-full overflow-hidden border-2 border-zinc-700 shadow-lg animate-fadeIn"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imageSrc}
-        alt="User avatar"
-        className="h-full w-full object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-    </div>
-  );
-};
-
-const TrustElements: React.FC = () => {
-  const avatars = [
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-  ];
-
-  return (
-    <div className="inline-flex items-center space-x-3 bg-zinc-900/80 border border-zinc-800/80 backdrop-blur-md rounded-full py-1.5 px-3 sm:py-2 sm:px-4 text-xs sm:text-sm shadow-xl">
-      <div className="flex -space-x-2 sm:-space-x-2.5">
-        {avatars.map((avatar, index) => (
-          <Avatar key={index} imageSrc={avatar} delay={index * 150} />
-        ))}
-      </div>
-      <p className="text-zinc-300 whitespace-nowrap text-xs sm:text-sm font-medium">
-        <span className="text-white font-semibold">10+ AI Models</span> terhubung dalam One Mind
-      </p>
-    </div>
-  );
-};
 
 const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
   const numBars = 15;
@@ -117,14 +74,7 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
           {/* Brand Logo & Name */}
-          <div className="flex items-center gap-2.5">
-            <svg
-              className={cn("w-6 h-6 transition-transform hover:scale-110", isDark ? "text-white fill-white" : "text-zinc-900 fill-zinc-900")}
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-            </svg>
+          <div className="flex items-center">
             <span className={cn("font-bold text-lg tracking-tight", isDark ? "text-white" : "text-zinc-900")}>
               One Mind
             </span>
@@ -234,9 +184,9 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
 
       {/* Center Hero Content */}
       <div className="relative z-10 text-center w-full max-w-4xl mx-auto flex flex-col items-center justify-center flex-1 pt-28 pb-12 sm:pt-32 sm:pb-16">
-        {/* Trust Badge */}
-        <div className="mb-6 sm:mb-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-          <TrustElements />
+        {/* Models Animation Slider replacing trust badge */}
+        <div className="w-full max-w-xl sm:max-w-2xl mx-auto mb-6 sm:mb-8 px-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
+          <LogoCloud isDark={isDark} duration={8} className="w-full py-1" />
         </div>
 
         {/* Hero Title */}
@@ -267,7 +217,7 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
         </div>
 
         {/* CTA Button: Get Started (Replacing waitlist & email field as instructed) */}
-        <div className="w-full max-w-md mb-10 sm:mb-12 px-4 flex justify-center animate-in fade-in-0 slide-in-from-bottom-5 duration-1000">
+        <div className="w-full max-w-md px-4 flex justify-center animate-in fade-in-0 slide-in-from-bottom-5 duration-1000">
           <button
             type="button"
             onClick={() => onGetStarted?.("signup")}
@@ -281,18 +231,6 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
             <span>Get Started</span>
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-1" />
           </button>
-        </div>
-
-        {/* Bottom Models Slider (Replacing Instagram, LinkedIn, GitHub icons as instructed) */}
-        <div className="w-full max-w-2xl px-4 flex flex-col items-center animate-in fade-in-0 duration-1000">
-          <div className="w-full bg-black/65 backdrop-blur-md rounded-2xl py-2 px-4 border border-white/10 shadow-2xl flex flex-col items-center">
-            <p
-              className="text-[11px] sm:text-xs uppercase tracking-widest font-semibold mb-1 select-none text-zinc-400"
-            >
-              Powered by Leading LLM & AI Models
-            </p>
-            <LogoCloud isDark={true} duration={8} className="w-full py-1" />
-          </div>
         </div>
       </div>
     </section>
