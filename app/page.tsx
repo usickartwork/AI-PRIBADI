@@ -2815,8 +2815,8 @@ export default function Home() {
           />
         ) : (
           <>
-            {/* Top App Bar (Pure Transparent Floating Controls without any background or blur obstruction) */}
-            <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+            {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
+            <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
               isDark ? "text-white" : "text-zinc-900"
             }`}>
               <div className="flex items-center gap-2 pointer-events-auto">
@@ -2858,11 +2858,15 @@ export default function Home() {
               </div>
             </header>
 
-        {/* ─── SCROLLABLE CHAT CONTENT ──────────────────────────────────────── */}
+        {/* ─── SCROLLABLE CHAT CONTENT (Extends to top of device; scrolls smoothly past floating controls) ─── */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5 flex flex-col"
+          className={`flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 pb-3 sm:pb-5 flex flex-col ${
+            messages.length === 0
+              ? "pt-3 sm:pt-4"
+              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))]"
+          }`}
         >
           <div className={`mx-auto max-w-3xl w-full ${messages.length === 0 ? "flex-1 flex flex-col items-center justify-center my-auto" : "space-y-4 sm:space-y-6"}`}>
 
