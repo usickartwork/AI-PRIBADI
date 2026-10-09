@@ -11,6 +11,7 @@ import { ImageWorkspace } from "./components/ImageWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
+import { TechText } from "./components/TechText";
 import { PricingModal } from "./components/PricingModal";
 import { UpgradePromptModal } from "./components/UpgradePromptModal";
 import { UsageHistoryModal } from "./components/UsageHistoryModal";
@@ -576,7 +577,7 @@ export default function Home() {
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
     sessionsReady: sessions.length > 0,
-    minDurationMs: 1600, // ±1.6s minimum visual rhythm
+    minDurationMs: 2600, // ±2.6s rhythm to ensure O -> N -> E analysis sweep completes
     safetyTimeoutMs: 6000, // 6s maximum fallback in case network hangs
   });
 
@@ -2490,10 +2491,32 @@ export default function Home() {
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center">
+              <div className="relative w-36 h-9 sm:w-40 sm:h-10 flex items-center">
+                <TechText
+                  text="One Mind"
+                  fontWeight={700}
+                  fontSize={25}
+                  letterSpacing={-0.03}
+                  color={isDark ? "#ffffff" : "#09090b"}
+                  accentColor={isDark ? "#ffffff" : "#09090b"}
+                  align="left"
+                  reveal="letter"
+                  dashLength={3}
+                  dashGap={2}
+                  strokeWidth={1.2}
+                  specks={8}
+                  sweep={true}
+                  speed={0.9}
+                  draggable={true}
+                  labels={false}
+                />
+              </div>
+              {/* Original static One Mind brand text preserved for easy reversion:
               <span className={`tracking-tight text-2xl md:text-[26px] select-none ${isDark ? "text-white" : "text-zinc-950"}`}>
                 <span className="font-extrabold">One</span>{" "}
                 <span className="font-normal opacity-90">Mind</span>
               </span>
+              */}
             </div>
             <button
               type="button"

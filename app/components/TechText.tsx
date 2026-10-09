@@ -57,6 +57,7 @@ export interface TechTextProps {
   draggable?: boolean;
   sweep?: boolean;
   speed?: number;
+  align?: "center" | "left";
   className?: string;
   style?: CSSProperties;
 }
@@ -82,6 +83,7 @@ export const TechText: React.FC<TechTextProps> = ({
   draggable = true,
   sweep = true,
   speed = 1,
+  align = "center",
   className = "",
   style,
 }) => {
@@ -112,6 +114,7 @@ export const TechText: React.FC<TechTextProps> = ({
       draggable,
       sweep,
       speed,
+      align,
     };
     wakeRef.current();
   });
@@ -205,6 +208,7 @@ export const TechText: React.FC<TechTextProps> = ({
         s.dashGap,
         s.strokeWidth,
         s.lineStyle,
+        s.align,
         width,
         height,
         dpr,
@@ -230,7 +234,9 @@ export const TechText: React.FC<TechTextProps> = ({
       m = probe.measureText(s.text);
       const inkWidth = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
       const inkHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
-      const x = (width - inkWidth) / 2 + m.actualBoundingBoxLeft;
+      const x = s.align === "left"
+        ? m.actualBoundingBoxLeft + 2
+        : (width - inkWidth) / 2 + m.actualBoundingBoxLeft;
       const baseline = (height - inkHeight) / 2 + m.actualBoundingBoxAscent;
       const next = {
         size,
@@ -694,3 +700,4 @@ export const TechText: React.FC<TechTextProps> = ({
 };
 
 export default TechText;
+
