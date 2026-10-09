@@ -2491,7 +2491,7 @@ export default function Home() {
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center">
-              <div className="relative w-36 h-9 sm:w-40 sm:h-10 flex items-center">
+              <div className="relative -ml-3.5 w-44 h-10 sm:h-11 flex items-center">
                 <TechText
                   text="One Mind"
                   fontWeight={700}
@@ -2500,6 +2500,7 @@ export default function Home() {
                   color={isDark ? "#ffffff" : "#09090b"}
                   accentColor={isDark ? "#ffffff" : "#09090b"}
                   align="left"
+                  leftPadding={18}
                   reveal="letter"
                   dashLength={3}
                   dashGap={2}

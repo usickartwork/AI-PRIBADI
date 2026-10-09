@@ -58,6 +58,7 @@ export interface TechTextProps {
   sweep?: boolean;
   speed?: number;
   align?: "center" | "left";
+  leftPadding?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -84,6 +85,7 @@ export const TechText: React.FC<TechTextProps> = ({
   sweep = true,
   speed = 1,
   align = "center",
+  leftPadding = 18,
   className = "",
   style,
 }) => {
@@ -115,6 +117,7 @@ export const TechText: React.FC<TechTextProps> = ({
       sweep,
       speed,
       align,
+      leftPadding,
     };
     wakeRef.current();
   });
@@ -209,6 +212,7 @@ export const TechText: React.FC<TechTextProps> = ({
         s.strokeWidth,
         s.lineStyle,
         s.align,
+        s.leftPadding,
         width,
         height,
         dpr,
@@ -234,8 +238,9 @@ export const TechText: React.FC<TechTextProps> = ({
       m = probe.measureText(s.text);
       const inkWidth = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
       const inkHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+      const leftPad = s.leftPadding ?? 18;
       const x = s.align === "left"
-        ? m.actualBoundingBoxLeft + 2
+        ? m.actualBoundingBoxLeft + leftPad
         : (width - inkWidth) / 2 + m.actualBoundingBoxLeft;
       const baseline = (height - inkHeight) / 2 + m.actualBoundingBoxAscent;
       const next = {
