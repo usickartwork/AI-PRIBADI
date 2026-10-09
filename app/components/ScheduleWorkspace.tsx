@@ -1148,21 +1148,21 @@ export function ScheduleWorkspace({
         isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
-      {/* ─── Top Header Bar ────────────────────────────────────────────────── */}
+      {/* ─── Top Header Bar (Clean, Floating, Serasi Tab Chat) ─── */}
       <header
-        className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
-          isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
+        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+          isDark ? "text-white" : "text-zinc-900"
         }`}
       >
-        <div className="flex items-center gap-2">
-          {/* 3-line hamburger menu button on the LEFT */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* 3-line hamburger menu button on the LEFT (liquid glass circle, identik tab chat) */}
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                 isDark
-                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
               title="Menu Panel"
               aria-label="Menu Panel"
@@ -1174,18 +1174,18 @@ export function ScheduleWorkspace({
           )}
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button (Icon only) */}
-        <div className="flex items-center gap-2">
+        {/* Header Action: Daftar Agenda Toggle Button (liquid glass circle, identik tab chat) */}
+        <div className="flex items-center gap-2 pointer-events-auto">
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
-            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
               currentTab === "list"
                 ? isDark
                   ? "bg-white text-black shadow-xs"
                   : "bg-black text-white shadow-xs"
                 : isDark
-                ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
             }`}
             title={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
             aria-label={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
@@ -1273,41 +1273,15 @@ export function ScheduleWorkspace({
         </div>
       )}
 
-      {/* Guest Notice Banner */}
-      {!user && (
-        <div
-          className={`shrink-0 px-4 py-2 border-b flex items-center justify-between text-xs ${
-            isDark ? "bg-black/20 border-white/10 text-zinc-300 backdrop-blur-xs" : "bg-white/20 border-black/10 text-zinc-700 backdrop-blur-xs"
-          }`}
-        >
-          <div className="flex items-center gap-2 truncate">
-            <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="truncate">
-              Mode Tamu: Jadwal tersimpan lokal. Masuk untuk pengingat otomatis via email.
-            </span>
-          </div>
-          {setShowAuthModal && (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className={`shrink-0 ml-3 text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                isDark
-                  ? "border-zinc-700 bg-zinc-800 text-white hover:bg-zinc-700"
-                  : "border-zinc-300 bg-white text-black hover:bg-zinc-100"
-              }`}
-            >
-              Masuk
-            </button>
-          )}
-        </div>
-      )}
-
       {/* ─── TAB 1: AI CHAT INTERFACE ──────────────────────────────────────── */}
       {currentTab === "chat" && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           {/* Scrollable Chat Messages Feed */}
-          <div className="flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 py-3 sm:py-5 flex flex-col">
+          <div className={`flex-1 overflow-y-auto min-h-0 w-full px-3 sm:px-6 flex flex-col ${
+            chatMessages.length === 0
+              ? "pt-3 sm:pt-4 pb-3 sm:pb-5"
+              : "pt-[max(3.75rem,calc(env(safe-area-inset-top))+2.75rem))] pb-6 sm:pb-8"
+          }`}>
             <div
               className={`mx-auto max-w-3xl w-full ${
                 chatMessages.length === 0
@@ -1579,7 +1553,7 @@ export function ScheduleWorkspace({
 
       {/* ─── TAB 2: DAFTAR AGENDA (LIST & FILTERS) ─────────────────────────── */}
       {currentTab === "list" && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-4 sm:px-8 py-6 space-y-6">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-4 sm:px-8 pt-[max(3.75rem,calc(env(safe-area-inset-top))+2.75rem))] pb-6 space-y-6">
           {/* Controls & Filter Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Filter Tabs */}

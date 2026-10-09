@@ -280,20 +280,21 @@ export function ImageWorkspace({
         isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
-      {/* ─── TOP APP HEADER ─────────────────────────────────────────────── */}
-      <header className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
-        isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
+      {/* ─── TOP APP HEADER (Clean, Floating, Serasi Tab Chat) ─── */}
+      <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+        isDark ? "text-white" : "text-zinc-900"
       }`}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pointer-events-auto">
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                 isDark
-                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
               title="Menu Panel"
+              aria-label="Menu Panel"
             >
               <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -304,7 +305,7 @@ export function ImageWorkspace({
       </header>
 
       {/* ─── MAIN SCROLL CONTAINER ──────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pb-12 flex flex-col items-center justify-start sm:justify-center">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pt-3 sm:pt-4 pb-12 flex flex-col items-center justify-center">
         <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto pt-4 sm:pt-0">
 
           {/* 1. HERO HEADER */}

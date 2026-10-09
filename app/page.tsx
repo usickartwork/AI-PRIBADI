@@ -567,17 +567,28 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
 
-  // Selalu arahkan ke tab "chats" saat buka web / refresh sesuai brief
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image">("chats");
+  // Jaga activeView: jika sedang di tab "faith", pertahankan saat refresh agar web faith tidak reset ke login; selain itu default ke "chats"
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-active-view");
+        if (saved === "faith") return "faith";
+      } catch {}
+    }
+    return "chats";
+  });
 
-  // Hapus key usick-active-view lama agar tidak pernah membuka schedule secara otomatis saat reload
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.removeItem("usick-active-view");
+        if (activeView === "faith") {
+          localStorage.setItem("usick-active-view", "faith");
+        } else {
+          localStorage.removeItem("usick-active-view");
+        }
       } catch {}
     }
-  }, []);
+  }, [activeView]);
 
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
@@ -3039,6 +3050,16 @@ export default function Home() {
           />
         </div>
 
+        {/* FaithWorkspace dijaga tetap ter-mount di latar belakang agar sesi login web Faith tidak ter-reset saat berpindah tab */}
+        <div className={`h-full w-full ${activeView === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
+          <FaithWorkspace
+            key="faith-workspace-instance"
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        </div>
+
         {activeView === "schedule" ? (
           <ScheduleWorkspace
             key={user?.id || "guest"}
@@ -3046,13 +3067,6 @@ export default function Home() {
             onClose={() => setActiveView("chats")}
             user={user}
             setShowAuthModal={setShowAuthModal}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        ) : activeView === "faith" ? (
-          <FaithWorkspace
-            key="faith-workspace"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : activeView === "image" ? (
@@ -3064,7 +3078,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "code" ? null : (
+        ) : activeView === "code" || activeView === "faith" ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${

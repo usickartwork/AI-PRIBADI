@@ -7395,21 +7395,20 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       )}
 
-      {/* ─── Top Header Bar (Clean, Floating, Serasi Chat / Schedule / Image) ─── */}
+      {/* ─── Top Header Bar (Clean, Floating, Serasi Tab Chat) ─── */}
       <header
-        className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
-          isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
+        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+          isDark ? "text-white" : "text-zinc-900"
         }`}
       >
-        <div className="flex items-center gap-2">
-          {/* 3-line hamburger menu button on the LEFT */}
+        <div className="flex items-center gap-2 pointer-events-auto">
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                 isDark
-                  ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                  : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
               title="Menu Panel"
               aria-label="Menu Panel"
@@ -7422,7 +7421,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
 
         {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) only if activeProject & isPlannerFinished */}
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
           {activeProject && isPlannerFinished && (
             <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
               isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
@@ -7491,7 +7490,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
 
         {/* Right side: Export (if planner finished) + Tombol File Project di Kanan Atas */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pointer-events-auto">
           {activeProject && isPlannerFinished && (
             <div className="relative" ref={exportMenuRef}>
               <button
@@ -7574,17 +7573,17 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
             </div>
           )}
 
-          {/* Tombol File Project di Kanan Atas (ketika diklik muncul projectnya) */}
+          {/* Tombol File Project di Kanan Atas (liquid glass circle identik tab chat) */}
           <button
             onClick={() => setShowProjectDrawer((prev) => !prev)}
-            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
               showProjectDrawer
                 ? isDark
                   ? "bg-white text-black shadow-xs"
                   : "bg-black text-white shadow-xs"
                 : isDark
-                ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
-                : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
             }`}
             title="File &amp; Project"
             aria-label="File &amp; Project"
@@ -8086,15 +8085,19 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       )}
       {currentTab === "chat" && (
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Messages list */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-5">
-            {(() => {
-              const messagesToDisplay = activeProject ? activeProject.messages : draftMessages;
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          {(() => {
+            const messagesToDisplay = activeProject ? activeProject.messages : draftMessages;
+            const isEmpty = messagesToDisplay.length === 0;
 
-              if (messagesToDisplay.length === 0) {
-                return (
-                  <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto py-8">
+            return (
+              <div className={`flex-1 overflow-y-auto min-h-0 w-full flex flex-col ${
+                isEmpty
+                  ? "px-4 sm:px-8 py-4 items-center justify-center"
+                  : "pt-[max(3.75rem,calc(env(safe-area-inset-top))+2.75rem))] pb-6 sm:pb-8 px-4 sm:px-8 space-y-5"
+              }`}>
+                {isEmpty ? (
+                  <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center my-auto py-2 sm:py-4">
                     {/* 1. HERO HEADER */}
                     <div className="text-center mb-6 sm:mb-8">
                       {/* Pure Star Icon only (No Box/Kotak - Identical to chat, schedule & image tabs) */}
@@ -8226,10 +8229,8 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       ))}
                     </div>
                   </div>
-                );
-              }
-
-              return messagesToDisplay.map((m, mIdx) => {
+                ) : (
+                  messagesToDisplay.map((m, mIdx) => {
                 const isUser = m.role === "user";
                 const isLastAssistant = !isUser && mIdx === messagesToDisplay.length - 1;
                 const isAssistantLoading = isLastAssistant && isChatLoading;
@@ -8866,12 +8867,14 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       )}
                     </div>
                   )}
-                </div>
-              );
-            });
-          })()}
+                  </div>
+                );
+              })
+            )}
             <div ref={chatBottomRef} />
           </div>
+        );
+      })()}
 
           {/* ─── FLOATING ELEVATED INPUT BAR (Liquid Glass Styling Serasi Chat Utama) ─────────── */}
           {activeProject && (
