@@ -118,6 +118,7 @@ export function VoiceAssistantModal({
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       stopCurrentAudio();
       setStatus("speaking");
+      isProcessingRef.current = false;
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.volume = 1.0;
@@ -147,9 +148,7 @@ export function VoiceAssistantModal({
   const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
     stopCurrentAudio();
     setStatus("speaking");
-
-    // NOTICE: We do NOT abort recognizer here!
-    // The mic stays listening so the user can interrupt (menyela) anytime!
+    isProcessingRef.current = false; // Allow user interruption while speaking!
 
     try {
       const binaryString = window.atob(base64Data);
@@ -185,7 +184,6 @@ export function VoiceAssistantModal({
         currentSourceRef.current = source;
 
         source.onended = () => {
-          // Only trigger if this source wasn't interrupted
           if (currentSourceRef.current === source) {
             handleSpeechFinished();
           }
@@ -234,7 +232,7 @@ export function VoiceAssistantModal({
 
   // Send query to voice API with turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
-    if (!userPrompt.trim() || isProcessingRef.current) return;
+    if (!userPrompt.trim()) return;
     isProcessingRef.current = true;
     setStatus("thinking");
 
@@ -298,7 +296,7 @@ export function VoiceAssistantModal({
 
     recognizer.onresult = (event: any) => {
       // Don't capture when waiting for AI server response (thinking)
-      if (isProcessingRef.current) return;
+      if (statusRef.current === "thinking") return;
 
       let finalChunk = "";
       let interimChunk = "";
@@ -341,7 +339,6 @@ export function VoiceAssistantModal({
       // Rapid silence debounce (750ms): when user finishes talking, send the question
       silenceTimerRef.current = setTimeout(() => {
         if (
-          !isProcessingRef.current &&
           statusRef.current === "listening" &&
           currentFullText.trim()
         ) {
@@ -358,7 +355,7 @@ export function VoiceAssistantModal({
       }
       if (isOpenRef.current && isMicActiveRef.current && e.error !== "not-allowed") {
         setTimeout(() => {
-          if (isOpenRef.current && isMicActiveRef.current && !isProcessingRef.current) {
+          if (isOpenRef.current && isMicActiveRef.current && statusRef.current !== "thinking") {
             safeStartRecognition();
           }
         }, 150);
@@ -370,13 +367,13 @@ export function VoiceAssistantModal({
       if (
         isOpenRef.current &&
         isMicActiveRef.current &&
-        !isProcessingRef.current
+        statusRef.current !== "thinking"
       ) {
         setTimeout(() => {
           if (
             isOpenRef.current &&
             isMicActiveRef.current &&
-            !isProcessingRef.current
+            statusRef.current !== "thinking"
           ) {
             safeStartRecognition();
           }
@@ -529,28 +526,20 @@ export function VoiceAssistantModal({
                 isDark ? "text-zinc-100" : "text-zinc-900"
               }`}
             >
-              {status === "listening" && "Mendengarkan Anda..."}
-              {status === "thinking" && "Sedang berpikir..."}
-              {status === "speaking" && "One Mind sedang berbicara... (Bisa Anda sela)"}
+              {status === "listening" && "Listening..."}
+              {status === "thinking" && "One Mind Thinking..."}
+              {status === "speaking" && "One Mind..."}
               {status === "idle" && "Mikrofon Dijeda"}
             </span>
           </div>
 
-          {/* Subtitle / Transcription Snippet */}
-          <div className="min-h-[44px] flex items-center justify-center max-w-lg px-4">
-            {transcript && status !== "speaking" ? (
-              <p className={`text-xs sm:text-sm italic ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
+          {/* Transcription: Only show user speech */}
+          <div className="min-h-[32px] flex items-center justify-center max-w-lg px-4">
+            {transcript ? (
+              <p className={`text-xs sm:text-sm font-medium ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
                 "{transcript}"
               </p>
-            ) : aiReply && status === "speaking" ? (
-              <p className={`text-xs sm:text-sm font-medium line-clamp-2 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
-                "{aiReply}"
-              </p>
-            ) : (
-              <p className={`text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                Bicara kapan saja — Anda bisa menyela saat asisten sedang menjelaskan.
-              </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
