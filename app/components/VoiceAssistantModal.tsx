@@ -24,12 +24,60 @@ export function VoiceAssistantModal({
   const recognitionRef = useRef<any>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const isProcessingRef = useRef(false);
+  const statusRef = useRef<"listening" | "thinking" | "speaking" | "idle">("listening");
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const latestSpeechBufferRef = useRef<string>("");
 
-  // Send query to Gemini voice API
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  // Fallback instant browser speech synthesis
+  const fallbackSpeech = useCallback((text: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      setStatus("speaking");
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "id-ID";
+      utterance.rate = 1.08;
+
+      // Prioritaskan suara bahasa Indonesia jika tersedia
+      const voices = window.speechSynthesis.getVoices();
+      const idVoice = voices.find(
+        (v) => v.lang.startsWith("id") || v.lang.toLowerCase().includes("indonesia")
+      );
+      if (idVoice) {
+        utterance.voice = idVoice;
+      }
+
+      utterance.onend = () => {
+        setStatus("listening");
+        isProcessingRef.current = false;
+        latestSpeechBufferRef.current = "";
+      };
+      utterance.onerror = () => {
+        setStatus("listening");
+        isProcessingRef.current = false;
+        latestSpeechBufferRef.current = "";
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setStatus("listening");
+      isProcessingRef.current = false;
+      latestSpeechBufferRef.current = "";
+    }
+  }, []);
+
+  // Send query to Gemini voice API with ultra-fast turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
     if (!userPrompt.trim() || isProcessingRef.current) return;
     isProcessingRef.current = true;
     setStatus("thinking");
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
 
     try {
       const res = await fetch("/api/voice/respond", {
@@ -54,7 +102,7 @@ export function VoiceAssistantModal({
         { role: "assistant", content: reply },
       ]);
 
-      // Play audio response
+      // Mainkan suara respons
       if (data.audioBase64) {
         setStatus("speaking");
         const audioSrc = `data:${data.audioMime || "audio/wav"};base64,${data.audioBase64}`;
@@ -65,11 +113,14 @@ export function VoiceAssistantModal({
         audioPlayerRef.current.onended = () => {
           setStatus("listening");
           isProcessingRef.current = false;
+          latestSpeechBufferRef.current = "";
         };
         audioPlayerRef.current.onerror = () => {
           fallbackSpeech(reply);
         };
-        await audioPlayerRef.current.play();
+        audioPlayerRef.current.play().catch(() => {
+          fallbackSpeech(reply);
+        });
       } else {
         fallbackSpeech(reply);
       }
@@ -77,32 +128,11 @@ export function VoiceAssistantModal({
       console.warn("[voice-modal] API error:", err);
       setStatus("listening");
       isProcessingRef.current = false;
+      latestSpeechBufferRef.current = "";
     }
-  }, [conversationHistory]);
+  }, [conversationHistory, fallbackSpeech]);
 
-  // Fallback speech synthesis
-  const fallbackSpeech = (text: string) => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      setStatus("speaking");
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "id-ID";
-      utterance.rate = 1.05;
-      utterance.onend = () => {
-        setStatus("listening");
-        isProcessingRef.current = false;
-      };
-      utterance.onerror = () => {
-        setStatus("listening");
-        isProcessingRef.current = false;
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      setStatus("listening");
-      isProcessingRef.current = false;
-    }
-  };
-
-  // Setup Web Speech Recognition
+  // Setup Web Speech Recognition dengan fast silence detection
   useEffect(() => {
     if (!isOpen) return;
 
@@ -116,6 +146,9 @@ export function VoiceAssistantModal({
       recognizer.lang = "id-ID";
 
       recognizer.onresult = (event: any) => {
+        // Jangan rekam suara jika AI sedang berbicara atau sedang memproses
+        if (isProcessingRef.current || statusRef.current === "speaking") return;
+
         let finalTranscript = "";
         let interimTranscript = "";
 
@@ -127,19 +160,56 @@ export function VoiceAssistantModal({
           }
         }
 
-        const currentText = finalTranscript || interimTranscript;
-        if (currentText) {
-          setTranscript(currentText);
+        const currentText = (finalTranscript || interimTranscript).trim();
+        if (!currentText) return;
+
+        latestSpeechBufferRef.current = currentText;
+        setTranscript(currentText);
+
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
         }
 
+        // Jika browser sudah menyatakan final, langsung kirim tanpa jeda
         if (finalTranscript.trim() && !isProcessingRef.current) {
-          sendToGeminiVoice(finalTranscript.trim());
+          const textToSend = latestSpeechBufferRef.current;
+          latestSpeechBufferRef.current = "";
+          sendToGeminiVoice(textToSend);
+          return;
         }
+
+        // Deteksi jeda hening cepat (750ms) agar asisten merespons instan seperti percakapan nyata
+        silenceTimerRef.current = setTimeout(() => {
+          if (
+            !isProcessingRef.current &&
+            statusRef.current === "listening" &&
+            latestSpeechBufferRef.current.trim()
+          ) {
+            const textToSend = latestSpeechBufferRef.current;
+            latestSpeechBufferRef.current = "";
+            sendToGeminiVoice(textToSend);
+          }
+        }, 750);
       };
 
       recognizer.onerror = (e: any) => {
         if (e.error !== "no-speech") {
           console.warn("[speech-recognition] error:", e.error);
+        }
+      };
+
+      recognizer.onend = () => {
+        // Otomatis restart recognizer jika mic tetap aktif & sedang mendengarkan
+        if (
+          isOpen &&
+          isMicActive &&
+          !isProcessingRef.current &&
+          statusRef.current === "listening"
+        ) {
+          try {
+            recognizer.start();
+          } catch {}
         }
       };
 
@@ -152,6 +222,10 @@ export function VoiceAssistantModal({
       } catch {}
 
       return () => {
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
         try {
           recognizer.stop();
         } catch {}
@@ -162,6 +236,10 @@ export function VoiceAssistantModal({
   // Stop audio on close or toggle
   useEffect(() => {
     if (!isOpen) {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
@@ -175,8 +253,10 @@ export function VoiceAssistantModal({
         } catch {}
       }
       isProcessingRef.current = false;
+      latestSpeechBufferRef.current = "";
       setTranscript("");
       setAiReply("");
+      setStatus("listening");
     }
   }, [isOpen]);
 
@@ -240,7 +320,7 @@ export function VoiceAssistantModal({
         {/* Orb Container */}
         <div className="w-72 h-72 sm:w-96 sm:h-96 relative flex items-center justify-center">
           <VoicePoweredOrb
-            enableVoiceControl={isMicActive && status !== "speaking"}
+            enableVoiceControl={isMicActive}
             voiceSensitivity={1.6}
             isMonochrome={true}
             className="w-full h-full drop-shadow-[0_0_50px_rgba(255,255,255,0.15)]"
@@ -268,7 +348,7 @@ export function VoiceAssistantModal({
             >
               {status === "listening" && "Mendengarkan Anda..."}
               {status === "thinking" && "Sedang berpikir..."}
-              {status === "speaking" && "Gemini sedang berbicara..."}
+              {status === "speaking" && "One Mind sedang berbicara..."}
               {status === "idle" && "Mikrofon Dijeda"}
             </span>
           </div>
@@ -334,3 +414,4 @@ export function VoiceAssistantModal({
     </div>
   );
 }
+

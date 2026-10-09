@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_VOICE_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY belum disetel di .env.local" },
+        { error: "GEMINI_VOICE_API_KEY atau GEMINI_API_KEY belum disetel di environment (.env.local)" },
         { status: 500 }
       );
     }
@@ -15,14 +15,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Teks perintah tidak boleh kosong" }, { status: 400 });
     }
 
-    // 1. Generate text response with Gemini Flash
+    // 1. Generate text response with ultra-fast Gemini 3.5 Flash Lite
     const systemInstruction =
-      "Kamu adalah asisten suara AI yang ramah, ringkas, cerdas, dan natural. " +
-      "Jawablah langsung dalam bahasa Indonesia lisan yang santun dan padat (1-2 kalimat), " +
-      "hindari format markdown seperti bintang (*), pagar (#), atau list angka agar nyaman diucapkan secara audio.";
+      "Kamu adalah asisten suara AI pintar bernama One Mind. " +
+      "Jawablah langsung dalam bahasa Indonesia lisan yang santun, sangat padat, dan ringkas (maksimal 1-2 kalimat pendek). " +
+      "PENTING: Jangan gunakan format markdown seperti tanda bintang (*), tanda pagar (#), daftar bernomor, bullet point, atau emotikon agar natural didengarkan via audio.";
 
     const contents = [
-      ...history.slice(-6).map((h: { role: string; content: string }) => ({
+      ...history.slice(-4).map((h: { role: string; content: string }) => ({
         role: h.role === "assistant" ? "model" : "user",
         parts: [{ text: h.content }],
       })),
@@ -32,39 +32,61 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    const textGenRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250,
-          },
-        }),
-      }
-    );
-
     let replyText = "";
-    if (textGenRes.ok) {
-      const textData = await textGenRes.json();
-      replyText = textData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-    } else {
-      // Fallback response if generation limit
-      replyText = "Halo, saya mendengarkan Anda. Ada yang bisa saya bantu hari ini?";
+    // Prioritaskan model tercepat untuk conversational voice
+    const candidateModels = [
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash",
+    ];
+
+    for (const modelName of candidateModels) {
+      try {
+        const textGenRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              contents,
+              generationConfig: {
+                temperature: 0.6,
+                maxOutputTokens: 100,
+              },
+            }),
+          }
+        );
+
+        if (textGenRes.ok) {
+          const textData = await textGenRes.json();
+          const generated = textData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (generated) {
+            replyText = generated;
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn(`[voice-api] Model ${modelName} error:`, err);
+      }
     }
 
-    // 2. Synthesize voice with Gemini 3.8 Flash TTS
+    if (!replyText) {
+      replyText = "Halo, saya mendengarkan Anda. Ada yang bisa saya bantu?";
+    }
+
+    // 2. Synthesize voice with Gemini 3.8 Flash TTS (dengan abort timeout 3.5 detik agar respon tetap secepat kilat)
     let audioBase64: string | null = null;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
       const ttsRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text: replyText }] }],
             generationConfig: {
@@ -73,6 +95,7 @@ export async function POST(req: NextRequest) {
           }),
         }
       );
+      clearTimeout(timeoutId);
 
       if (ttsRes.ok) {
         const ttsData = await ttsRes.json();
@@ -82,7 +105,7 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (ttsErr) {
-      console.warn("[gemini-tts] Error:", ttsErr);
+      console.warn("[gemini-tts] Timeout atau error, fallback ke client synthesis:", ttsErr);
     }
 
     return NextResponse.json({
@@ -98,3 +121,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

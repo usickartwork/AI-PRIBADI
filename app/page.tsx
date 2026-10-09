@@ -16,7 +16,6 @@ import { UpgradePromptModal } from "./components/UpgradePromptModal";
 import { UsageHistoryModal } from "./components/UsageHistoryModal";
 import { ChatSearchModal } from "./components/ChatSearchModal";
 import { VoiceAssistantModal } from "./components/VoiceAssistantModal";
-import { Headphones } from "lucide-react";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -2397,7 +2396,14 @@ export default function Home() {
                 title="Mode Suara Real-time (Voice Assistant)"
                 aria-label="Mode Suara Real-time"
               >
-                <Headphones className="w-4 h-4" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M6 10.5v3M10 6.5v11M14 8v8M18 10.5v3"
+                  />
+                </svg>
               </button>
             )}
           </div>
