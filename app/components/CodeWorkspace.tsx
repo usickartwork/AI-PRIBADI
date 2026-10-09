@@ -3333,7 +3333,21 @@ export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWo
     return DEFAULT_PROJECTS;
   });
 
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(userStorageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed[0].id;
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_PROJECTS[0]?.id || null;
+  });
+  const [showProjectDrawer, setShowProjectDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
@@ -3480,12 +3494,13 @@ export function CodeWorkspace({ isDark, onClose, userId, onTogglePanel }: CodeWo
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setProjects(parsed);
+            setActiveProjectId((prev) => (prev && parsed.some((p: any) => p.id === prev) ? prev : parsed[0].id));
             return;
           }
         }
       } catch {}
       setProjects(DEFAULT_PROJECTS);
-      setActiveProjectId(null);
+      setActiveProjectId(DEFAULT_PROJECTS[0]?.id || null);
     }
   }, [userStorageKey, userId]);
 
@@ -6935,20 +6950,60 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: Project List
+  // RENDER: Unified Workspace & Clean Layout (Serasi Chat, Schedule & Image)
   // ─────────────────────────────────────────────────────────────────────────────
-  if (!activeProject) {
-    return (
-      <div className={`flex flex-col h-full w-full overflow-y-auto bg-transparent ${isDark ? "text-white" : "text-black"}`}>
-        {/* Header Bar */}
-        <div className={`sticky top-0 z-10 flex items-center justify-between px-4 sm:px-8 py-3.5 border-b backdrop-blur-md ${
-          isDark ? "bg-[#0c0c0e]/90 border-zinc-850" : "bg-white/90 border-zinc-200"
-        }`}>
-          <div className="flex items-center gap-2.5">
-            {/* 3-line hamburger menu button on the LEFT */}
+  const isBlueprintReady = Boolean(
+    activeProject?.prd?.overview &&
+    activeProject?.features &&
+    activeProject.features.length > 0 &&
+    activeProject?.tasks &&
+    activeProject.tasks.length > 0 &&
+    estafetStage !== "prd" &&
+    estafetStage !== "features" &&
+    estafetStage !== "architecture" &&
+    estafetStage !== "tasks"
+  );
+  const hasPendingDiscoveryQuestions = Boolean(
+    activeProject?.messages?.length &&
+    activeProject.messages[activeProject.messages.length - 1]?.content?.includes("<<<QUESTIONS_JSON>>>")
+  );
+  const isPlannerFinished = Boolean(
+    isBlueprintReady &&
+    !hasPendingDiscoveryQuestions
+  );
+  const currentTab = !isPlannerFinished ? "chat" : activeTab;
+  const domain = activeProject
+    ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
+    : "saas";
+  const displayFeatures = isPlannerFinished ? (activeProject?.features || []) : [];
+  const displayTasks = isPlannerFinished ? (activeProject?.tasks || []) : [];
+  const displayPrd = isPlannerFinished ? activeProject?.prd : undefined;
+  const displayArch = isPlannerFinished ? activeProject?.architecture : undefined;
+
+  return (
+    <div className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${isDark ? "text-white" : "text-zinc-900"}`}>
+      {/* Toast Feedback */}
+      {copyFeedback && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-black border border-zinc-700 dark:border-zinc-300 shadow-xl animate-in fade-in-0 duration-200">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{copyFeedback}</span>
+        </div>
+      )}
+
+      {/* ─── Top Header Bar (Clean, Floating, Serasi Chat / Schedule / Image) ─── */}
+      <header
+        className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md ${
+          isDark ? "bg-transparent text-white" : "bg-transparent text-zinc-900"
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          {/* 3-line hamburger menu button on the LEFT */}
+          {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer ${
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
                 isDark
                   ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
                   : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
@@ -6960,397 +7015,98 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-
-            <div className={`flex h-8 w-8 items-center justify-center rounded-xl font-mono font-bold text-xs ${
-              isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-            }`}>
-              &lt;/&gt;
-            </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight">Code</h1>
-              <p className="text-[11px] font-medium text-zinc-400">AI Project Planner &amp; Software Architect</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowNewModal(true)}
-              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition shadow-xs cursor-pointer ${
-                isDark
-                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
-                  : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Project Baru</span>
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* Content Area: Projects Grid */}
-        <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-8">
-          <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Daftar Project Anda</h2>
-            <p className={`text-xs sm:text-sm mt-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-              Rancang ide web atau aplikasi Anda menjadi PRD, fitur, arsitektur, dan task board yang siap di-copy ke AI coding tool.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Create Project Card Placeholder */}
-            <div
-              onClick={() => setShowNewModal(true)}
-              className={`flex flex-col items-center justify-center p-6 rounded-2xl border border-dashed transition cursor-pointer min-h-[180px] text-center ${
-                isDark
-                  ? "border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/60 text-zinc-400 hover:text-white"
-                  : "border-zinc-300 hover:border-zinc-400 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 hover:text-black"
-              }`}
-            >
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full mb-3 ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) if activeProject & isPlannerFinished */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {activeProject && isPlannerFinished && (
+            <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
+              isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
+            }`}>
+              <button
+                onClick={() => setActiveTab("chat")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "chat"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Diskusi & Tanya AI"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
-              </div>
-              <span className="text-sm font-semibold">Buat Perencanaan Project Baru</span>
-              <span className="text-[11px] text-zinc-400 mt-0.5">Ubah ide mentah jadi PRD &amp; Task</span>
-            </div>
+                <span className="hidden sm:inline">Tanya AI</span>
+              </button>
 
-            {/* List Project Cards */}
-            {projects.map((proj) => {
-              const progress = calculateProgress(proj);
-              const totalTasks = proj.tasks.length;
-              const doneTasks = proj.tasks.filter((t) => t.status === "done").length;
+              <button
+                onClick={() => setActiveTab("mindmap")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "mindmap"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Peta Rencana (Visual Mindmap)"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span className="hidden sm:inline">Peta Rencana</span>
+              </button>
 
-              return (
-                <div
-                  key={proj.id}
-                  onClick={() => {
-                    setActiveProjectId(proj.id);
-                    setActiveTab("chat");
-                  }}
-                  className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                    isDark
-                      ? "border-zinc-800 bg-zinc-900/70 hover:bg-zinc-900 hover:border-zinc-700 hover:shadow-lg hover:shadow-black/40"
-                      : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-md hover:shadow-zinc-200/50"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-base leading-snug line-clamp-1">{proj.title}</h3>
-                      <button
-                        onClick={(e) => handleDeleteProject(proj.id, e)}
-                        className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition ${
-                          isDark ? "hover:bg-zinc-800 text-zinc-500 hover:text-red-400" : "hover:bg-zinc-100 text-zinc-400 hover:text-red-600"
-                        }`}
-                        title="Hapus project"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+              <button
+                onClick={() => setActiveTab("prd")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "prd"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Wiki Dokumen PRD"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Wiki</span>
+              </button>
 
-                    <p className={`text-xs mt-1.5 line-clamp-2 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                      {proj.description || "Tidak ada deskripsi singkat."}
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-zinc-200 dark:border-zinc-800/80">
-                    <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
-                      <span className={isDark ? "text-zinc-400" : "text-zinc-600"}>
-                        {totalTasks} Tasks ({doneTasks} selesai)
-                      </span>
-                      <span className={`font-semibold ${progress === 100 ? (isDark ? "text-white" : "text-black") : ""}`}>
-                        {progress}%
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`}>
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          isDark ? "bg-white" : "bg-black"
-                        }`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Modal: Create New Project */}
-        {showNewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <div className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border ${
-              isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
-            }`}>
-              <h3 className="text-lg font-bold">Mulai Perencanaan Project Baru</h3>
-              <p className={`text-xs mt-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                Beri nama ide aplikasi atau website yang ingin Anda rancang.
-              </p>
-
-              <div className="mt-4 space-y-3.5">
-                <div>
-                  <label className="text-xs font-semibold block mb-1">Nama Project</label>
-                  <input
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="misal: Aplikasi Kasir Laundry, Portal Lowongan Kerja"
-                    className={`w-full rounded-xl px-3.5 py-2 text-xs font-medium border outline-none transition ${
-                      isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
-                    }`}
-                    autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold block mb-1">Deskripsi Singkat (Opsional)</label>
-                  <textarea
-                    rows={3}
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
-                    placeholder="Jelaskan garis besar ide aplikasi Anda..."
-                    className={`w-full rounded-xl p-3 text-xs font-medium border outline-none transition resize-none ${
-                      isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
-                    }`}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  onClick={() => setShowNewModal(false)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
-                    isDark ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-100 text-zinc-600"
-                  }`}
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleCreateProject}
-                  disabled={!newTitle.trim()}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition shadow-xs ${
-                    newTitle.trim()
-                      ? (isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800")
-                      : "opacity-40 cursor-not-allowed bg-zinc-500 text-white"
-                  }`}
-                >
-                  Lanjutkan ke Planner
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER: Project Detail Workspace
-  // ─────────────────────────────────────────────────────────────────────────────
-  const isBlueprintReady = Boolean(
-    activeProject.prd?.overview &&
-    activeProject.features &&
-    activeProject.features.length > 0 &&
-    activeProject.tasks &&
-    activeProject.tasks.length > 0 &&
-    estafetStage !== "prd" &&
-    estafetStage !== "features" &&
-    estafetStage !== "architecture" &&
-    estafetStage !== "tasks"
-  );
-  const hasPendingDiscoveryQuestions = Boolean(
-    activeProject.messages?.length &&
-    activeProject.messages[activeProject.messages.length - 1]?.content?.includes("<<<QUESTIONS_JSON>>>")
-  );
-  const isPlannerFinished = Boolean(
-    isBlueprintReady &&
-    !hasPendingDiscoveryQuestions
-  );
-  const currentTab = !isPlannerFinished ? "chat" : activeTab;
-  const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
-  const displayFeatures = isPlannerFinished ? (activeProject.features || []) : [];
-  const displayTasks = isPlannerFinished ? (activeProject.tasks || []) : [];
-  const displayPrd = isPlannerFinished ? activeProject.prd : undefined;
-  const displayArch = isPlannerFinished ? activeProject.architecture : undefined;
-
-  return (
-    <div className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${isDark ? "text-white" : "text-slate-900"}`}>
-      {/* Toast Feedback */}
-      {copyFeedback && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold bg-zinc-900 text-white dark:bg-white dark:text-black border border-zinc-700 dark:border-zinc-300 shadow-xl animate-in fade-in-0 duration-200">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-          <span>{copyFeedback}</span>
-        </div>
-      )}
-
-      {/* Top Navbar matching media_1790961373082.jpg */}
-      <div className={`flex items-center justify-between px-3 sm:px-6 py-2.5 border-b backdrop-blur-md shrink-0 ${
-        isDark ? "bg-[#0b0f19] border-slate-800/80" : "bg-white border-slate-200"
-      }`}>
-        {/* Left: Hamburger Panel + Brand + Breadcrumb */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {/* 3-line hamburger menu button on the LEFT */}
-          <button
-            onClick={onTogglePanel}
-            className={`p-1.5 rounded-xl transition cursor-pointer shrink-0 ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
-            title="Menu Panel"
-            aria-label="Menu Panel"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => setActiveProjectId(null)}
-            className={`p-1.5 rounded-xl transition ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-100 text-slate-600 hover:text-black"}`}
-            title="Daftar Project"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <div className={`flex h-6 w-6 items-center justify-center rounded-lg shadow-xs ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <span className={`font-bold text-sm tracking-tight hidden sm:inline ${isDark ? "text-white" : "text-slate-900"}`}>
-              ngodingpakai
-            </span>
-          </div>
-
-          <span className="text-slate-600 dark:text-slate-500">/</span>
-
-          <div className="flex items-center gap-1.5 min-w-0 text-xs">
-            <span className="text-slate-400">📁</span>
-            <span className={`font-semibold truncate max-w-[140px] sm:max-w-[180px] ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-              {activeProject.title}
-            </span>
-            <span className="text-slate-600 dark:text-slate-500 hidden sm:inline">/</span>
-            <span className={`font-semibold truncate max-w-[140px] sm:max-w-[180px] hidden sm:inline ${isDark ? "text-slate-200" : "text-slate-800"}`}>
-              {activeProject.title}
-            </span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300"}`}>#1</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                showCopyToast("Link proyek disalin!");
-              }}
-              className="text-slate-400 hover:text-white p-1 rounded transition"
-              title="Salin link"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Center / Right: View Navigation & Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Navigation Pills */}
-          <div className={`flex items-center gap-1 p-1 rounded-xl ${isDark ? "bg-[#111625] border border-slate-800/80" : "bg-slate-100 border border-slate-200"}`}>
-            {isPlannerFinished && (
-              <>
-                <button
-                  onClick={() => setActiveTab("mindmap")}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentTab === "mindmap"
-                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-                  }`}
-                  title="Peta Rencana (Visual Mindmap)"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Peta Rencana</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("prd")}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    currentTab === "prd"
-                      ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                      : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-                  }`}
-                  title="Wiki Dokumen PRD"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Wiki</span>
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                currentTab === "chat"
-                  ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                  : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
-              }`}
-              title="Diskusi & Tanya AI"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              <span className="hidden md:inline">Tanya AI</span>
-            </button>
-
-            {isPlannerFinished && (
               <button
                 onClick={() => setActiveTab("tasks")}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   currentTab === "tasks"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
                 }`}
                 title="Task Board"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                <span className="hidden md:inline">Tasks</span>
+                <span className="hidden sm:inline">Tasks</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* Primary CTA: Export Dropdown (Only appears once planner finished) */}
-          {isPlannerFinished && (
+        {/* Right side: Export (if planner finished) + Tombol File Project di Kanan Atas */}
+        <div className="flex items-center gap-2">
+          {activeProject && isPlannerFinished && (
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md active:scale-95 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
                   !isSourceExportAllowed(activeProject?.qualityGate)
                     ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
                     : isDark
-                    ? "bg-white hover:bg-zinc-200 text-black shadow-white/10 cursor-pointer"
-                    : "bg-black hover:bg-zinc-800 text-white shadow-black/10 cursor-pointer"
+                    ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
+                    : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
                 }`}
-                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek (Salin Text, Download TXT, atau Download PDF)" : "Export BLOCKED — masih ada Source Integrity violation (lihat Task Board)"}
+                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <span>Export</span>
-                <svg className={`w-3 h-3 transition-transform duration-200 ${showExportMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                </svg>
+                <span className="hidden sm:inline">Export</span>
               </button>
 
               {showExportMenu && (
@@ -7367,7 +7123,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                     }`}
                   >
                     <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     <div>
                       <div className="font-semibold">Salin Text Project</div>
@@ -7414,8 +7170,120 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               )}
             </div>
           )}
+
+          {/* Tombol File Project di Kanan Atas (ketika diklik muncul projectnya) */}
+          <button
+            onClick={() => setShowProjectDrawer((prev) => !prev)}
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-2xl transition cursor-pointer shrink-0 ${
+              showProjectDrawer
+                ? isDark
+                  ? "bg-white text-black shadow-xs"
+                  : "bg-black text-white shadow-xs"
+                : isDark
+                ? "bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white"
+                : "bg-transparent text-zinc-700 hover:bg-black/5 hover:text-black"
+            }`}
+            title="File &amp; Project"
+            aria-label="File &amp; Project"
+          >
+            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </button>
         </div>
-      </div>
+      </header>
+
+      {/* Main Body: If activeProject exists, render tabs. If !activeProject, render clean hero */}
+      {!activeProject ? (
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 pb-12 flex flex-col items-center justify-center">
+          <div className="w-full max-w-2xl mx-auto flex flex-col items-center my-auto pt-4 sm:pt-0">
+            {/* Pure Star Icon only (Identical to chat, schedule & image tabs) */}
+            <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+              <svg
+                className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
+                  isDark ? "text-white fill-white" : "text-black fill-black"
+                }`}
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+              </svg>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-center mb-2">
+              AI Code Planner &amp; Architect
+            </h2>
+            <p className={`text-xs sm:text-sm text-center max-w-md mb-8 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+              Rancang ide aplikasi atau website Anda menjadi PRD, arsitektur, dan task board yang siap dieksekusi.
+            </p>
+
+            {/* Quick Suggestions */}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-8">
+              <button
+                onClick={() => {
+                  setShowNewModal(true);
+                  setNewTitle("Sistem Booking Lapangan Mini Soccer");
+                  setNewDesc("Sistem reservasi online dengan jadwal real-time, slot jam, dan pembayaran otomatis.");
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
+                  isDark
+                    ? "bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
+                    : "bg-white/80 border-zinc-200 hover:border-zinc-300 hover:bg-white shadow-xs"
+                }`}
+              >
+                <div className="text-xs font-bold leading-snug">Mini Soccer Booking</div>
+                <div className="text-[11px] text-zinc-400 mt-1 line-clamp-2">Sistem reservasi online dengan jadwal real-time &amp; pembayaran.</div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowNewModal(true);
+                  setNewTitle("E-Commerce Multi-Vendor");
+                  setNewDesc("Platform belanja online modern dengan katalog produk, keranjang, dan payment gateway.");
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
+                  isDark
+                    ? "bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
+                    : "bg-white/80 border-zinc-200 hover:border-zinc-300 hover:bg-white shadow-xs"
+                }`}
+              >
+                <div className="text-xs font-bold leading-snug">E-Commerce Multi-Vendor</div>
+                <div className="text-[11px] text-zinc-400 mt-1 line-clamp-2">Katalog produk, keranjang belanja, checkout &amp; transaksi.</div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowNewModal(true)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold transition shadow-xs cursor-pointer ${
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Mulai Project Baru</span>
+              </button>
+
+              {projects.length > 0 && (
+                <button
+                  onClick={() => setShowProjectDrawer(true)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-semibold border transition cursor-pointer ${
+                    isDark
+                      ? "border-zinc-800 hover:bg-zinc-900 text-zinc-300"
+                      : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <span>Buka Project ({projects.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
@@ -9564,6 +9432,321 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 }`}
               >
                 Simpan Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* ─── PROJECT & FILES DRAWER (Slide-in from Right) ─── */}
+      {showProjectDrawer && (
+        <div className="fixed inset-0 z-50 overflow-hidden animate-fadeIn">
+          {/* Backdrop overlay */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setShowProjectDrawer(false)}
+          />
+
+          {/* Drawer container (Slide from right) */}
+          <div
+            className={`absolute top-0 right-0 bottom-0 w-full max-w-md sm:max-w-lg shadow-2xl flex flex-col z-10 transition-transform duration-300 border-l ${
+              isDark
+                ? "bg-[#0c0c0e]/95 border-zinc-800 text-zinc-100 backdrop-blur-xl"
+                : "bg-white/95 border-zinc-200 text-zinc-900 backdrop-blur-xl"
+            }`}
+          >
+            {/* Drawer Header */}
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${
+              isDark ? "border-zinc-800/80" : "border-zinc-200"
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl ${isDark ? "bg-white/10 text-white" : "bg-black/5 text-black"}`}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight">Project &amp; File Workspace</h3>
+                  <p className="text-[11px] text-zinc-400">File arsitektur &amp; daftar project Anda</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowProjectDrawer(false);
+                    setShowNewModal(true);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer ${
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                  }`}
+                  title="Buat Project Baru"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Project Baru</span>
+                </button>
+
+                <button
+                  onClick={() => setShowProjectDrawer(false)}
+                  className={`p-2 rounded-xl transition cursor-pointer ${
+                    isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+                  }`}
+                  title="Tutup"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Body Scroll */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Section 1: Active Project Files */}
+              {activeProject && (
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                      File Project Aktif
+                    </span>
+                    <span className="text-[11px] text-zinc-400 font-medium truncate max-w-[180px]">
+                      {activeProject.title}
+                    </span>
+                  </div>
+
+                  <div className={`rounded-2xl border p-2 space-y-1 ${
+                    isDark ? "bg-zinc-900/50 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                  }`}>
+                    {/* Tanya AI */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("chat");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "chat"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                        <span>Tanya AI &amp; Diskusi</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400">{activeProject.messages.length} pesan</span>
+                    </button>
+
+                    {/* Wiki PRD */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("prd");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "prd"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Wiki PRD (Spesifikasi)</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400">{activeProject.prd ? "Tersedia" : "Draft"}</span>
+                    </button>
+
+                    {/* Peta Rencana / Mindmap */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("mindmap");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "mindmap"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                        <span>Peta Rencana (Mindmap)</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400">Struktur</span>
+                    </button>
+
+                    {/* Task Board */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("tasks");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "tasks"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        <span>Task Board (Checklist)</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400">{activeProject.tasks.length} task</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 2: All Projects List */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    Daftar Semua Project ({projects.length})
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {projects.map((proj) => {
+                    const isCurrent = activeProject?.id === proj.id;
+                    const progress = calculateProgress(proj);
+                    const totalTasks = proj.tasks.length;
+                    const doneTasks = proj.tasks.filter((t) => t.status === "done").length;
+
+                    return (
+                      <div
+                        key={proj.id}
+                        onClick={() => {
+                          setActiveProjectId(proj.id);
+                          setShowProjectDrawer(false);
+                        }}
+                        className={`group relative flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                          isCurrent
+                            ? isDark
+                              ? "bg-white/10 border-white/20 text-white shadow-xs"
+                              : "bg-black/5 border-black/15 text-zinc-900 shadow-xs"
+                            : isDark
+                            ? "bg-zinc-900/40 border-zinc-800/80 hover:bg-zinc-900 hover:border-zinc-700 text-zinc-300"
+                            : "bg-zinc-50 border-zinc-200/80 hover:bg-white hover:border-zinc-300 text-zinc-800"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2 rounded-xl shrink-0 ${
+                            isCurrent
+                              ? isDark ? "bg-white text-black" : "bg-black text-white"
+                              : isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-600"
+                          }`}>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold truncate leading-snug">{proj.title}</h4>
+                            <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                              {totalTasks > 0 ? `${doneTasks}/${totalTasks} task selesai (${progress}%)` : "Belum ada task"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isCurrent && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isDark ? "bg-white/20 text-white" : "bg-black/10 text-black"
+                            }`}>
+                              Aktif
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => handleDeleteProject(proj.id, e)}
+                            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition cursor-pointer ${
+                              isDark ? "hover:bg-zinc-800 text-zinc-500 hover:text-red-400" : "hover:bg-zinc-200 text-zinc-400 hover:text-red-600"
+                            }`}
+                            title="Hapus project"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: CREATE NEW PROJECT ─── */}
+      {showNewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border ${
+            isDark ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"
+          }`}>
+            <h3 className="text-lg font-bold">Mulai Perencanaan Project Baru</h3>
+            <p className={`text-xs mt-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+              Beri nama ide aplikasi atau website yang ingin Anda rancang.
+            </p>
+
+            <div className="mt-4 space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold block mb-1">Nama Project</label>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="misal: Aplikasi Kasir Laundry, Portal Lowongan Kerja"
+                  className={`w-full rounded-xl px-3.5 py-2 text-xs font-medium border outline-none transition ${
+                    isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold block mb-1">Deskripsi Singkat (Opsional)</label>
+                <textarea
+                  rows={3}
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  placeholder="Jelaskan garis besar ide aplikasi Anda..."
+                  className={`w-full rounded-xl p-3 text-xs font-medium border outline-none transition resize-none ${
+                    isDark ? "bg-zinc-800/70 border-zinc-700 focus:border-white" : "bg-zinc-50 border-zinc-300 focus:border-black"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setShowNewModal(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                  isDark ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleCreateProject}
+                disabled={!newTitle.trim()}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition shadow-xs ${
+                  newTitle.trim()
+                    ? isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+                    : "opacity-40 cursor-not-allowed bg-zinc-500 text-white"
+                }`}
+              >
+                Lanjutkan ke Planner
               </button>
             </div>
           </div>
