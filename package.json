@@ -11,6 +11,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.9.11",
     "@clerk/themes": "^2.4.57",
+    "@radix-ui/react-separator": "^1.1.16",
     "@radix-ui/react-slot": "^1.4.0",
     "@supabase/supabase-js": "^2.117.2",
     "class-variance-authority": "^0.7.1",

@@ -45,7 +45,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
-      <div className="relative w-full max-w-2xl h-44 sm:h-56 flex items-center justify-center px-4 -translate-y-4 sm:-translate-y-6">
+      <div className="relative w-full max-w-2xl h-28 sm:h-36 flex items-center justify-center px-4 -translate-y-2 sm:-translate-y-3">
         <TechText
           text="One Mind"
           fontWeight={700}
@@ -63,8 +63,8 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       </div>
 
       {/* ─── Logo Cloud: Model & LLM Provider Slider (Dibawah One Mind) ─────── */}
-      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-4 sm:mt-6 flex flex-col items-center animate-in fade-in-0 duration-700">
-        <LogoCloud isDark={isDark} duration={6} className="w-full py-2" />
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-0 sm:mt-1 flex flex-col items-center animate-in fade-in-0 duration-700">
+        <LogoCloud isDark={isDark} duration={6} className="w-full py-1.5" />
       </div>
     </div>
   );
