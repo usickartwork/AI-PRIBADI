@@ -2387,7 +2387,18 @@ export default function Home() {
             ) : (
               <button
                 type="button"
-                onClick={() => setShowVoiceModal(true)}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    try {
+                      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+                      if (AudioCtx) {
+                        const dummy = new AudioCtx();
+                        dummy.resume().then(() => dummy.close()).catch(() => {});
+                      }
+                    } catch {}
+                  }
+                  setShowVoiceModal(true);
+                }}
                 className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${
                   isDark
                     ? "bg-white text-black hover:bg-zinc-200 shadow-xs"

@@ -13,6 +13,8 @@ export interface VoicePoweredOrbProps {
   maxHoverIntensity?: number;
   onVoiceDetected?: (detected: boolean) => void;
   isMonochrome?: boolean;
+  isDark?: boolean;
+  isAiSpeaking?: boolean;
 }
 
 export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
@@ -24,6 +26,8 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
   maxHoverIntensity = 0.8,
   onVoiceDetected,
   isMonochrome = true,
+  isDark = true,
+  isAiSpeaking = false,
 }) => {
   const ctnDom = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -53,6 +57,8 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     uniform float rot;
     uniform float hoverIntensity;
     uniform float isMonochrome;
+    uniform float isDark;
+    uniform float isAiSpeaking;
     varying vec2 vUv;
 
     vec3 rgb2yiq(vec3 c) {
@@ -126,9 +132,13 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
     const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
 
-    const vec3 monoColor1 = vec3(0.95, 0.96, 0.98);
-    const vec3 monoColor2 = vec3(0.55, 0.58, 0.64);
-    const vec3 monoColor3 = vec3(0.08, 0.08, 0.10);
+    const vec3 darkMono1 = vec3(0.96, 0.97, 0.99);
+    const vec3 darkMono2 = vec3(0.55, 0.58, 0.65);
+    const vec3 darkMono3 = vec3(0.08, 0.08, 0.12);
+
+    const vec3 lightMono1 = vec3(0.06, 0.07, 0.10);
+    const vec3 lightMono2 = vec3(0.25, 0.28, 0.36);
+    const vec3 lightMono3 = vec3(0.70, 0.73, 0.80);
 
     const float innerRadius = 0.6;
     const float noiseScale = 0.65;
@@ -142,9 +152,13 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
     }
 
     vec4 draw(vec2 uv) {
-      vec3 targetC1 = mix(baseColor1, monoColor1, isMonochrome);
-      vec3 targetC2 = mix(baseColor2, monoColor2, isMonochrome);
-      vec3 targetC3 = mix(baseColor3, monoColor3, isMonochrome);
+      vec3 currentMono1 = mix(lightMono1, darkMono1, isDark);
+      vec3 currentMono2 = mix(lightMono2, darkMono2, isDark);
+      vec3 currentMono3 = mix(lightMono3, darkMono3, isDark);
+
+      vec3 targetC1 = mix(baseColor1, currentMono1, isMonochrome);
+      vec3 targetC2 = mix(baseColor2, currentMono2, isMonochrome);
+      vec3 targetC3 = mix(baseColor3, currentMono3, isMonochrome);
 
       vec3 color1 = adjustHue(targetC1, hue);
       vec3 color2 = adjustHue(targetC2, hue);
@@ -341,6 +355,8 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
           rot: { value: 0 },
           hoverIntensity: { value: 0 },
           isMonochrome: { value: isMonochrome ? 1.0 : 0.0 },
+          isDark: { value: isDark ? 1.0 : 0.0 },
+          isAiSpeaking: { value: isAiSpeaking ? 1.0 : 0.0 },
         },
       });
 
@@ -395,8 +411,18 @@ export const VoicePoweredOrb: FC<VoicePoweredOrbProps> = ({
         program.uniforms.iTime.value = t * 0.001;
         program.uniforms.hue.value = hue;
         program.uniforms.isMonochrome.value = isMonochrome ? 1.0 : 0.0;
+        program.uniforms.isDark.value = isDark ? 1.0 : 0.0;
+        program.uniforms.isAiSpeaking.value = isAiSpeaking ? 1.0 : 0.0;
 
-        if (enableVoiceControl && isMicrophoneInitialized) {
+        if (isAiSpeaking) {
+          const aiPulse = (Math.sin(t * 0.007) * 0.5 + 0.5) * 0.5 + 0.25;
+          currentRot += dt * (baseRotationSpeed + aiPulse * maxRotationSpeed * 1.8);
+          program.uniforms.hover.value = aiPulse;
+          program.uniforms.hoverIntensity.value = aiPulse * maxHoverIntensity;
+          if (onVoiceDetected) {
+            onVoiceDetected(true);
+          }
+        } else if (enableVoiceControl && isMicrophoneInitialized) {
           voiceLevel = analyzeAudio();
 
           if (onVoiceDetected) {

@@ -75,37 +75,52 @@ export async function POST(req: NextRequest) {
       replyText = "Halo, saya mendengarkan Anda. Ada yang bisa saya bantu?";
     }
 
-    // 2. Synthesize voice with Gemini 3.8 Flash TTS (dengan abort timeout 3.5 detik agar respon tetap secepat kilat)
+    // 2. Synthesize voice with Gemini 3.8 Flash Lite TTS
     let audioBase64: string | null = null;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const ttsCandidates = [
+      "gemini-3.8-flash-lite-tts",
+      "gemini-3.8-flash-tts",
+    ];
 
-      const ttsRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: replyText }] }],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-            },
-          }),
-        }
-      );
-      clearTimeout(timeoutId);
+    for (const ttsModel of ttsCandidates) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-      if (ttsRes.ok) {
-        const ttsData = await ttsRes.json();
-        const part = ttsData.candidates?.[0]?.content?.parts?.[0];
-        if (part?.inlineData?.data) {
-          audioBase64 = part.inlineData.data;
+        const ttsRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: replyText }] }],
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: {
+                      voiceName: "Aoede",
+                    },
+                  },
+                },
+              },
+            }),
+          }
+        );
+        clearTimeout(timeoutId);
+
+        if (ttsRes.ok) {
+          const ttsData = await ttsRes.json();
+          const part = ttsData.candidates?.[0]?.content?.parts?.[0];
+          if (part?.inlineData?.data) {
+            audioBase64 = part.inlineData.data;
+            break;
+          }
         }
+      } catch (ttsErr) {
+        console.warn(`[gemini-tts] Error with model ${ttsModel}:`, ttsErr);
       }
-    } catch (ttsErr) {
-      console.warn("[gemini-tts] Timeout atau error, fallback ke client synthesis:", ttsErr);
     }
 
     return NextResponse.json({

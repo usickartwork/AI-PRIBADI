@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { VoicePoweredOrb } from "@/components/ui/voice-powered-orb";
-import { Mic, MicOff, X, Volume2, Sparkles } from "lucide-react";
+import { Mic, MicOff, X, Sparkles } from "lucide-react";
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -22,6 +22,8 @@ export function VoiceAssistantModal({
   const [conversationHistory, setConversationHistory] = useState<{ role: string; content: string }[]>([]);
 
   const recognitionRef = useRef<any>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const isProcessingRef = useRef(false);
   const statusRef = useRef<"listening" | "thinking" | "speaking" | "idle">("listening");
@@ -32,22 +34,62 @@ export function VoiceAssistantModal({
     statusRef.current = status;
   }, [status]);
 
+  // Warm up / unlock Web Audio API immediately on user action or modal mount
+  const ensureAudioContext = useCallback(async () => {
+    try {
+      if (typeof window === "undefined") return null;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx();
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        await audioCtxRef.current.resume();
+      }
+      return audioCtxRef.current;
+    } catch (e) {
+      console.warn("[audio-context] resume error:", e);
+      return null;
+    }
+  }, []);
+
+  // Stop currently playing speech audio
+  const stopCurrentAudio = useCallback(() => {
+    if (currentSourceRef.current) {
+      try {
+        currentSourceRef.current.stop();
+        currentSourceRef.current.disconnect();
+      } catch {}
+      currentSourceRef.current = null;
+    }
+    if (audioPlayerRef.current) {
+      try {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current.src = "";
+      } catch {}
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
+
   // Fallback instant browser speech synthesis
   const fallbackSpeech = useCallback((text: string) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      stopCurrentAudio();
       setStatus("speaking");
-      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "id-ID";
-      utterance.rate = 1.08;
+      utterance.rate = 1.05;
 
-      // Prioritaskan suara bahasa Indonesia jika tersedia
       const voices = window.speechSynthesis.getVoices();
       const idVoice = voices.find(
         (v) => v.lang.startsWith("id") || v.lang.toLowerCase().includes("indonesia")
       );
       if (idVoice) {
         utterance.voice = idVoice;
+        utterance.lang = idVoice.lang;
+      } else {
+        utterance.lang = "id-ID";
       }
 
       utterance.onend = () => {
@@ -66,7 +108,82 @@ export function VoiceAssistantModal({
       isProcessingRef.current = false;
       latestSpeechBufferRef.current = "";
     }
-  }, []);
+  }, [stopCurrentAudio]);
+
+  // High fidelity Web Audio PCM playback (bypasses browser data URI limitations)
+  const playAudioData = useCallback(async (base64Data: string, mime: string, fallbackText: string) => {
+    stopCurrentAudio();
+    setStatus("speaking");
+
+    try {
+      // 1. Decode base64 bytes
+      const binaryString = window.atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // 2. Play via Web Audio API (Native 24kHz PCM WAV decoding)
+      const ctx = await ensureAudioContext();
+      if (ctx) {
+        // Clone buffer to avoid detached ArrayBuffer issues
+        const bufferCopy = bytes.buffer.slice(0);
+        const decodedBuffer = await ctx.decodeAudioData(bufferCopy);
+
+        const source = ctx.createBufferSource();
+        source.buffer = decodedBuffer;
+        source.connect(ctx.destination);
+        currentSourceRef.current = source;
+
+        source.onended = () => {
+          currentSourceRef.current = null;
+          setStatus("listening");
+          isProcessingRef.current = false;
+          latestSpeechBufferRef.current = "";
+        };
+
+        source.start(0);
+        return;
+      }
+    } catch (webAudioErr) {
+      console.warn("[web-audio] decode failed, trying Blob URL:", webAudioErr);
+    }
+
+    // 3. Fallback: Blob URL on HTMLAudioElement
+    try {
+      const binaryString = window.atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: mime || "audio/wav" });
+      const blobUrl = URL.createObjectURL(blob);
+
+      if (!audioPlayerRef.current) {
+        audioPlayerRef.current = new Audio();
+      }
+      const player = audioPlayerRef.current;
+      player.src = blobUrl;
+
+      player.onended = () => {
+        URL.revokeObjectURL(blobUrl);
+        setStatus("listening");
+        isProcessingRef.current = false;
+        latestSpeechBufferRef.current = "";
+      };
+      player.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        fallbackSpeech(fallbackText);
+      };
+
+      await player.play();
+    } catch (blobErr) {
+      console.warn("[blob-audio] play failed, falling back to speech synthesis:", blobErr);
+      fallbackSpeech(fallbackText);
+    }
+  }, [ensureAudioContext, stopCurrentAudio, fallbackSpeech]);
 
   // Send query to Gemini voice API with ultra-fast turnaround
   const sendToGeminiVoice = useCallback(async (userPrompt: string) => {
@@ -102,25 +219,8 @@ export function VoiceAssistantModal({
         { role: "assistant", content: reply },
       ]);
 
-      // Mainkan suara respons
       if (data.audioBase64) {
-        setStatus("speaking");
-        const audioSrc = `data:${data.audioMime || "audio/wav"};base64,${data.audioBase64}`;
-        if (!audioPlayerRef.current) {
-          audioPlayerRef.current = new Audio();
-        }
-        audioPlayerRef.current.src = audioSrc;
-        audioPlayerRef.current.onended = () => {
-          setStatus("listening");
-          isProcessingRef.current = false;
-          latestSpeechBufferRef.current = "";
-        };
-        audioPlayerRef.current.onerror = () => {
-          fallbackSpeech(reply);
-        };
-        audioPlayerRef.current.play().catch(() => {
-          fallbackSpeech(reply);
-        });
+        await playAudioData(data.audioBase64, data.audioMime || "audio/wav", reply);
       } else {
         fallbackSpeech(reply);
       }
@@ -130,11 +230,14 @@ export function VoiceAssistantModal({
       isProcessingRef.current = false;
       latestSpeechBufferRef.current = "";
     }
-  }, [conversationHistory, fallbackSpeech]);
+  }, [conversationHistory, playAudioData, fallbackSpeech]);
 
-  // Setup Web Speech Recognition dengan fast silence detection
+  // Setup Web Speech Recognition with rapid silence debounce
   useEffect(() => {
     if (!isOpen) return;
+
+    // Unlock audio context right when modal mounts
+    ensureAudioContext();
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -146,7 +249,6 @@ export function VoiceAssistantModal({
       recognizer.lang = "id-ID";
 
       recognizer.onresult = (event: any) => {
-        // Jangan rekam suara jika AI sedang berbicara atau sedang memproses
         if (isProcessingRef.current || statusRef.current === "speaking") return;
 
         let finalTranscript = "";
@@ -171,7 +273,6 @@ export function VoiceAssistantModal({
           silenceTimerRef.current = null;
         }
 
-        // Jika browser sudah menyatakan final, langsung kirim tanpa jeda
         if (finalTranscript.trim() && !isProcessingRef.current) {
           const textToSend = latestSpeechBufferRef.current;
           latestSpeechBufferRef.current = "";
@@ -179,7 +280,6 @@ export function VoiceAssistantModal({
           return;
         }
 
-        // Deteksi jeda hening cepat (750ms) agar asisten merespons instan seperti percakapan nyata
         silenceTimerRef.current = setTimeout(() => {
           if (
             !isProcessingRef.current &&
@@ -200,7 +300,6 @@ export function VoiceAssistantModal({
       };
 
       recognizer.onend = () => {
-        // Otomatis restart recognizer jika mic tetap aktif & sedang mendengarkan
         if (
           isOpen &&
           isMicActive &&
@@ -231,22 +330,16 @@ export function VoiceAssistantModal({
         } catch {}
       };
     }
-  }, [isOpen, isMicActive, sendToGeminiVoice]);
+  }, [isOpen, isMicActive, sendToGeminiVoice, ensureAudioContext]);
 
-  // Stop audio on close or toggle
+  // Stop audio and cleanup on modal close
   useEffect(() => {
     if (!isOpen) {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
-      if (audioPlayerRef.current) {
-        audioPlayerRef.current.pause();
-        audioPlayerRef.current = null;
-      }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopCurrentAudio();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -258,9 +351,10 @@ export function VoiceAssistantModal({
       setAiReply("");
       setStatus("listening");
     }
-  }, [isOpen]);
+  }, [isOpen, stopCurrentAudio]);
 
   const toggleMic = () => {
+    ensureAudioContext();
     if (isMicActive) {
       try {
         recognitionRef.current?.stop();
@@ -279,22 +373,31 @@ export function VoiceAssistantModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between items-center p-6 sm:p-10 select-none animate-in fade-in-0 duration-300">
-      {/* Background with frosted blur and mesh gradient */}
+    <div
+      onClick={ensureAudioContext}
+      className="fixed inset-0 z-50 flex flex-col justify-between items-center p-6 sm:p-10 select-none animate-in fade-in-0 duration-300"
+    >
+      {/* Background with frosted blur and theme-adaptive gradient */}
       <div
         className={`absolute inset-0 transition-colors ${
           isDark
-            ? "bg-[#09090b]/95 backdrop-blur-2xl"
-            : "bg-[#fcfcfd]/95 backdrop-blur-2xl"
+            ? "bg-[#09090b]/98 backdrop-blur-3xl"
+            : "bg-[#f8f9fa]/98 backdrop-blur-3xl"
         }`}
       />
 
       {/* ─── Top Header Bar ──────────────────────────────────────────────── */}
       <div className="relative z-10 w-full max-w-4xl flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 dark:border-white/10 bg-white/5 backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
-            <span className={`text-xs font-semibold tracking-wide ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+          <div
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border backdrop-blur-md transition-colors ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900/80 text-zinc-200"
+                : "border-zinc-200/90 bg-white/90 text-zinc-800 shadow-xs"
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isDark ? "text-zinc-400" : "text-zinc-600"}`} />
+            <span className="text-xs font-semibold tracking-wide">
               Voice Assistant · Gemini 3.8 Live
             </span>
           </div>
@@ -305,8 +408,8 @@ export function VoiceAssistantModal({
           onClick={onClose}
           className={`h-10 w-10 flex items-center justify-center rounded-full transition cursor-pointer border ${
             isDark
-              ? "bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800"
-              : "bg-white border-zinc-200 text-zinc-600 hover:text-black hover:bg-zinc-100 shadow-xs"
+              ? "bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800"
+              : "bg-white border-zinc-200/90 text-zinc-600 hover:text-black hover:bg-zinc-100 shadow-xs"
           }`}
           title="Tutup Voice Mode"
           aria-label="Tutup Voice Mode"
@@ -323,7 +426,13 @@ export function VoiceAssistantModal({
             enableVoiceControl={isMicActive}
             voiceSensitivity={1.6}
             isMonochrome={true}
-            className="w-full h-full drop-shadow-[0_0_50px_rgba(255,255,255,0.15)]"
+            isDark={isDark}
+            isAiSpeaking={status === "speaking"}
+            className={`w-full h-full transition-all duration-500 ${
+              isDark
+                ? "drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
+                : "drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
+            }`}
           />
         </div>
 
@@ -343,7 +452,7 @@ export function VoiceAssistantModal({
             />
             <span
               className={`text-sm sm:text-base font-semibold tracking-tight ${
-                isDark ? "text-zinc-200" : "text-zinc-800"
+                isDark ? "text-zinc-100" : "text-zinc-900"
               }`}
             >
               {status === "listening" && "Mendengarkan Anda..."}
@@ -356,11 +465,11 @@ export function VoiceAssistantModal({
           {/* Subtitle / Transcription Snippet */}
           <div className="min-h-[44px] flex items-center justify-center max-w-lg px-4">
             {transcript && status !== "speaking" ? (
-              <p className={`text-xs sm:text-sm italic ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+              <p className={`text-xs sm:text-sm italic ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
                 "{transcript}"
               </p>
             ) : aiReply && status === "speaking" ? (
-              <p className={`text-xs sm:text-sm font-medium line-clamp-2 ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
+              <p className={`text-xs sm:text-sm font-medium line-clamp-2 ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
                 "{aiReply}"
               </p>
             ) : (
@@ -372,46 +481,46 @@ export function VoiceAssistantModal({
         </div>
       </div>
 
-      {/* ─── Bottom Controls Bar ─────────────────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-sm flex items-center justify-center gap-4">
-        {/* Mic Toggle Button */}
+      {/* ─── Bottom Action Controls: Large Icon Buttons ─────────────────── */}
+      <div className="relative z-10 w-full max-w-sm flex items-center justify-center gap-6 sm:gap-8 pb-4 sm:pb-6">
+        {/* Mic Toggle Button (Only Icon, Large) */}
         <button
           type="button"
           onClick={toggleMic}
-          className={`flex items-center gap-2 px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition shadow-lg cursor-pointer ${
+          className={`h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
             isMicActive
               ? isDark
-                ? "bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
-                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border border-zinc-300"
-              : "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+                ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-zinc-700 shadow-zinc-950/40"
+                : "bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-200 shadow-zinc-300/40"
+              : isDark
+                ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+                : "bg-red-100 text-red-600 border border-red-200 hover:bg-red-200"
           }`}
-          title={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
+          title={isMicActive ? "Matikan Mikrofon (Mute)" : "Nyalakan Mikrofon"}
+          aria-label={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
         >
           {isMicActive ? (
-            <>
-              <Mic className="w-4 h-4 text-emerald-400" />
-              <span>Mikrofon Aktif</span>
-            </>
+            <Mic className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-400" />
           ) : (
-            <>
-              <MicOff className="w-4 h-4 text-red-400" />
-              <span>Mikrofon Mati</span>
-            </>
+            <MicOff className="w-7 h-7 sm:w-8 sm:h-8 text-red-500" />
           )}
         </button>
 
-        {/* End Session Button */}
+        {/* End Session Button (Only Icon X, Large) */}
         <button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-2 px-5 py-3 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer bg-red-600 hover:bg-red-500 text-white shadow-lg"
-          title="Akhiri sesi suara"
+          className={`h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
+            isDark
+              ? "bg-zinc-800/90 hover:bg-red-600 hover:text-white text-zinc-300 border border-zinc-700 shadow-zinc-950/40"
+              : "bg-white hover:bg-red-600 hover:text-white text-zinc-700 border border-zinc-200 shadow-zinc-300/40"
+          }`}
+          title="Akhiri Percakapan Suara"
+          aria-label="Tutup Percakapan Suara"
         >
-          <X className="w-4 h-4" />
-          <span>Selesai</span>
+          <X className="w-7 h-7 sm:w-8 sm:h-8" />
         </button>
       </div>
     </div>
   );
 }
-
