@@ -193,6 +193,7 @@ export async function POST(request: Request) {
     webSearch?: boolean;
     taskType?: "chat" | "code";
     userId?: string;
+    effortLevel?: "Faster" | "Balanced" | "Max";
   };
 
   try {
@@ -308,6 +309,63 @@ export async function POST(request: Request) {
         console.warn("[api/chat] Web search failed:", searchError);
       }
     }
+  }
+
+  // ─── Effort Level Tuning (Faster -> Balanced -> Max) ─────────────────────────
+  const effortLevel: "Faster" | "Balanced" | "Max" =
+    body.effortLevel === "Faster" || body.effortLevel === "Balanced"
+      ? body.effortLevel
+      : "Max";
+
+  let maxTokens = 4096;
+  let temperature = 0.7;
+  let effortInstruction = "";
+
+  if (effortLevel === "Faster") {
+    maxTokens = 1024;
+    temperature = 0.3;
+    effortInstruction =
+      "\n\n[Mode Upaya: FASTER]\nBerikan jawaban yang sangat cepat, padat, ringkas, dan langsung ke inti persoalan (to-the-point). Hindari pengantar panjang atau penjelasan tambahan yang tidak esensial. Utamakan kecepatan respons dengan format efisien.";
+  } else if (effortLevel === "Balanced") {
+    maxTokens = 2500;
+    temperature = 0.6;
+    effortInstruction =
+      "\n\n[Mode Upaya: BALANCED]\nBerikan jawaban yang seimbang antara kecepatan dan kelengkapan. Jelaskan inti persoalan secara jelas, rapi, dan efisien.";
+  } else {
+    // "Max" - kualitas terbaik & mendalam (default saat ini)
+    maxTokens = 4096;
+    temperature = 0.7;
+    effortInstruction =
+      "\n\n[Mode Upaya: MAX]\nBerikan jawaban dengan kualitas terbaik, analisis komprehensif, mendalam, dan penjelasan yang rinci dengan penalaran yang matang.";
+  }
+
+  // Context history compression based on effortLevel (reduces prompt tokens & TTFT)
+  if (effortLevel === "Faster" && messages.length > 7) {
+    const sysMsgs = messages.filter((m) => m.role === "system");
+    const nonSysMsgs = messages.filter((m) => m.role !== "system");
+    messages.length = 0;
+    messages.push(...sysMsgs, ...nonSysMsgs.slice(-6));
+  } else if (effortLevel === "Balanced" && messages.length > 13) {
+    const sysMsgs = messages.filter((m) => m.role === "system");
+    const nonSysMsgs = messages.filter((m) => m.role !== "system");
+    messages.length = 0;
+    messages.push(...sysMsgs, ...nonSysMsgs.slice(-12));
+  }
+
+  // Inject effort instruction into system message
+  const systemMsgIdx = messages.findIndex((m) => m.role === "system");
+  if (systemMsgIdx >= 0) {
+    messages[systemMsgIdx] = {
+      ...messages[systemMsgIdx],
+      content: messages[systemMsgIdx].content + effortInstruction,
+    };
+  } else {
+    messages.unshift({
+      role: "system",
+      content:
+        "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
+        effortInstruction,
+    });
   }
 
   const resolved = resolveProvider(modelId);
@@ -466,7 +524,8 @@ export async function POST(request: Request) {
       messages: anthropicMessages,
       system: systemTexts.length > 0 ? systemTexts.join("\n\n") : undefined,
       stream: true,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
+      temperature,
     });
   } else {
     const formattedMessages = messages.map((m) => {
@@ -521,19 +580,34 @@ export async function POST(request: Request) {
           ]
         : [modelName];
 
+      const isReasoningModel =
+        modelName.includes("r1") ||
+        modelName.includes("o1") ||
+        modelName.includes("o3") ||
+        modelName.includes("reasoning");
+
+      const reasoningEffortMap = {
+        Faster: "low",
+        Balanced: "medium",
+        Max: "high",
+      };
+
       reqBody = JSON.stringify({
         model: modelName,
         models: openRouterModels,
         messages: messagesToSend,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
+        temperature,
+        ...(isReasoningModel ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
       });
     } else {
       reqBody = JSON.stringify({
         model: modelName,
         messages: messagesToSend,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
+        temperature,
       });
     }
   }
@@ -589,7 +663,8 @@ export async function POST(request: Request) {
         model: "clario/deepseek-v4.1-flash-auto",
         messages,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
+        temperature,
       });
       const fallbackUpstream = await fetch(provider.endpoint, {
         method: "POST",
@@ -616,7 +691,8 @@ export async function POST(request: Request) {
         model: "gemini-3.5-flash-lite",
         messages,
         stream: true,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
+        temperature,
       });
       const fallbackUpstream = await fetch(provider.endpoint, {
         method: "POST",

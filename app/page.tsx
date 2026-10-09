@@ -504,9 +504,27 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelEntry[]>(FALLBACK_MODELS);
   const [model, setModel] = useState(FALLBACK_MODELS[0].id);
-  // Visual model reasoning effort settings (Upaya: Rendah, Sedang, Tinggi, Ekstra, Maks) - UI only
-  const [effortLevel, setEffortLevel] = useState<"Rendah" | "Sedang" | "Tinggi" | "Ekstra" | "Maks">("Ekstra");
+  // Model reasoning / speed effort setting (Faster -> Balanced -> Max)
+  const [effortLevel, setEffortLevel] = useState<"Faster" | "Balanced" | "Max">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-effort-level");
+        if (saved === "Faster" || saved === "Balanced" || saved === "Max") {
+          return saved;
+        }
+      } catch {}
+    }
+    return "Max";
+  });
   const [effortMenuOpen, setEffortMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("usick-effort-level", effortLevel);
+      } catch {}
+    }
+  }, [effortLevel]);
   // Simpan model yang limit beserta timestamp kapan bisa di-reset kembali (default reset: 5 menit)
   const [disabledModels, setDisabledModels] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
@@ -1294,6 +1312,7 @@ export default function Home() {
           webSearch: webSearchEnabled,
           taskType: "chat",
           userId: user?.id || "guest",
+          effortLevel,
         }),
         signal: controller.signal,
       });
@@ -2267,18 +2286,31 @@ export default function Home() {
                   }`}
                 >
                   {/* Top explanation text */}
-                  <p className={`text-xs leading-relaxed px-1 pt-1 pb-3 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                    Upaya yang lebih tinggi berarti respons yang lebih menyeluruh, tetapi membutuhkan waktu lebih lama dan menggunakan batas Anda lebih cepat.
+                  <p className={`text-xs leading-relaxed px-1 pt-1 pb-2.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                    Pilih tingkat respons dari <b>Faster</b> (paling cepat & ringkas) hingga <b>Max</b> (kualitas terbaik & mendalam).
                   </p>
 
-                  {/* Options List */}
+                  {/* Options List: 3 Categories (Faster -> Balanced -> Max) */}
                   <div className="space-y-1">
                     {[
-                      { id: "Rendah", label: "Rendah" },
-                      { id: "Sedang", label: "Sedang", badge: "Direkomendasikan" },
-                      { id: "Tinggi", label: "Tinggi" },
-                      { id: "Ekstra", label: "Ekstra" },
-                      { id: "Maks", label: "Maks", warningBadge: "Penggunaan 5× atau lebih" },
+                      {
+                        id: "Faster",
+                        label: "Faster",
+                        desc: "Paling cepat, ringkas & to-the-point",
+                        badge: "Cepat",
+                      },
+                      {
+                        id: "Balanced",
+                        label: "Balanced",
+                        desc: "Seimbang kecepatan & kelengkapan",
+                        badge: "Seimbang",
+                      },
+                      {
+                        id: "Max",
+                        label: "Max",
+                        desc: "Kualitas terbaik, komprehensif & mendalam",
+                        badge: "Terbaik",
+                      },
                     ].map((opt) => {
                       const isSelected = effortLevel === opt.id;
                       return (
@@ -2287,8 +2319,9 @@ export default function Home() {
                           type="button"
                           onClick={() => {
                             setEffortLevel(opt.id as any);
+                            setEffortMenuOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer text-left ${
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer text-left ${
                             isSelected
                               ? isDark
                                 ? "bg-white/10 text-white font-semibold"
@@ -2298,21 +2331,22 @@ export default function Home() {
                               : "hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950"
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <span>{opt.label}</span>
-                            {opt.badge && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                                isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-100 text-zinc-600"
-                              }`}>
-                                {opt.badge}
-                              </span>
-                            )}
-                            {opt.warningBadge && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium bg-amber-950/70 border border-amber-800/60 text-amber-400 flex items-center gap-1">
-                                <span>⚠️</span>
-                                <span>{opt.warningBadge}</span>
-                              </span>
-                            )}
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{opt.label}</span>
+                              {opt.badge && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                                  opt.id === "Max"
+                                    ? isDark ? "bg-white/20 text-white font-semibold" : "bg-black/10 text-black font-semibold"
+                                    : isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200/80 text-zinc-700"
+                                }`}>
+                                  {opt.badge}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[11px] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                              {opt.desc}
+                            </span>
                           </div>
 
                           {isSelected && (
