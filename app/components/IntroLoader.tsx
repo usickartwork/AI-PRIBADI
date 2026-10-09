@@ -62,8 +62,8 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
         />
       </div>
 
-      {/* ─── Logo Cloud: Model & Tech Provider Slider (Dibawah One Mind) ─────── */}
-      <div className="w-full max-w-md sm:max-w-lg px-6 mt-3 sm:mt-6 flex flex-col items-center animate-in fade-in-0 duration-700">
+      {/* ─── Logo Cloud: Model & LLM Provider Slider (Dibawah One Mind) ─────── */}
+      <div className="w-full max-w-md sm:max-w-xl px-4 mt-3 sm:mt-6 flex flex-col items-center animate-in fade-in-0 duration-700">
         <LogoCloud isDark={isDark} duration={5} className="w-full py-1.5" />
       </div>
     </div>
@@ -213,8 +213,8 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 export function useAppInitializer({
   authLoading,
   sessionsReady,
-  minDurationMs = 2900,
-  safetyTimeoutMs = 6000,
+  minDurationMs = 4500,
+  safetyTimeoutMs = 7500,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;

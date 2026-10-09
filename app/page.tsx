@@ -594,8 +594,8 @@ export default function Home() {
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
     sessionsReady: sessions.length > 0,
-    minDurationMs: 2900, // ±2.9s rhythm to ensure full One Mind analysis sweep completes through 'D'
-    safetyTimeoutMs: 6000, // 6s maximum fallback in case network hangs
+    minDurationMs: 4500, // ±4.5s agar animasi One Mind dan deretan model LLM terlihat lengkap dan elegan
+    safetyTimeoutMs: 7500, // 7.5s maximum fallback in case network hangs
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
