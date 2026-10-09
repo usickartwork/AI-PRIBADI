@@ -2481,26 +2481,26 @@ export default function Home() {
             : "border-zinc-200/80 bg-white/80 text-zinc-900"
         } backdrop-blur-xl md:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
-            ? "translate-x-0 opacity-100 scale-100 md:w-72 lg:w-80"
+            ? "translate-x-0 opacity-100 scale-100 w-[84vw] max-w-[320px] md:w-72 lg:w-80"
             : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
-        <div className="w-72 md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
+        <div className="w-full md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
           {/* Brand & Logo Header */}
-          <div className={`flex items-center justify-between px-4 py-3.5 md:px-5 md:py-4 border-b ${
+          <div className={`flex items-center justify-between px-4 py-4 md:px-5 md:py-4 border-b ${
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center">
-              <div className="relative -ml-3.5 w-44 h-10 sm:h-11 flex items-center">
+              <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center">
                 <TechText
                   text="One Mind"
                   fontWeight={700}
-                  fontSize={25}
+                  fontSize={28}
                   letterSpacing={-0.03}
                   color={isDark ? "#ffffff" : "#09090b"}
                   accentColor={isDark ? "#ffffff" : "#09090b"}
                   align="left"
-                  leftPadding={18}
+                  leftPadding={22}
                   reveal="letter"
                   dashLength={3}
                   dashGap={2}
@@ -2522,32 +2522,32 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setShowSearchModal(true)}
-              className={`rounded-xl p-2 transition cursor-pointer ${
+              className={`rounded-xl p-2.5 md:p-2 transition cursor-pointer ${
                 isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-black"
               }`}
               title="Cari riwayat chat (Search chats)"
               aria-label="Cari riwayat chat"
             >
-              <svg className="w-5 h-5 md:w-5.5 md:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5.5 h-5.5 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
           </div>
 
           {/* Quick Navigation Sections */}
-          <div className="px-3 md:px-3.5 pt-3 md:pt-4 pb-1 space-y-1 text-xs md:text-sm font-medium">
+          <div className="px-3 md:px-3.5 pt-3 md:pt-4 pb-1 space-y-1.5 md:space-y-1 text-[15px] md:text-sm font-medium">
             <div
               onClick={() => {
                 setActiveView("chats");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "chats"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               <span>Chats</span>
@@ -2559,13 +2559,13 @@ export default function Home() {
                 setActiveView("code");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "code"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               <span>Code</span>
@@ -2577,13 +2577,13 @@ export default function Home() {
                 setActiveView("schedule");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "schedule"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>Schedule</span>
@@ -2595,13 +2595,13 @@ export default function Home() {
                 setActiveView("faith");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "faith"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
               </svg>
               <span>Faith</span>
@@ -2613,13 +2613,13 @@ export default function Home() {
                 setActiveView("image");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-2.5 md:gap-3 rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "image"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>Image</span>
@@ -2628,7 +2628,7 @@ export default function Home() {
 
           {/* History / Recent Threads */}
           <div className="flex-1 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4">
-            <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2 md:mb-2.5 text-[11px] md:text-xs font-bold tracking-wider uppercase ${
+            <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2.5 md:mb-2 text-xs md:text-[11px] font-bold tracking-wider uppercase ${
               isDark ? "text-zinc-500" : "text-zinc-500"
             }`}>
               <span>Recent</span>
@@ -2636,7 +2636,7 @@ export default function Home() {
                 <button
                   onClick={clearAllSessions}
                   title="Hapus semua riwayat"
-                  className={`text-[10px] md:text-xs transition cursor-pointer ${
+                  className={`text-xs md:text-[10px] transition cursor-pointer ${
                     isDark ? "text-zinc-500 hover:text-red-400" : "text-zinc-500 hover:text-red-500"
                   }`}
                 >
@@ -2646,18 +2646,18 @@ export default function Home() {
             </div>
 
             {sessions.length === 0 ? (
-              <div className={`px-2 py-6 text-center text-xs md:text-sm ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
+              <div className={`px-2 py-6 text-center text-sm md:text-xs ${isDark ? "text-zinc-500" : "text-zinc-600 font-medium"}`}>
                 Belum ada percakapan.
               </div>
             ) : (
-              <div className="space-y-1 md:space-y-1.5">
+              <div className="space-y-1.5 md:space-y-1">
                 {sessions.map((sess) => {
                   const isActive = sess.id === activeSessionId;
                   return (
                     <div
                       key={sess.id}
                       onClick={() => switchSession(sess.id)}
-                      className={`group flex items-center justify-between rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 text-xs md:text-sm cursor-pointer transition border ${
+                      className={`group flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 text-[14.5px] md:text-sm cursor-pointer transition border ${
                         isActive
                           ? (isDark
                               ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
@@ -2675,7 +2675,7 @@ export default function Home() {
                         }`}>
                           {sess.title || "Percakapan"}
                         </p>
-                        <p className={`text-[10px] md:text-xs mt-0.5 truncate ${
+                        <p className={`text-xs md:text-[11px] mt-0.5 truncate ${
                           isActive
                             ? (isDark ? "text-zinc-400" : "text-zinc-600")
                             : (isDark ? "text-zinc-500" : "text-zinc-500")
@@ -2690,14 +2690,14 @@ export default function Home() {
                             e.stopPropagation();
                             setSessionMenuId((prev) => (prev === sess.id ? null : sess.id));
                           }}
-                          className={`p-1 md:p-1.5 rounded-md transition cursor-pointer ${
+                          className={`p-2 md:p-1.5 rounded-md transition cursor-pointer ${
                             sessionMenuId === sess.id
                               ? (isDark ? "opacity-100 bg-zinc-800 text-white" : "opacity-100 bg-zinc-200 text-black")
-                              : (isDark ? "opacity-0 group-hover:opacity-100 text-zinc-400 hover:bg-zinc-800 hover:text-white" : "opacity-0 group-hover:opacity-100 text-zinc-500 hover:bg-zinc-200 hover:text-black")
+                              : (isDark ? "opacity-70 group-hover:opacity-100 text-zinc-400 hover:bg-zinc-800 hover:text-white" : "opacity-70 group-hover:opacity-100 text-zinc-500 hover:bg-zinc-200 hover:text-black")
                           }`}
                           title="Opsi obrolan"
                         >
-                          <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-4 h-4 md:w-3.5 md:h-3.5" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="12" cy="5" r="1.75" />
                             <circle cx="12" cy="12" r="1.75" />
                             <circle cx="12" cy="19" r="1.75" />
@@ -2740,7 +2740,7 @@ export default function Home() {
             {/* Tombol Pricing */}
             <div
               onClick={() => setShowPricingModal(true)}
-              className={`flex items-center rounded-xl px-3 md:px-3.5 py-2 md:py-2.5 cursor-pointer transition mb-2 text-xs md:text-sm font-medium ${
+              className={`flex items-center rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 cursor-pointer transition mb-2 text-[15px] md:text-sm font-medium ${
                 isDark
                   ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white"
                   : "hover:bg-zinc-100 text-black hover:text-black font-medium"
@@ -2749,32 +2749,32 @@ export default function Home() {
               <span>Pricing</span>
             </div>
 
-            <div className={`flex items-center justify-between rounded-2xl p-2.5 md:p-3 shadow-xs border ${
+            <div className={`flex items-center justify-between rounded-2xl p-3 md:p-2.5 shadow-xs border ${
               isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
             }`}>
-              <div className="flex items-center gap-2.5 md:gap-3 min-w-0 pr-1">
-                <div className={`relative flex h-8 w-8 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full text-xs md:text-sm font-bold shadow-sm ${
+              <div className="flex items-center gap-3 md:gap-2.5 min-w-0 pr-1">
+                <div className={`relative flex h-10 w-10 md:h-8.5 md:w-8.5 shrink-0 items-center justify-center rounded-full text-sm md:text-xs font-bold shadow-sm ${
                   isDark ? "bg-white text-black" : "bg-black text-white"
                 }`}>
                   {userInitial}
                 </div>
                 <div className="truncate">
-                  <div className={`text-xs md:text-sm font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
+                  <div className={`text-[14.5px] md:text-sm font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
                     {user ? userDisplayName : "Belum Masuk"}
                   </div>
-                  <div className={`text-[10px] md:text-xs font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  <div className={`text-xs md:text-[11px] font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                     {user ? user.email : "Akun Diperlukan"}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 md:gap-1 shrink-0">
                 {!user && (
                   <button
                     type="button"
                     onClick={() => setShowAuthModal(true)}
                     title="Masuk / Daftar"
-                    className={`rounded-xl px-2.5 md:px-3 py-1 md:py-1.5 text-[11px] md:text-xs font-bold transition cursor-pointer ${
+                    className={`rounded-xl px-3.5 md:px-3 py-1.5 md:py-1 text-xs md:text-xs font-bold transition cursor-pointer ${
                       isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                     }`}
                   >
@@ -2788,11 +2788,11 @@ export default function Home() {
                     setSettingsOpen(true);
                   }}
                   title="Pengaturan"
-                  className={`rounded-lg p-1.5 md:p-2 transition cursor-pointer ${
+                  className={`rounded-xl p-2.5 md:p-1.5 transition cursor-pointer ${
                     isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-black"
                   }`}
                 >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <svg className="w-5.5 h-5.5 md:w-4.5 md:h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h7m4 0h7M7 5v4M3 17h11m4 0h3M17 15v4" />
                   </svg>
                 </button>

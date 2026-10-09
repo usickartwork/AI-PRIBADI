@@ -238,7 +238,7 @@ export const TechText: React.FC<TechTextProps> = ({
       m = probe.measureText(s.text);
       const inkWidth = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
       const inkHeight = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
-      const leftPad = s.leftPadding ?? 18;
+      const leftPad = s.leftPadding ?? 24;
       const x = s.align === "left"
         ? m.actualBoundingBoxLeft + leftPad
         : (width - inkWidth) / 2 + m.actualBoundingBoxLeft;
@@ -429,10 +429,14 @@ export const TechText: React.FC<TechTextProps> = ({
       const glyph = glyphs[frame.index];
       if (!glyph || frame.alpha < 0.01) return;
       const a = frame.alpha;
-      const x1 = crisp(frame.x1);
-      const y1 = crisp(frame.y1);
-      const x2 = crisp(frame.x2);
-      const y2 = crisp(frame.y2);
+      const padLeft = 4;
+      const padRight = canvas.width / dpr - 4;
+      const padTop = 4;
+      const padBottom = canvas.height / dpr - 4;
+      const x1 = Math.max(padLeft, crisp(frame.x1));
+      const y1 = Math.max(padTop, crisp(frame.y1));
+      const x2 = Math.min(padRight, crisp(frame.x2));
+      const y2 = Math.min(padBottom, crisp(frame.y2));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const moved = Math.hypot(glyph.offset.x, glyph.offset.y);
@@ -546,10 +550,10 @@ export const TechText: React.FC<TechTextProps> = ({
       const focus = dragging >= 0 ? dragging : active ? glyphAt(lens.x, lens.y) : -1;
       if (focus >= 0 && s.selection) {
         const glyph = glyphs[focus];
-        const bx1 = glyph.box.x1 + glyph.offset.x - 6;
-        const by1 = glyph.box.y1 + glyph.offset.y - 6;
-        const bx2 = glyph.box.x2 + glyph.offset.x + 6;
-        const by2 = glyph.box.y2 + glyph.offset.y + 6;
+        const bx1 = Math.max(6, glyph.box.x1 + glyph.offset.x - 6);
+        const by1 = Math.max(4, glyph.box.y1 + glyph.offset.y - 6);
+        const bx2 = Math.min(width - 6, glyph.box.x2 + glyph.offset.x + 6);
+        const by2 = Math.min(height - 4, glyph.box.y2 + glyph.offset.y + 6);
         if (frame.index < 0 || frame.alpha < 0.02) {
           frame.x1 = bx1;
           frame.y1 = by1;
