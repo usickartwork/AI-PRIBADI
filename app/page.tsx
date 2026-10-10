@@ -606,26 +606,28 @@ export default function Home() {
   });
 
   // Jaga activeView: jika sedang di tab "faith", pertahankan saat refresh agar web faith tidak reset ke login; selain itu default ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("usick-active-view");
-        if (saved === "faith") return "faith";
-      } catch {}
-    }
-    return "chats";
-  });
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages">("chats");
+  const isInitialActiveViewSyncDone = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        if (activeView === "faith") {
-          localStorage.setItem("usick-active-view", "faith");
-        } else {
-          localStorage.removeItem("usick-active-view");
-        }
-      } catch {}
-    }
+    try {
+      const saved = localStorage.getItem("usick-active-view");
+      if (saved === "faith") {
+        setActiveView("faith");
+      }
+    } catch {}
+    isInitialActiveViewSyncDone.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialActiveViewSyncDone.current) return;
+    try {
+      if (activeView === "faith") {
+        localStorage.setItem("usick-active-view", "faith");
+      } else {
+        localStorage.removeItem("usick-active-view");
+      }
+    } catch {}
   }, [activeView]);
 
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface FaithWorkspaceProps {
   isDark: boolean;
@@ -18,6 +18,15 @@ export function FaithWorkspace({
   const [isLoading, setIsLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    // Attempt requesting storage access if supported by modern browser environments
+    if (typeof document !== "undefined" && "requestStorageAccess" in document) {
+      try {
+        document.requestStorageAccess().catch(() => {});
+      } catch {}
+    }
+  }, []);
 
   const handleReload = () => {
     setIsLoading(true);
@@ -146,7 +155,8 @@ export function FaithWorkspace({
           src={FAITH_URL}
           onLoad={() => setIsLoading(false)}
           className="w-full h-full border-0 rounded-t-2xl sm:rounded-t-3xl overflow-hidden"
-          allow="camera; microphone; clipboard-write; clipboard-read; geolocation; payment; fullscreen; storage-access; cross-origin-isolated"
+          allow="camera; microphone; clipboard-write; clipboard-read; geolocation; payment; fullscreen; storage-access; cross-origin-isolated; web-share; autoplay; encrypted-media"
+          loading="eager"
           title="Faith Hub"
         />
       </div>
