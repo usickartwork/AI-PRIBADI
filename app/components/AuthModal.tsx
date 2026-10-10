@@ -170,10 +170,10 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
               </svg>
             </div>
             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
-              Sign In to One Mind
+              Welcome to One Mind
             </h1>
             <p className={`text-xs sm:text-sm mt-1.5 max-w-[290px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              Masuk ke akun Anda. Jika belum pernah mendaftar, akun baru otomatis dibuat saat masuk via Google atau Apple.
+              Masuk atau daftar otomatis via Google & Apple.
             </p>
           </div>
 
