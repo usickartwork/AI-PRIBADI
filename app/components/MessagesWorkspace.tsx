@@ -22,6 +22,9 @@ import {
   X,
 } from "lucide-react";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 function UsickStarIcon({ className = "w-3 h-3" }: { className?: string }) {
   return (
     <svg className={`shrink-0 fill-current ${className}`} viewBox="0 0 24 24">
@@ -29,6 +32,88 @@ function UsickStarIcon({ className = "w-3 h-3" }: { className?: string }) {
     </svg>
   );
 }
+
+function cleanMarkdownSnippet(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/```[\s\S]*?```/g, "[Kode]")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[*#_~]/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const MessageBubbleMarkdown = memo(function MessageBubbleMarkdown({
+  content,
+  fromMe,
+  isDark,
+}: {
+  content: string;
+  fromMe: boolean;
+  isDark: boolean;
+}) {
+  const codeBg = fromMe
+    ? isDark
+      ? "bg-black/10 text-black border-black/15"
+      : "bg-white/15 text-white border-white/20"
+    : isDark
+      ? "bg-white/10 text-zinc-200 border-white/15"
+      : "bg-black/5 text-zinc-900 border-black/10";
+
+  return (
+    <div className="text-[13.5px] leading-relaxed break-words select-text">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="mb-1.5 last:mb-0 leading-relaxed whitespace-pre-wrap">{children}</p>,
+          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+          em: ({ children }) => <em className="italic">{children}</em>,
+          del: ({ children }) => <del className="line-through opacity-80">{children}</del>,
+          ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 last:mb-0 space-y-0.5">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 last:mb-0 space-y-0.5">{children}</ol>,
+          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+          h1: ({ children }) => <h1 className="text-base font-bold mb-1 mt-2 first:mt-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-sm font-bold mb-1 mt-1.5 first:mt-0">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-xs font-bold mb-0.5 mt-1 first:mt-0">{children}</h3>,
+          code: ({ className, children, ...props }) => {
+            const isInline = !className && typeof children === "string" && !children.includes("\n");
+            if (isInline) {
+              return (
+                <code className={`rounded px-1.5 py-0.5 font-mono text-[0.88em] border ${codeBg}`} {...props}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <pre className={`rounded-xl p-2.5 my-2 overflow-x-auto text-xs font-mono border ${codeBg}`}>
+                <code>{children}</code>
+              </pre>
+            );
+          },
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-current pl-2.5 my-1 opacity-80 italic">
+              {children}
+            </blockquote>
+          ),
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:opacity-80"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+});
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 type PublicUser = { id: string; username: string | null; name: string; avatarUrl: string | null };
@@ -221,8 +306,8 @@ const ChatInputBar = memo(function ChatInputBar({
               {replyingTo.isDeleted
                 ? "Pesan ini telah dihapus"
                 : replyingTo.messageType === "shared_ai"
-                  ? `[AI] ${replyingTo.body.slice(0, 80)}`
-                  : replyingTo.body.slice(0, 80)}
+                  ? `[AI] ${cleanMarkdownSnippet(replyingTo.body).slice(0, 80)}`
+                  : cleanMarkdownSnippet(replyingTo.body).slice(0, 80)}
             </p>
           </div>
           <button
@@ -1117,7 +1202,7 @@ export default function MessagesWorkspace({
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <p className={`text-xs truncate ${c.unread ? (isDark ? "text-zinc-200" : "text-zinc-800") : muted}`}>
                   {c.lastMessageFromMe ? "Anda: " : ""}
-                  {c.lastMessage}
+                  {c.lastMessage ? cleanMarkdownSnippet(c.lastMessage) : ""}
                 </p>
                 {c.unread > 0 && (
                   <span className={`min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${primaryBtn}`}>
@@ -1518,7 +1603,7 @@ export default function MessagesWorkspace({
                                 <Ban size={10} /> Pesan ini telah dihapus
                               </span>
                             ) : (
-                              m.replyTo.body.slice(0, 80)
+                              cleanMarkdownSnippet(m.replyTo.body).slice(0, 80)
                             )}
                           </p>
                         </div>
@@ -1549,7 +1634,7 @@ export default function MessagesWorkspace({
                           <span>Pesan ini telah dihapus</span>
                         </div>
                       ) : (
-                        <div className="break-words select-text whitespace-pre-wrap">{m.body}</div>
+                        <MessageBubbleMarkdown content={m.body} fromMe={m.fromMe} isDark={isDark} />
                       )}
 
                       {/* Timestamp */}
@@ -1672,8 +1757,8 @@ export default function MessagesWorkspace({
                   {actionMenuMsg.isDeleted
                     ? "Pesan ini telah dihapus"
                     : actionMenuMsg.messageType === "shared_ai"
-                      ? `[AI] ${actionMenuMsg.body.slice(0, 60)}`
-                      : actionMenuMsg.body.slice(0, 60)}
+                      ? `[AI] ${cleanMarkdownSnippet(actionMenuMsg.body).slice(0, 60)}`
+                      : cleanMarkdownSnippet(actionMenuMsg.body).slice(0, 60)}
                 </p>
               </div>
               <button

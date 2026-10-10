@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, MessageCircle, Send, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type PublicUser = { id: string; username: string | null; name: string; avatarUrl: string | null };
 type FriendItem = { friendshipId: string; user: PublicUser; since: string };
@@ -237,7 +239,21 @@ export function ShareAIResponseModal({
                 <UsickStarIcon className="w-2.5 h-2.5" />
                 <span>Shared from AI Chat</span>
               </div>
-              <p className="line-clamp-3 leading-relaxed whitespace-pre-wrap text-[11.5px] opacity-90">{content}</p>
+              <div className="line-clamp-3 leading-relaxed text-[11.5px] opacity-90 break-words">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => <span className="inline leading-relaxed">{children} </span>,
+                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    code: ({ children }) => (
+                      <code className="font-mono rounded px-1 py-0.2 bg-current/10 text-[0.9em]">{children}</code>
+                    ),
+                  }}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
             </div>
 
             {/* Friend Picker */}
