@@ -565,6 +565,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("usick-theme");
       if (saved === "light" || saved === "dark") return saved;
+      if (!document.documentElement.classList.contains("dark")) return "light";
     }
     return "dark"; // Default to dark mode as requested
   });
@@ -810,6 +811,15 @@ export default function Home() {
       isMounted = false;
     };
   }, [user?.id, authLoading]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("usick-theme");
+      if ((saved === "light" || saved === "dark") && saved !== theme) {
+        setTheme(saved);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -2631,9 +2641,18 @@ export default function Home() {
   return (
     <>
       {authLoading && !user ? (
-        <div className={`relative min-h-screen w-full ${isDark ? "bg-black" : "bg-[#fafafc]"}`} />
+        <div
+          className="relative min-h-screen w-full"
+          style={{ backgroundColor: isDark ? "#09090b" : "#ffffff" }}
+        />
       ) : !user ? (
-        <div className={`relative min-h-screen w-full ${isDark ? "bg-black text-white" : "bg-[#fafafc] text-zinc-900"}`}>
+        <div
+          className="relative min-h-screen w-full"
+          style={{
+            backgroundColor: isDark ? "#09090b" : "#ffffff",
+            color: isDark ? "#ffffff" : "#09090b",
+          }}
+        >
           <GradientBarHeroSection
             isDark={isDark}
             onGetStarted={(targetMode) => {

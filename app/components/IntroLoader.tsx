@@ -15,7 +15,31 @@ export interface IntroLoaderProps {
  * One Mind — TechText Intro Loader (from React Bits)
  */
 export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
-  const isDark = theme === "dark";
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("usick-theme");
+      if (saved === "light") return false;
+      if (saved === "dark") return true;
+      if (!document.documentElement.classList.contains("dark")) return false;
+    }
+    return theme === "dark";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("usick-theme");
+      if (saved === "light") {
+        setIsDark(false);
+      } else if (saved === "dark") {
+        setIsDark(true);
+      } else {
+        setIsDark(theme === "dark" || document.documentElement.classList.contains("dark"));
+      }
+    } else {
+      setIsDark(theme === "dark");
+    }
+  }, [theme]);
+
   const isExiting = state === "exiting";
 
   return (
@@ -24,8 +48,6 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       aria-label="Memuat One Mind"
       aria-live="polite"
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        isDark ? "bg-[#09090b] text-white" : "bg-[#fafafc] text-zinc-900"
-      } ${
         isExiting
           ? "opacity-0 scale-[1.04] pointer-events-none"
           : "opacity-100 scale-100"
@@ -33,15 +55,18 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       style={{
         width: "100vw",
         height: "100dvh",
+        backgroundColor: isDark ? "#09090b" : "#ffffff",
+        color: isDark ? "#ffffff" : "#09090b",
       }}
     >
       {/* ─── Ambient Atmospheric Depth Light ─────────────────────────────────── */}
       <div
-        className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${
-          isDark
-            ? "bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.06)_0%,transparent_60%)]"
-            : "bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.95)_0%,rgba(244,244,246,0.6)_50%,transparent_80%)]"
-        }`}
+        className="absolute inset-0 pointer-events-none transition-opacity duration-700"
+        style={{
+          background: isDark
+            ? "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 60%)"
+            : "radial-gradient(circle at 50% 40%, rgba(0,0,0,0.02) 0%, transparent 60%)",
+        }}
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
@@ -50,7 +75,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
           text="One Mind"
           fontWeight={700}
           fontSize={120}
-          color={isDark ? "#ffffff" : "#111113"}
+          color={isDark ? "#ffffff" : "#09090b"}
           accentColor={isDark ? "#ffffff" : "#71717a"}
           reveal="letter"
           dashLength={4}
