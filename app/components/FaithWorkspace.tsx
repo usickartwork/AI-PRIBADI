@@ -38,7 +38,7 @@ export function FaithWorkspace({
   };
 
   return (
-    <div className={`flex flex-col h-full w-full overflow-hidden bg-transparent ${
+    <div className={`flex flex-col h-full w-full overflow-hidden bg-[#fafafc] dark:bg-[#09090b] ${
       isDark ? "text-zinc-100" : "text-zinc-900"
     }`}>
       {/* ─── HEADER BAR (Clean, Floating Liquid-Glass Serasi Tab Chat) ─────────── */}

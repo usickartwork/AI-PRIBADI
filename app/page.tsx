@@ -893,11 +893,14 @@ export default function Home() {
   useEffect(() => {
     try {
       localStorage.setItem("usick-theme", theme);
+      const targetColor = theme === "dark" ? "#09090b" : "#fafafc";
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
       }
+      const metas = document.querySelectorAll('meta[name="theme-color"]');
+      metas.forEach((m) => m.setAttribute("content", targetColor));
     } catch {}
   }, [theme]);
 
@@ -2960,7 +2963,7 @@ export default function Home() {
       ) : !user ? (
         <div
           id="page-1-container"
-          className="relative min-h-screen h-full h-[100dvh] supports-[height:100svh]:h-[100svh] w-full overflow-y-auto overflow-x-hidden scroll-smooth"
+          className="relative h-dvh w-full overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{
             backgroundColor: isDark ? "#09090b" : "#ffffff",
             color: isDark ? "#ffffff" : "#09090b",
@@ -2995,7 +2998,7 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className={`relative z-10 flex h-full h-[100dvh] supports-[height:100svh]:h-[100svh] w-full max-w-[100vw] overflow-hidden ${
+        <div className={`relative z-10 flex h-dvh w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#09090b] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
           <MeshDriftBackground isDark={isDark} />

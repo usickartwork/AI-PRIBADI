@@ -91,6 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   try {
                     var saved = localStorage.getItem('usick-theme');
                     var isDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    var color = isDark ? '#09090b' : '#fafafc';
                     if (isDark) {
                       document.documentElement.classList.add('dark');
                       document.documentElement.style.colorScheme = 'dark';
@@ -98,13 +99,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       document.documentElement.classList.remove('dark');
                       document.documentElement.style.colorScheme = 'light';
                     }
+                    var metas = document.querySelectorAll('meta[name="theme-color"]');
+                    metas.forEach(function(m) { m.setAttribute('content', color); });
                   } catch(e) {}
                 })();
               `,
             }}
           />
         </head>
-        <body className="h-full min-h-screen h-[100dvh] supports-[height:100svh]:h-[100svh] w-full overflow-hidden flex flex-col bg-transparent text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
+        <body className="h-full h-dvh w-full overflow-hidden flex flex-col bg-[#fafafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
           {children}
         </body>
       </html>
