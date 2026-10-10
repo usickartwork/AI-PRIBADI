@@ -41,6 +41,7 @@ interface MessagesWorkspaceProps {
   userId?: string | null;
   onTogglePanel?: () => void;
   onRequireAuth?: () => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
 const EMPTY_FRIENDS: FriendsData = { friends: [], incoming: [], outgoing: [], blocked: [] };
@@ -124,6 +125,7 @@ const ChatInputBar = memo(function ChatInputBar({
   inputCls,
   primaryBtn,
   muted,
+  isKeyboardOpen,
   onSendMessage,
   onFocusInput,
 }: {
@@ -132,6 +134,7 @@ const ChatInputBar = memo(function ChatInputBar({
   inputCls: string;
   primaryBtn: string;
   muted: string;
+  isKeyboardOpen?: boolean;
   onSendMessage: (text: string) => Promise<boolean>;
   onFocusInput?: () => void;
 }) {
@@ -162,7 +165,13 @@ const ChatInputBar = memo(function ChatInputBar({
   }
 
   return (
-    <div className={`border-t px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${divider}`}>
+    <div
+      className={`border-t px-3 sm:px-4 ${
+        isKeyboardOpen
+          ? "pt-1.5 pb-1.5"
+          : "pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      } ${divider} bg-transparent`}
+    >
       <form onSubmit={handleSend} className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -194,7 +203,13 @@ const ChatInputBar = memo(function ChatInputBar({
 });
 
 /* ─── Component ───────────────────────────────────────────────────────────── */
-export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onRequireAuth }: MessagesWorkspaceProps) {
+export default function MessagesWorkspace({
+  isDark,
+  userId,
+  onTogglePanel,
+  onRequireAuth,
+  onUnreadCountChange,
+}: MessagesWorkspaceProps) {
   const { session } = useSession();
 
   const [tab, setTab] = useState<Tab>("chats");
@@ -207,6 +222,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   const [hasMore, setHasMore] = useState(false);
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -532,8 +548,12 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     const syncViewport = () => {
       if (!activeRef.current) return;
       const isMobile = window.innerWidth < 768;
+      const keyboardActive = isMobile && window.innerHeight - vv.height > 80;
+      setIsKeyboardOpen(keyboardActive);
       if (isMobile && chatPaneRef.current) {
-        chatPaneRef.current.style.height = `${vv.height}px`;
+        // Pada saat keyboard aktif, perpanjang sedikit ketinggiannya (14px) agar chatbox turun pas di atas keyboard tanpa gap
+        const extraBottom = keyboardActive ? 14 : 0;
+        chatPaneRef.current.style.height = `${vv.height + extraBottom}px`;
         chatPaneRef.current.style.top = `${vv.offsetTop}px`;
       }
       if (stickToBottomRef.current && scrollRef.current) {
@@ -719,6 +739,9 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
 
   /* ─── Derived ─────────────────────────────────────────────────────────── */
   const totalUnread = useMemo(() => conversations.reduce((s, c) => s + c.unread, 0), [conversations]);
+  useEffect(() => {
+    onUnreadCountChange?.(totalUnread);
+  }, [totalUnread, onUnreadCountChange]);
   const requestCount = friendsData.incoming.length;
   const isActivePeerFriend = useMemo(
     () => !!active && friendsData.friends.some((f) => f.user.id === active.peer.id),
@@ -1175,7 +1198,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
                   )}
                   <div className={`flex ${m.fromMe ? "justify-end" : "justify-start"} ${grouped ? "mt-0.5" : "mt-2.5"}`}>
                     <div
-                      className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                      className={`max-w-[80%] sm:max-w-[70%] min-w-[4.5rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words flex flex-col ${
                         m.fromMe
                           ? isDark
                             ? "bg-white text-black rounded-br-md"
@@ -1185,14 +1208,14 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
                             : "bg-zinc-100 text-zinc-900 rounded-bl-md"
                       } ${m.pending ? "opacity-60" : ""}`}
                     >
-                      {m.body}
-                      <span
-                        className={`ml-2 inline-flex items-center gap-1 align-bottom text-[10px] translate-y-0.5 ${
+                      <div className="break-words select-text">{m.body}</div>
+                      <div
+                        className={`self-end flex items-center gap-1 text-[10px] mt-0.5 select-none ${
                           m.fromMe ? (isDark ? "text-zinc-500" : "text-zinc-400") : muted
                         }`}
                       >
                         {m.pending ? <Clock size={10} /> : formatBubbleTime(m.createdAt)}
-                      </span>
+                      </div>
                     </div>
                   </div>
                   {i === lastMineReadIndex && i === messages.length - 1 && (
@@ -1212,6 +1235,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         inputCls={inputCls}
         primaryBtn={primaryBtn}
         muted={muted}
+        isKeyboardOpen={isKeyboardOpen}
         onSendMessage={handleSendMessage}
         onFocusInput={handleFocusInput}
       />
