@@ -11,6 +11,7 @@ import { ImageWorkspace } from "./components/ImageWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
+import Footer01 from "@/components/ui/footer-01";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { PricingModal } from "./components/PricingModal";
@@ -2653,7 +2654,8 @@ export default function Home() {
         />
       ) : !user ? (
         <div
-          className="relative min-h-screen w-full"
+          id="page-1-container"
+          className="relative h-[100dvh] w-full overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{
             backgroundColor: isDark ? "#09090b" : "#ffffff",
             color: isDark ? "#ffffff" : "#09090b",
@@ -2665,6 +2667,15 @@ export default function Home() {
               setAuthModalMode(targetMode || "signup");
               setShowAuthModal(true);
             }}
+          />
+
+          <Footer01
+            isDark={isDark}
+            onGetStarted={(targetMode) => {
+              setAuthModalMode(targetMode || "signup");
+              setShowAuthModal(true);
+            }}
+            onOpenPricing={() => setShowPricingModal(true)}
           />
 
           {showAuthModal && (
