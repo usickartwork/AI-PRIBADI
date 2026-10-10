@@ -323,18 +323,18 @@ export async function POST(request: Request) {
   let effortInstruction = "";
 
   if (effortLevel === "Faster") {
-    maxTokens = 1024;
+    maxTokens = 4096;
     temperature = 0.3;
     effortInstruction =
       "\n\n[Mode Upaya: FASTER]\nBerikan jawaban yang sangat cepat, padat, ringkas, dan langsung ke inti persoalan (to-the-point). Hindari pengantar panjang atau penjelasan tambahan yang tidak esensial. Utamakan kecepatan respons dengan format efisien.";
   } else if (effortLevel === "Balanced") {
-    maxTokens = 2500;
+    maxTokens = 8192;
     temperature = 0.6;
     effortInstruction =
       "\n\n[Mode Upaya: BALANCED]\nBerikan jawaban yang seimbang antara kecepatan dan kelengkapan. Jelaskan inti persoalan secara jelas, rapi, dan efisien.";
   } else {
     // "Max" - kualitas terbaik & mendalam (default saat ini)
-    maxTokens = 4096;
+    maxTokens = 8192;
     temperature = 0.7;
     effortInstruction =
       "\n\n[Mode Upaya: MAX]\nBerikan jawaban dengan kualitas terbaik, analisis komprehensif, mendalam, dan penjelasan yang rinci dengan penalaran yang matang.";
@@ -571,6 +571,12 @@ export async function POST(request: Request) {
       });
     }
 
+    const reasoningEffortMap = {
+      Faster: "low",
+      Balanced: "medium",
+      Max: "high",
+    };
+
     if (providerName === "openrouter") {
       const isNemotron = modelName.toLowerCase().includes("nemotron");
       const openRouterModels = isNemotron
@@ -587,12 +593,6 @@ export async function POST(request: Request) {
         modelName.includes("o3") ||
         modelName.includes("reasoning");
 
-      const reasoningEffortMap = {
-        Faster: "low",
-        Balanced: "medium",
-        Max: "high",
-      };
-
       reqBody = JSON.stringify({
         model: modelName,
         models: openRouterModels,
@@ -603,12 +603,21 @@ export async function POST(request: Request) {
         ...(isReasoningModel ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
       });
     } else {
+      const isReasoningModel =
+        providerName === "gemini" ||
+        modelName.includes("gemini") ||
+        modelName.includes("r1") ||
+        modelName.includes("o1") ||
+        modelName.includes("o3") ||
+        modelName.includes("reasoning");
+
       reqBody = JSON.stringify({
         model: modelName,
         messages: messagesToSend,
         stream: true,
         max_tokens: maxTokens,
         temperature,
+        ...(isReasoningModel ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
       });
     }
   }
