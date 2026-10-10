@@ -1097,6 +1097,25 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const clearDragStyles = useCallback(() => {
+    if (sidebarRef.current) {
+      sidebarRef.current.style.transition = "";
+      sidebarRef.current.style.transform = "";
+      sidebarRef.current.style.opacity = "";
+      sidebarRef.current.style.pointerEvents = "";
+    }
+    if (backdropRef.current) {
+      backdropRef.current.style.transition = "";
+      backdropRef.current.style.opacity = "";
+      backdropRef.current.style.pointerEvents = "";
+    }
+  }, []);
+
+  // Pastikan inline style selalu bersih saat state sidebarOpen berubah
+  useEffect(() => {
+    clearDragStyles();
+  }, [sidebarOpen, clearDragStyles]);
+
   // Interactive 1:1 mobile sidebar swipe gesture controller (home-screen style with direct finger tracking)
   useEffect(() => {
     let touchStartX = 0;
@@ -1124,6 +1143,13 @@ export default function Home() {
         return;
       }
 
+      // Jangan intercept swipe jika menyentuh input/textarea
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) {
+        isTracking = false;
+        return;
+      }
+
       // Check active text selection
       const selection = window.getSelection();
       const hasActiveSelection =
@@ -1139,19 +1165,9 @@ export default function Home() {
       touchStartTime = Date.now();
       isSelectingText = false;
 
-      if (!sidebarOpen) {
-        // Only track if swipe starts from the left edge (0 - 36px)
-        if (touchStartX <= 36) {
-          isTracking = true;
-          isDragging = false;
-        } else {
-          isTracking = false;
-        }
-      } else {
-        // When sidebar is open, user can swipe left from anywhere
-        isTracking = true;
-        isDragging = false;
-      }
+      // Full screen swipe: bisa mulai dari mana saja di layar!
+      isTracking = true;
+      isDragging = false;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -1161,15 +1177,16 @@ export default function Home() {
       const deltaY = Math.abs(touch.clientY - touchStartY);
 
       if (!isDragging) {
-        // Determine intent: vertical scroll vs horizontal drawer drag
-        if (deltaY > Math.abs(deltaX) && deltaY > 8) {
+        // Bedakan intent: jika scroll vertikal lebih dominan, batalkan tracking drawer
+        if (deltaY > Math.abs(deltaX) && deltaY > 6) {
           isTracking = false;
           return;
         }
 
-        if (!sidebarOpen && deltaX > 8 && deltaX > deltaY) {
+        // Mulai drag jika pergerakan horizontal dominan
+        if (!sidebarOpen && deltaX > 8 && deltaX > deltaY * 1.1) {
           isDragging = true;
-        } else if (sidebarOpen && deltaX < -8 && Math.abs(deltaX) > deltaY) {
+        } else if (sidebarOpen && deltaX < -8 && Math.abs(deltaX) > deltaY * 1.1) {
           isDragging = true;
         }
       }
@@ -1185,10 +1202,10 @@ export default function Home() {
         let currentPos = 0;
 
         if (!sidebarOpen) {
-          // Dragging from left to right: deltaX is positive
+          // Dragging ke kanan untuk membuka: deltaX positif
           currentPos = Math.max(0, Math.min(deltaX, drawerWidth));
         } else {
-          // Dragging from right to left: deltaX is negative
+          // Dragging ke kiri untuk menutup: deltaX negatif
           currentPos = Math.max(0, Math.min(drawerWidth + deltaX, drawerWidth));
         }
 
@@ -1238,15 +1255,15 @@ export default function Home() {
 
       let shouldOpen = sidebarOpen;
       if (!sidebarOpen) {
-        // Opened if dragged past 38% or flicked with speed > 0.3 px/ms
-        if (progress > 0.38 || velocityX > 0.3) {
+        // Terbuka jika ditarik melewati 35% atau diflick ke kanan
+        if (progress > 0.35 || velocityX > 0.25) {
           shouldOpen = true;
         } else {
           shouldOpen = false;
         }
       } else {
-        // Closed if dragged left past 62% or flicked left with speed < -0.3 px/ms
-        if (progress < 0.62 || velocityX < -0.3) {
+        // Tertutup jika digeser ke kiri melewati 65% atau diflick ke kiri
+        if (progress < 0.65 || velocityX < -0.25) {
           shouldOpen = false;
         } else {
           shouldOpen = true;
@@ -1258,7 +1275,7 @@ export default function Home() {
       const sidebar = sidebarRef.current;
       const backdrop = backdropRef.current;
 
-      const animDuration = 260; // ms
+      const animDuration = 240; // ms
       if (sidebar) {
         sidebar.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
         sidebar.style.transform = shouldOpen ? "translateX(0px)" : `translateX(-100%)`;
@@ -1274,19 +1291,9 @@ export default function Home() {
 
       setSidebarOpen(shouldOpen);
 
-      // Clean up inline styles once spring transition completes
+      // Bersihkan inline styles setelah animasi snap selesai
       resetTimerId = setTimeout(() => {
-        if (sidebarRef.current) {
-          sidebarRef.current.style.transition = "";
-          sidebarRef.current.style.transform = "";
-          sidebarRef.current.style.opacity = "";
-          sidebarRef.current.style.pointerEvents = "";
-        }
-        if (backdropRef.current) {
-          backdropRef.current.style.transition = "";
-          backdropRef.current.style.opacity = "";
-          backdropRef.current.style.pointerEvents = "";
-        }
+        clearDragStyles();
       }, animDuration + 20);
     };
 
@@ -1305,7 +1312,7 @@ export default function Home() {
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
-  }, [sidebarOpen]);
+  }, [sidebarOpen, clearDragStyles]);
 
   // Load models from API
   useEffect(() => {
@@ -2926,8 +2933,19 @@ export default function Home() {
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       <div
         ref={backdropRef}
-        onClick={() => setSidebarOpen(false)}
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden transition-opacity duration-300 ${
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearDragStyles();
+          setSidebarOpen(false);
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          clearDragStyles();
+          setSidebarOpen(false);
+        }}
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden cursor-pointer transition-opacity duration-300 ${
           sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         aria-hidden="true"
@@ -2936,6 +2954,7 @@ export default function Home() {
       {/* ─── SIDEBAR (Slide Morphing Smooth Drawer) ─────────────────── */}
       <aside
         ref={sidebarRef}
+        onClick={(e) => e.stopPropagation()}
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r ${
           isDark
             ? "border-white/10 bg-black/20 text-zinc-200"
