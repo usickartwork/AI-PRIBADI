@@ -893,7 +893,7 @@ export default function Home() {
   useEffect(() => {
     try {
       localStorage.setItem("usick-theme", theme);
-      const targetColor = theme === "dark" ? "#09090b" : "#fafafc";
+      const targetColor = theme === "dark" ? "#18181b" : "#fafafc";
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
@@ -3018,7 +3018,7 @@ export default function Home() {
           setSidebarOpen(false);
         }}
         className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden cursor-pointer transition-opacity duration-300 ${
-          sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none hidden"
         }`}
         aria-hidden="true"
       />
@@ -3034,7 +3034,7 @@ export default function Home() {
         } backdrop-blur-xl md:shadow-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:static ${
           sidebarOpen
             ? "translate-x-0 opacity-100 scale-100 w-[84vw] max-w-[320px] md:w-72 lg:w-80"
-            : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
+            : "-translate-x-full opacity-0 scale-[0.98] pointer-events-none hidden md:flex md:w-0 md:mr-0 md:opacity-0 md:pointer-events-none"
         }`}
       >
         <div className="w-full md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">

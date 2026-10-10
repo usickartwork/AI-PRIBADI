@@ -64,7 +64,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: dark)", color: "#18181b" },
     { media: "(prefers-color-scheme: light)", color: "#fafafc" },
   ],
   interactiveWidget: "resizes-content",
@@ -91,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   try {
                     var saved = localStorage.getItem('usick-theme');
                     var isDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                    var color = isDark ? '#09090b' : '#fafafc';
+                    var color = isDark ? '#18181b' : '#fafafc';
                     if (isDark) {
                       document.documentElement.classList.add('dark');
                       document.documentElement.style.colorScheme = 'dark';
