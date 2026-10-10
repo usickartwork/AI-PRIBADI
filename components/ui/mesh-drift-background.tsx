@@ -416,12 +416,15 @@ export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
 
     let animationFrameId: number | null = null;
     const startTime = performance.now();
+    let lastRenderTime = 0;
+    const targetFpsInterval = 1000 / 30; // 30 FPS untuk background gradasi halus, menghemat GPU drastis
 
     const resize = () => {
       if (!canvas) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const width = Math.floor(window.innerWidth * dpr);
-      const height = Math.floor(window.innerHeight * dpr);
+      // Gunakan resolusi efisien (maks DPR 1.0) agar tidak membakar GPU pada layar Retina
+      const dpr = Math.min(window.devicePixelRatio || 1, 1);
+      const width = Math.floor(window.innerWidth * dpr * 0.75);
+      const height = Math.floor(window.innerHeight * dpr * 0.75);
 
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
@@ -434,6 +437,12 @@ export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
     window.addEventListener("resize", resize);
 
     const render = (currentTime: number) => {
+      animationFrameId = requestAnimationFrame(render);
+
+      const delta = currentTime - lastRenderTime;
+      if (delta < targetFpsInterval) return;
+      lastRenderTime = currentTime - (delta % targetFpsInterval);
+
       const elapsedSeconds = (currentTime - startTime) * 0.001;
 
       if (uSceneLoc) {
@@ -446,7 +455,6 @@ export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
       }
 
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      animationFrameId = requestAnimationFrame(render);
     };
 
     animationFrameId = requestAnimationFrame(render);

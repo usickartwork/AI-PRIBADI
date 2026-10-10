@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useSession } from "@clerk/nextjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -116,6 +116,78 @@ function Avatar({ user, isDark, size = 40 }: { user: PublicUser; isDark: boolean
   );
 }
 
+/* ─── Chat Input Bar (Isolated local state to prevent parent re-renders while typing) ─── */
+const ChatInputBar = memo(function ChatInputBar({
+  isActive,
+  divider,
+  inputCls,
+  primaryBtn,
+  muted,
+  onSendMessage,
+}: {
+  isActive: boolean;
+  divider: string;
+  inputCls: string;
+  primaryBtn: string;
+  muted: string;
+  onSendMessage: (text: string) => Promise<boolean>;
+}) {
+  const [localInput, setLocalInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const text = localInput.trim();
+    if (!text || isSending) return;
+    setIsSending(true);
+    const ok = await onSendMessage(text);
+    setIsSending(false);
+    if (ok) {
+      setLocalInput("");
+      textareaRef.current?.focus();
+    }
+  };
+
+  if (!isActive) {
+    return (
+      <div className={`border-t px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${divider}`}>
+        <p className={`text-center text-xs py-2 ${muted}`}>Anda tidak lagi berteman dengan pengguna ini.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`border-t px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${divider}`}>
+      <form onSubmit={handleSend} className="flex items-end gap-2">
+        <textarea
+          ref={textareaRef}
+          value={localInput}
+          onChange={(e) => setLocalInput(e.target.value.slice(0, MAX_LEN))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void handleSend();
+            }
+          }}
+          rows={1}
+          placeholder="Tulis pesan..."
+          className={`flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm outline-none transition max-h-32 ${inputCls}`}
+          style={{ fieldSizing: "content" } as React.CSSProperties}
+        />
+        <button
+          type="submit"
+          disabled={!localInput.trim() || isSending}
+          className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${primaryBtn}`}
+          aria-label="Kirim"
+        >
+          <Send size={16} />
+        </button>
+      </form>
+    </div>
+  );
+});
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onRequireAuth }: MessagesWorkspaceProps) {
   const { session } = useSession();
@@ -130,8 +202,6 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   const [hasMore, setHasMore] = useState(false);
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
 
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -145,7 +215,6 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   const messagesRef = useRef<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     activeRef.current = active;
@@ -298,7 +367,6 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         showToast(e instanceof Error ? e.message : "Gagal memuat percakapan.");
       } finally {
         setChatLoading(false);
-        window.setTimeout(() => textareaRef.current?.focus(), 50);
       }
     },
     [markRead, showToast]
@@ -354,50 +422,48 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  /* ─── Send ────────────────────────────────────────────────────────────── */
-  const send = async () => {
-    const text = input.trim();
-    if (!active || !text || sending) return;
-    if (text.length > MAX_LEN) {
-      showToast(`Pesan maksimal ${MAX_LEN} karakter.`);
-      return;
-    }
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: ChatMessage = { id: tempId, body: text, createdAt: new Date().toISOString(), fromMe: true, pending: true };
-    stickToBottomRef.current = true;
-    setMessages((prev) => [...prev, optimistic]);
-    setInput("");
-    setSending(true);
-    try {
-      const data = await api<{ message: ChatMessage }>("/api/messages/messages", {
-        method: "POST",
-        body: JSON.stringify({ conversationId: active.id, body: text }),
-      });
-      setMessages((prev) => {
-        const without = prev.filter((m) => m.id !== tempId && m.id !== data.message.id);
-        return [...without, data.message];
-      });
-      setConversations((prev) => {
-        const existing = prev.find((c) => c.id === active.id);
-        const updated: Conversation = {
-          id: active.id,
-          peer: active.peer,
-          lastMessage: text.slice(0, 140),
-          lastMessageFromMe: true,
-          lastMessageAt: data.message.createdAt,
-          unread: existing?.unread ?? 0,
-        };
-        return [updated, ...prev.filter((c) => c.id !== active.id)];
-      });
-    } catch (e) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setInput(text);
-      showToast(e instanceof Error ? e.message : "Pesan gagal dikirim.");
-    } finally {
-      setSending(false);
-      textareaRef.current?.focus();
-    }
-  };
+  /* ─── Send (Callback for isolated input component) ───────────────────── */
+  const handleSendMessage = useCallback(
+    async (text: string): Promise<boolean> => {
+      if (!active || !text) return false;
+      if (text.length > MAX_LEN) {
+        showToast(`Pesan maksimal ${MAX_LEN} karakter.`);
+        return false;
+      }
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: ChatMessage = { id: tempId, body: text, createdAt: new Date().toISOString(), fromMe: true, pending: true };
+      stickToBottomRef.current = true;
+      setMessages((prev) => [...prev, optimistic]);
+      try {
+        const data = await api<{ message: ChatMessage }>("/api/messages/messages", {
+          method: "POST",
+          body: JSON.stringify({ conversationId: active.id, body: text }),
+        });
+        setMessages((prev) => {
+          const without = prev.filter((m) => m.id !== tempId && m.id !== data.message.id);
+          return [...without, data.message];
+        });
+        setConversations((prev) => {
+          const existing = prev.find((c) => c.id === active.id);
+          const updated: Conversation = {
+            id: active.id,
+            peer: active.peer,
+            lastMessage: text.slice(0, 140),
+            lastMessageFromMe: true,
+            lastMessageAt: data.message.createdAt,
+            unread: existing?.unread ?? 0,
+          };
+          return [updated, ...prev.filter((c) => c.id !== active.id)];
+        });
+        return true;
+      } catch (e) {
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        showToast(e instanceof Error ? e.message : "Pesan gagal dikirim.");
+        return false;
+      }
+    },
+    [active, showToast]
+  );
 
   /* ─── Friend actions ──────────────────────────────────────────────────── */
   const friendAction = async (payload: Record<string, unknown>, key: string, okText?: string) => {
@@ -482,10 +548,10 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     return -1;
   }, [messages, peerLastReadAt]);
 
-  /* ─── Style tokens (selaras tema One Mind) ────────────────────────────── */
+  /* ─── Style tokens (selaras tema One Mind, hemat performa GPU) ──────── */
   const panel = isDark
-    ? "bg-zinc-950/40 border border-white/10 backdrop-blur-xl"
-    : "bg-white/70 border border-black/10 backdrop-blur-xl";
+    ? "bg-[#111113]/90 border border-white/10"
+    : "bg-white/95 border border-black/10 shadow-sm";
   const muted = isDark ? "text-zinc-400" : "text-zinc-500";
   const divider = isDark ? "border-white/10" : "border-black/10";
   const hoverRow = isDark ? "hover:bg-zinc-800/60" : "hover:bg-zinc-100/90";
@@ -948,43 +1014,14 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         )}
       </div>
 
-      <div className={`border-t px-3 sm:px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${divider}`}>
-        {isActivePeerFriend || friendsData.friends.length === 0 ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-            className="flex items-end gap-2"
-          >
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value.slice(0, MAX_LEN))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              rows={1}
-              placeholder="Tulis pesan..."
-              className={`flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm outline-none transition max-h-32 ${inputCls}`}
-              style={{ fieldSizing: "content" } as React.CSSProperties}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || sending}
-              className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${primaryBtn}`}
-              aria-label="Kirim"
-            >
-              <Send size={16} />
-            </button>
-          </form>
-        ) : (
-          <p className={`text-center text-xs py-2 ${muted}`}>Anda tidak lagi berteman dengan pengguna ini.</p>
-        )}
-      </div>
+      <ChatInputBar
+        isActive={isActivePeerFriend || friendsData.friends.length === 0}
+        divider={divider}
+        inputCls={inputCls}
+        primaryBtn={primaryBtn}
+        muted={muted}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   ) : (
     <div className="h-full hidden md:flex flex-col items-center justify-center text-center px-6">
