@@ -461,6 +461,36 @@ export default function MessagesWorkspace({
     window.setTimeout(() => setToast(null), 3500);
   }, []);
 
+  /* ─── Background Pre-fetch Messages ──────────────────────────────────── */
+  const prefetchMessages = useCallback(async (convList: Conversation[]) => {
+    if (!convList || convList.length === 0) return;
+    for (const c of convList.slice(0, 15)) {
+      if (!memoryMessagesCache[c.id] || memoryMessagesCache[c.id].length === 0) {
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem(`msg_cache_${c.id}`);
+            if (raw) {
+              memoryMessagesCache[c.id] = JSON.parse(raw);
+            }
+          } catch {}
+        }
+        try {
+          const res = await api<{ messages: ChatMessage[]; hasMore: boolean; peerLastReadAt: string | null }>(
+            `/api/messages/messages?conversationId=${c.id}`
+          );
+          if (res.messages) {
+            memoryMessagesCache[c.id] = res.messages;
+            if (typeof window !== "undefined") {
+              try {
+                localStorage.setItem(`msg_cache_${c.id}`, JSON.stringify(res.messages));
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+    }
+  }, []);
+
   /* ─── Loaders ─────────────────────────────────────────────────────────── */
   const loadConversations = useCallback(async () => {
     try {
@@ -472,12 +502,13 @@ export default function MessagesWorkspace({
           localStorage.setItem(`msg_convs_${userId}`, JSON.stringify(data.conversations));
         } catch {}
       }
+      void prefetchMessages(data.conversations);
     } catch {
       /* diam: polling berikutnya akan mencoba lagi */
     } finally {
       setListLoading(false);
     }
-  }, [userId]);
+  }, [userId, prefetchMessages]);
 
   const loadFriends = useCallback(async () => {
     try {
@@ -714,7 +745,18 @@ export default function MessagesWorkspace({
       setReplyingTo(null);
       setActionMenuMsg(null);
       setDeleteConfirmMsg(null);
-      const cached = memoryMessagesCache[conv.id];
+
+      let cached = memoryMessagesCache[conv.id];
+      if ((!cached || cached.length === 0) && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem(`msg_cache_${conv.id}`);
+          if (raw) {
+            cached = JSON.parse(raw);
+            memoryMessagesCache[conv.id] = cached;
+          }
+        } catch {}
+      }
+
       if (cached && cached.length > 0) {
         setMessages(cached);
         setChatLoading(false);
@@ -732,6 +774,11 @@ export default function MessagesWorkspace({
         if (activeRef.current?.id !== conv.id) return;
         setMessages(data.messages);
         memoryMessagesCache[conv.id] = data.messages;
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`msg_cache_${conv.id}`, JSON.stringify(data.messages));
+          } catch {}
+        }
         setHasMore(data.hasMore);
         setPeerLastReadAt(data.peerLastReadAt);
         void markRead(conv.id);
@@ -748,21 +795,30 @@ export default function MessagesWorkspace({
 
   const openChatWithUser = useCallback(
     async (user: PublicUser) => {
+      // 1. Jika percakapan dengan teman ini sudah ada di daftar percakapan, buka instan (0ms)
+      const existing = conversations.find((c) => c.peer.id === user.id);
+      if (existing) {
+        setTab("chats");
+        void openConversation({ id: existing.id, peer: existing.peer });
+        return;
+      }
+
+      // 2. Jika belum ada, buat percakapan baru di background
       setBusyId(user.id);
+      setTab("chats");
       try {
         const data = await api<{ id: string; peer: PublicUser | null }>("/api/messages/conversations", {
           method: "POST",
           body: JSON.stringify({ userId: user.id }),
         });
-        setTab("chats");
-        await openConversation({ id: data.id, peer: data.peer ?? user });
+        void openConversation({ id: data.id, peer: data.peer ?? user });
       } catch (e) {
         showToast(e instanceof Error ? e.message : "Gagal membuka chat.");
       } finally {
         setBusyId(null);
       }
     },
-    [openConversation, showToast]
+    [conversations, openConversation, showToast]
   );
 
   const loadOlder = async () => {
@@ -1560,9 +1616,14 @@ export default function MessagesWorkspace({
       </div>
 
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-4 overscroll-contain">
-        {chatLoading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
+        {chatLoading && messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-150">
+            <Avatar user={active.peer} isDark={isDark} size={56} />
+            <p className="mt-3 text-sm font-semibold">{active.peer.name}</p>
+            <div className="mt-2.5 flex items-center gap-2 text-xs text-zinc-400">
+              <div className={`w-3.5 h-3.5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
+              <span>Menyiapkan chat...</span>
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
