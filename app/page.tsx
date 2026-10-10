@@ -944,6 +944,16 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Otomatis langsung pindah ke model Gemini 3.5 Flash Lite saat ambil foto dari kamera
+    const geminiVision =
+      models.find((m) => m.id === "gemini:gemini-3.5-flash-lite") ||
+      models.find((m) => m.id.toLowerCase().includes("gemini-3.5-flash-lite")) ||
+      models.find((m) => m.id.toLowerCase().includes("flash-lite")) ||
+      models.find((m) => m.id.toLowerCase().includes("gemini"));
+    if (geminiVision) {
+      setModel(geminiVision.id);
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -957,8 +967,10 @@ export default function Home() {
             h = Math.round((h * maxDim) / w);
             w = maxDim;
           } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
+            if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
           }
         }
         canvas.width = w;
@@ -984,10 +996,11 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Otomatis langsung pindah ke model Gemini 3.6 Flash saat upload file
+    // Otomatis langsung pindah ke model Gemini 3.5 Flash Lite saat upload file / gambar
     const geminiVision =
-      models.find((m) => m.id === "gemini:gemini-3.6-flash") ||
-      models.find((m) => m.id.toLowerCase().includes("gemini-3.6-flash")) ||
+      models.find((m) => m.id === "gemini:gemini-3.5-flash-lite") ||
+      models.find((m) => m.id.toLowerCase().includes("gemini-3.5-flash-lite")) ||
+      models.find((m) => m.id.toLowerCase().includes("flash-lite")) ||
       models.find((m) => m.id.toLowerCase().includes("gemini"));
     if (geminiVision) {
       setModel(geminiVision.id);
@@ -1511,8 +1524,20 @@ export default function Home() {
 
     let assistantId = "";
     let userMsgId = "";
+    let modelToUse = model;
+    if (activeImage) {
+      const geminiVision =
+        models.find((m) => m.id === "gemini:gemini-3.5-flash-lite") ||
+        models.find((m) => m.id.toLowerCase().includes("gemini-3.5-flash-lite")) ||
+        models.find((m) => m.id.toLowerCase().includes("flash-lite")) ||
+        models.find((m) => m.id.toLowerCase().includes("gemini"));
+      if (geminiVision) {
+        modelToUse = geminiVision.id;
+        setModel(geminiVision.id);
+      }
+    }
 
-    const currentModelObj = models.find((m) => m.id === model) || FALLBACK_MODELS[0];
+    const currentModelObj = models.find((m) => m.id === modelToUse) || FALLBACK_MODELS[0];
 
     const hasMultimodalAttachment = Boolean(activeImage || (activeFile?.dataUrl && !activeFile?.content));
 
@@ -1605,7 +1630,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: modelToUse,
           messages: apiMessages,
           webSearch: webSearchEnabled,
           taskType: "chat",
