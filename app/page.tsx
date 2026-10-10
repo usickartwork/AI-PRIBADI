@@ -4230,7 +4230,6 @@ export default function Home() {
       {isInitializing && (
         <IntroLoader
           state={introState === "exiting" ? "exiting" : "visible"}
-          theme={theme}
         />
       )}
     </>
