@@ -12,8 +12,7 @@ type AuthModalProps = {
   onClose?: () => void;
 };
 
-export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }: AuthModalProps) {
-  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
   const [identifier, setIdentifier] = useState(""); // email or username
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +25,7 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // ─── CLERK OAUTH (GOOGLE & APPLE) HANDLER ───────────────────────────────────
-  // Sign up dan Sign in digabung: otomatis membuat akun baru pada login pertama kali.
+  // Sign in dan Sign up terintegrasi: otomatis membuat akun baru jika belum terdaftar.
   const handleOAuth = async (strategy: "oauth_google" | "oauth_apple") => {
     setErrorMsg(null);
 
@@ -54,7 +53,7 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
     }
   };
 
-  // ─── EMAIL / USERNAME + PASSWORD LOGIN / REGISTER HANDLER ─────────────────
+  // ─── EMAIL / USERNAME + PASSWORD LOGIN HANDLER ──────────────────────────────
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -72,62 +71,45 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
         return;
       }
 
-      if (mode === "signin") {
-        // Verifikasi kredensial via backend API resmi Clerk
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            identifier: identifier.trim(),
-            password,
-          }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.token) {
-          setErrorMsg(data.error || "Gagal masuk. Periksa kembali username/email dan password Anda.");
-          setLoading(false);
-          return;
-        }
-
-        // Aktifkan sesi menggunakan Clerk SignInToken resmi (strategy ticket)
-        const signInAttempt = await clerk.client.signIn.create({
-          strategy: "ticket",
-          ticket: data.token,
-        });
-
-        if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
-          await clerk.setActive({ session: signInAttempt.createdSessionId });
-          onSuccess();
-        } else {
-          setErrorMsg("Login tidak berhasil. Silakan coba lagi.");
-        }
-      } else {
-        // Sign-up flow via Clerk
-        const signUpAttempt = await clerk.client.signUp.create({
-          emailAddress: identifier.trim(),
+      // Verifikasi kredensial via backend API resmi Clerk
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier: identifier.trim(),
           password,
-        });
+        }),
+      });
 
-        if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId) {
-          await clerk.setActive({ session: signUpAttempt.createdSessionId });
-          onSuccess();
-        } else {
-          try {
-            await signUpAttempt.prepareEmailAddressVerification({ strategy: "email_code" });
-            setErrorMsg("Kode verifikasi telah dikirim ke email Anda.");
-          } catch {
-            setErrorMsg("Pendaftaran berhasil diproses. Silakan periksa email Anda.");
-          }
-        }
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.token) {
+        setErrorMsg(
+          data.error ||
+            "Gagal masuk. Periksa kembali username/email dan password Anda, atau gunakan Google/Apple jika belum pernah mendaftar."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Aktifkan sesi menggunakan Clerk SignInToken resmi (strategy ticket)
+      const signInAttempt = await clerk.client.signIn.create({
+        strategy: "ticket",
+        ticket: data.token,
+      });
+
+      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
+        await clerk.setActive({ session: signInAttempt.createdSessionId });
+        onSuccess();
+      } else {
+        setErrorMsg("Login tidak berhasil. Silakan coba lagi.");
       }
     } catch (err: unknown) {
       console.error("Clerk auth error:", err);
       if (err instanceof Error) {
         setErrorMsg(err.message);
       } else {
-        setErrorMsg("Terjadi kesalahan saat masuk atau mendaftar.");
+        setErrorMsg("Terjadi kesalahan saat memproses login.");
       }
     } finally {
       setLoading(false);
@@ -176,7 +158,7 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
 
         <div className="relative z-10">
           {/* Header Brand: Usick One Standalone Star Logo & One Mind */}
-          <div className="flex flex-col items-center text-center mb-5">
+          <div className="flex flex-col items-center text-center mb-6">
             <div className="mb-3 flex items-center justify-center">
               <svg
                 className={`w-11 h-11 transition-transform duration-300 hover:scale-110 drop-shadow-sm ${
@@ -188,39 +170,11 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
               </svg>
             </div>
             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
-              {mode === "signin" ? "Welcome back" : "Create Account"}
+              Sign In to One Mind
             </h1>
-            <p className={`text-xs sm:text-sm mt-1 max-w-[280px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              {mode === "signin"
-                ? "Sign in to access your dashboard, settings and projects."
-                : "Sign up to start your journey with One Mind."}
+            <p className={`text-xs sm:text-sm mt-1.5 max-w-[290px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              Masuk ke akun Anda. Jika belum pernah mendaftar, akun baru otomatis dibuat saat masuk via Google atau Apple.
             </p>
-          </div>
-
-          {/* Mode Switcher Pill Tabs: Sign In | Sign Up */}
-          <div className={`flex rounded-xl p-1 mb-5 border ${isDark ? "bg-zinc-900/90 border-zinc-800" : "bg-zinc-100 border-zinc-200"}`}>
-            <button
-              type="button"
-              onClick={() => { setMode("signin"); setErrorMsg(null); }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                mode === "signin"
-                  ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-                  : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black")
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode("signup"); setErrorMsg(null); }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                mode === "signup"
-                  ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-                  : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black")
-              }`}
-            >
-              Sign Up
-            </button>
           </div>
 
           {/* Pesan Error */}
@@ -240,11 +194,11 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
             </div>
           )}
 
-          {/* Form Login / Register: Email/Username & Password dengan Animated Effect */}
+          {/* Form Login: Email/Username & Password dengan Animated Effect */}
           <form onSubmit={handleAuthSubmit} className="space-y-4">
             <AnimatedFormField
               type="text"
-              placeholder={mode === "signin" ? "Username atau Email" : "Email"}
+              placeholder="Username atau Email"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               icon={<Mail size={17} />}
@@ -262,12 +216,12 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
               showToggle
               onToggle={() => setShowPassword(!showPassword)}
               showPassword={showPassword}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              autoComplete="current-password"
               required
               isDark={isDark}
             />
 
-            {/* Tombol Sign In / Sign Up dengan Gradient Shine Sweep Effect */}
+            {/* Tombol Sign In */}
             <button
               type="submit"
               disabled={loading || Boolean(oauthLoading)}
@@ -278,7 +232,7 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
               }`}
             >
               <span className={`transition-opacity duration-200 ${loading ? "opacity-0" : "opacity-100"}`}>
-                {mode === "signin" ? "Sign In" : "Sign Up"}
+                Sign In
               </span>
 
               {loading && (
@@ -367,35 +321,7 @@ export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }
           {/* Info Footer: Pendaftaran Akun Baru Otomatis via OAuth */}
           <div className="mt-6 text-center">
             <p className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              {mode === "signin" ? (
-                <>
-                  Belum punya akun?{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setMode("signup"); setErrorMsg(null); }}
-                    className={`font-semibold underline underline-offset-2 transition cursor-pointer ${
-                      isDark ? "text-white hover:text-zinc-300" : "text-black hover:text-zinc-700"
-                    }`}
-                  >
-                    Daftar di sini
-                  </button>{" "}
-                  atau gunakan Google / Apple.
-                </>
-              ) : (
-                <>
-                  Sudah punya akun?{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setMode("signin"); setErrorMsg(null); }}
-                    className={`font-semibold underline underline-offset-2 transition cursor-pointer ${
-                      isDark ? "text-white hover:text-zinc-300" : "text-black hover:text-zinc-700"
-                    }`}
-                  >
-                    Masuk di sini
-                  </button>{" "}
-                  atau gunakan Google / Apple.
-                </>
-              )}
+              Belum punya akun? Cukup masuk dengan Google atau Apple untuk mendaftar otomatis.
             </p>
           </div>
         </div>
