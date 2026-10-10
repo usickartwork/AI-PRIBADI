@@ -145,6 +145,8 @@ type Tab = "chats" | "friends" | "requests" | "add";
 interface MessagesWorkspaceProps {
   isDark: boolean;
   userId?: string | null;
+  isVisible?: boolean;
+  resetNonce?: number;
   onTogglePanel?: () => void;
   onRequireAuth?: () => void;
   onUnreadCountChange?: (count: number) => void;
@@ -355,6 +357,8 @@ const memoryMessagesCache: Record<string, ChatMessage[]> = {};
 export default function MessagesWorkspace({
   isDark,
   userId,
+  isVisible,
+  resetNonce,
   onTogglePanel,
   onRequireAuth,
   onUnreadCountChange,
@@ -455,6 +459,18 @@ export default function MessagesWorkspace({
       memoryMessagesCache[active.id] = messages;
     }
   }, [messages, active?.id]);
+
+  // Otomatis kembali ke tampilan awal (daftar percakapan) saat beralih ke tab Messages atau saat menu Messages di sidebar diklik
+  useEffect(() => {
+    if (isVisible) {
+      setActive(null);
+      setTab("chats");
+      if (chatPaneRef.current) {
+        chatPaneRef.current.style.height = "";
+        chatPaneRef.current.style.top = "";
+      }
+    }
+  }, [isVisible, resetNonce]);
 
   const showToast = useCallback((text: string, kind: "error" | "info" = "error") => {
     setToast({ text, kind });

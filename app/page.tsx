@@ -668,6 +668,7 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [messagesResetNonce, setMessagesResetNonce] = useState(0);
   const [selectedFile, setSelectedFile] = useState<{
     name: string;
     size: number;
@@ -3159,6 +3160,7 @@ export default function Home() {
             <div
               onClick={() => {
                 setActiveView("messages");
+                setMessagesResetNonce((prev) => prev + 1);
                 closeSidebarOnMobile();
               }}
               className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
@@ -3473,6 +3475,8 @@ export default function Home() {
             key="messages-workspace-instance"
             isDark={isDark}
             userId={user?.id}
+            isVisible={activeView === "messages"}
+            resetNonce={messagesResetNonce}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             onRequireAuth={() => setShowAuthModal(true)}
             onUnreadCountChange={setUnreadMessagesCount}
