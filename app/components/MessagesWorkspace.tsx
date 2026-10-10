@@ -177,7 +177,7 @@ const ChatInputBar = memo(function ChatInputBar({
           }}
           rows={1}
           placeholder="Tulis pesan..."
-          className={`flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm outline-none transition max-h-32 ${inputCls}`}
+          className={`flex-1 resize-none rounded-2xl px-4 py-2.5 text-base sm:text-sm outline-none transition max-h-32 ${inputCls}`}
           style={{ fieldSizing: "content" } as React.CSSProperties}
         />
         <button
@@ -219,11 +219,30 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   const activeRef = useRef<typeof active>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const chatPaneRef = useRef<HTMLElement>(null);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
     activeRef.current = active;
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const vv = window.visualViewport;
+      const isMobile = window.innerWidth < 768;
+      if (chatPaneRef.current) {
+        if (active && isMobile) {
+          chatPaneRef.current.style.height = `${vv.height}px`;
+          chatPaneRef.current.style.top = `${vv.offsetTop}px`;
+          requestAnimationFrame(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+          });
+        } else {
+          chatPaneRef.current.style.height = "";
+          chatPaneRef.current.style.top = "";
+        }
+      }
+    }
   }, [active]);
   useEffect(() => {
     messagesRef.current = messages;
@@ -497,7 +516,6 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         el.scrollTop = el.scrollHeight;
       }
     }
-    bottomAnchorRef.current?.scrollIntoView({ block: "end", behavior: smooth ? "smooth" : "auto" });
   }, []);
 
   useEffect(() => {
@@ -506,36 +524,61 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     }
   }, [messages, scrollToBottom]);
 
-  // Pantau perubahan ukuran layar / keyboard virtual di mobile (iOS Safari & Android)
+  // Pantau perubahan ukuran layar / keyboard virtual di mobile (iOS Safari & Android) secara native tanpa lag
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
-    const handleViewportChange = () => {
-      if (activeRef.current) {
-        scrollToBottom(false);
+
+    const syncViewport = () => {
+      if (!activeRef.current) return;
+      const isMobile = window.innerWidth < 768;
+      if (isMobile && chatPaneRef.current) {
+        chatPaneRef.current.style.height = `${vv.height}px`;
+        chatPaneRef.current.style.top = `${vv.offsetTop}px`;
+      }
+      if (stickToBottomRef.current && scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
     };
-    vv.addEventListener("resize", handleViewportChange);
-    return () => {
-      vv.removeEventListener("resize", handleViewportChange);
-    };
-  }, [scrollToBottom]);
 
-  // Ketika input diklik / fokus, keyboard virtual muncul: pastikan pesan terakhir tetap terlihat di atasnya
+    vv.addEventListener("resize", syncViewport);
+    vv.addEventListener("scroll", syncViewport);
+    window.addEventListener("resize", syncViewport);
+
+    return () => {
+      vv.removeEventListener("resize", syncViewport);
+      vv.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("resize", syncViewport);
+    };
+  }, []);
+
+  // Ketika input diklik / fokus, keyboard virtual muncul: pastikan pesan terakhir tetap terlihat mulus di atasnya
   const handleFocusInput = useCallback(() => {
     stickToBottomRef.current = true;
-    scrollToBottom(false);
-    const t1 = setTimeout(() => scrollToBottom(false), 50);
-    const t2 = setTimeout(() => scrollToBottom(false), 150);
-    const t3 = setTimeout(() => scrollToBottom(false), 300);
-    const t4 = setTimeout(() => scrollToBottom(false), 450);
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+    }
+    const el = scrollRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+    const t1 = setTimeout(() => {
+      if (typeof window !== "undefined") window.scrollTo(0, 0);
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      }
+    }, 120);
+    const t2 = setTimeout(() => {
+      if (typeof window !== "undefined") window.scrollTo(0, 0);
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, 280);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
     };
-  }, [scrollToBottom]);
+  }, []);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -1047,9 +1090,15 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   /* ─── Chat pane ───────────────────────────────────────────────────────── */
   const chatPane = active ? (
     <div className="flex flex-col h-full min-h-0">
-      <div className={`flex items-center gap-3 px-3 sm:px-4 py-3 max-md:pt-[max(0.75rem,env(safe-area-inset-top))] border-b ${divider}`}>
+      <div className={`flex items-center gap-3 px-3 sm:px-4 py-3 max-md:pt-[max(0.75rem,env(safe-area-inset-top))] border-b shrink-0 ${divider}`}>
         <button
-          onClick={() => setActive(null)}
+          onClick={() => {
+            setActive(null);
+            if (chatPaneRef.current) {
+              chatPaneRef.current.style.height = "";
+              chatPaneRef.current.style.top = "";
+            }
+          }}
           className={`md:hidden p-2 -ml-1 rounded-lg cursor-pointer transition ${hoverRow}`}
           aria-label="Kembali"
         >
@@ -1091,7 +1140,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         </div>
       </div>
 
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-4">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-4 overscroll-contain">
         {chatLoading ? (
           <div className="h-full flex items-center justify-center">
             <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isDark ? "border-white/20 border-t-white" : "border-black/20 border-t-black"}`} />
@@ -1220,7 +1269,14 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         </section>
 
         {/* Chat pane */}
-        <section className={`${active ? "flex" : "hidden md:flex"} flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:border-0`}>
+        <section
+          ref={chatPaneRef}
+          className={`${
+            active ? "flex" : "hidden md:flex"
+          } flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:h-[100dvh] max-md:z-30 max-md:border-0 max-md:rounded-none ${
+            isDark ? "max-md:bg-[#0c0c0e]" : "max-md:bg-white"
+          }`}
+        >
           {chatPane}
         </section>
       </div>
