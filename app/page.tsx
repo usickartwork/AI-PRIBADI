@@ -3055,13 +3055,15 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Quick Navigation Sections */}
-          <div className="px-3 md:px-3.5 pt-3 md:pt-4 pb-1 space-y-1.5 md:space-y-1 text-[15px] md:text-sm font-medium">
-            <div
-              onClick={() => {
-                setActiveView("chats");
-                closeSidebarOnMobile();
-              }}
+          {/* Unified Scrollable Sidebar Body: Feature tabs + History all scroll together */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4 overscroll-contain">
+            {/* Quick Navigation Sections */}
+            <div className="space-y-1.5 md:space-y-1 text-[15px] md:text-sm font-medium pb-1">
+              <div
+                onClick={() => {
+                  setActiveView("chats");
+                  closeSidebarOnMobile();
+                }}
               className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "chats"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
@@ -3172,11 +3174,11 @@ export default function Home() {
               </svg>
               <span>Faith</span>
             </div>
-          </div>
+            </div>
 
-          {/* History / Recent Threads */}
-          <div className="flex-1 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4">
-            <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2.5 md:mb-2 text-xs md:text-[11px] font-bold tracking-wider uppercase ${
+            {/* History / Recent Threads */}
+            <div className="mt-4 md:mt-3">
+              <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2.5 md:mb-2 text-xs md:text-[11px] font-bold tracking-wider uppercase ${
               isDark ? "text-zinc-500" : "text-zinc-500"
             }`}>
               <span>Recent</span>
@@ -3253,14 +3255,14 @@ export default function Home() {
                           }
                           switchSession(sess.id);
                         }}
-                        className={`group relative flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 text-[14.5px] md:text-sm cursor-pointer transition select-none border ${
+                        className={`group relative flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-2.5 md:py-2 text-[14.5px] md:text-sm cursor-pointer transition select-none ${
                           isActive
                             ? (isDark
-                                ? "bg-zinc-800/90 border-zinc-700 text-white font-medium shadow-xs"
-                                : "bg-zinc-200/90 border-zinc-300 text-black font-semibold shadow-xs")
+                                ? "bg-zinc-800/90 text-white font-semibold"
+                                : "bg-zinc-100 text-black font-semibold")
                             : (isDark
-                                ? "bg-zinc-900/50 hover:bg-zinc-800/60 border-zinc-800/60 text-zinc-300 hover:text-white"
-                                : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200/70 text-zinc-800")
+                                ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                                : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
                         }`}
                       >
                         <div className="truncate pr-2 flex-1">
@@ -3279,15 +3281,15 @@ export default function Home() {
                             <p className={`truncate ${
                               isActive
                                 ? (isDark ? "text-white font-semibold" : "text-black font-semibold")
-                                : (isDark ? "text-zinc-300 group-hover:text-white" : "text-zinc-800")
+                                : (isDark ? "text-zinc-300 group-hover:text-white" : "text-zinc-800 group-hover:text-black font-medium")
                             }`}>
                               {sess.title || "Percakapan"}
                             </p>
                           </div>
                           <p className={`text-xs md:text-[11px] mt-0.5 truncate ${
                             isActive
-                              ? (isDark ? "text-zinc-400" : "text-zinc-600")
-                              : (isDark ? "text-zinc-500" : "text-zinc-500")
+                              ? (isDark ? "text-zinc-400" : "text-zinc-500")
+                              : (isDark ? "text-zinc-500 group-hover:text-zinc-400" : "text-zinc-400 group-hover:text-zinc-500")
                           }`}>
                             {sess.messages.length} pesan {isActive && "· Aktif"}
                           </p>
@@ -3347,6 +3349,7 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
 
           {/* Bottom User Card / Status */}
           <div className={`p-3 md:p-3.5 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
