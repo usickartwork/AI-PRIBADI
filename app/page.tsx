@@ -2484,7 +2484,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setShowAttachMenu((prev) => !prev)}
-                className={`p-1.5 rounded-full transition cursor-pointer shrink-0 ${
+                className={`h-9 w-9 sm:h-8 sm:w-8 flex items-center justify-center rounded-full transition cursor-pointer shrink-0 ${
                   showAttachMenu || selectedImage || selectedFile
                     ? isDark
                       ? "text-white bg-zinc-800 border border-zinc-700 shadow-xs"
@@ -2496,7 +2496,7 @@ export default function Home() {
                 title="Lampirkan foto atau file"
               >
                 <svg
-                  className={`w-4 h-4 transition-transform duration-200 ${showAttachMenu ? "rotate-45" : ""}`}
+                  className={`w-5 h-5 sm:w-4 sm:h-4 transition-transform duration-200 ${showAttachMenu ? "rotate-45" : ""}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -2554,7 +2554,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 sm:px-3 py-1 text-xs font-medium transition cursor-pointer max-w-[130px] sm:max-w-[200px] ${
+                className={`h-9 sm:h-8 flex items-center gap-1.5 sm:gap-1.5 rounded-full border px-3 sm:px-3 py-1.5 sm:py-1 text-[13px] sm:text-xs font-medium transition cursor-pointer max-w-[140px] sm:max-w-[200px] ${
                   isDark
                     ? "bg-zinc-800/90 hover:bg-zinc-700/80 border-zinc-700/60 text-zinc-200"
                     : "bg-zinc-100 hover:bg-zinc-200/80 border-zinc-200 text-zinc-800"
@@ -2565,7 +2565,7 @@ export default function Home() {
                 <span className="truncate">
                   {cleanModelLabel(activeModelObj.label)}
                 </span>
-                <svg className={`w-3 h-3 shrink-0 text-zinc-400 transition-transform duration-200 ${
+                <svg className={`w-3.5 h-3.5 sm:w-3 sm:h-3 shrink-0 text-zinc-400 transition-transform duration-200 ${
                   modelDropdownOpen ? "rotate-180" : ""
                 }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -2852,7 +2852,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shrink-0 ${
+              className={`h-9 sm:h-8 flex items-center gap-2 sm:gap-1.5 rounded-full border px-3 sm:px-2.5 py-1.5 sm:py-1 text-xs sm:text-xs font-medium transition-all cursor-pointer shrink-0 ${
                 webSearchEnabled
                   ? (isDark
                       ? "border-white bg-white text-black shadow-xs"
@@ -2863,18 +2863,18 @@ export default function Home() {
               }`}
               title="Aktifkan fitur Browse / Web Search"
             >
-              <div className={`relative h-3 w-5 rounded-full transition-colors ${
+              <div className={`relative h-3.5 w-6 sm:h-3 sm:w-5 rounded-full transition-colors ${
                 webSearchEnabled
                   ? (isDark ? "bg-black/25" : "bg-white/30")
                   : (isDark ? "bg-zinc-700" : "bg-zinc-300")
               }`}>
-                <div className={`absolute top-0.5 h-2 w-2 rounded-full transition-transform ${
+                <div className={`absolute top-0.5 h-2.5 w-2.5 sm:h-2 sm:w-2 rounded-full transition-transform ${
                   webSearchEnabled
-                    ? `translate-x-2.5 ${isDark ? "bg-black" : "bg-white"}`
+                    ? `translate-x-3 sm:translate-x-2.5 ${isDark ? "bg-black" : "bg-white"}`
                     : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
                 }`} />
               </div>
-              <span className="text-[11px] sm:text-xs font-semibold">Browse</span>
+              <span className="text-xs sm:text-[11px] font-semibold">Browse</span>
             </button>
           </div>
 
@@ -2884,23 +2884,23 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleStop}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
+                className="flex h-9.5 w-9.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
                 title="Hentikan respons"
               >
-                <div className="h-2.5 w-2.5 bg-white rounded-sm" />
+                <div className="h-3 w-3 sm:h-2.5 sm:w-2.5 bg-white rounded-sm" />
               </button>
             ) : input.trim() || selectedImage || selectedFile ? (
               <button
                 type="button"
                 onClick={() => sendMessage()}
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${
+                className={`flex h-9.5 w-9.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition cursor-pointer ${
                   isDark
                     ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
                     : "bg-black hover:bg-zinc-800 text-white shadow-xs"
                 }`}
                 title="Kirim pesan (Enter)"
               >
-                <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 sm:w-4 sm:h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                 </svg>
               </button>
@@ -2919,7 +2919,7 @@ export default function Home() {
                   }
                   setShowVoiceModal(true);
                 }}
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition cursor-pointer ${
+                className={`flex h-9.5 w-9.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition cursor-pointer ${
                   isDark
                     ? "bg-white text-black hover:bg-zinc-200 shadow-xs"
                     : "bg-black text-white hover:bg-zinc-800 shadow-xs"
@@ -2927,7 +2927,7 @@ export default function Home() {
                 title="Mode Suara Real-time (Voice Assistant)"
                 aria-label="Mode Suara Real-time"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <svg className="w-5 h-5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
