@@ -1169,8 +1169,36 @@ export default function Home() {
       isDragging = false;
     };
 
+    const handleSelectionChange = () => {
+      // Jika terjadi seleksi teks saat sentuhan aktif, batalkan slide panel seketika
+      const selection = window.getSelection();
+      const hasActiveSelection =
+        !!selection && (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
+      if (hasActiveSelection) {
+        if (isDragging) {
+          clearDragStyles();
+        }
+        isTracking = false;
+        isDragging = false;
+      }
+    };
+
     const handleTouchMove = (e: TouchEvent) => {
       if (!isTracking || typeof window === "undefined" || window.innerWidth >= 768) return;
+
+      // Jangan gerakkan panel jika ada teks yang sedang diseleksi/diblok
+      const selection = window.getSelection();
+      const hasActiveSelection =
+        !!selection && (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
+      if (hasActiveSelection) {
+        if (isDragging) {
+          clearDragStyles();
+        }
+        isTracking = false;
+        isDragging = false;
+        return;
+      }
+
       const touch = e.touches[0];
       const deltaX = touch.clientX - touchStartX;
       const deltaY = Math.abs(touch.clientY - touchStartY);
@@ -1242,6 +1270,15 @@ export default function Home() {
       if (!isDragging) return;
       isDragging = false;
 
+      // Jika ada teks terseleksi saat dilepas, jangan buka panel
+      const selection = window.getSelection();
+      const hasActiveSelection =
+        !!selection && (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
+      if (hasActiveSelection) {
+        clearDragStyles();
+        return;
+      }
+
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - touchStartX;
       const duration = Math.max(1, Date.now() - touchStartTime);
@@ -1305,12 +1342,14 @@ export default function Home() {
     document.addEventListener("touchmove", handleTouchMove, { passive: false });
     document.addEventListener("touchend", handleTouchEnd, { passive: true });
     document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    document.addEventListener("selectionchange", handleSelectionChange);
 
     return () => {
       document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleTouchEnd);
       document.removeEventListener("touchcancel", handleTouchEnd);
+      document.removeEventListener("selectionchange", handleSelectionChange);
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
