@@ -203,8 +203,8 @@ function getModelCategory(m: ModelEntry): string {
   const id = m.id.toLowerCase();
   const prov = (m.provider || "").toLowerCase();
 
-  // Model buatan Usick (Novita AI Qwen Engine)
-  if (lbl.includes("usick") || id.includes("usick")) return "Usick";
+  // Model buatan Usick
+  if (lbl.includes("usick") || id.includes("usick") || id.includes("apodex")) return "Usick";
 
   // DeepSeek HARUS dicek sebelum Qwen karena model DeepSeek R1 Distill Qwen adalah DeepSeek
   if (lbl.includes("deepseek") || id.includes("deepseek")) return "DeepSeek";
@@ -212,6 +212,7 @@ function getModelCategory(m: ModelEntry): string {
   // Pokoknya yang ada gpt masuk ke model chat gpt
   if (lbl.includes("gpt") || id.includes("gpt")) return "ChatGPT";
   if (lbl.includes("qwen") || id.includes("qwen")) return "Qwen";
+  if (lbl.includes("ling") || id.includes("ling")) return "Ling";
   if (lbl.includes("kimi") || id.includes("kimi") || lbl.includes("moonshot") || id.includes("moonshot")) return "Kimi";
   if (lbl.includes("llama") || id.includes("llama")) return "Llama";
   if (prov === "gemini" || lbl.includes("gemini") || id.includes("gemini")) return "Gemini";
@@ -226,34 +227,62 @@ function getModelCategory(m: ModelEntry): string {
 }
 
 function getSystemPrompt(m?: ModelEntry): string {
-  const isUsick = m && getModelCategory(m) === "Usick";
-  const isR1 = m && (m.id.toLowerCase().includes("deepseek-r1") || m.label.toLowerCase().includes("deepseek r1"));
-
-  // DeepSeek R1 bekerja optimal dengan instruksi bahasa Indonesia yang ringkas dan padat
-  if (isR1) {
-    return "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.";
+  if (!m) {
+    return "Kamu adalah asisten kecerdasan buatan yang profesional, cerdas, dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.";
   }
+
+  const cleanName = cleanModelLabel(m.label);
+  const category = getModelCategory(m);
+  const isUsick = category === "Usick";
+  const isR1 = m.id.toLowerCase().includes("deepseek-r1") || m.label.toLowerCase().includes("deepseek r1");
 
   if (isUsick) {
     return (
       "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
       "Pedoman Jawaban:\n" +
-      "1. Identitas: Jika ditanya siapa dirimu, jawablah bahwa kamu adalah Usick One, asisten AI pintar yang siap membantu berbagai keperluan seperti analisis, pemrograman, penulisan, dan pemecahan masalah.\n" +
+      "1. Identitas: Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan tegas bahwa kamu adalah Usick One.\n" +
       "2. Kualitas: Berikan jawaban yang mendalam, terstruktur rapi, logis, dan mengalir secara alami dalam bahasa Indonesia yang baik.\n" +
       "3. Format: Gunakan format Markdown yang bersih dan profesional (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel jika relevan).\n" +
-      "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang bersih dan siap dijalankan.\n" +
+      "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman yang bersih dan siap dijalankan.\n" +
       "5. Responsivitas: Jawab secara langsung, lugas, solutif, tanpa repetisi berlebihan, dan berikan penjelasan konseptual bila diperlukan."
     );
   }
 
-  // Model lainnya tetap sesuai identitas aslinya (Claude, ChatGPT, DeepSeek, Gemini, Qwen, dll.)
+  if (isR1) {
+    return (
+      `Nama kamu adalah ${cleanName} (DeepSeek). Jika ditanya siapa dirimu atau siapa namamu, jawablah bahwa kamu adalah ${cleanName} dari DeepSeek, BUKAN Usick One. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.`
+    );
+  }
+
+  // Model non-Usick: Berikan identitas yang tegas dan tepat sesuai pilihan pengguna
+  let identityLine = `Nama kamu adalah ${cleanName}.`;
+  if (category === "ChatGPT") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan GPT). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (GPT), BUKAN Usick One.`;
+  } else if (category === "Gemini") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan dari Google Gemini). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Gemini dari Google), BUKAN Usick One.`;
+  } else if (category === "Qwen") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan dari keluarga Qwen / Alibaba Cloud). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Qwen), BUKAN Usick One.`;
+  } else if (category === "Claude") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan Claude dari Anthropic). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Claude), BUKAN Usick One.`;
+  } else if (category === "DeepSeek") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan dari DeepSeek). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (DeepSeek), BUKAN Usick One.`;
+  } else if (category === "Kimi") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan dari Moonshot AI / Kimi). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Kimi), BUKAN Usick One.`;
+  } else if (category === "Ling") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan Ling dari InclusionAI). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Ling), BUKAN Usick One.`;
+  } else if (category === "Llama") {
+    identityLine = `Nama kamu adalah ${cleanName} (model kecerdasan buatan Llama dari Meta). Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName} (Llama), BUKAN Usick One.`;
+  } else {
+    identityLine = `Nama kamu adalah ${cleanName}. Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan konsisten bahwa kamu adalah ${cleanName}, BUKAN Usick One.`;
+  }
+
   return (
-    "Kamu adalah asisten kecerdasan buatan yang profesional, cerdas, dan ramah.\n\n" +
+    `${identityLine}\n\n` +
     "Pedoman Jawaban:\n" +
-    "1. Identitas: Tetap gunakan identitas dan nama model AI bawaanmu secara konsisten jika ditanya siapa dirimu. Jangan mengubah atau mengganti identitas aslimu.\n" +
+    `1. Identitas: Pertahankan identitasmu sebagai ${cleanName}. Jangan pernah menyebut dirimu sebagai Usick One karena kamu adalah ${cleanName}.\n` +
     "2. Kualitas: Berikan jawaban yang akurat, berbobot, terstruktur rapi, dan mudah dipahami dalam bahasa Indonesia yang baik.\n" +
     "3. Format: Gunakan format Markdown yang bersih (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel bila relevan).\n" +
-    "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman (misalnya ```python, ```javascript, ```html) yang siap pakai.\n" +
+    "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman yang siap pakai.\n" +
     "5. Responsivitas: Jawab secara lugas, solutif, dan ramah."
   );
 }
@@ -2418,7 +2447,7 @@ export default function Home() {
                               const isSelected = m.id === model;
                               const isDisabled = Boolean(disabledModels[m.id] && disabledModels[m.id] > Date.now());
                               const cleanName = cleanModelLabel(m.label);
-                              const isUsick = isUsickGroup || m.id === "novita:qwen/qwen3.8-flash" || m.id.toLowerCase().includes("usick");
+                              const isUsick = isUsickGroup || m.id === "novita:apodex/apodex-1.1-mini" || m.id.toLowerCase().includes("usick");
                               const isLocked = (subscription?.plan || "free") === "free" && !isUsick;
                               return (
                                 <button

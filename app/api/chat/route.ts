@@ -361,10 +361,17 @@ export async function POST(request: Request) {
       content: messages[systemMsgIdx].content + effortInstruction,
     };
   } else {
+    const lower = modelId.toLowerCase();
+    const isUsick = lower.includes("apodex") || lower.includes("usick");
+    const defaultIdentity = isUsick
+      ? "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut."
+      : "Kamu adalah asisten AI yang cerdas dan ramah. Tetap gunakan nama model AI aslimu jika ditanya siapa dirimu, dan jangan pernah menyebut dirimu sebagai Usick One.";
+
     messages.unshift({
       role: "system",
       content:
-        "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
+        defaultIdentity +
+        " Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
         effortInstruction,
     });
   }
