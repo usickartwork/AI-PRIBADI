@@ -197,19 +197,19 @@ export async function DELETE(req: Request) {
   try {
     const me = await requireUserId();
     const db = getAdmin();
+    const url = new URL(req.url);
     const payload = await readJson(req);
-    const { conversationId, messageId } = payload;
-    if (!isValidUuid(conversationId) || !isValidUuid(messageId)) {
+    const rawMessageId = payload.messageId || url.searchParams.get("messageId");
+
+    const messageId = typeof rawMessageId === "string" ? rawMessageId.trim() : "";
+    if (!isValidUuid(messageId)) {
       throw new MsgError("Parameter penghapusan tidak valid.");
     }
 
-    const peerId = await getConversationPeer(db, conversationId as string, me);
-
     const { data: existing, error: findErr } = await db
       .from("msg_messages")
-      .select("id, sender_id, is_deleted, created_at")
+      .select("id, sender_id, is_deleted, created_at, conversation_id")
       .eq("id", messageId)
-      .eq("conversation_id", conversationId)
       .maybeSingle();
 
     if (findErr) throw findErr;
@@ -217,6 +217,9 @@ export async function DELETE(req: Request) {
     if (existing.sender_id !== me) {
       throw new MsgError("Hanya pengirim yang dapat menghapus pesan untuk semua orang.", 403);
     }
+
+    const conversationId = existing.conversation_id;
+    const peerId = await getConversationPeer(db, conversationId, me);
 
     if (!existing.is_deleted) {
       // Hapus isi teks dari database dan tandai tombstone

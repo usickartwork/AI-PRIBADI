@@ -893,8 +893,12 @@ export default function MessagesWorkspace({
     async (msg: ChatMessage) => {
       if (!active) return;
       try {
-        await api<{ ok: boolean }>(`/api/messages/messages?messageId=${encodeURIComponent(msg.id)}`, {
+        await api<{ ok: boolean }>(`/api/messages/messages?messageId=${encodeURIComponent(msg.id)}&conversationId=${encodeURIComponent(active.id)}`, {
           method: "DELETE",
+          body: JSON.stringify({
+            conversationId: active.id,
+            messageId: msg.id,
+          }),
         });
         setMessages((prev) =>
           prev.map((m) =>
