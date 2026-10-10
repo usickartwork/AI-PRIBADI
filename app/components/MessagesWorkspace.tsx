@@ -125,6 +125,7 @@ const ChatInputBar = memo(function ChatInputBar({
   primaryBtn,
   muted,
   onSendMessage,
+  onFocusInput,
 }: {
   isActive: boolean;
   divider: string;
@@ -132,18 +133,18 @@ const ChatInputBar = memo(function ChatInputBar({
   primaryBtn: string;
   muted: string;
   onSendMessage: (text: string) => Promise<boolean>;
+  onFocusInput?: () => void;
 }) {
   const [localInput, setLocalInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = localInput.trim();
     if (!text) return;
-    // Bersihkan input teks seketika (0ms delay) layaknya WhatsApp/iMessage
+    // Bersihkan input teks seketika & turunkan keyboard virtual mobile (blur)
     setLocalInput("");
-    textareaRef.current?.focus();
+    textareaRef.current?.blur();
     void onSendMessage(text).then((ok) => {
       if (!ok) {
         // Kembalikan teks jika gagal terkirim
@@ -166,6 +167,7 @@ const ChatInputBar = memo(function ChatInputBar({
         <textarea
           ref={textareaRef}
           value={localInput}
+          onFocus={onFocusInput}
           onChange={(e) => setLocalInput(e.target.value.slice(0, MAX_LEN))}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -217,6 +219,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
   const activeRef = useRef<typeof active>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
@@ -484,11 +487,55 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     }
   };
 
-  /* ─── Auto scroll ─────────────────────────────────────────────────────── */
-  useEffect(() => {
+  /* ─── Auto scroll & Mobile Keyboard Pinning ───────────────────────────── */
+  const scrollToBottom = useCallback((smooth = false) => {
     const el = scrollRef.current;
-    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    if (el) {
+      if (smooth) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+    bottomAnchorRef.current?.scrollIntoView({ block: "end", behavior: smooth ? "smooth" : "auto" });
+  }, []);
+
+  useEffect(() => {
+    if (stickToBottomRef.current) {
+      scrollToBottom(false);
+    }
+  }, [messages, scrollToBottom]);
+
+  // Pantau perubahan ukuran layar / keyboard virtual di mobile (iOS Safari & Android)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const handleViewportChange = () => {
+      if (activeRef.current) {
+        scrollToBottom(false);
+      }
+    };
+    vv.addEventListener("resize", handleViewportChange);
+    return () => {
+      vv.removeEventListener("resize", handleViewportChange);
+    };
+  }, [scrollToBottom]);
+
+  // Ketika input diklik / fokus, keyboard virtual muncul: pastikan pesan terakhir tetap terlihat di atasnya
+  const handleFocusInput = useCallback(() => {
+    stickToBottomRef.current = true;
+    scrollToBottom(false);
+    const t1 = setTimeout(() => scrollToBottom(false), 50);
+    const t2 = setTimeout(() => scrollToBottom(false), 150);
+    const t3 = setTimeout(() => scrollToBottom(false), 300);
+    const t4 = setTimeout(() => scrollToBottom(false), 450);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [scrollToBottom]);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -508,6 +555,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
       const optimistic: ChatMessage = { id: tempId, body: text, createdAt: new Date().toISOString(), fromMe: true, pending: true };
       stickToBottomRef.current = true;
       setMessages((prev) => [...prev, optimistic]);
+      requestAnimationFrame(() => scrollToBottom(false));
       try {
         const data = await api<{ message: ChatMessage }>("/api/messages/messages", {
           method: "POST",
@@ -1104,6 +1152,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
                 </div>
               );
             })}
+            <div ref={bottomAnchorRef} className="h-px shrink-0" />
           </div>
         )}
       </div>
@@ -1115,6 +1164,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         primaryBtn={primaryBtn}
         muted={muted}
         onSendMessage={handleSendMessage}
+        onFocusInput={handleFocusInput}
       />
     </div>
   ) : (
