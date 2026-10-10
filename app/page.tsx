@@ -936,6 +936,8 @@ export default function Home() {
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
   const handleCameraUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1095,62 +1097,213 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Touch swipe gesture listener for smooth sidebar opening/closing
+  // Interactive 1:1 mobile sidebar swipe gesture controller (home-screen style with direct finger tracking)
   useEffect(() => {
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
+    let isTracking = false;
+    let isDragging = false;
     let isSelectingText = false;
+    let animFrameId: number | null = null;
+    let resetTimerId: NodeJS.Timeout | null = null;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-      isSelectingText = false;
+    const getDrawerWidth = () => {
+      if (typeof window === "undefined") return 300;
+      return Math.min(window.innerWidth * 0.84, 320);
     };
 
     const handleSelectionChange = () => {
-      // Tandai jika ada proses seleksi/blok teks selama interaksi touch
       isSelectingText = true;
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      const deltaX = e.changedTouches[0].clientX - touchStartX;
-      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
-      const duration = Date.now() - touchStartTime;
-
-      // Cek apakah ada teks yang sedang diblok/diseleksi untuk disalin
-      const selection = typeof window !== "undefined" ? window.getSelection() : null;
-      const hasActiveSelection =
-        !!selection &&
-        (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
-
-      // Jangan buka sidebar jika user sedang memblok atau menyalin teks
-      if (hasActiveSelection || isSelectingText) {
+    const handleTouchStart = (e: TouchEvent) => {
+      if (typeof window === "undefined" || window.innerWidth >= 768) return;
+      if (e.touches.length > 1) {
+        isTracking = false;
         return;
       }
 
-      if (deltaY < 80) {
-        // Slide ke kanan untuk membuka panel di SEMUA tab (chats, code, schedule)
-        // Batasi duration < 600ms agar gerakan blok teks lambat tidak disalahartikan sebagai swipe
-        if (deltaX > 50 && !sidebarOpen && duration < 600) {
-          setSidebarOpen(true);
+      // Check active text selection
+      const selection = window.getSelection();
+      const hasActiveSelection =
+        !!selection && (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
+      if (hasActiveSelection || isSelectingText) {
+        isTracking = false;
+        return;
+      }
+
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+      isSelectingText = false;
+
+      if (!sidebarOpen) {
+        // Only track if swipe starts from the left edge (0 - 36px)
+        if (touchStartX <= 36) {
+          isTracking = true;
+          isDragging = false;
+        } else {
+          isTracking = false;
         }
-        // Slide ke kiri untuk menutup panel ketika sedang terbuka
-        if (deltaX < -45 && sidebarOpen) {
-          setSidebarOpen(false);
-        }
+      } else {
+        // When sidebar is open, user can swipe left from anywhere
+        isTracking = true;
+        isDragging = false;
       }
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isTracking || typeof window === "undefined" || window.innerWidth >= 768) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = Math.abs(touch.clientY - touchStartY);
+
+      if (!isDragging) {
+        // Determine intent: vertical scroll vs horizontal drawer drag
+        if (deltaY > Math.abs(deltaX) && deltaY > 8) {
+          isTracking = false;
+          return;
+        }
+
+        if (!sidebarOpen && deltaX > 8 && deltaX > deltaY) {
+          isDragging = true;
+        } else if (sidebarOpen && deltaX < -8 && Math.abs(deltaX) > deltaY) {
+          isDragging = true;
+        }
+      }
+
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+        if (resetTimerId) {
+          clearTimeout(resetTimerId);
+          resetTimerId = null;
+        }
+
+        const drawerWidth = getDrawerWidth();
+        let currentPos = 0;
+
+        if (!sidebarOpen) {
+          // Dragging from left to right: deltaX is positive
+          currentPos = Math.max(0, Math.min(deltaX, drawerWidth));
+        } else {
+          // Dragging from right to left: deltaX is negative
+          currentPos = Math.max(0, Math.min(drawerWidth + deltaX, drawerWidth));
+        }
+
+        const progress = Math.max(0, Math.min(1, currentPos / drawerWidth));
+
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        animFrameId = requestAnimationFrame(() => {
+          const sidebar = sidebarRef.current;
+          const backdrop = backdropRef.current;
+
+          if (sidebar) {
+            sidebar.style.transition = "none";
+            sidebar.style.transform = `translateX(${currentPos - drawerWidth}px)`;
+            sidebar.style.opacity = "1";
+            sidebar.style.pointerEvents = "auto";
+          }
+
+          if (backdrop) {
+            backdrop.style.transition = "none";
+            backdrop.style.opacity = String(progress);
+            backdrop.style.pointerEvents = progress > 0 ? "auto" : "none";
+          }
+        });
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isTracking) return;
+      isTracking = false;
+
+      if (!isDragging) return;
+      isDragging = false;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const duration = Math.max(1, Date.now() - touchStartTime);
+      const velocityX = deltaX / duration; // px per ms
+      const drawerWidth = getDrawerWidth();
+
+      let currentPos = 0;
+      if (!sidebarOpen) {
+        currentPos = Math.max(0, Math.min(deltaX, drawerWidth));
+      } else {
+        currentPos = Math.max(0, Math.min(drawerWidth + deltaX, drawerWidth));
+      }
+      const progress = currentPos / drawerWidth;
+
+      let shouldOpen = sidebarOpen;
+      if (!sidebarOpen) {
+        // Opened if dragged past 38% or flicked with speed > 0.3 px/ms
+        if (progress > 0.38 || velocityX > 0.3) {
+          shouldOpen = true;
+        } else {
+          shouldOpen = false;
+        }
+      } else {
+        // Closed if dragged left past 62% or flicked left with speed < -0.3 px/ms
+        if (progress < 0.62 || velocityX < -0.3) {
+          shouldOpen = false;
+        } else {
+          shouldOpen = true;
+        }
+      }
+
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+
+      const sidebar = sidebarRef.current;
+      const backdrop = backdropRef.current;
+
+      const animDuration = 260; // ms
+      if (sidebar) {
+        sidebar.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
+        sidebar.style.transform = shouldOpen ? "translateX(0px)" : `translateX(-100%)`;
+        sidebar.style.opacity = shouldOpen ? "1" : "0";
+        sidebar.style.pointerEvents = shouldOpen ? "auto" : "none";
+      }
+
+      if (backdrop) {
+        backdrop.style.transition = `opacity ${animDuration}ms ease`;
+        backdrop.style.opacity = shouldOpen ? "1" : "0";
+        backdrop.style.pointerEvents = shouldOpen ? "auto" : "none";
+      }
+
+      setSidebarOpen(shouldOpen);
+
+      // Clean up inline styles once spring transition completes
+      resetTimerId = setTimeout(() => {
+        if (sidebarRef.current) {
+          sidebarRef.current.style.transition = "";
+          sidebarRef.current.style.transform = "";
+          sidebarRef.current.style.opacity = "";
+          sidebarRef.current.style.pointerEvents = "";
+        }
+        if (backdropRef.current) {
+          backdropRef.current.style.transition = "";
+          backdropRef.current.style.opacity = "";
+          backdropRef.current.style.pointerEvents = "";
+        }
+      }, animDuration + 20);
+    };
+
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", handleTouchEnd, { passive: true });
     document.addEventListener("selectionchange", handleSelectionChange);
 
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchEnd);
       document.removeEventListener("selectionchange", handleSelectionChange);
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (resetTimerId) clearTimeout(resetTimerId);
     };
   }, [sidebarOpen]);
 
@@ -2771,16 +2924,18 @@ export default function Home() {
         } font-sans antialiased p-0`}>
           <MeshDriftBackground isDark={isDark} />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden transition-opacity"
-          aria-hidden="true"
-        />
-      )}
+      <div
+        ref={backdropRef}
+        onClick={() => setSidebarOpen(false)}
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden transition-opacity duration-300 ${
+          sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        aria-hidden="true"
+      />
 
       {/* ─── SIDEBAR (Slide Morphing Smooth Drawer) ─────────────────── */}
       <aside
+        ref={sidebarRef}
         className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r ${
           isDark
             ? "border-white/10 bg-black/20 text-zinc-200"
