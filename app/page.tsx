@@ -1123,17 +1123,12 @@ export default function Home() {
     let touchStartTime = 0;
     let isTracking = false;
     let isDragging = false;
-    let isSelectingText = false;
     let animFrameId: number | null = null;
     let resetTimerId: NodeJS.Timeout | null = null;
 
     const getDrawerWidth = () => {
       if (typeof window === "undefined") return 300;
       return Math.min(window.innerWidth * 0.84, 320);
-    };
-
-    const handleSelectionChange = () => {
-      isSelectingText = true;
     };
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -1143,29 +1138,33 @@ export default function Home() {
         return;
       }
 
-      // Jangan intercept swipe jika menyentuh input/textarea
+      // Jangan intercept swipe jika menyentuh input/textarea/editable
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, [contenteditable='true']")) {
         isTracking = false;
         return;
       }
 
-      // Check active text selection
+      // Batalkan jika ada teks yang sedang diblok aktif
       const selection = window.getSelection();
       const hasActiveSelection =
         !!selection && (!selection.isCollapsed || (selection.toString() || "").trim().length > 0);
-      if (hasActiveSelection || isSelectingText) {
+      if (hasActiveSelection) {
         isTracking = false;
         return;
+      }
+
+      if (resetTimerId) {
+        clearTimeout(resetTimerId);
+        resetTimerId = null;
       }
 
       const touch = e.touches[0];
       touchStartX = touch.clientX;
       touchStartY = touch.clientY;
       touchStartTime = Date.now();
-      isSelectingText = false;
 
-      // Full screen swipe: bisa mulai dari mana saja di layar!
+      // Full screen swipe: bisa mulai dari mana saja di layar
       isTracking = true;
       isDragging = false;
     };
@@ -1177,35 +1176,39 @@ export default function Home() {
       const deltaY = Math.abs(touch.clientY - touchStartY);
 
       if (!isDragging) {
-        // Bedakan intent: jika scroll vertikal lebih dominan, batalkan tracking drawer
-        if (deltaY > Math.abs(deltaX) && deltaY > 6) {
+        // Tunggu hingga ada gerakan minimal (8px) agar arahnya jelas
+        const dist = Math.hypot(deltaX, deltaY);
+        if (dist < 8) return;
+
+        // Jika pergerakan vertikal lebih dominan (scroll chat), batalkan tracking drawer
+        if (deltaY > Math.abs(deltaX) * 1.3) {
           isTracking = false;
           return;
         }
 
-        // Mulai drag jika pergerakan horizontal dominan
-        if (!sidebarOpen && deltaX > 8 && deltaX > deltaY * 1.1) {
+        // Aktifkan dragging jika geser horizontal
+        if (!sidebarOpen && deltaX > 8) {
           isDragging = true;
-        } else if (sidebarOpen && deltaX < -8 && Math.abs(deltaX) > deltaY * 1.1) {
+        } else if (sidebarOpen && deltaX < -8) {
           isDragging = true;
+        } else if (!sidebarOpen && deltaX < -15) {
+          // Geser ke kiri saat panel tertutup -> batalkan
+          isTracking = false;
+          return;
         }
       }
 
       if (isDragging) {
         if (e.cancelable) e.preventDefault();
-        if (resetTimerId) {
-          clearTimeout(resetTimerId);
-          resetTimerId = null;
-        }
 
         const drawerWidth = getDrawerWidth();
         let currentPos = 0;
 
         if (!sidebarOpen) {
-          // Dragging ke kanan untuk membuka: deltaX positif
-          currentPos = Math.max(0, Math.min(deltaX, drawerWidth));
+          // Dragging ke kanan untuk membuka (dengan sedikit boost 1.15x agar responsif dari seluruh layar)
+          currentPos = Math.max(0, Math.min(deltaX * 1.15, drawerWidth));
         } else {
-          // Dragging ke kiri untuk menutup: deltaX negatif
+          // Dragging ke kiri untuk menutup
           currentPos = Math.max(0, Math.min(drawerWidth + deltaX, drawerWidth));
         }
 
@@ -1218,7 +1221,7 @@ export default function Home() {
 
           if (sidebar) {
             sidebar.style.transition = "none";
-            sidebar.style.transform = `translateX(${currentPos - drawerWidth}px)`;
+            sidebar.style.transform = `translateX(${currentPos - drawerWidth}px) scale(1)`;
             sidebar.style.opacity = "1";
             sidebar.style.pointerEvents = "auto";
           }
@@ -1247,7 +1250,7 @@ export default function Home() {
 
       let currentPos = 0;
       if (!sidebarOpen) {
-        currentPos = Math.max(0, Math.min(deltaX, drawerWidth));
+        currentPos = Math.max(0, Math.min(deltaX * 1.15, drawerWidth));
       } else {
         currentPos = Math.max(0, Math.min(drawerWidth + deltaX, drawerWidth));
       }
@@ -1255,15 +1258,15 @@ export default function Home() {
 
       let shouldOpen = sidebarOpen;
       if (!sidebarOpen) {
-        // Terbuka jika ditarik melewati 35% atau diflick ke kanan
-        if (progress > 0.35 || velocityX > 0.25) {
+        // Terbuka jika ditarik melewati 28% atau flicked ke kanan (velocity > 0.2) atau jarak > 70px
+        if (progress > 0.28 || velocityX > 0.2 || deltaX > 70) {
           shouldOpen = true;
         } else {
           shouldOpen = false;
         }
       } else {
-        // Tertutup jika digeser ke kiri melewati 65% atau diflick ke kiri
-        if (progress < 0.65 || velocityX < -0.25) {
+        // Tertutup jika digeser ke kiri melewati 72% atau flicked ke kiri (velocity < -0.2) atau jarak < -60px
+        if (progress < 0.72 || velocityX < -0.2 || deltaX < -60) {
           shouldOpen = false;
         } else {
           shouldOpen = true;
@@ -1275,10 +1278,10 @@ export default function Home() {
       const sidebar = sidebarRef.current;
       const backdrop = backdropRef.current;
 
-      const animDuration = 240; // ms
+      const animDuration = 220; // ms
       if (sidebar) {
         sidebar.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
-        sidebar.style.transform = shouldOpen ? "translateX(0px)" : `translateX(-100%)`;
+        sidebar.style.transform = shouldOpen ? "translateX(0px) scale(1)" : `translateX(-100%) scale(0.98)`;
         sidebar.style.opacity = shouldOpen ? "1" : "0";
         sidebar.style.pointerEvents = shouldOpen ? "auto" : "none";
       }
@@ -1292,23 +1295,22 @@ export default function Home() {
       setSidebarOpen(shouldOpen);
 
       // Bersihkan inline styles setelah animasi snap selesai
+      if (resetTimerId) clearTimeout(resetTimerId);
       resetTimerId = setTimeout(() => {
         clearDragStyles();
       }, animDuration + 20);
     };
 
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
-    window.addEventListener("touchend", handleTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", handleTouchEnd, { passive: true });
-    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchmove", handleTouchMove, { passive: false });
+    document.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchEnd);
-      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchcancel", handleTouchEnd);
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
