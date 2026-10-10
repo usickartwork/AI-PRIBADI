@@ -566,6 +566,7 @@ export default function Home() {
       const saved = localStorage.getItem("usick-theme");
       if (saved === "light" || saved === "dark") return saved;
       if (!document.documentElement.classList.contains("dark")) return "light";
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
     }
     return "dark"; // Default to dark mode as requested
   });
@@ -815,8 +816,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("usick-theme");
-      if ((saved === "light" || saved === "dark") && saved !== theme) {
-        setTheme(saved);
+      if (saved === "light" || saved === "dark") {
+        if (saved !== theme) setTheme(saved);
+      } else {
+        const isLight = !document.documentElement.classList.contains("dark") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+        if (isLight && theme !== "light") {
+          setTheme("light");
+        }
       }
     }
   }, []);

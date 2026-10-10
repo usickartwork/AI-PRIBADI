@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 (function() {
                   try {
                     var saved = localStorage.getItem('usick-theme');
-                    var isDark = saved === 'dark' || !saved; // default dark
+                    var isDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
                     if (isDark) {
                       document.documentElement.classList.add('dark');
                       document.documentElement.style.colorScheme = 'dark';

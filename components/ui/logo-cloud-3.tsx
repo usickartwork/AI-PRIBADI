@@ -140,13 +140,19 @@ export function LogoCloud({
               "flex items-center gap-2.5 sm:gap-3 shrink-0 select-none transition-opacity",
               isDark
                 ? "text-white/80 hover:text-white"
-                : "text-zinc-700 hover:text-zinc-950"
+                : "text-black hover:text-zinc-800"
             )}
           >
-            <div className="flex items-center justify-center shrink-0">
+            <div className={cn(
+              "flex items-center justify-center shrink-0",
+              isDark ? "text-white" : "text-black"
+            )}>
               {model.icon}
             </div>
-            <span className="text-sm sm:text-base md:text-lg font-semibold tracking-tight whitespace-nowrap">
+            <span className={cn(
+              "text-sm sm:text-base md:text-lg font-bold tracking-tight whitespace-nowrap",
+              isDark ? "text-white" : "text-black"
+            )}>
               {model.name}
             </span>
           </div>

@@ -20,23 +20,48 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       const saved = localStorage.getItem("usick-theme");
       if (saved === "light") return false;
       if (saved === "dark") return true;
+      if (theme === "light") return false;
+      if (theme === "dark") return true;
       if (!document.documentElement.classList.contains("dark")) return false;
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return false;
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
     }
     return theme === "dark";
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("usick-theme");
-      if (saved === "light") {
-        setIsDark(false);
-      } else if (saved === "dark") {
-        setIsDark(true);
-      } else {
-        setIsDark(theme === "dark" || document.documentElement.classList.contains("dark"));
+    const resolveTheme = () => {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("usick-theme") : null;
+      if (saved === "light") return false;
+      if (saved === "dark") return true;
+      if (theme === "light") return false;
+      if (theme === "dark") return true;
+      if (typeof document !== "undefined") {
+        if (!document.documentElement.classList.contains("dark")) return false;
       }
-    } else {
-      setIsDark(theme === "dark");
+      if (typeof window !== "undefined" && window.matchMedia) {
+        if (window.matchMedia("(prefers-color-scheme: light)").matches) return false;
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
+      }
+      return false;
+    };
+
+    setIsDark(resolveTheme());
+
+    if (typeof document !== "undefined") {
+      const observer = new MutationObserver(() => {
+        setIsDark(resolveTheme());
+      });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+      const media = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+      const handleMedia = () => setIsDark(resolveTheme());
+      media?.addEventListener?.("change", handleMedia);
+
+      return () => {
+        observer.disconnect();
+        media?.removeEventListener?.("change", handleMedia);
+      };
     }
   }, [theme]);
 
@@ -48,6 +73,8 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       aria-label="Memuat One Mind"
       aria-live="polite"
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        isDark ? "bg-[#09090b] text-white" : "bg-white text-black"
+      } ${
         isExiting
           ? "opacity-0 scale-[1.04] pointer-events-none"
           : "opacity-100 scale-100"
@@ -56,7 +83,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
         width: "100vw",
         height: "100dvh",
         backgroundColor: isDark ? "#09090b" : "#ffffff",
-        color: isDark ? "#ffffff" : "#09090b",
+        color: isDark ? "#ffffff" : "#000000",
       }}
     >
       {/* ─── Ambient Atmospheric Depth Light ─────────────────────────────────── */}
@@ -65,18 +92,19 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
         style={{
           background: isDark
             ? "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 60%)"
-            : "radial-gradient(circle at 50% 40%, rgba(0,0,0,0.02) 0%, transparent 60%)",
+            : "none",
         }}
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
       <div className="relative w-full max-w-2xl h-28 sm:h-36 flex items-center justify-center px-4 -translate-y-2 sm:-translate-y-3">
         <TechText
+          key={isDark ? "dark" : "light"}
           text="One Mind"
           fontWeight={700}
           fontSize={120}
-          color={isDark ? "#ffffff" : "#09090b"}
-          accentColor={isDark ? "#ffffff" : "#71717a"}
+          color={isDark ? "#ffffff" : "#000000"}
+          accentColor={isDark ? "#ffffff" : "#000000"}
           reveal="letter"
           dashLength={4}
           dashGap={2}
@@ -89,7 +117,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
 
       {/* ─── Logo Cloud: Model & LLM Provider Slider (Dibawah One Mind) ─────── */}
       <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-0 sm:mt-1 flex flex-col items-center animate-in fade-in-0 duration-700">
-        <LogoCloud isDark={isDark} duration={6} className="w-full py-1.5" />
+        <LogoCloud key={isDark ? "dark" : "light"} isDark={isDark} duration={6} className="w-full py-1.5" />
       </div>
     </div>
   );
