@@ -304,12 +304,26 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     }, 0);
 
     // 1. Supabase Broadcast inbox listener (instant ping when anyone sends message/request)
-    const inboxChannel = supabase.channel(`inbox_${userId}`);
-    inboxChannel
+    const inboxChannel = supabase
+      .channel(`inbox_${userId}`)
       .on("broadcast", { event: "inbox_ping" }, () => {
         void loadConversations();
         void loadFriends();
       })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "msg_conversations" },
+        () => {
+          void loadConversations();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "msg_friendships" },
+        () => {
+          void loadFriends();
+        }
+      )
       .subscribe();
 
     // 2. Fallback polling for conversations & friends
@@ -334,13 +348,42 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     };
   }, [userId, loadConversations, loadFriends]);
 
-  /* ─── Active Chat Realtime Broadcast + Fast Adaptive Polling ─────────── */
+  /* ─── Active Chat Realtime (postgres_changes + Broadcast + Polling) ─── */
   useEffect(() => {
     if (!active) return;
 
-    // 1. WebSocket Broadcast Langsung (< 50ms) antar partisipan percakapan aktif
-    const convChannel = supabase.channel(`conv_${active.id}`);
-    convChannel
+    // 1. Supabase Realtime Channel: menangkap INSERT database & broadcast
+    const convChannel = supabase
+      .channel(`chat_realtime_${active.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "msg_messages",
+          filter: `conversation_id=eq.${active.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { id: string; sender_id: string; body: string; created_at: string };
+          if (!row || !row.id) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            const withoutPending = prev.filter((m) => !(m.pending && m.fromMe && m.body === row.body));
+            return [
+              ...withoutPending,
+              {
+                id: row.id,
+                body: row.body,
+                createdAt: row.created_at,
+                fromMe: row.sender_id === userId,
+              },
+            ];
+          });
+          if (row.sender_id !== userId && document.visibilityState === "visible") {
+            void markRead(active.id);
+          }
+        }
+      )
       .on("broadcast", { event: "new_msg" }, (payload) => {
         const msg = payload.payload?.message as ChatMessage | undefined;
         if (msg && msg.id) {
@@ -373,7 +416,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
       window.clearInterval(timer);
       void supabase.removeChannel(convChannel);
     };
-  }, [active, pollNewMessages, markRead]);
+  }, [active, userId, pollNewMessages, markRead]);
 
   /* ─── Open conversation ───────────────────────────────────────────────── */
   const openConversation = useCallback(
