@@ -733,21 +733,21 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     return -1;
   }, [messages, peerLastReadAt]);
 
-  /* ─── Style tokens (selaras tema One Mind, hemat performa GPU) ──────── */
+  /* ─── Style tokens (selaras tema One Mind, transparan ke background web) ─── */
   const panel = isDark
-    ? "bg-[#111113]/90 border border-white/10"
-    : "bg-white/95 border border-black/10 shadow-sm";
+    ? "bg-transparent border border-white/10"
+    : "bg-transparent border border-black/10";
   const muted = isDark ? "text-zinc-400" : "text-zinc-500";
   const divider = isDark ? "border-white/10" : "border-black/10";
-  const hoverRow = isDark ? "hover:bg-zinc-800/60" : "hover:bg-zinc-100/90";
-  const activeRow = isDark ? "bg-zinc-800/90" : "bg-zinc-100";
+  const hoverRow = isDark ? "hover:bg-white/5" : "hover:bg-black/5";
+  const activeRow = isDark ? "bg-white/10" : "bg-black/5";
   const primaryBtn = isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800";
   const ghostBtn = isDark
-    ? "border border-white/10 text-zinc-200 hover:bg-zinc-800/70"
-    : "border border-black/10 text-zinc-700 hover:bg-zinc-100";
+    ? "border border-white/10 text-zinc-200 hover:bg-white/5"
+    : "border border-black/10 text-zinc-700 hover:bg-black/5";
   const inputCls = isDark
-    ? "bg-zinc-900/70 border border-white/10 text-white placeholder:text-zinc-500 focus:border-white/30"
-    : "bg-white border border-black/10 text-black placeholder:text-zinc-400 focus:border-black/30";
+    ? "bg-zinc-900/40 backdrop-blur-md border border-white/10 text-white placeholder:text-zinc-500 focus:border-white/30"
+    : "bg-white/70 backdrop-blur-md border border-black/10 text-black placeholder:text-zinc-400 focus:border-black/30";
 
   /* ─── Header (hamburger, serasi workspace lain) ───────────────────────── */
   const header = (
@@ -1069,7 +1069,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
       <div className="mt-5">
         {searchResult === null && emptyState(<Search size={26} strokeWidth={1.6} />, "Pengguna tidak ditemukan", "Periksa kembali ejaan username atau email.")}
         {searchResult && (
-          <div className={`rounded-2xl p-4 flex items-center gap-3 ${isDark ? "bg-zinc-900/60 border border-white/10" : "bg-white border border-black/10"}`}>
+          <div className={`rounded-2xl p-4 flex items-center gap-3 ${isDark ? "bg-white/5 border border-white/10 backdrop-blur-md" : "bg-white/70 border border-black/10 backdrop-blur-md"}`}>
             <Avatar user={searchResult.user} isDark={isDark} size={48} />
             {userLine(searchResult.user)}
             {relationAction(searchResult)}
@@ -1168,7 +1168,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
                 <div key={m.id}>
                   {showDay && (
                     <div className="flex justify-center my-3">
-                      <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${isDark ? "bg-zinc-900/80 text-zinc-400" : "bg-zinc-100 text-zinc-500"}`}>
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-medium backdrop-blur-md ${isDark ? "bg-white/10 text-zinc-300 border border-white/5" : "bg-black/5 text-zinc-600"}`}>
                         {formatDayLabel(m.createdAt)}
                       </span>
                     </div>
@@ -1234,7 +1234,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
         <section className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] lg:w-[360px] shrink-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0`}>
           <div className="px-4 pt-4 pb-3">
             <h1 className="text-lg font-extrabold tracking-tight">Messages</h1>
-            <div className={`mt-3 grid grid-cols-4 gap-1 p-1 rounded-xl ${isDark ? "bg-zinc-900/70" : "bg-zinc-100"}`}>
+            <div className={`mt-3 grid grid-cols-4 gap-1 p-1 rounded-xl ${isDark ? "bg-white/5 border border-white/10" : "bg-black/5 border border-black/5"}`}>
               {tabs.map((t) => (
                 <button
                   key={t.id}
@@ -1242,7 +1242,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
                   className={`relative flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs transition cursor-pointer ${
                     tab === t.id
                       ? isDark
-                        ? "bg-zinc-700/80 text-white font-semibold shadow-sm"
+                        ? "bg-white/15 text-white font-semibold shadow-sm"
                         : "bg-white text-black font-semibold shadow-sm"
                       : isDark
                         ? "text-zinc-400 hover:text-zinc-200"
@@ -1273,9 +1273,7 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
           ref={chatPaneRef}
           className={`${
             active ? "flex" : "hidden md:flex"
-          } flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:h-[100dvh] max-md:z-30 max-md:border-0 max-md:rounded-none ${
-            isDark ? "max-md:bg-[#0c0c0e]" : "max-md:bg-white"
-          }`}
+          } flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:h-[100dvh] max-md:z-30 max-md:border-0 max-md:rounded-none bg-transparent`}
         >
           {chatPane}
         </section>
