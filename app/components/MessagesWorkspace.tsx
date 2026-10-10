@@ -53,16 +53,12 @@ const MessageBubbleMarkdown = memo(function MessageBubbleMarkdown({
   fromMe: boolean;
   isDark: boolean;
 }) {
-  const codeBg = fromMe
-    ? isDark
-      ? "bg-black/10 text-black border-black/15"
-      : "bg-white/15 text-white border-white/20"
-    : isDark
-      ? "bg-white/10 text-zinc-200 border-white/15"
-      : "bg-black/5 text-zinc-900 border-black/10";
+  const codeBg = isDark
+    ? "bg-white/10 text-zinc-200 border-white/15"
+    : "bg-black/5 text-zinc-900 border-black/10";
 
   return (
-    <div className="text-[13.5px] leading-relaxed break-words select-text">
+    <div className="text-[13.5px] leading-relaxed break-words select-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -975,6 +971,11 @@ export default function MessagesWorkspace({
   const handleTouchStart = useCallback((msg: ChatMessage) => {
     if (msg.isDeleted || msg.pending) return;
     longPressTimerRef.current = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        try {
+          window.getSelection()?.removeAllRanges();
+        } catch {}
+      }
       setActionMenuMsg(msg);
       if (typeof window !== "undefined" && "vibrate" in navigator) {
         try {
@@ -1537,7 +1538,9 @@ export default function MessagesWorkspace({
                         <button
                           type="button"
                           onClick={() => handleStartReply(m)}
-                          className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition cursor-pointer"
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                            isDark ? "hover:bg-white/10 hover:text-white" : "hover:bg-black/10 hover:text-black"
+                          }`}
                           title="Balas pesan"
                         >
                           <Reply size={13} />
@@ -1545,7 +1548,9 @@ export default function MessagesWorkspace({
                         <button
                           type="button"
                           onClick={() => handleCopyMessage(m)}
-                          className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition cursor-pointer"
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                            isDark ? "hover:bg-white/10 hover:text-white" : "hover:bg-black/10 hover:text-black"
+                          }`}
                           title="Salin teks"
                         >
                           <Copy size={13} />
@@ -1554,7 +1559,11 @@ export default function MessagesWorkspace({
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmMsg(m)}
-                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition cursor-pointer"
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${
+                              isDark
+                                ? "hover:bg-white/10 hover:text-white text-zinc-300"
+                                : "hover:bg-black/10 hover:text-black text-zinc-700"
+                            }`}
                             title="Hapus untuk semua orang"
                           >
                             <Trash2 size={13} />
@@ -1568,13 +1577,20 @@ export default function MessagesWorkspace({
                       onTouchStart={() => handleTouchStart(m)}
                       onTouchEnd={handleTouchCancelOrEnd}
                       onTouchMove={handleTouchCancelOrEnd}
-                      className={`max-w-[82%] sm:max-w-[72%] min-w-[4.8rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed flex flex-col transition-all ${
+                      onContextMenu={(e) => {
+                        if (!m.isDeleted && !m.pending) {
+                          e.preventDefault();
+                          setActionMenuMsg(m);
+                        }
+                      }}
+                      style={{ WebkitTouchCallout: "none", userSelect: "none" }}
+                      className={`max-w-[82%] sm:max-w-[72%] min-w-[4.8rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed flex flex-col transition-all select-none ${
                         m.fromMe ? "order-2" : "order-1"
                       } ${
                         m.fromMe
                           ? isDark
-                            ? "bg-white text-black rounded-br-md"
-                            : "bg-black text-white rounded-br-md"
+                            ? "bg-zinc-800/90 text-zinc-100 rounded-br-md border border-zinc-700/80 shadow-xs"
+                            : "bg-zinc-100 text-zinc-900 rounded-br-md border border-zinc-300/80 shadow-xs"
                           : isDark
                             ? "bg-zinc-800/90 text-zinc-100 rounded-bl-md"
                             : "bg-zinc-100 text-zinc-900 rounded-bl-md"
@@ -1587,14 +1603,10 @@ export default function MessagesWorkspace({
                             e.stopPropagation();
                             scrollToMessage(m.replyTo!.id);
                           }}
-                          className={`mb-1.5 cursor-pointer rounded-xl px-2.5 py-1.5 text-xs border-l-2 transition active:scale-[0.99] ${
-                            m.fromMe
-                              ? isDark
-                                ? "bg-black/10 border-black/40 text-black/90 hover:bg-black/15"
-                                : "bg-white/15 border-white/60 text-white hover:bg-white/20"
-                              : isDark
-                                ? "bg-white/10 border-white/40 text-zinc-200 hover:bg-white/15"
-                                : "bg-black/5 border-black/30 text-zinc-800 hover:bg-black/10"
+                          className={`mb-1.5 cursor-pointer rounded-xl px-2.5 py-1.5 text-xs border-l-2 transition active:scale-[0.99] select-none ${
+                            isDark
+                              ? "bg-white/10 border-white/40 text-zinc-200 hover:bg-white/15"
+                              : "bg-black/5 border-black/30 text-zinc-800 hover:bg-black/10"
                           }`}
                           title="Klik untuk melihat pesan asli"
                         >
@@ -1617,13 +1629,9 @@ export default function MessagesWorkspace({
                       {m.messageType === "shared_ai" && !m.isDeleted && (
                         <div
                           className={`flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase mb-1 select-none ${
-                            m.fromMe
-                              ? isDark
-                                ? "text-zinc-600"
-                                : "text-zinc-300"
-                              : isDark
-                                ? "text-zinc-300"
-                                : "text-zinc-700"
+                            isDark
+                              ? "text-zinc-300"
+                              : "text-zinc-600"
                           }`}
                         >
                           <UsickStarIcon className="w-2.5 h-2.5 shrink-0" />
@@ -1644,7 +1652,7 @@ export default function MessagesWorkspace({
                       {/* Timestamp */}
                       <div
                         className={`self-end flex items-center gap-1 text-[10px] mt-0.5 select-none ${
-                          m.fromMe ? (isDark ? "text-zinc-500" : "text-zinc-400") : muted
+                          isDark ? "text-zinc-400" : "text-zinc-500"
                         }`}
                       >
                         {m.pending ? <Clock size={10} /> : formatBubbleTime(m.createdAt)}
@@ -1797,7 +1805,7 @@ export default function MessagesWorkspace({
                     setDeleteConfirmMsg(actionMenuMsg);
                     setActionMenuMsg(null);
                   }}
-                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${hoverRow}`}
                 >
                   <Trash2 size={16} /> Hapus untuk Semua Orang
                 </button>
@@ -1821,8 +1829,8 @@ export default function MessagesWorkspace({
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 mb-3 text-red-400">
-              <div className="p-2.5 rounded-full bg-red-500/15">
+            <div className={`flex items-center gap-3 mb-3 ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>
+              <div className={`p-2.5 rounded-full ${isDark ? "bg-white/10 text-zinc-200" : "bg-black/5 text-zinc-700"}`}>
                 <Trash2 size={20} />
               </div>
               <h3 className="text-base font-bold">Hapus untuk semua orang?</h3>
