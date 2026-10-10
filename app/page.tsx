@@ -1391,6 +1391,7 @@ export default function Home() {
           error?: string;
           detail?: string;
           isLimit?: boolean;
+          isOverloaded?: boolean;
           isVisionUnsupported?: boolean;
           requiresUpgrade?: boolean;
           creditsExhausted?: boolean;
@@ -1447,6 +1448,23 @@ export default function Home() {
           const noticeMsg =
             errJson.error || getVisionUnsupportedNotice(activeModelObj.label);
           updateAssistantContent(assistantId, noticeMsg);
+          return;
+        }
+
+        // Deteksi jika model sedang overload / antrean sibuk sementara
+        const isOverload =
+          res.status === 503 ||
+          Boolean(errJson.isOverloaded) ||
+          errDetail.toLowerCase().includes("overload") ||
+          errDetail.toLowerCase().includes("temporary unavailable") ||
+          errDetail.toLowerCase().includes("high demand");
+
+        if (isOverload) {
+          setError(null);
+          updateAssistantContent(
+            assistantId,
+            "⏳ **Model sedang mengalami lonjakan antrean (overload sementara).**\n\nPenyedia upstream sedang sibuk melayani trafik tinggi saat ini. Silakan coba kirim ulang dalam beberapa saat, atau pilih model lain yang tersedia pada menu pilihan model."
+          );
           return;
         }
 

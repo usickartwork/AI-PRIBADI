@@ -677,35 +677,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── ClarioHub Gemini Fallback (If custom gemini model hits 503/429/500/504, fallback to clario/gemini-3.7-flash-auto) ─
-    if (
-      !upstream.ok &&
-      (upstream.status === 429 || upstream.status === 503 || upstream.status === 504 || upstream.status === 500) &&
-      providerName === "custom" &&
-      modelName.startsWith("clario/gemini-") &&
-      modelName !== "clario/gemini-3.7-flash-auto"
-    ) {
-      console.warn(
-        `[api/chat] Gemini model ${modelName} returned ${upstream.status}, trying fallback clario/gemini-3.7-flash-auto`
-      );
-      const fallbackBody = JSON.stringify({
-        model: "clario/gemini-3.7-flash-auto",
-        messages,
-        stream: true,
-        max_tokens: maxTokens,
-        temperature,
-      });
-      const fallbackUpstream = await fetch(provider.endpoint, {
-        method: "POST",
-        headers: reqHeaders,
-        body: fallbackBody,
-        signal: AbortSignal.timeout(35000),
-      });
-      if (fallbackUpstream.ok) {
-        upstream = fallbackUpstream;
-      }
-    }
-
     // ── Gemini Fallback ────────────────────────────────────────────────────────
     if (
       !upstream.ok &&
@@ -784,6 +755,12 @@ export async function POST(request: Request) {
         );
       }
 
+      const isOverloaded =
+        upstream.status === 503 ||
+        errText.toLowerCase().includes("overload") ||
+        errText.toLowerCase().includes("temporary unavailable") ||
+        errText.toLowerCase().includes("high demand");
+
       const isLimitError =
         upstream.status === 429 ||
         upstream.status === 402 ||
@@ -798,9 +775,12 @@ export async function POST(request: Request) {
 
       return Response.json(
         {
-          error: `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
+          error: isOverloaded
+            ? `Model ini sedang mengalami lonjakan antrean / overload sementara dari penyedia layanan. Silakan coba kembali dalam beberapa saat, atau pilih model lain.`
+            : `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
           detail: errText.slice(0, 300),
           isLimit: isLimitError,
+          isOverloaded,
           model: modelId,
           sources,
           searchError,
