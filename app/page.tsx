@@ -2998,7 +2998,7 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#09090b] ${
+        <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
           <MeshDriftBackground isDark={isDark} />
@@ -4061,7 +4061,7 @@ export default function Home() {
         )}
 
         {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
+        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(1.75rem,calc(env(safe-area-inset-bottom)+1rem))] bg-transparent">
           <div className="mx-auto max-w-3xl w-full">
             {renderChatInputCard()}
           </div>
