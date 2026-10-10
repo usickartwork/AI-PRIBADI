@@ -954,8 +954,8 @@ export default function Home() {
 
     // Otomatis langsung pindah ke model Gemini 3.7 Flash saat upload file
     const gemini37 =
-      models.find((m) => m.id === "custom:clario/gemini-3.7-flash") ||
       models.find((m) => m.id === "custom:clario/gemini-3.7-flash-auto") ||
+      models.find((m) => m.id === "custom:clario/gemini-3.7-flash") ||
       models.find((m) => m.id.toLowerCase().includes("gemini-3.7-flash")) ||
       models.find((m) => m.id.toLowerCase().includes("gemini"));
     if (gemini37) {
