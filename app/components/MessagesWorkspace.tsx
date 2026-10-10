@@ -1893,7 +1893,7 @@ export default function MessagesWorkspace({
           ref={chatPaneRef}
           className={`${
             active ? "flex" : "hidden md:flex"
-          } flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:h-[100dvh] max-md:z-30 max-md:border-0 max-md:rounded-none bg-transparent`}
+          } flex-col flex-1 min-w-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:fixed max-md:inset-0 max-md:z-30 max-md:border-0 max-md:rounded-none bg-transparent`}
         >
           {chatPane}
         </section>

@@ -107,7 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </head>
-        <body className="h-full h-dvh w-full overflow-hidden flex flex-col bg-[#fafafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
+        <body className="h-full min-h-full w-full overflow-hidden flex flex-col bg-[#fafafc] dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
           {children}
         </body>
       </html>

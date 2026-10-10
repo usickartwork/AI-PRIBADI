@@ -2963,7 +2963,7 @@ export default function Home() {
       ) : !user ? (
         <div
           id="page-1-container"
-          className="relative h-dvh w-full overflow-y-auto overflow-x-hidden scroll-smooth"
+          className="relative h-full min-h-full w-full overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{
             backgroundColor: isDark ? "#09090b" : "#ffffff",
             color: isDark ? "#ffffff" : "#09090b",
@@ -2998,7 +2998,7 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className={`relative z-10 flex h-dvh w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#09090b] ${
+        <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#09090b] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
           <MeshDriftBackground isDark={isDark} />
