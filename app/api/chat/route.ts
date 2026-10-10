@@ -73,7 +73,8 @@ function getProviders(): Record<string, ProviderConfig> {
     gemini: {
       endpoint:
         "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      apiKey: process.env.GEMINI_API_KEY || "",
+      apiKey:
+        process.env.GEMINI_VOICE_API_KEY || process.env.GEMINI_API_KEY || "",
     },
     groq: {
       endpoint: "https://api.groq.com/openai/v1/chat/completions",

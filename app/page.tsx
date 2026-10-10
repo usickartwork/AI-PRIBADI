@@ -99,6 +99,7 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
   { id: "claude:claude-3-5-sonnet-latest", label: "[Claude] 3.5 Sonnet", provider: "claude" },
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B", provider: "ollama" },
+  { id: "gemini:gemini-3.6-flash", label: "[Gemini] 3.6 Flash", provider: "gemini" },
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
   { id: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", label: "[OpenRouter] Nemotron 3 Super 120B (Free)", provider: "openrouter" },
@@ -110,8 +111,6 @@ const FALLBACK_MODELS: ModelEntry[] = [
   { id: "custom:clario/deepseek-v4-flash-0731", label: "[Custom] DeepSeek V4 Flash (0731)", provider: "custom" },
   { id: "custom:clario/deepseek-v4-pro", label: "[Custom] DeepSeek V4 Pro", provider: "custom" },
   { id: "custom:clario/deepseek-v4-pro-0813", label: "[Custom] DeepSeek V4 Pro (0813)", provider: "custom" },
-  { id: "custom:clario/gemini-3.7-flash-auto", label: "[Custom] Gemini 3.7 Flash (Auto)", provider: "custom" },
-  { id: "custom:clario/gemini-3.7-flash", label: "[Custom] Gemini 3.7 Flash", provider: "custom" },
   { id: "custom:clario/gpt-5.6-sol", label: "[Custom] GPT-5.6 Sol", provider: "custom" },
   { id: "custom:clario/glm-5.3-flash", label: "[Custom] GLM-5.3 Flash", provider: "custom" },
   { id: "custom:clario/glm-5.3", label: "[Custom] GLM 5.3", provider: "custom" },
@@ -952,14 +951,13 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Otomatis langsung pindah ke model Gemini 3.7 Flash saat upload file
-    const gemini37 =
-      models.find((m) => m.id === "custom:clario/gemini-3.7-flash-auto") ||
-      models.find((m) => m.id === "custom:clario/gemini-3.7-flash") ||
-      models.find((m) => m.id.toLowerCase().includes("gemini-3.7-flash")) ||
+    // Otomatis langsung pindah ke model Gemini 3.6 Flash saat upload file
+    const geminiVision =
+      models.find((m) => m.id === "gemini:gemini-3.6-flash") ||
+      models.find((m) => m.id.toLowerCase().includes("gemini-3.6-flash")) ||
       models.find((m) => m.id.toLowerCase().includes("gemini"));
-    if (gemini37) {
-      setModel(gemini37.id);
+    if (geminiVision) {
+      setModel(geminiVision.id);
     }
 
     // Jika user memilih foto/gambar di opsi file, alihkan ke pemrosesan gambar

@@ -40,6 +40,7 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "ollama:gpt-oss:120b", label: "[Ollama] GPT OSS 120B (Lokal/Server)", provider: "ollama" },
 
   // ── Gemini (Google AI Studio) ──────────────────────────────────────────────
+  { id: "gemini:gemini-3.6-flash", label: "[Gemini] 3.6 Flash", provider: "gemini" },
   { id: "gemini:gemini-3.5-flash-lite", label: "[Gemini] 3.5 Flash Lite", provider: "gemini" },
   { id: "gemini:gemini-3.1-flash-lite-preview", label: "[Gemini] 3.1 Flash Lite Preview", provider: "gemini" },
 
@@ -55,8 +56,6 @@ const ALL_MODELS: ModelEntry[] = [
   { id: "custom:clario/deepseek-v4-flash-0731", label: "[Custom] DeepSeek V4 Flash (0731)", provider: "custom" },
   { id: "custom:clario/deepseek-v4-pro", label: "[Custom] DeepSeek V4 Pro", provider: "custom" },
   { id: "custom:clario/deepseek-v4-pro-0813", label: "[Custom] DeepSeek V4 Pro (0813)", provider: "custom" },
-  { id: "custom:clario/gemini-3.7-flash-auto", label: "[Custom] Gemini 3.7 Flash (Auto)", provider: "custom" },
-  { id: "custom:clario/gemini-3.7-flash", label: "[Custom] Gemini 3.7 Flash", provider: "custom" },
   { id: "custom:clario/gpt-5.6-sol", label: "[Custom] GPT-5.6 Sol", provider: "custom" },
   { id: "custom:clario/glm-5.3-flash", label: "[Custom] GLM-5.3 Flash", provider: "custom" },
   { id: "custom:clario/glm-5.3", label: "[Custom] GLM 5.3", provider: "custom" },
