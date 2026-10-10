@@ -480,6 +480,7 @@ export async function POST(request: Request) {
   }
 
   let reqBody: string;
+  let messagesToSend: any[] = [];
 
   if (isAnthropic) {
     const systemTexts: string[] = [];
@@ -564,7 +565,7 @@ export async function POST(request: Request) {
       modelName.toLowerCase().includes("deepseek-r1") ||
       modelId.toLowerCase().includes("deepseek-r1");
 
-    let messagesToSend = formattedMessages;
+    messagesToSend = formattedMessages;
     if (isDeepSeekR1) {
       // Pastikan system prompt untuk DeepSeek R1 ringkas agar tidak memicu overthinking tapi tetap berbahasa Indonesia
       messagesToSend = formattedMessages.map((m) => {
@@ -680,7 +681,7 @@ export async function POST(request: Request) {
       );
       const fallbackBody = JSON.stringify({
         model: "clario/deepseek-v4.1-flash-auto",
-        messages,
+        messages: messagesToSend.length > 0 ? messagesToSend : messages,
         stream: true,
         max_tokens: maxTokens,
         temperature,
@@ -708,7 +709,7 @@ export async function POST(request: Request) {
       );
       const fallbackBody = JSON.stringify({
         model: "gemini-3.5-flash-lite",
-        messages,
+        messages: messagesToSend.length > 0 ? messagesToSend : messages,
         stream: true,
         max_tokens: maxTokens,
         temperature,
@@ -720,6 +721,25 @@ export async function POST(request: Request) {
       });
       if (fallbackUpstream.ok) {
         upstream = fallbackUpstream;
+      } else if (fallbackUpstream.status === 429 || fallbackUpstream.status === 503) {
+        console.warn(
+          `[api/chat] gemini-3.5-flash-lite returned ${fallbackUpstream.status}, trying fallback gemini-3.1-flash-lite-preview`
+        );
+        const secondFallbackBody = JSON.stringify({
+          model: "gemini-3.1-flash-lite-preview",
+          messages: messagesToSend.length > 0 ? messagesToSend : messages,
+          stream: true,
+          max_tokens: maxTokens,
+          temperature,
+        });
+        const secondUpstream = await fetch(provider.endpoint, {
+          method: "POST",
+          headers: reqHeaders,
+          body: secondFallbackBody,
+        });
+        if (secondUpstream.ok) {
+          upstream = secondUpstream;
+        }
       }
     }
 
