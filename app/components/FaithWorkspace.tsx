@@ -137,7 +137,7 @@ export function FaithWorkspace({
       </header>
 
       {/* ─── EMBEDDED IFRAME BODY ───────────────────────────────────────── */}
-      <div className="relative flex-1 w-full h-full min-h-0 bg-transparent flex flex-col">
+      <div className="relative flex-1 w-full h-full min-h-0 bg-transparent flex flex-col pb-[env(safe-area-inset-bottom)]">
         {/* Loading indicator */}
         {isLoading && (
           <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-xs transition-opacity ${

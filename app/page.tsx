@@ -2960,7 +2960,7 @@ export default function Home() {
       ) : !user ? (
         <div
           id="page-1-container"
-          className="relative h-[100dvh] w-full overflow-y-auto overflow-x-hidden scroll-smooth"
+          className="relative min-h-screen h-full h-[100dvh] supports-[height:100svh]:h-[100svh] w-full overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{
             backgroundColor: isDark ? "#09090b" : "#ffffff",
             color: isDark ? "#ffffff" : "#09090b",
@@ -2995,7 +2995,7 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+        <div className={`relative z-10 flex h-full h-[100dvh] supports-[height:100svh]:h-[100svh] w-full max-w-[100vw] overflow-hidden ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
           <MeshDriftBackground isDark={isDark} />
@@ -3381,7 +3381,7 @@ export default function Home() {
         </div>
 
           {/* Bottom User Card / Status */}
-          <div className={`p-3 md:p-3.5 border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <div className={`p-3 md:p-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
             {/* Tombol Pricing */}
             <div
               onClick={() => setShowPricingModal(true)}

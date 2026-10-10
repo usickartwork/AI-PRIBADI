@@ -63,7 +63,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#101010",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafc" },
+  ],
   interactiveWidget: "resizes-content",
 };
 
@@ -73,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html
         lang="id"
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#09090b]`}
       >
         <head>
           <link rel="icon" type="image/svg+xml" href="/icon.svg?v=3" />
@@ -101,7 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </head>
-        <body className="h-[100dvh] w-full overflow-hidden flex flex-col bg-transparent text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
+        <body className="h-full min-h-screen h-[100dvh] supports-[height:100svh]:h-[100svh] w-full overflow-hidden flex flex-col bg-transparent text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
           {children}
         </body>
       </html>
