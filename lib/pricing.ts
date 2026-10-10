@@ -72,7 +72,7 @@ const PRO_CODE_CREDITS = Number(process.env.PRO_CODE_CREDITS) || 200;
 const PRO_SCHEDULE_LIMIT = Number(process.env.PRO_SCHEDULE_LIMIT) || 50;
 
 // Flagship model ID that is ALWAYS available for Free users
-export const USICK_ONE_FLAGSHIP_MODEL = "novita:qwen/qwen3.8-flash";
+export const USICK_ONE_FLAGSHIP_MODEL = "novita:apodex/apodex-1.1-mini";
 
 export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, PlanDefinition> = {
   free: {
@@ -147,19 +147,26 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, PlanDefinition> = {
 // Usick One AI has 1x multiplier and is available for Free.
 // External models require Pro and have varying credit multipliers.
 export const MODEL_CATALOG: Record<string, ModelPricingMetadata> = {
-  "novita:qwen/qwen3.8-flash": {
-    id: "novita:qwen/qwen3.8-flash",
+  "novita:apodex/apodex-1.1-mini": {
+    id: "novita:apodex/apodex-1.1-mini",
     name: "Usick One",
     provider: "novita",
     minimumPlan: "free",
     creditMultiplier: 1.0,
   },
-  "novita:qwen/qwen3-coder-30b-a3b-instruct": {
-    id: "novita:qwen/qwen3-coder-30b-a3b-instruct",
-    name: "Qwen 3 Coder 30B",
+  "novita:qwen/qwen3.8-flash": {
+    id: "novita:qwen/qwen3.8-flash",
+    name: "Qwen 3.8 Flash",
     provider: "novita",
     minimumPlan: "pro",
-    creditMultiplier: 2.0,
+    creditMultiplier: 1.5,
+  },
+  "novita:inclusionai/ling-3.1-flash": {
+    id: "novita:inclusionai/ling-3.1-flash",
+    name: "Ling 3.1 Flash",
+    provider: "novita",
+    minimumPlan: "pro",
+    creditMultiplier: 1.5,
   },
   "novita:moonshotai/kimi-k2-instruct": {
     id: "novita:moonshotai/kimi-k2-instruct",

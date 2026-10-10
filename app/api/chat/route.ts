@@ -609,7 +609,9 @@ export async function POST(request: Request) {
         modelName.includes("r1") ||
         modelName.includes("o1") ||
         modelName.includes("o3") ||
-        modelName.includes("reasoning");
+        modelName.includes("reasoning") ||
+        modelName.includes("apodex") ||
+        modelName.includes("ling");
 
       reqBody = JSON.stringify({
         model: modelName,

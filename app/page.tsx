@@ -92,8 +92,9 @@ function createFreshSession(): ChatSession {
 
 // 8 Verified Models (Clean labels without emojis)
 const FALLBACK_MODELS: ModelEntry[] = [
-  { id: "novita:qwen/qwen3.8-flash", label: "[Usick] Usick One", provider: "novita" },
-  { id: "novita:qwen/qwen3-coder-30b-a3b-instruct", label: "[Qwen] Qwen 3 Coder 30B A3B Instruct", provider: "novita" },
+  { id: "novita:apodex/apodex-1.1-mini", label: "[Usick] Usick One", provider: "novita" },
+  { id: "novita:qwen/qwen3.8-flash", label: "[Qwen] Qwen 3.8 Flash", provider: "novita" },
+  { id: "novita:inclusionai/ling-3.1-flash", label: "[Ling] Ling 3.1 Flash", provider: "novita" },
   { id: "novita:moonshotai/kimi-k2-instruct", label: "[Kimi] Kimi K2 Instruct", provider: "novita" },
   { id: "groq:openai/gpt-oss-120b", label: "[Groq] GPT OSS 120B", provider: "groq" },
   { id: "claude:claude-3-7-sonnet-latest", label: "[Claude] 3.7 Sonnet", provider: "claude" },
