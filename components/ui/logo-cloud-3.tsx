@@ -91,8 +91,8 @@ export const LLM_MODELS: LLMModel[] = [
     icon: (
       <svg className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="3" fill="currentColor" />
-        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(30 12 12)" />
-        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-30 12 12)" />
+        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(30 12 12)" fill="none" />
+        <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-30 12 12)" fill="none" />
       </svg>
     ),
   },
@@ -128,7 +128,7 @@ export function LogoCloud({
     <div
       {...props}
       className={cn(
-        "overflow-hidden py-3 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]",
+        "overflow-hidden py-3 [-webkit-mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)] [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]",
         className
       )}
     >
@@ -140,7 +140,7 @@ export function LogoCloud({
               "flex items-center gap-2.5 sm:gap-3 shrink-0 select-none transition-opacity",
               isDark
                 ? "text-white/80 hover:text-white"
-                : "text-zinc-800 hover:text-zinc-950"
+                : "text-zinc-700 hover:text-zinc-950"
             )}
           >
             <div className="flex items-center justify-center shrink-0">

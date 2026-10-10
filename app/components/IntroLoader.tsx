@@ -40,7 +40,7 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
         className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${
           isDark
             ? "bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.06)_0%,transparent_60%)]"
-            : "bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.035)_0%,transparent_60%)]"
+            : "bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.95)_0%,rgba(244,244,246,0.6)_50%,transparent_80%)]"
         }`}
       />
 
@@ -50,12 +50,12 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
           text="One Mind"
           fontWeight={700}
           fontSize={120}
-          color={isDark ? "#ffffff" : "#09090b"}
-          accentColor={isDark ? "#ffffff" : "#09090b"}
+          color={isDark ? "#ffffff" : "#111113"}
+          accentColor={isDark ? "#ffffff" : "#71717a"}
           reveal="letter"
           dashLength={4}
           dashGap={2}
-          specks={15}
+          specks={isDark ? 15 : 6}
           sweep={true}
           speed={2.8}
           draggable={true}
