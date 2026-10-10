@@ -1077,35 +1077,6 @@ export function ScheduleWorkspace({
             }`}>
               <span>Schedule Assistant</span>
             </div>
-
-            {/* Browse Toggle Switch */}
-            <button
-              type="button"
-              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shrink-0 ${
-                webSearchEnabled
-                  ? (isDark
-                      ? "border-white bg-white text-black shadow-xs"
-                      : "border-black bg-black text-white shadow-xs")
-                  : (isDark
-                      ? "border-zinc-700/60 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
-                      : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200")
-              }`}
-              title="Aktifkan fitur Browse / Web Search"
-            >
-              <div className={`relative h-3 w-5 rounded-full transition-colors ${
-                webSearchEnabled
-                  ? (isDark ? "bg-black/25" : "bg-white/30")
-                  : (isDark ? "bg-zinc-700" : "bg-zinc-300")
-              }`}>
-                <div className={`absolute top-0.5 h-2 w-2 rounded-full transition-transform ${
-                  webSearchEnabled
-                    ? `translate-x-2.5 ${isDark ? "bg-black" : "bg-white"}`
-                    : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
-                }`} />
-              </div>
-              <span className="text-[11px] sm:text-xs font-semibold">Browse</span>
-            </button>
           </div>
 
           {/* Send Button */}

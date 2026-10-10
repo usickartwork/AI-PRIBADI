@@ -346,6 +346,11 @@ const ChatInputBar = memo(function ChatInputBar({
   );
 });
 
+/* ─── Instant In-Memory Cache ─────────────────────────────────────────────── */
+const memoryConversationsCache: Record<string, Conversation[]> = {};
+const memoryFriendsCache: Record<string, FriendsData> = {};
+const memoryMessagesCache: Record<string, ChatMessage[]> = {};
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 export default function MessagesWorkspace({
   isDark,
@@ -357,9 +362,44 @@ export default function MessagesWorkspace({
   const { session } = useSession();
 
   const [tab, setTab] = useState<Tab>("chats");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [friendsData, setFriendsData] = useState<FriendsData>(EMPTY_FRIENDS);
-  const [listLoading, setListLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    if (userId && memoryConversationsCache[userId]) {
+      return memoryConversationsCache[userId];
+    }
+    if (typeof window !== "undefined" && userId) {
+      try {
+        const raw = localStorage.getItem(`msg_convs_${userId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          memoryConversationsCache[userId] = parsed;
+          return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [friendsData, setFriendsData] = useState<FriendsData>(() => {
+    if (userId && memoryFriendsCache[userId]) {
+      return memoryFriendsCache[userId];
+    }
+    if (typeof window !== "undefined" && userId) {
+      try {
+        const raw = localStorage.getItem(`msg_friends_${userId}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          memoryFriendsCache[userId] = parsed;
+          return parsed;
+        }
+      } catch {}
+    }
+    return EMPTY_FRIENDS;
+  });
+  const [listLoading, setListLoading] = useState<boolean>(() => {
+    if (userId && (memoryConversationsCache[userId] || (typeof window !== "undefined" && localStorage.getItem(`msg_convs_${userId}`)))) {
+      return false;
+    }
+    return true;
+  });
 
   const [active, setActive] = useState<{ id: string; peer: PublicUser } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -411,7 +451,10 @@ export default function MessagesWorkspace({
   }, [active]);
   useEffect(() => {
     messagesRef.current = messages;
-  }, [messages]);
+    if (active?.id && messages.length > 0) {
+      memoryMessagesCache[active.id] = messages;
+    }
+  }, [messages, active?.id]);
 
   const showToast = useCallback((text: string, kind: "error" | "info" = "error") => {
     setToast({ text, kind });
@@ -423,21 +466,33 @@ export default function MessagesWorkspace({
     try {
       const data = await api<{ conversations: Conversation[] }>("/api/messages/conversations");
       setConversations(data.conversations);
+      if (userId) {
+        memoryConversationsCache[userId] = data.conversations;
+        try {
+          localStorage.setItem(`msg_convs_${userId}`, JSON.stringify(data.conversations));
+        } catch {}
+      }
     } catch {
       /* diam: polling berikutnya akan mencoba lagi */
     } finally {
       setListLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   const loadFriends = useCallback(async () => {
     try {
       const data = await api<FriendsData>("/api/messages/friends");
       setFriendsData(data);
+      if (userId) {
+        memoryFriendsCache[userId] = data;
+        try {
+          localStorage.setItem(`msg_friends_${userId}`, JSON.stringify(data));
+        } catch {}
+      }
     } catch {
       /* diam */
     }
-  }, []);
+  }, [userId]);
 
   const markRead = useCallback(async (conversationId: string) => {
     try {
@@ -659,10 +714,16 @@ export default function MessagesWorkspace({
       setReplyingTo(null);
       setActionMenuMsg(null);
       setDeleteConfirmMsg(null);
-      setMessages([]);
+      const cached = memoryMessagesCache[conv.id];
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+        setChatLoading(false);
+      } else {
+        setMessages([]);
+        setChatLoading(true);
+      }
       setHasMore(false);
       setPeerLastReadAt(null);
-      setChatLoading(true);
       stickToBottomRef.current = true;
       try {
         const data = await api<{ messages: ChatMessage[]; hasMore: boolean; peerLastReadAt: string | null }>(
@@ -670,11 +731,14 @@ export default function MessagesWorkspace({
         );
         if (activeRef.current?.id !== conv.id) return;
         setMessages(data.messages);
+        memoryMessagesCache[conv.id] = data.messages;
         setHasMore(data.hasMore);
         setPeerLastReadAt(data.peerLastReadAt);
         void markRead(conv.id);
       } catch (e) {
-        showToast(e instanceof Error ? e.message : "Gagal memuat percakapan.");
+        if (!cached || cached.length === 0) {
+          showToast(e instanceof Error ? e.message : "Gagal memuat percakapan.");
+        }
       } finally {
         setChatLoading(false);
       }
@@ -1223,7 +1287,13 @@ export default function MessagesWorkspace({
   );
 
   const friendsView =
-    friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
+    listLoading && friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
+      <div className="p-3 space-y-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className={`h-14 rounded-xl animate-pulse ${isDark ? "bg-zinc-800/50" : "bg-zinc-200/70"}`} />
+        ))}
+      </div>
+    ) : friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
       emptyState(
         <Users size={28} strokeWidth={1.6} />,
         "Belum ada teman",

@@ -3467,6 +3467,18 @@ export default function Home() {
           />
         </div>
 
+        {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
+        <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
+          <MessagesWorkspace
+            key="messages-workspace-instance"
+            isDark={isDark}
+            userId={user?.id}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            onRequireAuth={() => setShowAuthModal(true)}
+            onUnreadCountChange={setUnreadMessagesCount}
+          />
+        </div>
+
         {activeView === "schedule" ? (
           <ScheduleWorkspace
             key={user?.id || "guest"}
@@ -3485,15 +3497,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "messages" ? (
-          <MessagesWorkspace
-            isDark={isDark}
-            userId={user?.id}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            onRequireAuth={() => setShowAuthModal(true)}
-            onUnreadCountChange={setUnreadMessagesCount}
-          />
-        ) : activeView === "code" || activeView === "faith" ? null : (
+        ) : activeView === "code" || activeView === "faith" || activeView === "messages" ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
