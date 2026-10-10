@@ -14,8 +14,39 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Usick One",
-  description: "Personal AI Assistant",
+  metadataBase: new URL("https://onemind.web.id"),
+  title: "Usick One — Your AI Workspace",
+  description:
+    "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+  alternates: {
+    canonical: "https://onemind.web.id/",
+  },
+  openGraph: {
+    title: "Usick One — Your AI Workspace",
+    description:
+      "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+    url: "https://onemind.web.id/",
+    siteName: "Usick One",
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Usick One — Your AI Workspace",
+    description:
+      "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/icon.svg?v=3", type: "image/svg+xml" },
