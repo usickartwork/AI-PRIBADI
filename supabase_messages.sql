@@ -56,11 +56,30 @@ CREATE TABLE IF NOT EXISTS public.msg_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES public.msg_conversations(id) ON DELETE CASCADE,
   sender_id TEXT NOT NULL,
-  body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 2000),
+  body TEXT NOT NULL,
+  message_type TEXT NOT NULL DEFAULT 'text',
+  reply_to_id UUID REFERENCES public.msg_messages(id) ON DELETE SET NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migrasi aman jika tabel sudah ada sebelumnya:
+ALTER TABLE public.msg_messages ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text';
+ALTER TABLE public.msg_messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES public.msg_messages(id) ON DELETE SET NULL;
+ALTER TABLE public.msg_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.msg_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- Relaksasi constraint panjang karakter untuk menampung AI responses dan pesan terhapus
+ALTER TABLE public.msg_messages DROP CONSTRAINT IF EXISTS msg_messages_body_check;
+ALTER TABLE public.msg_messages ADD CONSTRAINT msg_messages_body_check CHECK (
+  (is_deleted = true AND char_length(body) >= 0) OR
+  (is_deleted = false AND char_length(body) BETWEEN 1 AND 10000)
+);
+
 CREATE INDEX IF NOT EXISTS idx_msg_messages_conv_created ON public.msg_messages(conversation_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_msg_messages_sender_created ON public.msg_messages(sender_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_msg_messages_reply_to ON public.msg_messages(reply_to_id);
 
 -- ─── 5. READ RECEIPTS (untuk indikator belum dibaca) ───────────────────────────
 CREATE TABLE IF NOT EXISTS public.msg_reads (

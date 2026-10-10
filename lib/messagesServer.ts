@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 /* ─── Konstanta ───────────────────────────────────────────────────────────── */
-export const MAX_MESSAGE_LENGTH = 2000;
+export const MAX_MESSAGE_LENGTH = 10000;
 export const MESSAGES_PER_MINUTE = 30;
 export const FRIEND_REQUESTS_PER_DAY = 20;
 
@@ -14,6 +14,22 @@ export type PublicUser = {
   username: string | null;
   name: string;
   avatarUrl: string | null;
+};
+
+export type ChatMessageDto = {
+  id: string;
+  body: string;
+  createdAt: string;
+  fromMe: boolean;
+  messageType?: "text" | "shared_ai";
+  isDeleted?: boolean;
+  replyTo?: {
+    id: string;
+    body: string;
+    senderName?: string;
+    isDeleted?: boolean;
+  } | null;
+  pending?: boolean;
 };
 
 /* ─── Error helper ────────────────────────────────────────────────────────── */

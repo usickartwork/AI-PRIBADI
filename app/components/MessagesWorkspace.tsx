@@ -9,14 +9,18 @@ import {
   Ban,
   Check,
   Clock,
+  Copy,
+  Inbox,
   MessageCircle,
+  Reply,
   Search,
   Send,
+  Sparkles,
+  Trash2,
   UserMinus,
   UserPlus,
   Users,
   X,
-  Inbox,
 } from "lucide-react";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
@@ -31,7 +35,21 @@ type Conversation = {
 };
 type FriendItem = { friendshipId: string; user: PublicUser; since: string };
 type FriendsData = { friends: FriendItem[]; incoming: FriendItem[]; outgoing: FriendItem[]; blocked: PublicUser[] };
-type ChatMessage = { id: string; body: string; createdAt: string; fromMe: boolean; pending?: boolean };
+type ChatMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  fromMe: boolean;
+  messageType?: "text" | "shared_ai";
+  isDeleted?: boolean;
+  replyTo?: {
+    id: string;
+    body: string;
+    fromMe?: boolean;
+    isDeleted?: boolean;
+  } | null;
+  pending?: boolean;
+};
 type Relation = "none" | "friends" | "outgoing" | "incoming" | "blocked";
 type SearchResult = { user: PublicUser; relation: Relation; friendshipId: string | null };
 type Tab = "chats" | "friends" | "requests" | "add";
@@ -45,7 +63,7 @@ interface MessagesWorkspaceProps {
 }
 
 const EMPTY_FRIENDS: FriendsData = { friends: [], incoming: [], outgoing: [], blocked: [] };
-const MAX_LEN = 2000;
+const MAX_LEN = 10000;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -125,7 +143,11 @@ const ChatInputBar = memo(function ChatInputBar({
   inputCls,
   primaryBtn,
   muted,
+  isDark,
   isKeyboardOpen,
+  replyingTo,
+  peerName,
+  onCancelReply,
   onSendMessage,
   onFocusInput,
 }: {
@@ -134,8 +156,12 @@ const ChatInputBar = memo(function ChatInputBar({
   inputCls: string;
   primaryBtn: string;
   muted: string;
+  isDark: boolean;
   isKeyboardOpen?: boolean;
-  onSendMessage: (text: string) => Promise<boolean>;
+  replyingTo?: ChatMessage | null;
+  peerName?: string;
+  onCancelReply?: () => void;
+  onSendMessage: (text: string, replyToId?: string | null) => Promise<boolean>;
   onFocusInput?: () => void;
 }) {
   const [localInput, setLocalInput] = useState("");
@@ -145,10 +171,12 @@ const ChatInputBar = memo(function ChatInputBar({
     e?.preventDefault();
     const text = localInput.trim();
     if (!text) return;
+    const targetReplyId = replyingTo?.id ?? null;
     // Bersihkan input teks seketika & turunkan keyboard virtual mobile (blur)
     setLocalInput("");
     textareaRef.current?.blur();
-    void onSendMessage(text).then((ok) => {
+    onCancelReply?.();
+    void onSendMessage(text, targetReplyId).then((ok) => {
       if (!ok) {
         // Kembalikan teks jika gagal terkirim
         setLocalInput(text);
@@ -172,6 +200,34 @@ const ChatInputBar = memo(function ChatInputBar({
           : "pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       } ${divider} bg-transparent`}
     >
+      {replyingTo && (
+        <div
+          className={`mb-2 flex items-center justify-between rounded-xl px-3 py-1.5 text-xs backdrop-blur-md border ${
+            isDark ? "bg-zinc-800/80 border-white/10 text-zinc-200" : "bg-zinc-100 border-black/10 text-zinc-800"
+          }`}
+        >
+          <div className="min-w-0 flex-1 border-l-2 border-current pl-2">
+            <p className="font-semibold text-[11px] truncate">
+              {replyingTo.fromMe ? "Membalas pesan Anda" : `Membalas pesan ${peerName || "teman"}`}
+            </p>
+            <p className={`truncate text-[11px] ${muted}`}>
+              {replyingTo.isDeleted
+                ? "Pesan ini telah dihapus"
+                : replyingTo.messageType === "shared_ai"
+                  ? `[AI] ${replyingTo.body.slice(0, 80)}`
+                  : replyingTo.body.slice(0, 80)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="ml-2 p-1 rounded-full hover:bg-white/10 cursor-pointer opacity-70 hover:opacity-100"
+            aria-label="Batalkan balasan"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSend} className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -224,6 +280,10 @@ export default function MessagesWorkspace({
   const [chatLoading, setChatLoading] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<ChatMessage | null>(null);
+  const [actionMenuMsg, setActionMenuMsg] = useState<ChatMessage | null>(null);
+
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SearchResult | null | undefined>(undefined);
@@ -237,6 +297,7 @@ export default function MessagesWorkspace({
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatPaneRef = useRef<HTMLElement>(null);
   const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const stickToBottomRef = useRef(true);
 
   useEffect(() => {
@@ -392,7 +453,7 @@ export default function MessagesWorkspace({
 
     // 1. Supabase Realtime Channel: menangkap INSERT database & broadcast
     const convChannel = supabase
-      .channel(`chat_realtime_${active.id}`)
+      .channel(`conv_${active.id}`)
       .on(
         "postgres_changes",
         {
@@ -402,7 +463,14 @@ export default function MessagesWorkspace({
           filter: `conversation_id=eq.${active.id}`,
         },
         (payload) => {
-          const row = payload.new as { id: string; sender_id: string; body: string; created_at: string };
+          const row = payload.new as {
+            id: string;
+            sender_id: string;
+            body: string;
+            created_at: string;
+            message_type?: "text" | "shared_ai";
+            is_deleted?: boolean;
+          };
           if (!row || !row.id) return;
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
@@ -411,14 +479,39 @@ export default function MessagesWorkspace({
               ...withoutPending,
               {
                 id: row.id,
-                body: row.body,
+                body: row.is_deleted ? "" : row.body,
                 createdAt: row.created_at,
                 fromMe: row.sender_id === userId,
+                messageType: row.message_type ?? "text",
+                isDeleted: !!row.is_deleted,
               },
             ];
           });
           if (row.sender_id !== userId && document.visibilityState === "visible") {
             void markRead(active.id);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "msg_messages",
+          filter: `conversation_id=eq.${active.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { id: string; is_deleted?: boolean };
+          if (row && row.id && row.is_deleted) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === row.id
+                  ? { ...m, isDeleted: true, body: "" }
+                  : m.replyTo?.id === row.id
+                  ? { ...m, replyTo: { ...m.replyTo, isDeleted: true, body: "" } }
+                  : m
+              )
+            );
           }
         }
       )
@@ -432,6 +525,20 @@ export default function MessagesWorkspace({
           if (document.visibilityState === "visible") {
             void markRead(active.id);
           }
+        }
+      })
+      .on("broadcast", { event: "msg_deleted" }, (payload) => {
+        const deletedId = payload.payload?.messageId as string | undefined;
+        if (deletedId) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === deletedId
+                ? { ...m, isDeleted: true, body: "" }
+                : m.replyTo?.id === deletedId
+                ? { ...m, replyTo: { ...m.replyTo, isDeleted: true, body: "" } }
+                : m
+            )
+          );
         }
       })
       .on("broadcast", { event: "read_receipt" }, () => {
@@ -461,6 +568,9 @@ export default function MessagesWorkspace({
     async (conv: { id: string; peer: PublicUser }) => {
       setActive(conv);
       setMenuOpen(false);
+      setReplyingTo(null);
+      setActionMenuMsg(null);
+      setDeleteConfirmMsg(null);
       setMessages([]);
       setHasMore(false);
       setPeerLastReadAt(null);
@@ -608,21 +718,42 @@ export default function MessagesWorkspace({
 
   /* ─── Send (Callback for isolated input component) ───────────────────── */
   const handleSendMessage = useCallback(
-    async (text: string): Promise<boolean> => {
+    async (text: string, replyToId?: string | null): Promise<boolean> => {
       if (!active || !text) return false;
       if (text.length > MAX_LEN) {
         showToast(`Pesan maksimal ${MAX_LEN} karakter.`);
         return false;
       }
       const tempId = `temp-${Date.now()}`;
-      const optimistic: ChatMessage = { id: tempId, body: text, createdAt: new Date().toISOString(), fromMe: true, pending: true };
+      const targetReply = replyingTo
+        ? {
+            id: replyingTo.id,
+            body: replyingTo.body,
+            fromMe: replyingTo.fromMe,
+            isDeleted: replyingTo.isDeleted,
+          }
+        : null;
+      const optimistic: ChatMessage = {
+        id: tempId,
+        body: text,
+        createdAt: new Date().toISOString(),
+        fromMe: true,
+        pending: true,
+        messageType: "text",
+        replyTo: targetReply,
+      };
       stickToBottomRef.current = true;
       setMessages((prev) => [...prev, optimistic]);
       requestAnimationFrame(() => scrollToBottom(false));
       try {
         const data = await api<{ message: ChatMessage }>("/api/messages/messages", {
           method: "POST",
-          body: JSON.stringify({ conversationId: active.id, body: text }),
+          body: JSON.stringify({
+            conversationId: active.id,
+            body: text,
+            replyToId: replyToId ?? targetReply?.id ?? null,
+            messageType: "text",
+          }),
         });
         setMessages((prev) => {
           const without = prev.filter((m) => m.id !== tempId && m.id !== data.message.id);
@@ -667,8 +798,106 @@ export default function MessagesWorkspace({
         return false;
       }
     },
+    [active, replyingTo, scrollToBottom, showToast]
+  );
+
+  const handleDeleteForEveryone = useCallback(
+    async (msg: ChatMessage) => {
+      if (!active) return;
+      try {
+        await api<{ ok: boolean }>(`/api/messages/messages?messageId=${encodeURIComponent(msg.id)}`, {
+          method: "DELETE",
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msg.id
+              ? { ...m, isDeleted: true, body: "" }
+              : m.replyTo?.id === msg.id
+              ? { ...m, replyTo: { ...m.replyTo, isDeleted: true, body: "" } }
+              : m
+          )
+        );
+        // Instant Realtime broadcast
+        try {
+          const convChannel = supabase.channel(`conv_${active.id}`);
+          void convChannel.send({
+            type: "broadcast",
+            event: "msg_deleted",
+            payload: { messageId: msg.id },
+          });
+
+          const peerInbox = supabase.channel(`inbox_${active.peer.id}`);
+          void peerInbox.send({
+            type: "broadcast",
+            event: "inbox_ping",
+            payload: {},
+          });
+        } catch {
+          // ignore
+        }
+        showToast("Pesan dihapus untuk semua orang.", "info");
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : "Gagal menghapus pesan.");
+      } finally {
+        setDeleteConfirmMsg(null);
+        setActionMenuMsg(null);
+      }
+    },
     [active, showToast]
   );
+
+  const handleCopyMessage = useCallback(
+    async (msg: ChatMessage) => {
+      try {
+        await navigator.clipboard.writeText(msg.body);
+        showToast("Tersalin ke papan klip", "info");
+      } catch {
+        showToast("Gagal menyalin teks.");
+      }
+      setActionMenuMsg(null);
+    },
+    [showToast]
+  );
+
+  const handleStartReply = useCallback((msg: ChatMessage) => {
+    setReplyingTo(msg);
+    setActionMenuMsg(null);
+  }, []);
+
+  const scrollToMessage = useCallback(
+    (msgId: string) => {
+      const el = document.getElementById(`msg-${msgId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-sky-500", "transition-all");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-sky-500");
+        }, 1500);
+      } else {
+        showToast("Pesan asli tidak ditemukan di riwayat ini.", "info");
+      }
+    },
+    [showToast]
+  );
+
+  const handleTouchStart = useCallback((msg: ChatMessage) => {
+    if (msg.isDeleted || msg.pending) return;
+    longPressTimerRef.current = setTimeout(() => {
+      setActionMenuMsg(msg);
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(35);
+        } catch {}
+      }
+    }, 450);
+  }, []);
+
+  const handleTouchCancelOrEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
 
   /* ─── Friend actions ──────────────────────────────────────────────────── */
   const friendAction = async (payload: Record<string, unknown>, key: string, okText?: string) => {
@@ -1196,9 +1425,56 @@ export default function MessagesWorkspace({
                       </span>
                     </div>
                   )}
-                  <div className={`flex ${m.fromMe ? "justify-end" : "justify-start"} ${grouped ? "mt-0.5" : "mt-2.5"}`}>
+                  <div
+                    id={`msg-${m.id}`}
+                    className={`group relative flex items-center gap-1.5 ${
+                      m.fromMe ? "justify-end flex-row" : "justify-start flex-row-reverse"
+                    } ${grouped ? "mt-0.5" : "mt-2.5"}`}
+                  >
+                    {/* Desktop hover actions toolbar */}
+                    {!m.isDeleted && !m.pending && (
+                      <div
+                        className={`hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 py-0.5 px-1 rounded-xl backdrop-blur-md border shadow-sm ${
+                          isDark
+                            ? "bg-zinc-900/90 border-white/10 text-zinc-300"
+                            : "bg-white/90 border-black/10 text-zinc-700"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleStartReply(m)}
+                          className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition cursor-pointer"
+                          title="Balas pesan"
+                        >
+                          <Reply size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(m)}
+                          className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition cursor-pointer"
+                          title="Salin teks"
+                        >
+                          <Copy size={13} />
+                        </button>
+                        {m.fromMe && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmMsg(m)}
+                            className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition cursor-pointer"
+                            title="Hapus untuk semua orang"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Bubble container */}
                     <div
-                      className={`max-w-[80%] sm:max-w-[70%] min-w-[4.5rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words flex flex-col ${
+                      onTouchStart={() => handleTouchStart(m)}
+                      onTouchEnd={handleTouchCancelOrEnd}
+                      onTouchMove={handleTouchCancelOrEnd}
+                      className={`max-w-[82%] sm:max-w-[72%] min-w-[4.8rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed flex flex-col transition-all ${
                         m.fromMe
                           ? isDark
                             ? "bg-white text-black rounded-br-md"
@@ -1206,9 +1482,70 @@ export default function MessagesWorkspace({
                           : isDark
                             ? "bg-zinc-800/90 text-zinc-100 rounded-bl-md"
                             : "bg-zinc-100 text-zinc-900 rounded-bl-md"
-                      } ${m.pending ? "opacity-60" : ""}`}
+                      } ${m.pending ? "opacity-60" : ""} ${m.isDeleted ? "opacity-75 italic" : ""}`}
                     >
-                      <div className="break-words select-text">{m.body}</div>
+                      {/* Reply preview header inside bubble */}
+                      {m.replyTo && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollToMessage(m.replyTo!.id);
+                          }}
+                          className={`mb-1.5 cursor-pointer rounded-xl px-2.5 py-1.5 text-xs border-l-2 transition active:scale-[0.99] ${
+                            m.fromMe
+                              ? isDark
+                                ? "bg-black/10 border-black/40 text-black/90 hover:bg-black/15"
+                                : "bg-white/15 border-white/60 text-white hover:bg-white/20"
+                              : isDark
+                                ? "bg-white/10 border-white/40 text-zinc-200 hover:bg-white/15"
+                                : "bg-black/5 border-black/30 text-zinc-800 hover:bg-black/10"
+                          }`}
+                          title="Klik untuk melihat pesan asli"
+                        >
+                          <p className="font-semibold text-[10.5px] truncate">
+                            {m.replyTo.fromMe ? "Anda" : active.peer.name}
+                          </p>
+                          <p className="truncate text-[11px] opacity-80 mt-0.5">
+                            {m.replyTo.isDeleted ? (
+                              <span className="italic flex items-center gap-1">
+                                <Ban size={10} /> Pesan ini telah dihapus
+                              </span>
+                            ) : (
+                              m.replyTo.body.slice(0, 80)
+                            )}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Shared AI card header */}
+                      {m.messageType === "shared_ai" && !m.isDeleted && (
+                        <div
+                          className={`flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase mb-1 ${
+                            m.fromMe
+                              ? isDark
+                                ? "text-zinc-600"
+                                : "text-zinc-300"
+                              : isDark
+                                ? "text-sky-400"
+                                : "text-sky-600"
+                          }`}
+                        >
+                          <Sparkles size={11} className="shrink-0" />
+                          <span>Shared from AI Chat</span>
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      {m.isDeleted ? (
+                        <div className="flex items-center gap-1.5 py-0.5 text-xs select-none">
+                          <Ban size={13} className="shrink-0" />
+                          <span>Pesan ini telah dihapus</span>
+                        </div>
+                      ) : (
+                        <div className="break-words select-text whitespace-pre-wrap">{m.body}</div>
+                      )}
+
+                      {/* Timestamp */}
                       <div
                         className={`self-end flex items-center gap-1 text-[10px] mt-0.5 select-none ${
                           m.fromMe ? (isDark ? "text-zinc-500" : "text-zinc-400") : muted
@@ -1235,7 +1572,11 @@ export default function MessagesWorkspace({
         inputCls={inputCls}
         primaryBtn={primaryBtn}
         muted={muted}
+        isDark={isDark}
         isKeyboardOpen={isKeyboardOpen}
+        replyingTo={replyingTo}
+        peerName={active.peer.name}
+        onCancelReply={() => setReplyingTo(null)}
         onSendMessage={handleSendMessage}
         onFocusInput={handleFocusInput}
       />
@@ -1302,6 +1643,116 @@ export default function MessagesWorkspace({
           {chatPane}
         </section>
       </div>
+
+      {/* ─── Mobile Long-Press Context Menu Sheet ────────────────────────── */}
+      {actionMenuMsg && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-150"
+          onClick={() => setActionMenuMsg(null)}
+        >
+          <div
+            className={`w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-4 shadow-2xl border ${
+              isDark
+                ? "bg-zinc-900 border-white/10 text-white"
+                : "bg-white border-black/10 text-zinc-900"
+            } animate-in slide-in-from-bottom-6 duration-200`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`flex items-center justify-between pb-3 border-b mb-3 ${divider}`}>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>Opsi Pesan</p>
+                <p className="text-xs truncate mt-0.5 opacity-80">
+                  {actionMenuMsg.isDeleted
+                    ? "Pesan ini telah dihapus"
+                    : actionMenuMsg.messageType === "shared_ai"
+                      ? `[AI] ${actionMenuMsg.body.slice(0, 60)}`
+                      : actionMenuMsg.body.slice(0, 60)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionMenuMsg(null)}
+                className="p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => handleStartReply(actionMenuMsg)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${hoverRow}`}
+              >
+                <Reply size={16} /> Balas
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCopyMessage(actionMenuMsg)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${hoverRow}`}
+              >
+                <Copy size={16} /> Salin Teks
+              </button>
+              {actionMenuMsg.fromMe && !actionMenuMsg.isDeleted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmMsg(actionMenuMsg);
+                    setActionMenuMsg(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                >
+                  <Trash2 size={16} /> Hapus untuk Semua Orang
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete For Everyone Confirmation Modal ──────────────────────── */}
+      {deleteConfirmMsg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0 duration-150"
+          onClick={() => setDeleteConfirmMsg(null)}
+        >
+          <div
+            className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${
+              isDark
+                ? "bg-zinc-900 border-white/10 text-white"
+                : "bg-white border-black/10 text-zinc-900"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3 text-red-400">
+              <div className="p-2.5 rounded-full bg-red-500/15">
+                <Trash2 size={20} />
+              </div>
+              <h3 className="text-base font-bold">Hapus untuk semua orang?</h3>
+            </div>
+            <p className={`text-xs leading-relaxed ${muted}`}>
+              Pesan ini akan dihapus untuk Anda dan semua orang di percakapan ini. Isi teks pesan akan dihapus permanen dari server dan tidak dapat dipulihkan.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmMsg(null)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition ${ghostBtn}`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteForEveryone(deleteConfirmMsg)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition cursor-pointer shadow-sm"
+              >
+                Hapus untuk Semua Orang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="pointer-events-none absolute bottom-24 md:bottom-8 inset-x-0 flex justify-center z-40 px-4">

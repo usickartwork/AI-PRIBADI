@@ -20,6 +20,7 @@ import { UpgradePromptModal } from "./components/UpgradePromptModal";
 import { UsageHistoryModal } from "./components/UsageHistoryModal";
 import { ChatSearchModal } from "./components/ChatSearchModal";
 import { VoiceAssistantModal } from "./components/VoiceAssistantModal";
+import { ShareAIResponseModal } from "./components/ShareAIResponseModal";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -480,6 +481,7 @@ export default function Home() {
   const [authModalMode, setAuthModalMode] = useState<"signin" | "signup">("signin");
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [shareAIContent, setShareAIContent] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
@@ -3696,6 +3698,29 @@ export default function Home() {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 3v5h-5" />
                               </svg>
                             </button>
+
+                            {/* 6. Bagikan ke Pesan / Share to Messages */}
+                            <button
+                              type="button"
+                              onClick={() => setShareAIContent(msg.content)}
+                              disabled={isStreaming}
+                              title="Bagikan ke Pesan"
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                              } ${
+                                isDark
+                                  ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-black hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                <circle cx="18" cy="5" r="3" />
+                                <circle cx="6" cy="12" r="3" />
+                                <circle cx="18" cy="19" r="3" />
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                              </svg>
+                            </button>
                           </div>
                         )}
                     </div>
@@ -4266,6 +4291,20 @@ export default function Home() {
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         isDark={isDark}
+      />
+
+      {/* ─── SHARE AI RESPONSE TO MESSAGE MODAL ─────────────────────────── */}
+      <ShareAIResponseModal
+        isOpen={!!shareAIContent}
+        onClose={() => setShareAIContent(null)}
+        content={shareAIContent || ""}
+        isDark={isDark}
+        userId={user?.id}
+        onOpenMessages={() => {
+          setActiveView("messages");
+          setShareAIContent(null);
+        }}
+        onRequireAuth={() => setShowAuthModal(true)}
       />
 
 

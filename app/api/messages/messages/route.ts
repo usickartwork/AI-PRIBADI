@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const before = params.get("before");
     let q = db
       .from("msg_messages")
-      .select("id, sender_id, body, created_at")
+      .select("id, sender_id, body, message_type, reply_to_id, is_deleted, created_at")
       .eq("conversation_id", conversationId);
 
     if (after && !Number.isNaN(Date.parse(after))) {
@@ -49,6 +49,24 @@ export async function GET(req: Request) {
     if (error) throw error;
     const rows = after ? data ?? [] : (data ?? []).reverse();
 
+    // Ambil data referensi balasan (replies) jika ada
+    const replyIds = Array.from(new Set(rows.map((r) => r.reply_to_id).filter(Boolean)));
+    const replyMap = new Map<string, { id: string; body: string; fromMe: boolean; isDeleted: boolean }>();
+    if (replyIds.length > 0) {
+      const { data: repliedMsgs } = await db
+        .from("msg_messages")
+        .select("id, sender_id, body, is_deleted")
+        .in("id", replyIds);
+      for (const rm of repliedMsgs || []) {
+        replyMap.set(rm.id, {
+          id: rm.id,
+          body: rm.is_deleted ? "Pesan ini telah dihapus" : rm.body,
+          fromMe: rm.sender_id === me,
+          isDeleted: Boolean(rm.is_deleted),
+        });
+      }
+    }
+
     const { data: peerRead } = await db
       .from("msg_reads")
       .select("last_read_at")
@@ -57,7 +75,15 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     return NextResponse.json({
-      messages: rows.map((m) => ({ id: m.id, body: m.body, createdAt: m.created_at, fromMe: m.sender_id === me })),
+      messages: rows.map((m) => ({
+        id: m.id,
+        body: m.is_deleted ? "Pesan ini telah dihapus" : m.body,
+        createdAt: m.created_at,
+        fromMe: m.sender_id === me,
+        messageType: m.message_type || "text",
+        isDeleted: Boolean(m.is_deleted),
+        replyTo: m.reply_to_id ? replyMap.get(m.reply_to_id) || { id: m.reply_to_id, body: "Pesan ini telah dihapus", fromMe: false, isDeleted: true } : null,
+      })),
       hasMore: !after && (data?.length ?? 0) === 50,
       peerLastReadAt: peerRead?.last_read_at ?? null,
     });
@@ -67,7 +93,7 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/messages/messages  body: { conversationId, body }
+ * POST /api/messages/messages  body: { conversationId, body, messageType?, replyToId? }
  * Pengirim diambil dari sesi Clerk. Hanya untuk teman aktif yang tidak saling blokir.
  */
 export async function POST(req: Request) {
@@ -82,6 +108,12 @@ export async function POST(req: Request) {
     if (!text) throw new MsgError("Pesan tidak boleh kosong.");
     if (text.length > MAX_MESSAGE_LENGTH) throw new MsgError(`Pesan maksimal ${MAX_MESSAGE_LENGTH} karakter.`);
 
+    const messageType = payload.messageType === "shared_ai" ? "shared_ai" : "text";
+    let replyToId: string | null = null;
+    if (payload.replyToId && isValidUuid(payload.replyToId)) {
+      replyToId = payload.replyToId as string;
+    }
+
     const peerId = await getConversationPeer(db, conversationId, me);
     if (await isBlockedEitherWay(db, me, peerId)) throw new MsgError("Tidak dapat mengirim pesan ke pengguna ini.", 403);
     if (!(await areFriends(db, me, peerId))) throw new MsgError("Kalian sudah tidak berteman.", 403);
@@ -95,24 +127,125 @@ export async function POST(req: Request) {
     if (rateErr) throw rateErr;
     if ((count ?? 0) >= MESSAGES_PER_MINUTE) throw new MsgError("Terlalu banyak pesan. Tunggu sebentar.", 429);
 
+    // Ambil snippet reply jika ada
+    let replySnippet: { id: string; body: string; fromMe: boolean; isDeleted: boolean } | null = null;
+    if (replyToId) {
+      const { data: replied } = await db
+        .from("msg_messages")
+        .select("id, sender_id, body, is_deleted")
+        .eq("id", replyToId)
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+      if (replied) {
+        replySnippet = {
+          id: replied.id,
+          body: replied.is_deleted ? "Pesan ini telah dihapus" : replied.body,
+          fromMe: replied.sender_id === me,
+          isDeleted: Boolean(replied.is_deleted),
+        };
+      } else {
+        replyToId = null;
+      }
+    }
+
     const { data: msg, error } = await db
       .from("msg_messages")
-      .insert({ conversation_id: conversationId, sender_id: me, body: text })
-      .select("id, body, created_at")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: me,
+        body: text,
+        message_type: messageType,
+        reply_to_id: replyToId,
+      })
+      .select("id, body, created_at, message_type, reply_to_id, is_deleted")
       .single();
     if (error) throw error;
 
+    const preview = messageType === "shared_ai" ? `[AI] ${text.slice(0, 130)}` : text.slice(0, 140);
     await Promise.all([
       db
         .from("msg_conversations")
-        .update({ last_message_preview: text.slice(0, 140), last_message_sender: me, last_message_at: msg.created_at })
+        .update({ last_message_preview: preview, last_message_sender: me, last_message_at: msg.created_at })
         .eq("id", conversationId),
       db
         .from("msg_reads")
         .upsert({ conversation_id: conversationId, user_id: me, last_read_at: msg.created_at }, { onConflict: "conversation_id,user_id" }),
     ]);
 
-    return NextResponse.json({ message: { id: msg.id, body: msg.body, createdAt: msg.created_at, fromMe: true } });
+    return NextResponse.json({
+      message: {
+        id: msg.id,
+        body: msg.body,
+        createdAt: msg.created_at,
+        fromMe: true,
+        messageType: msg.message_type || "text",
+        isDeleted: false,
+        replyTo: replySnippet,
+      },
+    });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+/**
+ * DELETE /api/messages/messages  body: { conversationId, messageId }
+ * Hapus pesan untuk semua orang (Delete for Everyone).
+ * Konten pesan asli dihapus secara fisik dari database (body = ''), status is_deleted = true.
+ */
+export async function DELETE(req: Request) {
+  try {
+    const me = await requireUserId();
+    const db = getAdmin();
+    const payload = await readJson(req);
+    const { conversationId, messageId } = payload;
+    if (!isValidUuid(conversationId) || !isValidUuid(messageId)) {
+      throw new MsgError("Parameter penghapusan tidak valid.");
+    }
+
+    const peerId = await getConversationPeer(db, conversationId as string, me);
+
+    const { data: existing, error: findErr } = await db
+      .from("msg_messages")
+      .select("id, sender_id, is_deleted, created_at")
+      .eq("id", messageId)
+      .eq("conversation_id", conversationId)
+      .maybeSingle();
+
+    if (findErr) throw findErr;
+    if (!existing) throw new MsgError("Pesan tidak ditemukan.", 404);
+    if (existing.sender_id !== me) {
+      throw new MsgError("Hanya pengirim yang dapat menghapus pesan untuk semua orang.", 403);
+    }
+
+    if (!existing.is_deleted) {
+      // Hapus isi teks dari database dan tandai tombstone
+      const { error: updateErr } = await db
+        .from("msg_messages")
+        .update({
+          body: "",
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
+        .eq("id", messageId);
+      if (updateErr) throw updateErr;
+
+      // Update preview percakapan jika ini pesan terakhir
+      const { data: conv } = await db
+        .from("msg_conversations")
+        .select("last_message_at")
+        .eq("id", conversationId)
+        .maybeSingle();
+
+      if (conv?.last_message_at === existing.created_at) {
+        await db
+          .from("msg_conversations")
+          .update({ last_message_preview: "Pesan telah dihapus" })
+          .eq("id", conversationId);
+      }
+    }
+
+    return NextResponse.json({ ok: true, messageId, conversationId, peerId });
   } catch (err) {
     return errorResponse(err);
   }
