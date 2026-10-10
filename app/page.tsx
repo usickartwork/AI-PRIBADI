@@ -2628,37 +2628,36 @@ export default function Home() {
   // ─── STEP 1 & 2: UNREGISTERED / UNAUTHENTICATED VISITORS ──────────────────
   // Menampilkan Page 1 (halaman perkenalan murni tanpa panel dashboard sebelah kiri)
   // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
-  if (!user) {
-    return (
-      <div className={`relative min-h-screen w-full ${isDark ? "bg-black text-white" : "bg-[#fafafc] text-zinc-900"}`}>
-        <GradientBarHeroSection
-          isDark={isDark}
-          onGetStarted={(targetMode) => {
-            setAuthModalMode(targetMode || "signup");
-            setShowAuthModal(true);
-          }}
-        />
-
-        {showAuthModal && (
-          <AuthModal
-            isDark={isDark}
-            initialMode={authModalMode}
-            onSuccess={() => {
-              setShowAuthModal(false);
-            }}
-            onClose={() => setShowAuthModal(false)}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // ─── STEP 3: LOGGED-IN USERS ENTER ONE MIND (MAIN WORKSPACE) ───────────────
   return (
-    <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
-      isDark ? "text-zinc-100" : "text-zinc-900"
-    } font-sans antialiased p-0`}>
-      <MeshDriftBackground isDark={isDark} />
+    <>
+      {authLoading && !user ? (
+        <div className={`relative min-h-screen w-full ${isDark ? "bg-black" : "bg-[#fafafc]"}`} />
+      ) : !user ? (
+        <div className={`relative min-h-screen w-full ${isDark ? "bg-black text-white" : "bg-[#fafafc] text-zinc-900"}`}>
+          <GradientBarHeroSection
+            isDark={isDark}
+            onGetStarted={(targetMode) => {
+              setAuthModalMode(targetMode || "signup");
+              setShowAuthModal(true);
+            }}
+          />
+
+          {showAuthModal && (
+            <AuthModal
+              isDark={isDark}
+              initialMode={authModalMode}
+              onSuccess={() => {
+                setShowAuthModal(false);
+              }}
+              onClose={() => setShowAuthModal(false)}
+            />
+          )}
+        </div>
+      ) : (
+        <div className={`relative z-10 flex h-[100dvh] w-full max-w-[100vw] overflow-hidden ${
+          isDark ? "text-zinc-100" : "text-zinc-900"
+        } font-sans antialiased p-0`}>
+          <MeshDriftBackground isDark={isDark} />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       {sidebarOpen && (
         <div
@@ -4199,13 +4198,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* ─── USICK ONE: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
-      {Boolean(user) && isInitializing && (
+        </div>
+      )}
+
+      {/* ─── ONE MIND: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
+      {isInitializing && (
         <IntroLoader
           state={introState === "exiting" ? "exiting" : "visible"}
           theme={theme}
         />
       )}
-    </div>
+    </>
   );
 }
