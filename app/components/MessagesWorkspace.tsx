@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useSession } from "@clerk/nextjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   Ban,
@@ -136,17 +137,19 @@ const ChatInputBar = memo(function ChatInputBar({
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSend = async (e?: React.FormEvent) => {
+  const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = localInput.trim();
-    if (!text || isSending) return;
-    setIsSending(true);
-    const ok = await onSendMessage(text);
-    setIsSending(false);
-    if (ok) {
-      setLocalInput("");
-      textareaRef.current?.focus();
-    }
+    if (!text) return;
+    // Bersihkan input teks seketika (0ms delay) layaknya WhatsApp/iMessage
+    setLocalInput("");
+    textareaRef.current?.focus();
+    void onSendMessage(text).then((ok) => {
+      if (!ok) {
+        // Kembalikan teks jika gagal terkirim
+        setLocalInput(text);
+      }
+    });
   };
 
   if (!isActive) {
@@ -167,7 +170,7 @@ const ChatInputBar = memo(function ChatInputBar({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              void handleSend();
+              handleSend();
             }
           }}
           rows={1}
@@ -177,7 +180,7 @@ const ChatInputBar = memo(function ChatInputBar({
         />
         <button
           type="submit"
-          disabled={!localInput.trim() || isSending}
+          disabled={!localInput.trim()}
           className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${primaryBtn}`}
           aria-label="Kirim"
         >
@@ -253,6 +256,14 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     try {
       await api("/api/messages/read", { method: "POST", body: JSON.stringify({ conversationId }) });
       setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)));
+      try {
+        const convChannel = supabase.channel(`conv_${conversationId}`);
+        void convChannel.send({
+          type: "broadcast",
+          event: "read_receipt",
+          payload: {},
+        });
+      } catch {}
     } catch {
       /* diam */
     }
@@ -284,65 +295,85 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
     }
   }, [markRead]);
 
-  /* ─── Initial load + polling (fallback real-time) ─────────────────────── */
+  /* ─── Realtime Inbox & Periodic Polling ────────────────────────────────── */
   useEffect(() => {
     if (!userId) return;
     const kick = window.setTimeout(() => {
       void loadConversations();
       void loadFriends();
     }, 0);
+
+    // 1. Supabase Broadcast inbox listener (instant ping when anyone sends message/request)
+    const inboxChannel = supabase.channel(`inbox_${userId}`);
+    inboxChannel
+      .on("broadcast", { event: "inbox_ping" }, () => {
+        void loadConversations();
+        void loadFriends();
+      })
+      .subscribe();
+
+    // 2. Fallback polling for conversations & friends
     const listTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void loadConversations();
         void loadFriends();
       }
-    }, 12000);
+    }, 5000);
+
+    const onFocus = () => {
+      void loadConversations();
+      void loadFriends();
+    };
+    window.addEventListener("focus", onFocus);
+
     return () => {
+      window.removeEventListener("focus", onFocus);
       window.clearTimeout(kick);
       window.clearInterval(listTimer);
+      void supabase.removeChannel(inboxChannel);
     };
   }, [userId, loadConversations, loadFriends]);
 
+  /* ─── Active Chat Realtime Broadcast + Fast Adaptive Polling ─────────── */
   useEffect(() => {
     if (!active) return;
+
+    // 1. WebSocket Broadcast Langsung (< 50ms) antar partisipan percakapan aktif
+    const convChannel = supabase.channel(`conv_${active.id}`);
+    convChannel
+      .on("broadcast", { event: "new_msg" }, (payload) => {
+        const msg = payload.payload?.message as ChatMessage | undefined;
+        if (msg && msg.id) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, { ...msg, fromMe: false }];
+          });
+          if (document.visibilityState === "visible") {
+            void markRead(active.id);
+          }
+        }
+      })
+      .on("broadcast", { event: "read_receipt" }, () => {
+        setPeerLastReadAt(new Date().toISOString());
+      })
+      .subscribe();
+
+    // 2. Polling Cepat (1.2 detik) saat di dalam ruang chat aktif sebagai jaminan
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void pollNewMessages();
-    }, 4000);
-    return () => window.clearInterval(timer);
-  }, [active, pollNewMessages]);
+    }, 1200);
 
-  /* ─── Supabase Realtime (aktif jika integrasi Clerk ↔ Supabase diaktifkan) ─ */
-  useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!userId || !session || !url || !anon) return;
+    const onFocus = () => {
+      void pollNewMessages();
+    };
+    window.addEventListener("focus", onFocus);
 
-    let client: SupabaseClient | null = null;
-    try {
-      client = createClient(url, anon, {
-        accessToken: async () => (await session.getToken()) ?? null,
-      });
-      const channel = client
-        .channel(`msg-${userId}`)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "msg_messages" }, (payload) => {
-          const row = payload.new as { conversation_id?: string };
-          if (row.conversation_id && row.conversation_id === activeRef.current?.id) void pollNewMessages();
-          void loadConversations();
-        })
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "msg_friendships" }, () => {
-          void loadFriends();
-        })
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "msg_friendships" }, () => {
-          void loadFriends();
-        })
-        .subscribe();
-      return () => {
-        void client?.removeChannel(channel);
-      };
-    } catch {
-      return;
-    }
-  }, [userId, session, pollNewMessages, loadConversations, loadFriends]);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(timer);
+      void supabase.removeChannel(convChannel);
+    };
+  }, [active, pollNewMessages, markRead]);
 
   /* ─── Open conversation ───────────────────────────────────────────────── */
   const openConversation = useCallback(
@@ -455,6 +486,26 @@ export default function MessagesWorkspace({ isDark, userId, onTogglePanel, onReq
           };
           return [updated, ...prev.filter((c) => c.id !== active.id)];
         });
+
+        // ─── INSTANT REALTIME BROADCAST VIA WEBSOCKET (< 50ms) ───────────
+        try {
+          const convChannel = supabase.channel(`conv_${active.id}`);
+          void convChannel.send({
+            type: "broadcast",
+            event: "new_msg",
+            payload: { message: data.message },
+          });
+
+          const peerInbox = supabase.channel(`inbox_${active.peer.id}`);
+          void peerInbox.send({
+            type: "broadcast",
+            event: "inbox_ping",
+            payload: {},
+          });
+        } catch {
+          // ignore
+        }
+
         return true;
       } catch (e) {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
