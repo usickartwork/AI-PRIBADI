@@ -1520,13 +1520,15 @@ export default function MessagesWorkspace({
                   <div
                     id={`msg-${m.id}`}
                     className={`group relative flex items-center gap-1.5 ${
-                      m.fromMe ? "justify-end flex-row" : "justify-start flex-row-reverse"
+                      m.fromMe ? "justify-end" : "justify-start"
                     } ${grouped ? "mt-0.5" : "mt-2.5"}`}
                   >
                     {/* Desktop hover actions toolbar */}
                     {!m.isDeleted && !m.pending && (
                       <div
                         className={`hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 py-0.5 px-1 rounded-xl backdrop-blur-md border shadow-sm ${
+                          m.fromMe ? "order-1" : "order-2"
+                        } ${
                           isDark
                             ? "bg-zinc-900/90 border-white/10 text-zinc-300"
                             : "bg-white/90 border-black/10 text-zinc-700"
@@ -1567,6 +1569,8 @@ export default function MessagesWorkspace({
                       onTouchEnd={handleTouchCancelOrEnd}
                       onTouchMove={handleTouchCancelOrEnd}
                       className={`max-w-[82%] sm:max-w-[72%] min-w-[4.8rem] rounded-2xl px-3.5 pt-2 pb-1.5 text-sm leading-relaxed flex flex-col transition-all ${
+                        m.fromMe ? "order-2" : "order-1"
+                      } ${
                         m.fromMe
                           ? isDark
                             ? "bg-white text-black rounded-br-md"
