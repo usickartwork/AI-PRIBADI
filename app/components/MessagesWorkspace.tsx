@@ -15,13 +15,20 @@ import {
   Reply,
   Search,
   Send,
-  Sparkles,
   Trash2,
   UserMinus,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
+
+function UsickStarIcon({ className = "w-3 h-3" }: { className?: string }) {
+  return (
+    <svg className={`shrink-0 fill-current ${className}`} viewBox="0 0 24 24">
+      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
+    </svg>
+  );
+}
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 type PublicUser = { id: string; username: string | null; name: string; avatarUrl: string | null };
@@ -869,9 +876,9 @@ export default function MessagesWorkspace({
       const el = document.getElementById(`msg-${msgId}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("ring-2", "ring-sky-500", "transition-all");
+        el.classList.add("ring-2", "ring-zinc-400", "dark:ring-white/50", "transition-all");
         setTimeout(() => {
-          el.classList.remove("ring-2", "ring-sky-500");
+          el.classList.remove("ring-2", "ring-zinc-400", "dark:ring-white/50");
         }, 1500);
       } else {
         showToast("Pesan asli tidak ditemukan di riwayat ini.", "info");
@@ -1520,17 +1527,17 @@ export default function MessagesWorkspace({
                       {/* Shared AI card header */}
                       {m.messageType === "shared_ai" && !m.isDeleted && (
                         <div
-                          className={`flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase mb-1 ${
+                          className={`flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase mb-1 select-none ${
                             m.fromMe
                               ? isDark
                                 ? "text-zinc-600"
                                 : "text-zinc-300"
                               : isDark
-                                ? "text-sky-400"
-                                : "text-sky-600"
+                                ? "text-zinc-300"
+                                : "text-zinc-700"
                           }`}
                         >
-                          <Sparkles size={11} className="shrink-0" />
+                          <UsickStarIcon className="w-2.5 h-2.5 shrink-0" />
                           <span>Shared from AI Chat</span>
                         </div>
                       )}
