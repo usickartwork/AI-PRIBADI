@@ -20,11 +20,12 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       const saved = localStorage.getItem("usick-theme");
       if (saved === "light") return false;
       if (saved === "dark") return true;
-      if (theme === "light") return false;
-      if (theme === "dark") return true;
       if (!document.documentElement.classList.contains("dark")) return false;
+      if (document.documentElement.classList.contains("dark")) return true;
       if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return false;
       if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
+      if (theme === "light") return false;
+      if (theme === "dark") return true;
     }
     return theme === "dark";
   });
@@ -34,15 +35,16 @@ export function IntroLoader({ state, theme = "dark" }: IntroLoaderProps) {
       const saved = typeof window !== "undefined" ? localStorage.getItem("usick-theme") : null;
       if (saved === "light") return false;
       if (saved === "dark") return true;
-      if (theme === "light") return false;
-      if (theme === "dark") return true;
       if (typeof document !== "undefined") {
         if (!document.documentElement.classList.contains("dark")) return false;
+        if (document.documentElement.classList.contains("dark")) return true;
       }
       if (typeof window !== "undefined" && window.matchMedia) {
         if (window.matchMedia("(prefers-color-scheme: light)").matches) return false;
         if (window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
       }
+      if (theme === "light") return false;
+      if (theme === "dark") return true;
       return false;
     };
 
