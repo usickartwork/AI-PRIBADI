@@ -4,6 +4,7 @@ import { useId } from "react";
 import { motion } from "motion/react";
 
 export type AvatarColor =
+  | "white"
   | "theme"
   | "mono"
   | "dark"
@@ -50,42 +51,45 @@ const PRESETS: Record<
     shine: string;
   }
 > = {
-  theme: {
-    // Dark theme monochrome (obsidian with luminous eyes)
+  white: {
     gradient:
-      "radial-gradient(circle at 50% 45%, #27272a 0%, #18181b 45%, #09090b 75%, #3f3f46 100%)",
-    boxShadow:
-      "0 0 6px 0px rgba(255,255,255,.25), 0 0 20px 4px rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.18)",
-    iris: "linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%)",
+      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
+    boxShadow: "none",
+    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 50%, transparent 70%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
+  },
+  theme: {
+    gradient:
+      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
+    boxShadow: "none",
+    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
+    shine:
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
   },
   mono: {
     gradient:
-      "radial-gradient(circle at 50% 45%, #27272a 0%, #18181b 45%, #09090b 75%, #3f3f46 100%)",
-    boxShadow:
-      "0 0 6px 0px rgba(255,255,255,.25), 0 0 20px 4px rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.18)",
-    iris: "linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%)",
+      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
+    boxShadow: "none",
+    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 50%, transparent 70%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
   },
   dark: {
     gradient:
-      "radial-gradient(circle at 50% 45%, #27272a 0%, #18181b 45%, #09090b 75%, #3f3f46 100%)",
-    boxShadow:
-      "0 0 6px 0px rgba(255,255,255,.25), 0 0 20px 4px rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.18)",
-    iris: "linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%)",
+      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
+    boxShadow: "none",
+    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 50%, transparent 70%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
   },
   light: {
     gradient:
-      "radial-gradient(circle at 50% 45%, #ffffff 0%, #f4f4f5 45%, #e4e4e7 75%, #d4d4d8 100%)",
-    boxShadow:
-      "0 0 6px 0px rgba(0,0,0,.15), 0 0 18px 4px rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.12)",
-    iris: "linear-gradient(135deg, #18181b 0%, #27272a 100%)",
+      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
+    boxShadow: "none",
+    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,.95) 0%, rgba(255,255,255,.25) 50%, transparent 70%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
   },
   blue: {
     gradient:
@@ -261,7 +265,7 @@ function Eye({ blinking, delayMs = 0, irisGradient, sizeClass }: EyeProps) {
 
 export function Avatar({
   blinking = true,
-  color,
+  color = "white",
   size = "md",
   shape = "circle",
   className = "",
@@ -270,13 +274,8 @@ export function Avatar({
   const uid = useId();
   const noiseId = `av-n${uid.replace(/\W/g, "")}`;
 
-  // Tentukan preset warna: jika color diset manual gunakan itu, jika tidak gunakan tema (dark obsidian / light monochrome)
-  let resolvedColor: AvatarColor = color || (isDark ? "dark" : "light");
-  if (resolvedColor === "theme" || resolvedColor === "mono") {
-    resolvedColor = isDark ? "dark" : "light";
-  }
-
-  const preset = PRESETS[resolvedColor] ?? (isDark ? PRESETS.dark : PRESETS.light);
+  const resolvedColor: AvatarColor = color || "white";
+  const preset = PRESETS[resolvedColor] ?? PRESETS.white;
   const dims = SIZE[size] ?? SIZE.md;
 
   return (
@@ -397,3 +396,4 @@ export function Avatar({
 }
 
 export default Avatar;
+
