@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { motion } from "motion/react";
 
 export type AvatarColor =
@@ -32,6 +32,7 @@ export interface AvatarProps {
   shape?: AvatarShape;
   className?: string;
   isDark?: boolean;
+  lookAround?: boolean;
 }
 
 const BLINK_KEYFRAMES = `
@@ -242,6 +243,13 @@ const SHAPE_RADIUS: Record<AvatarShape, string> = {
   squircle: "rounded-[40%]",
 };
 
+const LOOK_LIMITS: Record<AvatarSize, { maxX: number; maxY: number }> = {
+  sm: { maxX: 3.5, maxY: 2.5 },
+  md: { maxX: 6, maxY: 4.5 },
+  lg: { maxX: 9, maxY: 6.5 },
+  xl: { maxX: 12, maxY: 8.5 },
+};
+
 interface EyeProps {
   blinking: boolean;
   delayMs?: number;
@@ -270,18 +278,130 @@ export function Avatar({
   shape = "circle",
   className = "",
   isDark = true,
+  lookAround = true,
 }: AvatarProps) {
   const uid = useId();
   const noiseId = `av-n${uid.replace(/\W/g, "")}`;
+  const avatarRef = useRef<HTMLDivElement>(null);
+  const eyesRef = useRef<HTMLDivElement>(null);
 
   const resolvedColor: AvatarColor = color || "white";
   const preset = PRESETS[resolvedColor] ?? PRESETS.white;
   const dims = SIZE[size] ?? SIZE.md;
 
+  useEffect(() => {
+    if (!lookAround) return;
+
+    const limits = LOOK_LIMITS[size] ?? LOOK_LIMITS.md;
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let lastInteraction = Date.now();
+    let animId: number;
+
+    const handlePointerCoord = (clientX: number, clientY: number) => {
+      lastInteraction = Date.now();
+      if (!avatarRef.current) return;
+      const rect = avatarRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 4) {
+        targetX = 0;
+        targetY = 0;
+        return;
+      }
+
+      const angle = Math.atan2(dy, dx);
+      // Smooth saturation based on distance
+      const intensity = Math.min(1, Math.max(0.25, dist / 220));
+      targetX = Math.cos(angle) * limits.maxX * intensity;
+      targetY = Math.sin(angle) * limits.maxY * intensity;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      handlePointerCoord(e.clientX, e.clientY);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      handlePointerCoord(e.clientX, e.clientY);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches.length > 0) {
+        handlePointerCoord(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches && e.touches.length > 0) {
+        handlePointerCoord(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const onMouseLeave = () => {
+      targetX = 0;
+      targetY = 0;
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    document.addEventListener("mouseleave", onMouseLeave, { passive: true });
+
+    // Idle look-around interval
+    const idleInterval = setInterval(() => {
+      // If user recently interacted (within 2.2s), skip idle movement
+      if (Date.now() - lastInteraction < 2200) return;
+
+      // 30% chance to return to center, 70% chance to glance in random direction
+      if (Math.random() < 0.3) {
+        targetX = 0;
+        targetY = 0;
+      } else {
+        const angle = Math.random() * Math.PI * 2;
+        const intensity = 0.4 + Math.random() * 0.6;
+        targetX = Math.cos(angle) * limits.maxX * intensity;
+        targetY = Math.sin(angle) * limits.maxY * intensity;
+      }
+    }, 2500);
+
+    // Animation frame loop with smooth lerping
+    const loop = () => {
+      currentX += (targetX - currentX) * 0.12;
+      currentY += (targetY - currentY) * 0.12;
+
+      if (eyesRef.current) {
+        eyesRef.current.style.transform = `translate3d(${currentX.toFixed(2)}px, ${currentY.toFixed(2)}px, 0)`;
+      }
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      clearInterval(idleInterval);
+      cancelAnimationFrame(animId);
+    };
+  }, [lookAround, size]);
+
   return (
     <>
       <style>{BLINK_KEYFRAMES}</style>
       <motion.div
+        ref={avatarRef}
         aria-label="AI Avatar"
         role="img"
         whileTap={{ scaleX: 1.15, scaleY: 1.3 }}
@@ -372,23 +492,27 @@ export function Avatar({
 
         <div
           className={[
-            "relative z-10 flex items-center",
-            dims.eyeGap,
+            "relative z-10 flex items-center justify-center",
             dims.eyeY,
           ].join(" ")}
         >
-          <Eye
-            blinking={blinking}
-            delayMs={0}
-            irisGradient={preset.iris}
-            sizeClass={dims.eye}
-          />
-          <Eye
-            blinking={blinking}
-            delayMs={60}
-            irisGradient={preset.iris}
-            sizeClass={dims.eye}
-          />
+          <div
+            ref={eyesRef}
+            className={["flex items-center will-change-transform", dims.eyeGap].join(" ")}
+          >
+            <Eye
+              blinking={blinking}
+              delayMs={0}
+              irisGradient={preset.iris}
+              sizeClass={dims.eye}
+            />
+            <Eye
+              blinking={blinking}
+              delayMs={60}
+              irisGradient={preset.iris}
+              sizeClass={dims.eye}
+            />
+          </div>
         </div>
       </motion.div>
     </>
