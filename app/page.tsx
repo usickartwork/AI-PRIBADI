@@ -666,7 +666,7 @@ export default function Home() {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"account" | "appearance" | "billing" | "security">("account");
+  const [settingsTab, setSettingsTab] = useState<"account" | "appearance" | "billing" | "pricing" | "security">("account");
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -3386,17 +3386,6 @@ export default function Home() {
 
           {/* Bottom User Card / Status */}
           <div className={`p-3 md:p-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
-            {/* Tombol Pricing */}
-            <div
-              onClick={() => setShowPricingModal(true)}
-              className={`flex items-center rounded-xl px-3.5 md:px-3.5 py-3 md:py-2 cursor-pointer transition mb-2 text-[15px] md:text-sm font-medium ${
-                isDark
-                  ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-white"
-                  : "hover:bg-zinc-100 text-black hover:text-black font-medium"
-              }`}
-            >
-              <span>Pricing</span>
-            </div>
 
             <div className={`flex items-center justify-between rounded-2xl p-3 md:p-2.5 shadow-xs border ${
               isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
@@ -4103,15 +4092,16 @@ export default function Home() {
             isDark ? "border-zinc-800/80 bg-[#121215]/90 backdrop-blur-md" : "border-zinc-200/80 bg-[#fafafc]/90 backdrop-blur-md"
           }`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-xs shrink-0 ${
-                isDark ? "bg-white text-black" : "bg-black text-white"
-              }`}>
-                {/* Custom Bespoke Gear Icon */}
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-                </svg>
-              </div>
+              {/* Custom Bespoke Gear Icon (tanpa kotakan di belakang) */}
+              <svg
+                className={`w-6 h-6 shrink-0 ${isDark ? "text-zinc-100" : "text-zinc-900"}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+              </svg>
               <div className="min-w-0">
                 <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">Pengaturan</h1>
                 <p className={`text-xs truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
@@ -4120,38 +4110,33 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(false)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
-                  isDark
-                    ? "bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                    : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100 hover:text-black"
-                }`}
-                title="Tutup Pengaturan (Esc)"
-              >
-                <span>Tutup</span>
-                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-zinc-200/50 dark:bg-zinc-800/80 text-zinc-500">
-                  Esc
-                </kbd>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            {/* Tombol X Lingkaran di Pojok Kanan */}
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer border shrink-0 ${
+                isDark
+                  ? "bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  : "bg-zinc-100 border-zinc-200 text-zinc-500 hover:text-black hover:bg-zinc-200"
+              }`}
+              title="Tutup (Esc)"
+              aria-label="Tutup Pengaturan"
+            >
+              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </header>
 
           {/* Full Settings Body: Accordion Sidebar + Content */}
           <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-            {/* Left Column: Settings Sidebar Accordion */}
-            <aside className={`w-full md:w-72 lg:w-80 border-b md:border-b-0 md:border-r p-4 sm:p-5 overflow-y-auto shrink-0 ${
+            {/* Left Column: Settings Sidebar */}
+            <aside className={`w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r p-4 sm:p-5 overflow-y-auto shrink-0 ${
               isDark ? "border-zinc-800/80 bg-zinc-900/20" : "border-zinc-200/80 bg-zinc-50/50"
             }`}>
               <SettingsSidebarAccordion
                 activeValue={settingsTab}
                 onSelectSection={(val) => setSettingsTab(val as any)}
-                onSelectLink={(val) => setSettingsTab(val as any)}
                 className="w-full"
               />
             </aside>
@@ -4470,6 +4455,167 @@ export default function Home() {
                       >
                         Lihat Riwayat Pemakaian Kredit →
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── TAB: PRICING ─── */}
+                {settingsTab === "pricing" && (
+                  <div className="space-y-6 animate-in fade-in-0 duration-150">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight">Paket & Harga (Pricing)</h2>
+                      <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        Pilih paket langganan yang paling sesuai dengan kebutuhan produktivitas Anda
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Free Plan Card */}
+                      <div className={`p-5 rounded-2xl border flex flex-col justify-between ${
+                        isDark ? "bg-zinc-900/50 border-zinc-800 text-zinc-200" : "bg-zinc-50 border-zinc-200 text-zinc-900"
+                      }`}>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                              Free
+                            </span>
+                            {(subscription?.plan || "free") === "free" && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isDark ? "bg-zinc-800 text-zinc-300 border-zinc-700" : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                              }`}>
+                                Paket Saat Ini
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-bold tracking-tight mb-1">
+                            Rp 0 <span className="text-xs font-normal text-zinc-500">/ bulan</span>
+                          </div>
+                          <p className={`text-xs mb-4 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                            Cocok untuk eksplorasi dan kebutuhan percakapan harian santai.
+                          </p>
+
+                          <ul className="space-y-2 text-xs">
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>10.000 AI Credits / bulan</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>50 Code Credits / bulan</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Maksimal 3 jadwal aktif</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Model reasoning dasar & web search</span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        <div className="pt-5 mt-4 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                          <button
+                            type="button"
+                            disabled={(subscription?.plan || "free") === "free"}
+                            className={`w-full py-2 rounded-xl text-xs font-semibold transition text-center ${
+                              (subscription?.plan || "free") === "free"
+                                ? "bg-zinc-200/50 dark:bg-zinc-800/50 text-zinc-400 cursor-default"
+                                : (isDark ? "bg-zinc-800 hover:bg-zinc-700 text-white cursor-pointer" : "bg-zinc-200 hover:bg-zinc-300 text-black cursor-pointer")
+                            }`}
+                          >
+                            {(subscription?.plan || "free") === "free" ? "Aktif Digunakan" : "Pilih Free"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Pro Plan Card */}
+                      <div className={`p-5 rounded-2xl border flex flex-col justify-between relative ${
+                        isDark
+                          ? "bg-zinc-900 border-zinc-700 text-white shadow-lg shadow-black/40 ring-1 ring-white/10"
+                          : "bg-white border-black text-black shadow-lg shadow-zinc-900/10 ring-1 ring-black/10"
+                      }`}>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider">
+                              Usick One Pro
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isDark ? "bg-white text-black" : "bg-black text-white"
+                            }`}>
+                              {(subscription?.plan || "free") === "pro" ? "Aktif" : "Rekomendasi"}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-bold tracking-tight mb-1">
+                            Rp 49.000 <span className="text-xs font-normal text-zinc-500">/ bulan</span>
+                          </div>
+                          <p className={`text-xs mb-4 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                            Kapasitas maksimal untuk coding profesional, analisis mendalam & estafet PRD.
+                          </p>
+
+                          <ul className="space-y-2 text-xs">
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span><strong>500.000 AI Credits</strong> / bulan</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span><strong>1.500 Code Credits</strong> / bulan</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Maksimal <strong>20 jadwal aktif</strong></span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Prioritas reasoning speed & model flagship</span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        <div className="pt-5 mt-4 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                          {(subscription?.plan || "free") === "pro" ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-2 rounded-xl text-xs font-semibold bg-zinc-200/50 dark:bg-zinc-800/50 text-zinc-400 cursor-default text-center"
+                            >
+                              Paket Anda Saat Ini
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettingsOpen(false);
+                                setShowPricingModal(true);
+                              }}
+                              className={`w-full py-2 rounded-xl text-xs font-bold transition cursor-pointer text-center shadow-xs ${
+                                isDark
+                                  ? "bg-white text-black hover:bg-zinc-200"
+                                  : "bg-black text-white hover:bg-zinc-800"
+                              }`}
+                            >
+                              Upgrade ke Pro
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
