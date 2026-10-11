@@ -1644,6 +1644,7 @@ export default function Home() {
           taskType: "chat",
           userId: user?.id || "guest",
           effortLevel,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
         }),
         signal: controller.signal,
       });

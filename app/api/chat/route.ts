@@ -131,6 +131,41 @@ const CORS_HEADERS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getTemporalPrompt(userTimeZone?: string): string {
+  const tz = userTimeZone?.trim() || "Asia/Jakarta";
+  let formatted = "";
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("id-ID", {
+      timeZone: tz,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    formatted = formatter.format(now);
+  } catch {
+    const now = new Date();
+    formatted = now.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+  }
+
+  let tzLabel = tz;
+  if (tz === "Asia/Jakarta" || tz === "Asia/Pontianak") tzLabel = "WIB (Waktu Indonesia Barat, UTC+7)";
+  else if (tz === "Asia/Makassar" || tz === "Asia/Ujung_Pandang") tzLabel = "WITA (Waktu Indonesia Tengah, UTC+8)";
+  else if (tz === "Asia/Jayapura") tzLabel = "WIT (Waktu Indonesia Timur, UTC+9)";
+
+  return (
+    `\n\n[Informasi Waktu & Tanggal Real-Time]:\n` +
+    `- Waktu Sekarang: ${formatted}\n` +
+    `- Zona Waktu: ${tzLabel}\n` +
+    `Instruksi: Kamu selalu mengetahui waktu, hari, tanggal, bulan, tahun, dan jam saat ini secara akurat. Jika pengguna menanyakan jam berapa sekarang, hari apa hari ini, tanggal berapa, atau topik terkait waktu, jawablah secara presisi dan tepat berdasarkan data waktu real-time di atas.`
+  );
+}
+
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
   modelName: string;
@@ -195,6 +230,7 @@ export async function POST(request: Request) {
     taskType?: "chat" | "code";
     userId?: string;
     effortLevel?: "Faster" | "Balanced" | "Max";
+    timeZone?: string;
   };
 
   try {
@@ -219,6 +255,11 @@ export async function POST(request: Request) {
   const modelId = body.model || "";
   const taskType = body.taskType === "code" ? "code" : "chat";
   const creditType = taskType === "code" ? "code" : "ai";
+  const userTimeZone =
+    typeof body.timeZone === "string" && body.timeZone.trim()
+      ? body.timeZone.trim()
+      : "Asia/Jakarta";
+  const temporalInstruction = getTemporalPrompt(userTimeZone);
 
   // ── Authentication & Subscription Check ──────────────────────────────────────
   let userId = body.userId;
@@ -353,12 +394,15 @@ export async function POST(request: Request) {
     messages.push(...sysMsgs, ...nonSysMsgs.slice(-12));
   }
 
-  // Inject effort instruction into system message
+  // Inject effort instruction & real-time temporal context into system message
   const systemMsgIdx = messages.findIndex((m) => m.role === "system");
   if (systemMsgIdx >= 0) {
     messages[systemMsgIdx] = {
       ...messages[systemMsgIdx],
-      content: messages[systemMsgIdx].content + effortInstruction,
+      content:
+        messages[systemMsgIdx].content +
+        temporalInstruction +
+        effortInstruction,
     };
   } else {
     const lower = modelId.toLowerCase();
@@ -372,6 +416,7 @@ export async function POST(request: Request) {
       content:
         defaultIdentity +
         " Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
+        temporalInstruction +
         effortInstruction,
     });
   }
@@ -567,12 +612,14 @@ export async function POST(request: Request) {
 
     messagesToSend = formattedMessages;
     if (isDeepSeekR1) {
-      // Pastikan system prompt untuk DeepSeek R1 ringkas agar tidak memicu overthinking tapi tetap berbahasa Indonesia
+      // Pastikan system prompt untuk DeepSeek R1 ringkas agar tidak memicu overthinking tapi tetap berbahasa Indonesia dan tahu waktu real-time
       messagesToSend = formattedMessages.map((m) => {
         if (m.role === "system") {
           return {
             ...m,
-            content: "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur.",
+            content:
+              "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur." +
+              temporalInstruction,
           };
         }
         return m;

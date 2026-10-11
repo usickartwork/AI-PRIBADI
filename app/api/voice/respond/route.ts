@@ -44,8 +44,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Generate text response with ultra-fast Gemini 3.5 Flash Lite
+    let nowStr = "";
+    try {
+      nowStr = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(new Date());
+    } catch {
+      nowStr = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+    }
+
     const systemInstruction =
       "Kamu adalah asisten suara AI pintar bernama One Mind. " +
+      `Waktu sekarang adalah ${nowStr} WIB. Jika pengguna menanyakan jam atau tanggal atau hari, jawablah secara akurat sesuai waktu tersebut. ` +
       "Jawablah langsung dalam bahasa Indonesia lisan yang santun, sangat padat, dan ringkas (maksimal 1-2 kalimat pendek). " +
       "PENTING: Jangan gunakan format markdown seperti tanda bintang (*), tanda pagar (#), daftar bernomor, bullet point, atau emotikon agar natural didengarkan via audio.";
 
