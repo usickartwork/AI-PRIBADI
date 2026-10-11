@@ -1,12 +1,9 @@
-"use client";
+import Avatar from "@/components/ui/components-primitives-avatar";
 
-import Pattern from "@/components/ui/settings-sidebar-accordion";
-
-export default function Default() {
+export default function Demo() {
   return (
-    <div className="flex min-h-[420px] w-full items-center justify-center p-6 bg-background">
-      <Pattern />
+    <div className="flex items-center justify-center p-6">
+      <Avatar />
     </div>
   );
 }
-
