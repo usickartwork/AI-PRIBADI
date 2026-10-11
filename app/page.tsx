@@ -1571,7 +1571,12 @@ export default function Home() {
 
       const baseHistory = historyOverride !== undefined ? historyOverride : messages;
       setMessages([...baseHistory, userMsg, assistantMsg]);
-      if (!customPrompt) setInput("");
+      if (!customPrompt) {
+        setInput("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+        }
+      }
       setSelectedImage(null);
       setSelectedFile(null);
 
@@ -1607,7 +1612,12 @@ export default function Home() {
       const baseHistory = historyOverride !== undefined ? historyOverride : messages;
       const updatedMessages = [...baseHistory, userMsg, assistantMsg];
       setMessages(updatedMessages);
-      if (!customPrompt) setInput("");
+      if (!customPrompt) {
+        setInput("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+        }
+      }
 
       const systemPrompt = getSystemPrompt(currentModelObj);
 
@@ -2202,8 +2212,16 @@ export default function Home() {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    if (el.value.trim()) {
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    }
   };
+
+  useEffect(() => {
+    if (!input && textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [input]);
 
   const copyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
