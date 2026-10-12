@@ -10,6 +10,7 @@ import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
 import MessagesWorkspace from "./components/MessagesWorkspace";
 import { GameWorkspace } from "./components/GameWorkspace";
+import { TrackingWorkspace } from "./components/TrackingWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
@@ -608,8 +609,8 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
 
-  // Jaga activeView: jika sedang di tab "faith" atau "game", pertahankan saat refresh; selain itu default ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game">("chats");
+  // Jaga activeView: jika sedang di tab "faith", "game", atau "tracking", pertahankan saat refresh; selain itu default ke "chats"
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "tracking">("chats");
   const isInitialActiveViewSyncDone = useRef(false);
 
   useEffect(() => {
@@ -619,6 +620,8 @@ export default function Home() {
         setActiveView("faith");
       } else if (saved === "game") {
         setActiveView("game");
+      } else if (saved === "tracking") {
+        setActiveView("tracking");
       }
     } catch {}
     isInitialActiveViewSyncDone.current = true;
@@ -631,6 +634,8 @@ export default function Home() {
         localStorage.setItem("usick-active-view", "faith");
       } else if (activeView === "game") {
         localStorage.setItem("usick-active-view", "game");
+      } else if (activeView === "tracking") {
+        localStorage.setItem("usick-active-view", "tracking");
       } else {
         localStorage.removeItem("usick-active-view");
       }
@@ -3233,6 +3238,24 @@ export default function Home() {
               <span>Game</span>
             </div>
 
+            {/* Tracking Feature Button (HandVerse 3D Hand Tracking) */}
+            <div
+              onClick={() => {
+                setActiveView("tracking");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "tracking"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V4a1.5 1.5 0 013 0v4.5m0 0V4a1.5 1.5 0 013 0v4.5m0 0V6a1.5 1.5 0 013 0v4.5" />
+              </svg>
+              <span>Tracking</span>
+            </div>
+
             {/* Faith Feature Button (Integrasi Web Rohani / Salib - Paling Bawah) */}
             <div
               onClick={() => {
@@ -3549,6 +3572,17 @@ export default function Home() {
           />
         </div>
 
+        {/* TrackingWorkspace (HandVerse 3D Hand Tracking & Experiments) */}
+        <div className={`h-full w-full ${activeView === "tracking" ? "flex flex-col flex-1" : "hidden"}`}>
+          <TrackingWorkspace
+            key="tracking-workspace-instance"
+            isDark={isDark}
+            isVisible={activeView === "tracking"}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        </div>
+
         {activeView === "schedule" ? (
           <ScheduleWorkspace
             key={user?.id || "guest"}
@@ -3567,7 +3601,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "code" || activeView === "faith" || activeView === "messages" || activeView === "game" ? null : (
+        ) : activeView === "code" || activeView === "faith" || activeView === "messages" || activeView === "game" || activeView === "tracking" ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
