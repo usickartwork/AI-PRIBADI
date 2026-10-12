@@ -1,4 +1,17 @@
+import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
+
+export const metadata: Metadata = {
+  title: "Masuk — Usick One",
+  description: "Masuk ke akun Usick One Anda.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: "https://onemind.web.id/sign-in",
+  },
+};
 
 export default function SignInPage() {
   return (

@@ -8,9 +8,9 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: [
           "/api/",
-          "/sign-in/",
-          "/sign-up/",
-          "/sso-callback/",
+          "/sign-in",
+          "/sign-up",
+          "/sso-callback",
         ],
       },
     ],
