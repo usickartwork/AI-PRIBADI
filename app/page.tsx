@@ -9,6 +9,7 @@ import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
 import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
 import MessagesWorkspace from "./components/MessagesWorkspace";
+import { GameWorkspace } from "./components/GameWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
@@ -607,8 +608,8 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
 
-  // Jaga activeView: jika sedang di tab "faith", pertahankan saat refresh agar web faith tidak reset ke login; selain itu default ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages">("chats");
+  // Jaga activeView: jika sedang di tab "faith" atau "game", pertahankan saat refresh; selain itu default ke "chats"
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game">("chats");
   const isInitialActiveViewSyncDone = useRef(false);
 
   useEffect(() => {
@@ -616,6 +617,8 @@ export default function Home() {
       const saved = localStorage.getItem("usick-active-view");
       if (saved === "faith") {
         setActiveView("faith");
+      } else if (saved === "game") {
+        setActiveView("game");
       }
     } catch {}
     isInitialActiveViewSyncDone.current = true;
@@ -626,6 +629,8 @@ export default function Home() {
     try {
       if (activeView === "faith") {
         localStorage.setItem("usick-active-view", "faith");
+      } else if (activeView === "game") {
+        localStorage.setItem("usick-active-view", "game");
       } else {
         localStorage.removeItem("usick-active-view");
       }
@@ -3210,6 +3215,24 @@ export default function Home() {
               )}
             </div>
 
+            {/* Game Feature Button (Usick Survival 3D RPG) */}
+            <div
+              onClick={() => {
+                setActiveView("game");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "game"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+              </svg>
+              <span>Game</span>
+            </div>
+
             {/* Faith Feature Button (Integrasi Web Rohani / Salib - Paling Bawah) */}
             <div
               onClick={() => {
@@ -3515,6 +3538,17 @@ export default function Home() {
           />
         </div>
 
+        {/* GameWorkspace dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
+        <div className={`h-full w-full ${activeView === "game" ? "flex flex-col flex-1" : "hidden"}`}>
+          <GameWorkspace
+            key="game-workspace-instance"
+            isDark={isDark}
+            isVisible={activeView === "game"}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        </div>
+
         {activeView === "schedule" ? (
           <ScheduleWorkspace
             key={user?.id || "guest"}
@@ -3533,7 +3567,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "code" || activeView === "faith" || activeView === "messages" ? null : (
+        ) : activeView === "code" || activeView === "faith" || activeView === "messages" || activeView === "game" ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
