@@ -159,12 +159,23 @@ function getTemporalPrompt(userTimeZone?: string): string {
   else if (tz === "Asia/Jayapura") tzLabel = "WIT (Waktu Indonesia Timur, UTC+9)";
 
   return (
-    `\n\n[Informasi Waktu & Tanggal Real-Time]:\n` +
+    `\n\n[Informasi Waktu & Tanggal Real-Time Aktif]:\n` +
     `- Waktu Sekarang: ${formatted}\n` +
     `- Zona Waktu: ${tzLabel}\n` +
-    `Instruksi: Kamu selalu mengetahui waktu, hari, tanggal, bulan, tahun, dan jam saat ini secara akurat. Jika pengguna menanyakan jam berapa sekarang, hari apa hari ini, tanggal berapa, atau topik terkait waktu, jawablah secara presisi dan tepat berdasarkan data waktu real-time di atas.`
+    `ATURAN WAJIB WAKTU: Kamu MEMILIKI akses langsung ke jam, hari, dan tanggal real-time di atas. DILARANG KERAS mengatakan "Saya tidak memiliki akses ke waktu real-time" atau menyuruh pengguna melihat jam di perangkatnya. Jika ditanya jam berapa sekarang, hari apa hari ini, atau tanggal berapa, sebutkan langsung jam dan tanggal real-time di atas dengan pasti dan akurat.`
   );
 }
+
+const USICK_ONE_TRAINING_RULES =
+  "\n\n[Standar Kualitas & Kepribadian Usick One (Setara ChatGPT Flagship)]:\n" +
+  "1. Identitas Mutlak: Kamu adalah **Usick One**, asisten kecerdasan buatan flagship generasi terbaru dari Usick. Jangan pernah menyebut dirimu sebagai Qwen, Alibaba, Gemini, Google, Llama, Meta, DeepSeek, Kimi, Moonshot, Apodex, atau OpenAI.\n" +
+  "2. Gaya Komunikasi Adaptif & Natural:\n" +
+  "   - Untuk sapaan santai atau pertanyaan singkat (mis. 'halo', 'apa kabar', 'jam berapa'), jawab secara hangat, ramah, natural, dan ringkas tanpa bertele-tele.\n" +
+  "   - Untuk pertanyaan analitis, edukasi, bisnis, strategi, atau pemecahan masalah, berikan penjelasan yang mendalam, terstruktur rapi (gunakan subjudul, poin-poin, penekanan **tebal**, atau tabel bila relevan), disertai contoh konkret yang mudah dipahami.\n" +
+  "3. Standar Kode & Pemrograman: Saat diminta menulis kode, berikan kode yang bersih, lengkap (jangan dipotong setengah), siap dijalankan (production-ready) di dalam fenced code block dengan label bahasa yang tepat, diikuti penjelasan singkat.\n" +
+  "4. Disiplin Output: Langsung berikan jawaban akhir yang matang. DILARANG mengeluarkan monolog berpikir internal dalam bahasa Inggris seperti 'Thinking Process:', '1. Analyze the Request:', '<think>', atau '<thought>'.\n" +
+  "5. Konteks Multi-Turn: Selalu ingat dan hubungkan konteks dari pesan-pesan sebelumnya dalam percakapan ini secara koheren.";
+
 
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
@@ -394,21 +405,26 @@ export async function POST(request: Request) {
     messages.push(...sysMsgs, ...nonSysMsgs.slice(-12));
   }
 
-  // Inject effort instruction & real-time temporal context into system message
+  const lowerModelId = modelId.toLowerCase();
+  const isUsick =
+    !modelId ||
+    lowerModelId.includes("apodex") ||
+    lowerModelId.includes("usick");
+
+  // Inject effort instruction, real-time temporal context & Usick One training rules into system message
   const systemMsgIdx = messages.findIndex((m) => m.role === "system");
   if (systemMsgIdx >= 0) {
     messages[systemMsgIdx] = {
       ...messages[systemMsgIdx],
       content:
         messages[systemMsgIdx].content +
+        (isUsick ? USICK_ONE_TRAINING_RULES : "") +
         temporalInstruction +
         effortInstruction,
     };
   } else {
-    const lower = modelId.toLowerCase();
-    const isUsick = lower.includes("apodex") || lower.includes("usick");
     const defaultIdentity = isUsick
-      ? "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut."
+      ? "Nama kamu adalah Usick One, asisten kecerdasan buatan flagship tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, dan ramah."
       : "Kamu adalah asisten AI yang cerdas dan ramah. Tetap gunakan nama model AI aslimu jika ditanya siapa dirimu, dan jangan pernah menyebut dirimu sebagai Usick One.";
 
     messages.unshift({
@@ -416,14 +432,15 @@ export async function POST(request: Request) {
       content:
         defaultIdentity +
         " Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
+        (isUsick ? USICK_ONE_TRAINING_RULES : "") +
         temporalInstruction +
         effortInstruction,
     });
   }
 
-  const resolved = resolveProvider(modelId);
+  const primaryResolved = resolveProvider(modelId);
 
-  if (!resolved) {
+  if (!primaryResolved && !isUsick) {
     const missingKey = modelId.split(/[:/]/)[0] || "provider";
     console.error(`[api/chat] Provider or key not configured for model: ${modelId}`);
 
@@ -480,441 +497,582 @@ export async function POST(request: Request) {
     );
   }
 
-  const { provider, modelName, providerName } = resolved;
+  const hasImage = messages.some((m) => Boolean(m.image));
 
-  if (providerName === "custom" && !provider.endpoint) {
-    return Response.json(
-      {
-        error:
-          "CUSTOM_BASE_URL belum dikonfigurasi di Environment Variables (.env.local atau Vercel Dashboard). Silakan isi CUSTOM_BASE_URL dengan URL server API Anda.",
-        model: modelId,
-      },
-      { status: 503, headers: CORS_HEADERS }
-    );
+  // Build ordered candidate failover list
+  const rawCandidates: string[] = [];
+  if (isUsick) {
+    if (hasImage) {
+      rawCandidates.push(
+        "gemini:gemini-3.5-flash-lite",
+        "gemini:gemini-3.1-flash-lite",
+        "novita:qwen/qwen3.8-flash",
+        "custom:clario/gemini-3.7-flash-auto"
+      );
+    } else {
+      rawCandidates.push(
+        "novita:apodex/apodex-1.1-mini",
+        "novita:qwen/qwen3.8-flash",
+        "gemini:gemini-3.5-flash-lite",
+        "novita:moonshotai/kimi-k2-instruct",
+        "gemini:gemini-3.1-flash-lite",
+        "novita:inclusionai/ling-3.1-flash",
+        "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "custom:clario/gemini-3.7-flash-auto"
+      );
+    }
+  } else {
+    rawCandidates.push(modelId);
+    if (
+      primaryResolved?.providerName === "custom" &&
+      primaryResolved.modelName.startsWith("clario/deepseek-") &&
+      primaryResolved.modelName !== "clario/deepseek-v4.1-flash-auto"
+    ) {
+      rawCandidates.push("custom:clario/deepseek-v4.1-flash-auto");
+    }
+    if (hasImage) {
+      rawCandidates.push(
+        "gemini:gemini-3.5-flash-lite",
+        "gemini:gemini-3.1-flash-lite",
+        "novita:qwen/qwen3.8-flash"
+      );
+    } else {
+      rawCandidates.push(
+        "gemini:gemini-3.5-flash-lite",
+        "novita:qwen/qwen3.8-flash",
+        "gemini:gemini-3.1-flash-lite",
+        "novita:moonshotai/kimi-k2-instruct",
+        "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+      );
+    }
   }
 
-  if (providerName === "cloudflare" && !process.env.CLOUDFLARE_ACCOUNT_ID) {
-    return Response.json(
-      {
-        error:
-          "CLOUDFLARE_ACCOUNT_ID belum dikonfigurasi di Environment Variables (.env.local atau Vercel). Silakan tambahkan CLOUDFLARE_ACCOUNT_ID Anda (bisa disalin dari Cloudflare Dashboard URL atau sidebar).",
-        model: modelId,
-      },
-      { status: 503, headers: CORS_HEADERS }
-    );
-  }
+  // Deduplicate candidates while preserving order
+  const candidateModels = Array.from(new Set(rawCandidates));
 
-  const isAnthropic = providerName === "claude" || providerName === "anthropic";
+  const buildCandidatePayload = (candidateId: string) => {
+    const resolved = resolveProvider(candidateId);
+    if (!resolved) return null;
+    const { provider, modelName, providerName } = resolved;
+    if (providerName === "custom" && !provider.endpoint) return null;
+    if (providerName === "cloudflare" && !process.env.CLOUDFLARE_ACCOUNT_ID) return null;
 
-  const reqHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (isAnthropic) {
-    reqHeaders["x-api-key"] = provider.apiKey;
-    reqHeaders["anthropic-version"] = "2023-06-01";
-  } else if (provider.apiKey) {
-    reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
-  }
-  if (providerName === "openrouter") {
-    reqHeaders["HTTP-Referer"] = "https://usick.ai";
-    reqHeaders["X-Title"] = "Usick AI";
-  }
-  if (providerName === "custom") {
-    reqHeaders["User-Agent"] =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-  }
+    const isAnthropic = providerName === "claude" || providerName === "anthropic";
+    const reqHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (isAnthropic) {
+      reqHeaders["x-api-key"] = provider.apiKey;
+      reqHeaders["anthropic-version"] = "2023-06-01";
+    } else if (provider.apiKey) {
+      reqHeaders["Authorization"] = `Bearer ${provider.apiKey}`;
+    }
+    if (providerName === "openrouter") {
+      reqHeaders["HTTP-Referer"] = "https://usick.ai";
+      reqHeaders["X-Title"] = "Usick AI";
+    }
+    if (providerName === "custom") {
+      reqHeaders["User-Agent"] =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    }
 
-  let reqBody: string;
-  let messagesToSend: any[] = [];
+    let reqBody: string;
+    if (isAnthropic) {
+      const systemTexts: string[] = [];
+      const anthropicMessages: { role: "user" | "assistant"; content: unknown }[] = [];
 
-  if (isAnthropic) {
-    const systemTexts: string[] = [];
-    const anthropicMessages: { role: "user" | "assistant"; content: any }[] = [];
-
-    for (const m of messages) {
-      if (m.role === "system") {
-        systemTexts.push(m.content);
-      } else if (m.image && m.role === "user") {
-        const match = m.image.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) {
-          const mediaType = match[1];
-          const base64Data = match[2];
-          anthropicMessages.push({
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: base64Data,
+      for (const m of messages) {
+        if (m.role === "system") {
+          systemTexts.push(m.content);
+        } else if (m.image && m.role === "user") {
+          const match = m.image.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            const mediaType = match[1];
+            const base64Data = match[2];
+            anthropicMessages.push({
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: mediaType,
+                    data: base64Data,
+                  },
                 },
-              },
+                {
+                  type: "text",
+                  text: m.content || "Tolong analisis dan jelaskan foto ini secara rinci.",
+                },
+              ],
+            });
+          } else {
+            anthropicMessages.push({ role: m.role, content: m.content });
+          }
+        } else {
+          const last = anthropicMessages[anthropicMessages.length - 1];
+          if (last && last.role === m.role && typeof last.content === "string") {
+            last.content += "\n\n" + m.content;
+          } else {
+            anthropicMessages.push({ role: m.role, content: m.content });
+          }
+        }
+      }
+
+      if (anthropicMessages.length === 0 || anthropicMessages[0].role !== "user") {
+        anthropicMessages.unshift({ role: "user", content: "Halo" });
+      }
+
+      reqBody = JSON.stringify({
+        model: modelName,
+        messages: anthropicMessages,
+        system: systemTexts.length > 0 ? systemTexts.join("\n\n") : undefined,
+        stream: true,
+        max_tokens: maxTokens,
+        temperature,
+      });
+    } else {
+      const formattedMessages = messages.map((m) => {
+        if (m.image && m.role === "user") {
+          return {
+            role: m.role,
+            content: [
               {
                 type: "text",
                 text: m.content || "Tolong analisis dan jelaskan foto ini secara rinci.",
               },
-            ],
-          });
-        } else {
-          anthropicMessages.push({ role: m.role, content: m.content });
-        }
-      } else {
-        const last = anthropicMessages[anthropicMessages.length - 1];
-        if (last && last.role === m.role && typeof last.content === "string") {
-          last.content += "\n\n" + m.content;
-        } else {
-          anthropicMessages.push({ role: m.role, content: m.content });
-        }
-      }
-    }
-
-    if (anthropicMessages.length === 0 || anthropicMessages[0].role !== "user") {
-      anthropicMessages.unshift({ role: "user", content: "Halo" });
-    }
-
-    reqBody = JSON.stringify({
-      model: modelName,
-      messages: anthropicMessages,
-      system: systemTexts.length > 0 ? systemTexts.join("\n\n") : undefined,
-      stream: true,
-      max_tokens: maxTokens,
-      temperature,
-    });
-  } else {
-    const formattedMessages = messages.map((m) => {
-      if (m.image && m.role === "user") {
-        return {
-          role: m.role,
-          content: [
-            {
-              type: "text",
-              text: m.content || "Tolong analisis dan jelaskan foto ini secara rinci.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: m.image,
+              {
+                type: "image_url",
+                image_url: {
+                  url: m.image,
+                },
               },
-            },
-          ],
-        };
-      }
-      return {
-        role: m.role,
-        content: m.content,
-      };
-    });
-
-    const isDeepSeekR1 =
-      modelName.toLowerCase().includes("deepseek-r1") ||
-      modelId.toLowerCase().includes("deepseek-r1");
-
-    messagesToSend = formattedMessages;
-    if (isDeepSeekR1) {
-      // Pastikan system prompt untuk DeepSeek R1 ringkas agar tidak memicu overthinking tapi tetap berbahasa Indonesia dan tahu waktu real-time
-      messagesToSend = formattedMessages.map((m) => {
-        if (m.role === "system") {
-          return {
-            ...m,
-            content:
-              "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur." +
-              temporalInstruction,
+            ],
           };
         }
-        return m;
+        return {
+          role: m.role,
+          content: m.content,
+        };
       });
-    }
 
-    const reasoningEffortMap = {
-      Faster: "low",
-      Balanced: "medium",
-      Max: "high",
-    };
+      const isDeepSeekR1 =
+        modelName.toLowerCase().includes("deepseek-r1") ||
+        candidateId.toLowerCase().includes("deepseek-r1");
 
-    if (providerName === "openrouter") {
-      const isNemotron = modelName.toLowerCase().includes("nemotron");
-      const openRouterModels = isNemotron
-        ? [
-            modelName,
-            "nvidia/nemotron-3.5-lightning:free",
-            "nvidia/nemotron-3-ultra-550b-a55b:free",
-          ]
-        : [modelName];
-
-      const isReasoningModel =
-        modelName.includes("r1") ||
-        modelName.includes("o1") ||
-        modelName.includes("o3") ||
-        modelName.includes("reasoning");
-
-      reqBody = JSON.stringify({
-        model: modelName,
-        models: openRouterModels,
-        messages: messagesToSend,
-        stream: true,
-        max_tokens: maxTokens,
-        temperature,
-        ...(isReasoningModel ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
-      });
-    } else {
-      const isReasoningModel =
-        providerName === "gemini" ||
-        modelName.includes("gemini") ||
-        modelName.includes("r1") ||
-        modelName.includes("o1") ||
-        modelName.includes("o3") ||
-        modelName.includes("reasoning") ||
-        modelName.includes("apodex") ||
-        modelName.includes("ling");
-
-      reqBody = JSON.stringify({
-        model: modelName,
-        messages: messagesToSend,
-        stream: true,
-        max_tokens: maxTokens,
-        temperature,
-        ...(isReasoningModel ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
-      });
-    }
-  }
-
-  try {
-    const isDeepSeek =
-      modelName.toLowerCase().includes("deepseek") ||
-      modelId.toLowerCase().includes("deepseek");
-    const timeoutMs = isDeepSeek ? 60000 : 35000;
-
-    let upstream = await fetch(provider.endpoint, {
-      method: "POST",
-      headers: reqHeaders,
-      body: reqBody,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-
-    // ── Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404) ─
-    if (!upstream.ok && providerName === "ollama" && (upstream.status === 405 || upstream.status === 404)) {
-      const cleanBase = cleanOllamaBaseUrl(process.env.OLLAMA_BASE_URL);
-      if (cleanBase) {
-        const nativeEndpoint = `${cleanBase}/api/chat`;
-        console.warn(`[api/chat] Ollama ${provider.endpoint} returned ${upstream.status}, trying native ${nativeEndpoint}`);
-
-        const nativeUpstream = await fetch(nativeEndpoint, {
-          method: "POST",
-          headers: reqHeaders,
-          body: JSON.stringify({
-            model: modelName,
-            messages,
-            stream: true,
-          }),
+      let messagesToSend = formattedMessages;
+      if (isDeepSeekR1) {
+        messagesToSend = formattedMessages.map((m) => {
+          if (m.role === "system") {
+            return {
+              ...m,
+              content:
+                "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur." +
+                temporalInstruction,
+            };
+          }
+          return m;
         });
-
-        if (nativeUpstream.ok) {
-          upstream = nativeUpstream;
-        }
       }
-    }
 
-    // ── DeepSeek Fallback (If custom deepseek model hits 429 rate limit or 503, fallback to deepseek-v4.1-flash-auto) ─
-    if (
-      !upstream.ok &&
-      (upstream.status === 429 || upstream.status === 503 || upstream.status === 504 || upstream.status === 500) &&
-      providerName === "custom" &&
-      modelName.startsWith("clario/deepseek-") &&
-      modelName !== "clario/deepseek-v4.1-flash-auto"
-    ) {
-      console.warn(
-        `[api/chat] DeepSeek model ${modelName} returned ${upstream.status}, trying fallback clario/deepseek-v4.1-flash-auto`
-      );
-      const fallbackBody = JSON.stringify({
-        model: "clario/deepseek-v4.1-flash-auto",
-        messages: messagesToSend.length > 0 ? messagesToSend : messages,
-        stream: true,
-        max_tokens: maxTokens,
-        temperature,
-      });
-      const fallbackUpstream = await fetch(provider.endpoint, {
-        method: "POST",
-        headers: reqHeaders,
-        body: fallbackBody,
-        signal: AbortSignal.timeout(60000),
-      });
-      if (fallbackUpstream.ok) {
-        upstream = fallbackUpstream;
-      }
-    }
+      const reasoningEffortMap = {
+        Faster: "low",
+        Balanced: "medium",
+        Max: "high",
+      };
 
-    // ── Gemini Fallback ────────────────────────────────────────────────────────
-    if (
-      !upstream.ok &&
-      (upstream.status === 503 || upstream.status === 429) &&
-      providerName === "gemini" &&
-      modelName !== "gemini-3.5-flash-lite"
-    ) {
-      console.warn(
-        `[api/chat] ${modelName} returned ${upstream.status}, trying fallback gemini-3.5-flash-lite`
-      );
-      const fallbackBody = JSON.stringify({
-        model: "gemini-3.5-flash-lite",
-        messages: messagesToSend.length > 0 ? messagesToSend : messages,
-        stream: true,
-        max_tokens: maxTokens,
-        temperature,
-      });
-      const fallbackUpstream = await fetch(provider.endpoint, {
-        method: "POST",
-        headers: reqHeaders,
-        body: fallbackBody,
-      });
-      if (fallbackUpstream.ok) {
-        upstream = fallbackUpstream;
-      } else if (fallbackUpstream.status === 429 || fallbackUpstream.status === 503) {
-        console.warn(
-          `[api/chat] gemini-3.5-flash-lite returned ${fallbackUpstream.status}, trying fallback gemini-3.1-flash-lite-preview`
-        );
-        const secondFallbackBody = JSON.stringify({
-          model: "gemini-3.1-flash-lite-preview",
-          messages: messagesToSend.length > 0 ? messagesToSend : messages,
+      if (providerName === "openrouter") {
+        const isNemotron = modelName.toLowerCase().includes("nemotron");
+        const openRouterModels = isNemotron
+          ? [
+              modelName,
+              "nvidia/nemotron-3.5-lightning:free",
+              "nvidia/nemotron-3-ultra-550b-a55b:free",
+            ]
+          : [modelName];
+
+        const isExplicitReasoning =
+          modelName.includes("r1") ||
+          modelName.includes("o1") ||
+          modelName.includes("o3") ||
+          modelName.includes("reasoning");
+
+        reqBody = JSON.stringify({
+          model: modelName,
+          models: openRouterModels,
+          messages: messagesToSend,
+          stream: true,
+          max_tokens: maxTokens,
+          temperature,
+          ...(isExplicitReasoning ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
+        });
+      } else if (providerName === "novita") {
+        // Disable heavy internal English chain-of-thought on Novita chat models so they respond in ~1.2s without 429 overload or empty content
+        reqBody = JSON.stringify({
+          model: modelName,
+          messages: messagesToSend,
+          stream: true,
+          max_tokens: maxTokens,
+          temperature,
+          chat_template_kwargs: { enable_thinking: false },
+        });
+      } else if (providerName === "gemini") {
+        // Do NOT send reasoning_effort to Gemini OpenAI endpoint (prevents thought_signature from exhausting max_tokens)
+        reqBody = JSON.stringify({
+          model: modelName,
+          messages: messagesToSend,
           stream: true,
           max_tokens: maxTokens,
           temperature,
         });
-        const secondUpstream = await fetch(provider.endpoint, {
-          method: "POST",
-          headers: reqHeaders,
-          body: secondFallbackBody,
+      } else {
+        const isExplicitReasoning =
+          modelName.includes("r1") ||
+          modelName.includes("o1") ||
+          modelName.includes("o3") ||
+          modelName.includes("reasoning");
+
+        reqBody = JSON.stringify({
+          model: modelName,
+          messages: messagesToSend,
+          stream: true,
+          max_tokens: maxTokens,
+          temperature,
+          ...(isExplicitReasoning ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
         });
-        if (secondUpstream.ok) {
-          upstream = secondUpstream;
-        }
       }
     }
 
-    if (!upstream.ok) {
-      const errText = await upstream.text();
-      console.error(
-        `[api/chat] upstream error ${upstream.status} for ${modelId}:`,
-        errText.slice(0, 300)
-      );
+    return {
+      candidateId,
+      provider,
+      modelName,
+      providerName,
+      isAnthropic,
+      reqHeaders,
+      reqBody,
+    };
+  };
 
-      let detailMsg = errText.slice(0, 200);
-      try {
-        const parsed = JSON.parse(errText) as {
-          error?: { message?: string } | string;
-          message?: string;
-          detail?: string;
-        };
-        if (typeof parsed.error === "string") {
-          detailMsg = parsed.error;
-        } else if (parsed.error?.message) {
-          detailMsg = parsed.error.message;
-        } else if (parsed.message) {
-          detailMsg = parsed.message;
-        } else if (parsed.detail) {
-          detailMsg = parsed.detail;
+  let verifiedReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let verifiedInitialChunks: Uint8Array[] = [];
+  let activeCandidate = buildCandidatePayload(candidateModels[0]) || {
+    candidateId: modelId,
+    provider: primaryResolved?.provider || { endpoint: "", apiKey: "" },
+    modelName: primaryResolved?.modelName || modelId,
+    providerName: primaryResolved?.providerName || "novita",
+    isAnthropic: false,
+    reqHeaders: {},
+    reqBody: "",
+  };
+  let lastErrorStatus = 503;
+  let lastErrorText = "";
+  let lastFetchError: unknown = null;
+
+  for (let i = 0; i < candidateModels.length; i++) {
+    const candidateId = candidateModels[i];
+    const built = buildCandidatePayload(candidateId);
+    if (!built) continue;
+
+    activeCandidate = built;
+    const isLastCandidate = i === candidateModels.length - 1;
+    const isDeepSeek =
+      built.modelName.toLowerCase().includes("deepseek") ||
+      candidateId.toLowerCase().includes("deepseek");
+    const candidateTimeoutMs = isDeepSeek
+      ? 45000
+      : isLastCandidate
+      ? 25000
+      : 12000;
+
+    try {
+      let upstream = await fetch(built.provider.endpoint, {
+        method: "POST",
+        headers: built.reqHeaders,
+        body: built.reqBody,
+        signal: AbortSignal.timeout(candidateTimeoutMs),
+      });
+
+      // Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404)
+      if (
+        !upstream.ok &&
+        built.providerName === "ollama" &&
+        (upstream.status === 405 || upstream.status === 404)
+      ) {
+        const cleanBase = cleanOllamaBaseUrl(process.env.OLLAMA_BASE_URL);
+        if (cleanBase) {
+          const nativeEndpoint = `${cleanBase}/api/chat`;
+          const nativeUpstream = await fetch(nativeEndpoint, {
+            method: "POST",
+            headers: built.reqHeaders,
+            body: JSON.stringify({
+              model: built.modelName,
+              messages,
+              stream: true,
+            }),
+            signal: AbortSignal.timeout(candidateTimeoutMs),
+          });
+          if (nativeUpstream.ok) {
+            upstream = nativeUpstream;
+          }
         }
-      } catch {}
+      }
 
-      const hasImage = messages.some((m) => Boolean(m.image));
-      const isVisionError =
-        hasImage &&
-        (upstream.status === 400 || upstream.status === 404 || upstream.status === 422) &&
-        (errText.toLowerCase().includes("image") ||
-          errText.toLowerCase().includes("vision") ||
-          errText.toLowerCase().includes("multimodal") ||
-          errText.toLowerCase().includes("expected a string") ||
-          errText.toLowerCase().includes("expected type") ||
-          errText.toLowerCase().includes("unsupported") ||
-          errText.toLowerCase().includes("not support") ||
-          errText.toLowerCase().includes("media"));
+      if (!upstream.ok || !upstream.body) {
+        lastErrorStatus = upstream.status || 502;
+        lastErrorText = await upstream.text().catch(() => "");
+        console.warn(
+          `[api/chat] Candidate ${candidateId} returned HTTP ${lastErrorStatus}: ${lastErrorText.slice(0, 180)}. Trying next fallback...`
+        );
+        continue;
+      }
 
-      if (isVisionError) {
+      const reader = upstream.body.getReader();
+
+      if (built.isAnthropic) {
+        verifiedReader = reader;
+        verifiedInitialChunks = [];
+        break;
+      }
+
+      // First-Content-Verified Streaming: read initial SSE packets until at least one non-empty delta.content arrives
+      const tempChunks: Uint8Array[] = [];
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+      let gotValidContent = false;
+      let streamAbortedOrErrored = false;
+
+      try {
+        while (!gotValidContent) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            tempChunks.push(value);
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split("\n");
+            sseBuffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data:")) continue;
+              const dataStr = trimmed.slice(5).trim();
+              if (!dataStr || dataStr === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.error) {
+                  lastErrorText = JSON.stringify(parsed.error);
+                  streamAbortedOrErrored = true;
+                  break;
+                }
+                const deltaContent =
+                  parsed.choices?.[0]?.delta?.content ||
+                  parsed.choices?.[0]?.message?.content ||
+                  "";
+                if (typeof deltaContent === "string" && deltaContent.trim().length > 0) {
+                  gotValidContent = true;
+                }
+              } catch {}
+            }
+          }
+          if (streamAbortedOrErrored) break;
+        }
+      } catch (streamVerifyErr) {
+        console.warn(
+          `[api/chat] Stream verification read error on ${candidateId}:`,
+          streamVerifyErr
+        );
+        streamAbortedOrErrored = true;
+      }
+
+      if (gotValidContent && !streamAbortedOrErrored) {
+        verifiedReader = reader;
+        verifiedInitialChunks = tempChunks;
+        if (i > 0) {
+          console.info(
+            `[api/chat] Auto-failover succeeded: ${modelId} -> ${candidateId}`
+          );
+        }
+        break;
+      } else {
+        try {
+          await reader.cancel();
+        } catch {}
+        console.warn(
+          `[api/chat] Candidate ${candidateId} yielded 0 content tokens, failing over to next candidate...`
+        );
+        continue;
+      }
+    } catch (fetchErr) {
+      lastFetchError = fetchErr;
+      console.warn(
+        `[api/chat] Network/timeout error on candidate ${candidateId}:`,
+        fetchErr instanceof Error ? fetchErr.message : String(fetchErr)
+      );
+      continue;
+    }
+  }
+
+  if (!verifiedReader) {
+    if (lastFetchError && !lastErrorText) {
+      const fetchErrMsg =
+        lastFetchError instanceof Error ? lastFetchError.message : String(lastFetchError);
+      const isTimeout =
+        (lastFetchError instanceof DOMException && lastFetchError.name === "TimeoutError") ||
+        (lastFetchError instanceof Error && lastFetchError.name === "TimeoutError") ||
+        fetchErrMsg.toLowerCase().includes("timeout") ||
+        fetchErrMsg.toLowerCase().includes("aborted");
+
+      if (isTimeout) {
         return Response.json(
           {
-            error: `Model ini saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah model yang **mendukung analisis foto / Vision**:\n• **Gemini**\n• **Qwen**\n\nSilakan pilih model **Gemini** atau **Qwen** pada menu pilihan model untuk menganalisis foto Anda.`,
-            isVisionUnsupported: true,
+            error: `Provider [${activeCandidate.providerName.toUpperCase()}] tidak merespons dalam batas waktu (upstream timeout / server model sedang sibuk). Silakan coba lagi sesaat lagi.`,
             model: modelId,
-            sources,
-            searchError,
+            isLimit: true,
           },
-          { status: 400, headers: CORS_HEADERS }
+          { status: 504, headers: CORS_HEADERS }
         );
       }
 
-      const isOverloaded =
-        upstream.status === 503 ||
-        errText.toLowerCase().includes("overload") ||
-        errText.toLowerCase().includes("temporary unavailable") ||
-        errText.toLowerCase().includes("high demand");
-
-      const isLimitError =
-        upstream.status === 429 ||
-        upstream.status === 402 ||
-        upstream.status === 400 || // Cloudflare returns 400 for neuron/token limit
-        errText.toLowerCase().includes("rate limit") ||
-        errText.toLowerCase().includes("quota") ||
-        errText.toLowerCase().includes("limit") ||
-        errText.toLowerCase().includes("exceeded") ||
-        errText.toLowerCase().includes("exhausted") ||
-        errText.toLowerCase().includes("capacity") ||
-        errText.toLowerCase().includes("overloaded");
-
       return Response.json(
         {
-          error: isOverloaded
-            ? `Model ini sedang mengalami lonjakan antrean / overload sementara dari penyedia layanan. Silakan coba kembali dalam beberapa saat, atau pilih model lain.`
-            : `Provider [${providerName.toUpperCase()}] merespons error (HTTP ${upstream.status}): ${detailMsg}`,
-          detail: errText.slice(0, 300),
-          isLimit: isLimitError,
-          isOverloaded,
-          model: modelId,
-          sources,
-          searchError,
+          error: `Tidak bisa terhubung ke provider [${activeCandidate.providerName.toUpperCase()}]. Detail: ${fetchErrMsg}.`,
         },
-        { status: upstream.status, headers: CORS_HEADERS }
-      );
-    }
-
-    if (!upstream.body) {
-      return Response.json(
-        { error: `Provider [${providerName.toUpperCase()}] tidak mengembalikan response body.` },
         { status: 502, headers: CORS_HEADERS }
       );
     }
 
-    const encoder = new TextEncoder();
-    const upstreamReader = upstream.body.getReader();
+    const errText = lastErrorText || "Upstream gagal memberikan respons.";
+    let detailMsg = errText.slice(0, 200);
+    try {
+      const parsed = JSON.parse(errText) as {
+        error?: { message?: string } | string;
+        message?: string;
+        detail?: string;
+      };
+      if (typeof parsed.error === "string") {
+        detailMsg = parsed.error;
+      } else if (parsed.error?.message) {
+        detailMsg = parsed.error.message;
+      } else if (parsed.message) {
+        detailMsg = parsed.message;
+      } else if (parsed.detail) {
+        detailMsg = parsed.detail;
+      }
+    } catch {}
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        if (sources.length > 0) {
-          const sourcesEvent = `data: ${JSON.stringify({ type: "sources", sources })}\n\n`;
-          controller.enqueue(encoder.encode(sourcesEvent));
-        }
+    const isVisionError =
+      hasImage &&
+      (lastErrorStatus === 400 || lastErrorStatus === 404 || lastErrorStatus === 422) &&
+      (errText.toLowerCase().includes("image") ||
+        errText.toLowerCase().includes("vision") ||
+        errText.toLowerCase().includes("multimodal") ||
+        errText.toLowerCase().includes("expected a string") ||
+        errText.toLowerCase().includes("expected type") ||
+        errText.toLowerCase().includes("unsupported") ||
+        errText.toLowerCase().includes("not support") ||
+        errText.toLowerCase().includes("media"));
 
-        if (searchError) {
-          const errorEvent = `data: ${JSON.stringify({ type: "search_error", error: searchError })}\n\n`;
-          controller.enqueue(encoder.encode(errorEvent));
-        }
+    if (isVisionError) {
+      return Response.json(
+        {
+          error: `Model ini saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah model yang **mendukung analisis foto / Vision**:\n• **Usick One**\n• **Gemini**\n• **Qwen**\n\nSilakan pilih model **Usick One**, **Gemini**, atau **Qwen** pada menu pilihan model untuk menganalisis foto Anda.`,
+          isVisionUnsupported: true,
+          model: modelId,
+          sources,
+          searchError,
+        },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
 
-        if (isAnthropic) {
-          let buffer = "";
-          let anthropicOutputChars = 0;
-          const decoder = new TextDecoder();
-          try {
-            while (true) {
-              const { done, value } = await upstreamReader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
+    const isOverloaded =
+      lastErrorStatus === 503 ||
+      errText.toLowerCase().includes("overload") ||
+      errText.toLowerCase().includes("temporary unavailable") ||
+      errText.toLowerCase().includes("high demand");
 
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || !trimmed.startsWith("data:")) continue;
-                const dataStr = trimmed.slice(5).trim();
-                if (dataStr === "[DONE]") continue;
+    const isLimitError =
+      lastErrorStatus === 429 ||
+      lastErrorStatus === 402 ||
+      lastErrorStatus === 400 ||
+      errText.toLowerCase().includes("rate limit") ||
+      errText.toLowerCase().includes("quota") ||
+      errText.toLowerCase().includes("limit") ||
+      errText.toLowerCase().includes("exceeded") ||
+      errText.toLowerCase().includes("exhausted") ||
+      errText.toLowerCase().includes("capacity") ||
+      errText.toLowerCase().includes("overloaded");
 
+    return Response.json(
+      {
+        error: isOverloaded
+          ? `Model ini sedang mengalami lonjakan antrean / overload sementara dari penyedia layanan. Silakan coba kembali dalam beberapa saat.`
+          : `Provider [${activeCandidate.providerName.toUpperCase()}] merespons error (HTTP ${lastErrorStatus}): ${detailMsg}`,
+        detail: errText.slice(0, 300),
+        isLimit: isLimitError,
+        isOverloaded,
+        model: modelId,
+        sources,
+        searchError,
+      },
+      { status: lastErrorStatus, headers: CORS_HEADERS }
+    );
+  }
+
+  const encoder = new TextEncoder();
+  const upstreamReader = verifiedReader;
+  const isAnthropic = activeCandidate.isAnthropic;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      if (sources.length > 0) {
+        const sourcesEvent = `data: ${JSON.stringify({ type: "sources", sources })}\n\n`;
+        controller.enqueue(encoder.encode(sourcesEvent));
+      }
+
+      if (searchError) {
+        const errorEvent = `data: ${JSON.stringify({ type: "search_error", error: searchError })}\n\n`;
+        controller.enqueue(encoder.encode(errorEvent));
+      }
+
+      if (isAnthropic) {
+        let buffer = "";
+        let anthropicOutputChars = 0;
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith("data:")) continue;
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr === "[DONE]") continue;
+
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                  anthropicOutputChars += parsed.delta.text.length;
+                  const chunk = {
+                    choices: [{ delta: { content: parsed.delta.text } }],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                }
+              } catch {}
+            }
+          }
+
+          if (buffer.trim()) {
+            const trimmed = buffer.trim();
+            if (trimmed.startsWith("data:")) {
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr !== "[DONE]") {
                 try {
                   const parsed = JSON.parse(dataStr);
                   if (parsed.type === "content_block_delta" && parsed.delta?.text) {
@@ -929,146 +1087,103 @@ export async function POST(request: Request) {
                 } catch {}
               }
             }
-
-            if (buffer.trim()) {
-              const trimmed = buffer.trim();
-              if (trimmed.startsWith("data:")) {
-                const dataStr = trimmed.slice(5).trim();
-                if (dataStr !== "[DONE]") {
-                  try {
-                    const parsed = JSON.parse(dataStr);
-                    if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-                      anthropicOutputChars += parsed.delta.text.length;
-                      const chunk = {
-                        choices: [{ delta: { content: parsed.delta.text } }],
-                      };
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
-                      );
-                    }
-                  } catch {}
-                }
-              }
-            }
-
-            // Deduct credits on stream finish
-            try {
-              const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
-              const outTokens = Math.max(5, Math.ceil(anthropicOutputChars / 4));
-              const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
-              const deductRes = await deductCredits({
-                userId,
-                creditType,
-                amount: credits,
-                modelId,
-                taskType,
-                inputTokens: inTokens,
-                outputTokens: outTokens,
-              });
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({
-                  type: "credit_usage",
-                  creditType,
-                  creditsUsed: credits,
-                  remainingCredits: deductRes.remainingCredits,
-                  multiplier,
-                })}\n\n`)
-              );
-            } catch (deductErr) {
-              console.warn("[api/chat] Error deducting Anthropic credits:", deductErr);
-            }
-
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-            controller.close();
-          } catch (readErr) {
-            controller.error(readErr);
           }
-        } else {
-          let standardOutputBytes = 0;
+
+          // Deduct credits on stream finish
           try {
-            while (true) {
-              const { done, value } = await upstreamReader.read();
-              if (done) break;
-              if (value) {
-                standardOutputBytes += value.length;
-                controller.enqueue(value);
-              }
-            }
-
-            // Deduct credits on stream finish
-            try {
-              const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
-              const outTokens = Math.max(5, Math.ceil(standardOutputBytes / 10));
-              const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
-              const deductRes = await deductCredits({
-                userId,
+            const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
+            const outTokens = Math.max(5, Math.ceil(anthropicOutputChars / 4));
+            const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
+            const deductRes = await deductCredits({
+              userId,
+              creditType,
+              amount: credits,
+              modelId,
+              taskType,
+              inputTokens: inTokens,
+              outputTokens: outTokens,
+            });
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({
+                type: "credit_usage",
                 creditType,
-                amount: credits,
-                modelId,
-                taskType,
-                inputTokens: inTokens,
-                outputTokens: outTokens,
-              });
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({
-                  type: "credit_usage",
-                  creditType,
-                  creditsUsed: credits,
-                  remainingCredits: deductRes.remainingCredits,
-                  multiplier,
-                })}\n\n`)
-              );
-            } catch (deductErr) {
-              console.warn("[api/chat] Error deducting stream credits:", deductErr);
-            }
-
-            controller.close();
-          } catch (readErr) {
-            controller.error(readErr);
+                creditsUsed: credits,
+                remainingCredits: deductRes.remainingCredits,
+                multiplier,
+              })}\n\n`)
+            );
+          } catch (deductErr) {
+            console.warn("[api/chat] Error deducting Anthropic credits:", deductErr);
           }
+
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (readErr) {
+          controller.error(readErr);
         }
-      },
+      } else {
+        let standardOutputBytes = 0;
+        try {
+          for (const initChunk of verifiedInitialChunks) {
+            standardOutputBytes += initChunk.length;
+            controller.enqueue(initChunk);
+          }
 
-      cancel() {
-        upstreamReader.cancel();
-      },
-    });
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            if (value) {
+              standardOutputBytes += value.length;
+              controller.enqueue(value);
+            }
+          }
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-        ...CORS_HEADERS,
-      },
-    });
-  } catch (err: unknown) {
-    const fetchErrMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[api/chat] network error for ${modelId}:`, fetchErrMsg);
+          // Deduct credits on stream finish
+          try {
+            const inTokens = Math.max(10, Math.ceil(JSON.stringify(messages).length / 4));
+            const outTokens = Math.max(5, Math.ceil(standardOutputBytes / 10));
+            const { credits, multiplier } = calculateCreditUsage(modelId, inTokens, outTokens, taskType);
+            const deductRes = await deductCredits({
+              userId,
+              creditType,
+              amount: credits,
+              modelId,
+              taskType,
+              inputTokens: inTokens,
+              outputTokens: outTokens,
+            });
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({
+                type: "credit_usage",
+                creditType,
+                creditsUsed: credits,
+                remainingCredits: deductRes.remainingCredits,
+                multiplier,
+              })}\n\n`)
+            );
+          } catch (deductErr) {
+            console.warn("[api/chat] Error deducting stream credits:", deductErr);
+          }
 
-    const isTimeout =
-      (err instanceof DOMException && err.name === "TimeoutError") ||
-      (err instanceof Error && err.name === "TimeoutError") ||
-      fetchErrMsg.toLowerCase().includes("timeout") ||
-      fetchErrMsg.toLowerCase().includes("aborted");
+          controller.close();
+        } catch (readErr) {
+          controller.error(readErr);
+        }
+      }
+    },
 
-    if (isTimeout) {
-      return Response.json(
-        {
-          error: `Provider [${providerName.toUpperCase()}] tidak merespons dalam 25 detik (upstream timeout / server model sedang offline atau antrean penuh). Silakan coba lagi nanti atau pilih model lain.`,
-          model: modelId,
-          isLimit: true,
-        },
-        { status: 504, headers: CORS_HEADERS }
-      );
-    }
+    cancel() {
+      upstreamReader.cancel();
+    },
+  });
 
-    return Response.json(
-      {
-        error: `Tidak bisa terhubung ke provider [${providerName.toUpperCase()}] di URL "${provider.endpoint}". Detail: ${fetchErrMsg}. Periksa apakah server/koneksi provider sedang aktif atau periksa API Key / URL konfigurasi.`,
-      },
-      { status: 502, headers: CORS_HEADERS }
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      ...CORS_HEADERS,
+    },
+  });
 }

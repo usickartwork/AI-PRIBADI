@@ -194,11 +194,11 @@ function cleanModelLabel(label: string): string {
 
 function isVisionSupported(modelId: string): boolean {
   const lower = modelId.toLowerCase();
-  return lower.includes("gemini") || lower.includes("qwen");
+  return lower.includes("gemini") || lower.includes("qwen") || lower.includes("apodex") || lower.includes("usick");
 }
 
 function getVisionUnsupportedNotice(modelLabel: string): string {
-  return `Model **${cleanModelLabel(modelLabel)}** saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah model yang **mendukung analisis foto / Vision**:\n• **Gemini**\n• **Qwen**\n\nSilakan pilih model **Gemini** atau **Qwen** pada menu pilihan model untuk menganalisis foto Anda.`;
+  return `Model **${cleanModelLabel(modelLabel)}** saat ini tidak mendukung analisis gambar atau foto.\n\nBerikut adalah model yang **mendukung analisis foto / Vision**:\n• **Usick One**\n• **Gemini**\n• **Qwen**\n\nSilakan pilih model **Usick One**, **Gemini**, atau **Qwen** pada menu pilihan model untuk menganalisis foto Anda.`;
 }
 
 function getModelCategory(m: ModelEntry): string {
@@ -241,13 +241,13 @@ function getSystemPrompt(m?: ModelEntry): string {
 
   if (isUsick) {
     return (
-      "Nama kamu adalah Usick One, asisten kecerdasan buatan tingkat lanjut yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah.\n\n" +
+      "Nama kamu adalah Usick One, asisten kecerdasan buatan flagship generasi terbaru dari Usick yang sangat pintar, cerdas, berwawasan luas, profesional, dan ramah (setara kualitas ChatGPT).\n\n" +
       "Pedoman Jawaban:\n" +
-      "1. Identitas: Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan jelas dan tegas bahwa kamu adalah Usick One.\n" +
-      "2. Kualitas: Berikan jawaban yang mendalam, terstruktur rapi, logis, dan mengalir secara alami dalam bahasa Indonesia yang baik.\n" +
-      "3. Format: Gunakan format Markdown yang bersih dan profesional (**cetak tebal**, *miring*, daftar poin, nomor, dan tabel jika relevan).\n" +
-      "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman yang bersih dan siap dijalankan.\n" +
-      "5. Responsivitas: Jawab secara langsung, lugas, solutif, tanpa repetisi berlebihan, dan berikan penjelasan konseptual bila diperlukan."
+      "1. Identitas Mutlak: Jika ditanya siapa dirimu atau siapa namamu, jawablah dengan tegas dan konsisten bahwa kamu adalah **Usick One**. Jangan pernah menyebut dirimu sebagai Qwen, Gemini, Google, Alibaba, Llama, DeepSeek, Kimi, Apodex, atau OpenAI.\n" +
+      "2. Gaya Komunikasi Adaptif: Untuk sapaan santai atau pertanyaan ringan, jawab secara hangat, natural, dan ringkas. Untuk pertanyaan kompleks, analitis, atau teknis, berikan jawaban yang mendalam, terstruktur rapi, logis, dan mudah dipahami dalam bahasa Indonesia yang baik.\n" +
+      "3. Format Profesional: Gunakan format Markdown yang bersih (**cetak tebal**, *miring*, subjudul, daftar poin, nomor, dan tabel jika relevan).\n" +
+      "4. Kode Program: SELALU gunakan fenced code block dengan menyertakan nama bahasa pemrograman yang lengkap, bersih, dan siap dijalankan.\n" +
+      "5. Disiplin Output: Langsung berikan jawaban akhir yang matang tanpa menampilkan monolog berpikir internal (seperti 'Thinking Process:' atau '<think>')."
     );
   }
 
@@ -568,6 +568,7 @@ export default function Home() {
     }
   }, [effortLevel]);
   // Simpan model yang limit beserta timestamp kapan bisa di-reset kembali (default reset: 5 menit)
+  // Usick One (novita:apodex/apodex-1.1-mini) tidak pernah dinonaktifkan karena memiliki sistem multi-engine auto-failover
   const [disabledModels, setDisabledModels] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -577,7 +578,9 @@ export default function Home() {
           const now = Date.now();
           const active: Record<string, number> = {};
           for (const [id, expireAt] of Object.entries(parsed)) {
-            if (expireAt > now) active[id] = expireAt;
+            if (expireAt > now && id !== "novita:apodex/apodex-1.1-mini") {
+              active[id] = expireAt;
+            }
           }
           return active;
         }
@@ -1538,15 +1541,22 @@ export default function Home() {
     let assistantId = "";
     let userMsgId = "";
     let modelToUse = model;
-    if (activeImage) {
+    if (
+      activeImage &&
+      model !== "novita:apodex/apodex-1.1-mini" &&
+      !isVisionSupported(model)
+    ) {
       const geminiVision =
         models.find((m) => m.id === "gemini:gemini-3.5-flash-lite") ||
         models.find((m) => m.id.toLowerCase().includes("gemini-3.5-flash-lite")) ||
         models.find((m) => m.id.toLowerCase().includes("flash-lite")) ||
         models.find((m) => m.id.toLowerCase().includes("gemini"));
-      if (geminiVision) {
+      if (geminiVision && subscription?.plan && subscription.plan !== "free") {
         modelToUse = geminiVision.id;
         setModel(geminiVision.id);
+      } else {
+        modelToUse = "novita:apodex/apodex-1.1-mini";
+        setModel("novita:apodex/apodex-1.1-mini");
       }
     }
 
@@ -1764,7 +1774,7 @@ export default function Home() {
           errDetail.toLowerCase().includes("antrean") ||
           errDetail.toLowerCase().includes("insufficient_quota");
 
-        if (isLimit) {
+        if (isLimit && model !== "novita:apodex/apodex-1.1-mini") {
           const expireAt = Date.now() + 5 * 60 * 1000; // Cooldown 5 menit, setelah itu auto-aktif kembali
           setDisabledModels((prev) => {
             const next = { ...prev, [model]: expireAt };
@@ -1774,8 +1784,11 @@ export default function Home() {
             return next;
           });
 
-          // Otomatis pindah ke model alternatif yang masih aktif
-          const availableModel = models.find((m) => m.id !== model && (!disabledModels[m.id] || disabledModels[m.id] <= Date.now()));
+          // Otomatis pindah ke model alternatif yang masih aktif (untuk Free user kembali ke Usick One)
+          const isFreePlan = !subscription || subscription.plan === "free";
+          const availableModel = isFreePlan
+            ? models.find((m) => m.id === "novita:apodex/apodex-1.1-mini")
+            : models.find((m) => m.id !== model && (!disabledModels[m.id] || disabledModels[m.id] <= Date.now()));
           if (availableModel) {
             setModel(availableModel.id);
             errDetail += ` (Model "${cleanModelLabel(activeModelObj.label)}" telah dinonaktifkan sementara karena mencapai limit. Dialihkan ke ${cleanModelLabel(availableModel.label)}).`;
@@ -1806,13 +1819,21 @@ export default function Home() {
 
       const extractCleanAnswer = (raw: string) => {
         const lower = raw.toLowerCase();
-        const lastOpen = lower.lastIndexOf("<think>");
-        const lastClose = lower.lastIndexOf("</think>");
-        const isThinking = lastOpen !== -1 && (lastClose === -1 || lastOpen > lastClose);
+        const lastOpenThink = lower.lastIndexOf("<think>");
+        const lastCloseThink = lower.lastIndexOf("</think>");
+        const lastOpenThought = lower.lastIndexOf("<thought>");
+        const lastCloseThought = lower.lastIndexOf("</thought>");
+        const isThinking =
+          (lastOpenThink !== -1 && (lastCloseThink === -1 || lastOpenThink > lastCloseThink)) ||
+          (lastOpenThought !== -1 && (lastCloseThought === -1 || lastOpenThought > lastCloseThought));
 
-        let clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, "");
+        let clean = raw
+          .replace(/<think>[\s\S]*?<\/think>/gi, "")
+          .replace(/<thought>[\s\S]*?<\/thought>/gi, "");
         if (isThinking) {
-          clean = clean.replace(/<think>[\s\S]*$/gi, "");
+          clean = clean
+            .replace(/<think>[\s\S]*$/gi, "")
+            .replace(/<thought>[\s\S]*$/gi, "");
         }
         return { answer: clean.trimStart(), isThinking };
       };
@@ -1950,15 +1971,22 @@ export default function Home() {
       }
 
       // Safety Fallback: Jika setelah stream selesai ternyata tidak ada teks yang ter-render
-      // (misal provider mengirim seluruh responnya di reasoning_content atau terjebak dalam tag <think>)
       if (!controller.signal.aborted && !fullText.trim()) {
         if (rawContentBuffer.trim()) {
-          const fallbackClean = rawContentBuffer.replace(/<\/?think>/gi, "").trim();
+          const fallbackClean = rawContentBuffer
+            .replace(/<think>[\s\S]*?<\/think>/gi, "")
+            .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+            .replace(/<\/?think>/gi, "")
+            .replace(/<\/?thought>/gi, "")
+            .trim();
           if (fallbackClean) {
             setStatusMessage(null);
             await appendSmoothly(fallbackClean);
           }
-        } else if (reasoningBuffer.trim()) {
+        } else if (
+          reasoningBuffer.trim() &&
+          !/^(Thinking Process|1\.\s*\*\*Analyze)/i.test(reasoningBuffer.trim())
+        ) {
           setStatusMessage(null);
           await appendSmoothly(reasoningBuffer.trim());
         }
