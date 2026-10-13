@@ -634,7 +634,7 @@ export default function Home() {
     }
     return "game";
   });
-  const [halamanExpanded, setHalamanExpanded] = useState(true);
+  const [lainnyaExpanded, setLainnyaExpanded] = useState(false);
   const isInitialActiveViewSyncDone = useRef(false);
 
   const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
@@ -3311,12 +3311,11 @@ export default function Home() {
               )}
             </div>
 
-            {/* Halaman Tab (Hub Fitur: Game & Faith) */}
+            {/* Lainnya Tab (Dropdown/Accordion Fitur: Game & Faith) */}
             <div className="space-y-1">
               <div
                 onClick={() => {
-                  setActiveView("halaman");
-                  setHalamanExpanded((prev) => (isHalamanActive ? !prev : true));
+                  setLainnyaExpanded((prev) => !prev);
                 }}
                 className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                   isHalamanActive
@@ -3325,14 +3324,17 @@ export default function Home() {
                 }`}
               >
                 <div className="flex items-center gap-3 md:gap-3">
-                  <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  {/* Icon Titik 3 (•••) */}
+                  <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
                   </svg>
-                  <span>Halaman</span>
+                  <span>Lainnya</span>
                 </div>
                 <svg
                   className={`w-4 h-4 transition-transform duration-200 ${
-                    halamanExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
+                    lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -3342,8 +3344,8 @@ export default function Home() {
                 </svg>
               </div>
 
-              {/* Sub-tabs: Game & Faith */}
-              {halamanExpanded && (
+              {/* Sub-tabs: Game & Faith (Hanya muncul jika diklik 'Lainnya') */}
+              {lainnyaExpanded && (
                 <div className="pl-6 pr-1 space-y-1 pt-0.5">
                   <div
                     onClick={() => {
