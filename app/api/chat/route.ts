@@ -364,6 +364,8 @@ export async function POST(request: Request) {
     }
   }
 
+  const hasImage = messages.some((m) => Boolean(m.image));
+
   // ─── Effort Level Tuning (Faster -> Balanced -> Max) ─────────────────────────
   const effortLevel: "Faster" | "Balanced" | "Max" =
     body.effortLevel === "Faster" || body.effortLevel === "Balanced"
@@ -375,18 +377,18 @@ export async function POST(request: Request) {
   let effortInstruction = "";
 
   if (effortLevel === "Faster") {
-    maxTokens = 4096;
+    maxTokens = hasImage ? 8192 : 4096;
     temperature = 0.3;
     effortInstruction =
       "\n\n[Mode Upaya: FASTER]\nBerikan jawaban yang sangat cepat, padat, ringkas, dan langsung ke inti persoalan (to-the-point). Hindari pengantar panjang atau penjelasan tambahan yang tidak esensial. Utamakan kecepatan respons dengan format efisien.";
   } else if (effortLevel === "Balanced") {
-    maxTokens = 8192;
+    maxTokens = hasImage ? 16384 : 8192;
     temperature = 0.6;
     effortInstruction =
       "\n\n[Mode Upaya: BALANCED]\nBerikan jawaban yang seimbang antara kecepatan dan kelengkapan. Jelaskan inti persoalan secara jelas, rapi, dan efisien.";
   } else {
     // "Max" - kualitas terbaik & mendalam (default saat ini)
-    maxTokens = 8192;
+    maxTokens = hasImage ? 16384 : 8192;
     temperature = 0.7;
     effortInstruction =
       "\n\n[Mode Upaya: MAX]\nBerikan jawaban dengan kualitas terbaik, analisis komprehensif, mendalam, dan penjelasan yang rinci dengan penalaran yang matang.";
@@ -497,15 +499,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const hasImage = messages.some((m) => Boolean(m.image));
-
   // Build ordered candidate failover list
   const rawCandidates: string[] = [];
   if (isUsick) {
     if (hasImage) {
       rawCandidates.push(
         "gemini:gemini-3.5-flash-lite",
+        "gemini:gemini-3.1-flash-lite-preview",
         "gemini:gemini-3.1-flash-lite",
+        "gemini:gemini-3.6-flash",
         "novita:qwen/qwen3.8-flash",
         "custom:clario/gemini-3.7-flash-auto"
       );
@@ -515,6 +517,7 @@ export async function POST(request: Request) {
         "novita:qwen/qwen3.8-flash",
         "gemini:gemini-3.5-flash-lite",
         "novita:moonshotai/kimi-k2-instruct",
+        "gemini:gemini-3.1-flash-lite-preview",
         "gemini:gemini-3.1-flash-lite",
         "novita:inclusionai/ling-3.1-flash",
         "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
@@ -533,13 +536,16 @@ export async function POST(request: Request) {
     if (hasImage) {
       rawCandidates.push(
         "gemini:gemini-3.5-flash-lite",
+        "gemini:gemini-3.1-flash-lite-preview",
         "gemini:gemini-3.1-flash-lite",
+        "gemini:gemini-3.6-flash",
         "novita:qwen/qwen3.8-flash"
       );
     } else {
       rawCandidates.push(
         "gemini:gemini-3.5-flash-lite",
         "novita:qwen/qwen3.8-flash",
+        "gemini:gemini-3.1-flash-lite-preview",
         "gemini:gemini-3.1-flash-lite",
         "novita:moonshotai/kimi-k2-instruct",
         "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast"
@@ -718,11 +724,12 @@ export async function POST(request: Request) {
         });
       } else if (providerName === "gemini") {
         // Do NOT send reasoning_effort to Gemini OpenAI endpoint (prevents thought_signature from exhausting max_tokens)
+        // Ensure max_tokens is at least 16384 for Gemini to prevent truncation on photo/vision analysis and thinking tokens
         reqBody = JSON.stringify({
           model: modelName,
           messages: messagesToSend,
           stream: true,
-          max_tokens: maxTokens,
+          max_tokens: Math.max(maxTokens, 16384),
           temperature,
         });
       } else {
@@ -779,18 +786,26 @@ export async function POST(request: Request) {
     const isDeepSeek =
       built.modelName.toLowerCase().includes("deepseek") ||
       candidateId.toLowerCase().includes("deepseek");
+    const isVisionCandidate = hasImage || built.providerName === "gemini";
     const candidateTimeoutMs = isDeepSeek
       ? 45000
+      : isVisionCandidate
+      ? 30000
       : isLastCandidate
       ? 25000
-      : 12000;
+      : 15000;
+
+    const candidateController = new AbortController();
+    let connectTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      candidateController.abort(new DOMException("Candidate connect timeout", "TimeoutError"));
+    }, candidateTimeoutMs);
 
     try {
       let upstream = await fetch(built.provider.endpoint, {
         method: "POST",
         headers: built.reqHeaders,
         body: built.reqBody,
-        signal: AbortSignal.timeout(candidateTimeoutMs),
+        signal: candidateController.signal,
       });
 
       // Ollama Dual Endpoint Retry (Fall back from /v1 to /api/chat if 405/404)
@@ -810,7 +825,7 @@ export async function POST(request: Request) {
               messages,
               stream: true,
             }),
-            signal: AbortSignal.timeout(candidateTimeoutMs),
+            signal: candidateController.signal,
           });
           if (nativeUpstream.ok) {
             upstream = nativeUpstream;
@@ -819,6 +834,10 @@ export async function POST(request: Request) {
       }
 
       if (!upstream.ok || !upstream.body) {
+        if (connectTimeoutId) {
+          clearTimeout(connectTimeoutId);
+          connectTimeoutId = null;
+        }
         lastErrorStatus = upstream.status || 502;
         lastErrorText = await upstream.text().catch(() => "");
         console.warn(
@@ -830,6 +849,10 @@ export async function POST(request: Request) {
       const reader = upstream.body.getReader();
 
       if (built.isAnthropic) {
+        if (connectTimeoutId) {
+          clearTimeout(connectTimeoutId);
+          connectTimeoutId = null;
+        }
         verifiedReader = reader;
         verifiedInitialChunks = [];
         break;
@@ -885,6 +908,10 @@ export async function POST(request: Request) {
       }
 
       if (gotValidContent && !streamAbortedOrErrored) {
+        if (connectTimeoutId) {
+          clearTimeout(connectTimeoutId);
+          connectTimeoutId = null;
+        }
         verifiedReader = reader;
         verifiedInitialChunks = tempChunks;
         if (i > 0) {
@@ -894,6 +921,10 @@ export async function POST(request: Request) {
         }
         break;
       } else {
+        if (connectTimeoutId) {
+          clearTimeout(connectTimeoutId);
+          connectTimeoutId = null;
+        }
         try {
           await reader.cancel();
         } catch {}
@@ -903,6 +934,10 @@ export async function POST(request: Request) {
         continue;
       }
     } catch (fetchErr) {
+      if (connectTimeoutId) {
+        clearTimeout(connectTimeoutId);
+        connectTimeoutId = null;
+      }
       lastFetchError = fetchErr;
       console.warn(
         `[api/chat] Network/timeout error on candidate ${candidateId}:`,

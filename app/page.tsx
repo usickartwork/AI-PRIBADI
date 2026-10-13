@@ -1565,7 +1565,7 @@ export default function Home() {
     };
 
     const isCurrentDeepSeek = model.toLowerCase().includes("deepseek");
-    resetActivityTimer(isCurrentDeepSeek ? 65000 : 45000);
+    resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 65000 : 45000);
 
     let assistantId = "";
     let userMsgId = "";
@@ -1906,7 +1906,7 @@ export default function Home() {
         if (done || controller.signal.aborted) break;
 
         // Reset timer heartbeat: selama token/data masih mengalir dari AI, jangan pernah abort!
-        resetActivityTimer(isCurrentDeepSeek ? 65000 : 35000);
+        resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 65000 : 45000);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -1999,7 +1999,7 @@ export default function Home() {
         }
       }
 
-      // Safety Fallback: Jika setelah stream selesai ternyata tidak ada teks yang ter-render
+      // Safety Fallback & Final Sync: Pastikan seluruh respons selesai ter-render lengkap tanpa terpotong
       if (!controller.signal.aborted && !fullText.trim()) {
         if (rawContentBuffer.trim()) {
           const fallbackClean = rawContentBuffer
@@ -2018,6 +2018,18 @@ export default function Home() {
         ) {
           setStatusMessage(null);
           await appendSmoothly(reasoningBuffer.trim());
+        }
+      } else if (!controller.signal.aborted && rawContentBuffer.trim()) {
+        const finalClean = rawContentBuffer
+          .replace(/<think>[\s\S]*?<\/think>/gi, "")
+          .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+          .replace(/<\/?think>/gi, "")
+          .replace(/<\/?thought>/gi, "")
+          .trim();
+        if (finalClean.length > fullText.length) {
+          const missingTail = finalClean.slice(fullText.length);
+          fullText += missingTail;
+          updateAssistantContent(assistantId, fullText);
         }
       }
 
