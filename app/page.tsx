@@ -611,17 +611,47 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
 
-  // Jaga activeView: jika sedang di tab "faith" atau "game", pertahankan saat refresh; selain itu default ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game">("chats");
+  // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game", pertahankan saat refresh; selain itu default ke "chats"
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-active-view");
+        if (saved === "halaman" || saved === "faith" || saved === "game") return "halaman";
+        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages") return saved;
+      } catch {}
+    }
+    return "chats";
+  });
+  const [halamanSubTab, setHalamanSubTab] = useState<"game" | "faith">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-halaman-subtab");
+        if (saved === "faith" || saved === "game") return saved;
+        const view = localStorage.getItem("usick-active-view");
+        if (view === "faith") return "faith";
+        if (view === "game") return "game";
+      } catch {}
+    }
+    return "game";
+  });
+  const [halamanExpanded, setHalamanExpanded] = useState(true);
   const isInitialActiveViewSyncDone = useRef(false);
+
+  const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("usick-active-view");
-      if (saved === "faith") {
-        setActiveView("faith");
-      } else if (saved === "game") {
-        setActiveView("game");
+      if (saved === "halaman" || saved === "faith" || saved === "game") {
+        setActiveView("halaman");
+        const sub = localStorage.getItem("usick-halaman-subtab");
+        if (sub === "faith" || sub === "game") {
+          setHalamanSubTab(sub);
+        } else if (saved === "faith") {
+          setHalamanSubTab("faith");
+        } else if (saved === "game") {
+          setHalamanSubTab("game");
+        }
       }
     } catch {}
     isInitialActiveViewSyncDone.current = true;
@@ -630,15 +660,14 @@ export default function Home() {
   useEffect(() => {
     if (!isInitialActiveViewSyncDone.current) return;
     try {
-      if (activeView === "faith") {
-        localStorage.setItem("usick-active-view", "faith");
-      } else if (activeView === "game") {
-        localStorage.setItem("usick-active-view", "game");
+      if (isHalamanActive) {
+        localStorage.setItem("usick-active-view", "halaman");
+        localStorage.setItem("usick-halaman-subtab", halamanSubTab);
       } else {
         localStorage.removeItem("usick-active-view");
       }
     } catch {}
-  }, [activeView]);
+  }, [activeView, halamanSubTab, isHalamanActive]);
 
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
@@ -3004,6 +3033,45 @@ export default function Home() {
   </div>
   );
 
+  const halamanSubTabsBar = (
+    <div
+      className={`inline-flex items-center p-0.5 sm:p-1 rounded-full backdrop-blur-md border shadow-sm ${
+        isDark
+          ? "bg-zinc-900/80 border-white/10 shadow-black/40"
+          : "bg-white/80 border-black/10 shadow-zinc-900/10"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setHalamanSubTab("game")}
+        className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+          halamanSubTab === "game"
+            ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
+            : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black")
+        }`}
+      >
+        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+        </svg>
+        <span>Game</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setHalamanSubTab("faith")}
+        className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+          halamanSubTab === "faith"
+            ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
+            : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black")
+        }`}
+      >
+        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+        </svg>
+        <span>Faith</span>
+      </button>
+    </div>
+  );
+
   // ─── STEP 1 & 2: UNREGISTERED / UNAUTHENTICATED VISITORS ──────────────────
   // Menampilkan Page 1 (halaman perkenalan murni tanpa panel dashboard sebelah kiri)
   // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
@@ -3243,42 +3311,79 @@ export default function Home() {
               )}
             </div>
 
-            {/* Game Feature Button (Usick Survival 3D RPG) */}
-            <div
-              onClick={() => {
-                setActiveView("game");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "game"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
-              </svg>
-              <span>Game</span>
-            </div>
+            {/* Halaman Tab (Hub Fitur: Game & Faith) */}
+            <div className="space-y-1">
+              <div
+                onClick={() => {
+                  setActiveView("halaman");
+                  setHalamanExpanded((prev) => (isHalamanActive ? !prev : true));
+                }}
+                className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                  isHalamanActive
+                    ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                    : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+                }`}
+              >
+                <div className="flex items-center gap-3 md:gap-3">
+                  <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span>Halaman</span>
+                </div>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    halamanExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
 
-            {/* Faith Feature Button (Integrasi Web Rohani / Salib - Paling Bawah) */}
-            <div
-              onClick={() => {
-                setActiveView("faith");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "faith"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
-              </svg>
-              <span>Faith</span>
+              {/* Sub-tabs: Game & Faith */}
+              {halamanExpanded && (
+                <div className="pl-6 pr-1 space-y-1 pt-0.5">
+                  <div
+                    onClick={() => {
+                      setActiveView("halaman");
+                      setHalamanSubTab("game");
+                      closeSidebarOnMobile();
+                    }}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                      isHalamanActive && halamanSubTab === "game"
+                        ? (isDark ? "bg-white/10 text-white font-semibold" : "bg-black/10 text-black font-semibold")
+                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/80 text-zinc-600 hover:text-zinc-950 font-medium")
+                    }`}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+                    </svg>
+                    <span>Game</span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setActiveView("halaman");
+                      setHalamanSubTab("faith");
+                      closeSidebarOnMobile();
+                    }}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                      isHalamanActive && halamanSubTab === "faith"
+                        ? (isDark ? "bg-white/10 text-white font-semibold" : "bg-black/10 text-black font-semibold")
+                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/80 text-zinc-600 hover:text-zinc-950 font-medium")
+                    }`}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+                    </svg>
+                    <span>Faith</span>
+                  </div>
+                </div>
+              )}
             </div>
-            </div>
+          </div>
 
             {/* History / Recent Threads */}
             <div className="mt-4 md:mt-3">
@@ -3542,13 +3647,14 @@ export default function Home() {
           />
         </div>
 
-        {/* FaithWorkspace dijaga tetap ter-mount di latar belakang agar sesi login web Faith tidak ter-reset saat berpindah tab */}
-        <div className={`h-full w-full ${activeView === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
+        {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
+        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
           <FaithWorkspace
             key="faith-workspace-instance"
             isDark={isDark}
             onClose={() => setActiveView("chats")}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            subTabsElement={halamanSubTabsBar}
           />
         </div>
 
@@ -3566,14 +3672,15 @@ export default function Home() {
           />
         </div>
 
-        {/* GameWorkspace dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
-        <div className={`h-full w-full ${activeView === "game" ? "flex flex-col flex-1" : "hidden"}`}>
+        {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
+        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
           <GameWorkspace
             key="game-workspace-instance"
             isDark={isDark}
-            isVisible={activeView === "game"}
+            isVisible={isHalamanActive && halamanSubTab === "game"}
             onClose={() => setActiveView("chats")}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            subTabsElement={halamanSubTabsBar}
           />
         </div>
 
@@ -3595,7 +3702,7 @@ export default function Home() {
             userName={chatAccountName}
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
-        ) : activeView === "code" || activeView === "faith" || activeView === "messages" || activeView === "game" ? null : (
+        ) : activeView === "code" || activeView === "messages" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${

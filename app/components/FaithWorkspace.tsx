@@ -6,6 +6,7 @@ interface FaithWorkspaceProps {
   isDark: boolean;
   onClose: () => void;
   onTogglePanel?: () => void;
+  subTabsElement?: React.ReactNode;
 }
 
 const FAITH_URL = "https://faith-hub-rho.vercel.app";
@@ -14,6 +15,7 @@ export function FaithWorkspace({
   isDark,
   onClose,
   onTogglePanel,
+  subTabsElement,
 }: FaithWorkspaceProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
@@ -64,23 +66,25 @@ export function FaithWorkspace({
             </button>
           )}
 
-          {/* Cross Logo & Title (liquid glass capsule) */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${
-            isDark
-              ? "bg-zinc-900/60 border-white/10 text-zinc-200 shadow-black/30"
-              : "bg-white/70 border-black/10 text-zinc-800 shadow-zinc-900/5"
-          }`}>
-            <div className={`flex h-6 w-6 items-center justify-center rounded-full shadow-xs shrink-0 ${
-              isDark ? "bg-white text-black" : "bg-black text-white"
+          {/* Sub Tabs: Game & Faith (atau Cross Logo & Title jika standalone) */}
+          {subTabsElement || (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${
+              isDark
+                ? "bg-zinc-900/60 border-white/10 text-zinc-200 shadow-black/30"
+                : "bg-white/70 border-black/10 text-zinc-800 shadow-zinc-900/5"
             }`}>
-              <svg className="w-3.5 h-3.5 fill-none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3v18M7 8h10" />
-              </svg>
+              <div className={`flex h-6 w-6 items-center justify-center rounded-full shadow-xs shrink-0 ${
+                isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}>
+                <svg className="w-3.5 h-3.5 fill-none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3v18M7 8h10" />
+                </svg>
+              </div>
+              <span className={`text-xs sm:text-sm font-semibold tracking-tight block truncate ${isDark ? "text-white" : "text-black"}`}>
+                Faith Hub
+              </span>
             </div>
-            <span className={`text-xs sm:text-sm font-semibold tracking-tight block truncate ${isDark ? "text-white" : "text-black"}`}>
-              Faith Hub
-            </span>
-          </div>
+          )}
         </div>
 
         {/* Action Controls */}

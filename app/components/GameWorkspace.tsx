@@ -33,6 +33,7 @@ interface GameWorkspaceProps {
   isVisible?: boolean;
   onClose?: () => void;
   onTogglePanel?: () => void;
+  subTabsElement?: React.ReactNode;
 }
 
 type ModalView = "none" | "pause" | "inventory" | "crafting" | "build" | "settings" | "howToPlay";
@@ -42,6 +43,7 @@ export function GameWorkspace({
   isVisible = true,
   onClose,
   onTogglePanel,
+  subTabsElement,
 }: GameWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<SurvivalEngine | null>(null);
@@ -339,11 +341,13 @@ export function GameWorkspace({
             </button>
           )}
 
-          {/* Title tag */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-xs font-bold text-white shadow-sm">
-            <span>🌲</span>
-            <span>Usick Survival</span>
-          </div>
+          {/* Sub Tabs: Game & Faith (atau Title tag jika standalone) */}
+          {subTabsElement || (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-xs font-bold text-white shadow-sm">
+              <span>🌲</span>
+              <span>Usick Survival</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
