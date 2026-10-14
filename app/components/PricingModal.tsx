@@ -9,6 +9,7 @@ interface PricingModalProps {
   subscription: UserSubscriptionInfo | null;
   onSubscriptionUpdated: (updated: UserSubscriptionInfo) => void;
   isDark: boolean;
+  userId?: string | null;
   onOpenUsageHistory?: () => void;
 }
 
@@ -18,6 +19,7 @@ export function PricingModal({
   subscription,
   onSubscriptionUpdated,
   isDark,
+  userId,
   onOpenUsageHistory,
 }: PricingModalProps) {
   const [upgrading, setUpgrading] = useState(false);
@@ -31,9 +33,11 @@ export function PricingModal({
 
   const currentPlan = subscription?.plan || "free";
 
+  const effectiveUserId = (userId || subscription?.userId || "guest").trim();
+
   const handleUpgrade = async () => {
     if (!accessCode || accessCode.trim() !== "Onemind1") {
-      setErrorMsg("Kode aktivasi tidak valid. Silakan masukkan kode akses Pro yang benar.");
+      setErrorMsg("Kode aktivasi tidak valid. Silakan masukkan kode akses Pro yang benar (Onemind1).");
       return;
     }
     setUpgrading(true);
@@ -47,7 +51,7 @@ export function PricingModal({
         body: JSON.stringify({
           action: "upgrade",
           code: accessCode.trim(),
-          userId: subscription?.userId || "guest",
+          userId: effectiveUserId,
         }),
       });
 
@@ -62,6 +66,9 @@ export function PricingModal({
       if (data.subscription) {
         onSubscriptionUpdated(data.subscription);
       }
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     } catch (err: any) {
       setErrorMsg(err?.message || "Terjadi kesalahan saat upgrade.");
     } finally {
@@ -81,7 +88,7 @@ export function PricingModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "downgrade",
-          userId: subscription?.userId || "guest",
+          userId: effectiveUserId,
         }),
       });
 
@@ -94,6 +101,9 @@ export function PricingModal({
       if (data.subscription) {
         onSubscriptionUpdated(data.subscription);
       }
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     } catch (err: any) {
       setErrorMsg(err?.message || "Terjadi kesalahan saat beralih paket.");
     } finally {

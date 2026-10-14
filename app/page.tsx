@@ -440,6 +440,61 @@ function ModelCategoryIcon({ category }: { category: string }) {
   );
 }
 
+function LockedFeatureView({
+  isDark,
+  title,
+  description,
+  onUpgrade,
+  onBack,
+}: {
+  isDark: boolean;
+  title: string;
+  description: string;
+  onUpgrade: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className={`flex flex-col items-center justify-center h-full w-full p-6 text-center select-none ${
+      isDark ? "bg-black/40 text-white" : "bg-zinc-50/80 text-zinc-900"
+    }`}>
+      <div className={`w-16 h-16 mb-4 rounded-2xl flex items-center justify-center border shadow-xl ${
+        isDark ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-amber-50 border-amber-200 text-amber-600"
+      }`}>
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <span className="text-[11px] font-bold uppercase tracking-widest text-amber-500 mb-1">
+        Fitur Khusus Usick One Pro
+      </span>
+      <h3 className={`text-xl font-bold tracking-tight mb-2 ${isDark ? "text-white" : "text-zinc-900"}`}>
+        {title}
+      </h3>
+      <p className={`text-xs max-w-md mb-6 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+        {description}
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className={`px-4 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer border ${
+            isDark ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700" : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-300"
+          }`}
+        >
+          Kembali ke Chats
+        </button>
+        <button
+          type="button"
+          onClick={onUpgrade}
+          className="px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-lg cursor-pointer bg-white text-black hover:bg-zinc-200"
+        >
+          Upgrade ke Pro
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { isSignedIn: isClerkSignedIn, user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { signOut: clerkSignOut } = useClerk();
@@ -668,6 +723,46 @@ export default function Home() {
       }
     } catch {}
   }, [activeView, halamanSubTab, isHalamanActive]);
+
+  const handleSubscriptionUpdated = useCallback((updated: UserSubscriptionInfo) => {
+    setSubscription(updated);
+    if (updated.plan === "free") {
+      setActiveView((prev) => {
+        if (prev === "image" || prev === "halaman" || prev === "game" || prev === "faith") {
+          try {
+            localStorage.removeItem("usick-active-view");
+            localStorage.removeItem("usick-halaman-subtab");
+          } catch {}
+          return "chats";
+        }
+        return prev;
+      });
+      setModel((prev) => {
+        const isUsick = prev === "novita:apodex/apodex-1.1-mini" || prev.toLowerCase().includes("usick");
+        if (!isUsick) {
+          return FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini";
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!subscription) return;
+    if (subscription.plan === "free") {
+      if (activeView === "image" || isHalamanActive) {
+        setActiveView("chats");
+        try {
+          localStorage.removeItem("usick-active-view");
+          localStorage.removeItem("usick-halaman-subtab");
+        } catch {}
+      }
+      const isUsick = model === "novita:apodex/apodex-1.1-mini" || model.toLowerCase().includes("usick");
+      if (!isUsick) {
+        setModel(FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini");
+      }
+    }
+  }, [subscription?.plan, activeView, isHalamanActive, model]);
 
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
@@ -3277,22 +3372,37 @@ export default function Home() {
               <span>Schedule</span>
             </div>
 
-            {/* Image Feature Button (Generator Gambar AI - FLUX.1 Free) */}
+            {/* Image Feature Button (Generator & Terjemahan Gambar AI) */}
             <div
               onClick={() => {
+                if ((subscription?.plan || "free") === "free") {
+                  setSelectedLockedModelName("Image Generator & Translator (Pro)");
+                  setShowUpgradeModal(true);
+                  return;
+                }
                 setActiveView("image");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "image"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>Image</span>
+              <div className="flex items-center gap-3 md:gap-3">
+                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Image</span>
+              </div>
+              {(subscription?.plan || "free") === "free" && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  PRO
+                </span>
+              )}
             </div>
 
             {/* Messages Feature Button (Chat pribadi antar teman) */}
@@ -3361,38 +3471,68 @@ export default function Home() {
                 <div className="pl-6 pr-1 space-y-1 pt-0.5">
                   <div
                     onClick={() => {
+                      if ((subscription?.plan || "free") === "free") {
+                        setSelectedLockedModelName("3D Survival Game (Pro)");
+                        setShowUpgradeModal(true);
+                        return;
+                      }
                       setActiveView("halaman");
                       setHalamanSubTab("game");
                       closeSidebarOnMobile();
                     }}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
                       isHalamanActive && halamanSubTab === "game"
                         ? (isDark ? "bg-white/10 text-white font-semibold" : "bg-black/10 text-black font-semibold")
                         : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/80 text-zinc-600 hover:text-zinc-950 font-medium")
                     }`}
                   >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
-                    </svg>
-                    <span>Game</span>
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+                      </svg>
+                      <span>Game</span>
+                    </div>
+                    {(subscription?.plan || "free") === "free" && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        PRO
+                      </span>
+                    )}
                   </div>
 
                   <div
                     onClick={() => {
+                      if ((subscription?.plan || "free") === "free") {
+                        setSelectedLockedModelName("Faith Space (Pro)");
+                        setShowUpgradeModal(true);
+                        return;
+                      }
                       setActiveView("halaman");
                       setHalamanSubTab("faith");
                       closeSidebarOnMobile();
                     }}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
                       isHalamanActive && halamanSubTab === "faith"
                         ? (isDark ? "bg-white/10 text-white font-semibold" : "bg-black/10 text-black font-semibold")
                         : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/80 text-zinc-600 hover:text-zinc-950 font-medium")
                     }`}
                   >
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
-                    </svg>
-                    <span>Faith</span>
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+                      </svg>
+                      <span>Faith</span>
+                    </div>
+                    {(subscription?.plan || "free") === "free" && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        PRO
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -3663,13 +3803,26 @@ export default function Home() {
 
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
-          <FaithWorkspace
-            key="faith-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            subTabsElement={halamanSubTabsBar}
-          />
+          {(subscription?.plan || "free") === "free" ? (
+            <LockedFeatureView
+              isDark={isDark}
+              title="Faith Space (Eksklusif Pro)"
+              description="Eksplorasi renungan batin, panduan rohani, dan ayat harian interaktif ini hanya tersedia untuk pengguna paket Usick One Pro."
+              onUpgrade={() => {
+                setSelectedLockedModelName("Faith Space (Pro)");
+                setShowUpgradeModal(true);
+              }}
+              onBack={() => setActiveView("chats")}
+            />
+          ) : (
+            <FaithWorkspace
+              key="faith-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              subTabsElement={halamanSubTabsBar}
+            />
+          )}
         </div>
 
         {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
@@ -3688,14 +3841,27 @@ export default function Home() {
 
         {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
-          <GameWorkspace
-            key="game-workspace-instance"
-            isDark={isDark}
-            isVisible={isHalamanActive && halamanSubTab === "game"}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            subTabsElement={halamanSubTabsBar}
-          />
+          {(subscription?.plan || "free") === "free" ? (
+            <LockedFeatureView
+              isDark={isDark}
+              title="3D Survival Game (Eksklusif Pro)"
+              description="Permainan interaktif 3D Survival dunia terbuka bertenaga Three.js ini khusus untuk pengguna paket Usick One Pro."
+              onUpgrade={() => {
+                setSelectedLockedModelName("3D Survival Game (Pro)");
+                setShowUpgradeModal(true);
+              }}
+              onBack={() => setActiveView("chats")}
+            />
+          ) : (
+            <GameWorkspace
+              key="game-workspace-instance"
+              isDark={isDark}
+              isVisible={isHalamanActive && halamanSubTab === "game"}
+              onClose={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              subTabsElement={halamanSubTabsBar}
+            />
+          )}
         </div>
 
         {activeView === "schedule" ? (
@@ -3708,14 +3874,27 @@ export default function Home() {
             onTogglePanel={() => setSidebarOpen((prev) => !prev)}
           />
         ) : activeView === "image" ? (
-          <ImageWorkspace
-            key={user?.id || "guest"}
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            userId={user?.id}
-            userName={chatAccountName}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
+          (subscription?.plan || "free") === "free" ? (
+            <LockedFeatureView
+              isDark={isDark}
+              title="Image Generator & Translator (Eksklusif Pro)"
+              description="Fitur kreasi gambar AI kualitas tinggi dan penerjemahan visual inteligensi hanya dapat diakses pada paket Usick One Pro."
+              onUpgrade={() => {
+                setSelectedLockedModelName("Image Generator & Translator (Pro)");
+                setShowUpgradeModal(true);
+              }}
+              onBack={() => setActiveView("chats")}
+            />
+          ) : (
+            <ImageWorkspace
+              key={user?.id || "guest"}
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              userId={user?.id}
+              userName={chatAccountName}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          )
         ) : activeView === "code" || activeView === "messages" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
@@ -4764,7 +4943,7 @@ export default function Home() {
                                   });
                                   const data = await res.json();
                                   if (data.subscription) {
-                                    setSubscription(data.subscription);
+                                    handleSubscriptionUpdated(data.subscription);
                                   }
                                 } catch {}
                               }}
@@ -5077,8 +5256,9 @@ export default function Home() {
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
         subscription={subscription}
-        onSubscriptionUpdated={(updated) => setSubscription(updated)}
+        onSubscriptionUpdated={(updated) => handleSubscriptionUpdated(updated)}
         isDark={isDark}
+        userId={user?.id || "guest"}
         onOpenUsageHistory={() => {
           setShowPricingModal(false);
           setShowUsageHistoryModal(true);
@@ -5092,7 +5272,7 @@ export default function Home() {
         userId={user?.id || "guest"}
         isDark={isDark}
         onUpgradeSuccess={(updated) => {
-          setSubscription(updated);
+          handleSubscriptionUpdated(updated);
           if (selectedLockedModelName) {
             const match = models.find((m) => cleanModelLabel(m.label) === selectedLockedModelName);
             if (match) setModel(match.id);

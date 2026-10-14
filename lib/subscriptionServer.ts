@@ -98,15 +98,18 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
       // Jika belum ada record saldo, buatkan sekarang
       if (!creditData) {
         try {
-          await client.from("credit_balances").upsert({
-            user_id: userId,
-            ai_credits: planDef.aiCreditLimit,
-            ai_credit_limit: planDef.aiCreditLimit,
-            code_credits: planDef.codeCreditLimit,
-            code_credit_limit: planDef.codeCreditLimit,
-            reset_at: resetAt,
-            updated_at: new Date().toISOString(),
-          });
+          await client.from("credit_balances").upsert(
+            {
+              user_id: userId,
+              ai_credits: planDef.aiCreditLimit,
+              ai_credit_limit: planDef.aiCreditLimit,
+              code_credits: planDef.codeCreditLimit,
+              code_credit_limit: planDef.codeCreditLimit,
+              reset_at: resetAt,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" }
+          );
         } catch {}
       }
 
@@ -368,25 +371,60 @@ export async function upgradeUserToPro(userId: string, code?: string): Promise<{
   if (!isGuest && isSupabaseConfigured) {
     try {
       const client = getServiceOrAnonClient();
-      await client.from("subscriptions").upsert({
-        user_id: userId,
-        plan: "pro",
-        status: "active",
-        started_at: now,
-        current_period_start: now,
-        current_period_end: nextReset,
-        updated_at: now,
-      });
+      const { error: subErr } = await client.from("subscriptions").upsert(
+        {
+          user_id: userId,
+          plan: "pro",
+          status: "active",
+          started_at: now,
+          current_period_start: now,
+          current_period_end: nextReset,
+          updated_at: now,
+        },
+        { onConflict: "user_id" }
+      );
 
-      await client.from("credit_balances").upsert({
-        user_id: userId,
-        ai_credits: 100000,
-        ai_credit_limit: 100000,
-        code_credits: 200,
-        code_credit_limit: 200,
-        reset_at: nextReset,
-        updated_at: now,
-      });
+      if (subErr) {
+        console.warn("[subscription] Error upserting pro subscription, trying update fallback:", subErr);
+        await client
+          .from("subscriptions")
+          .update({
+            plan: "pro",
+            status: "active",
+            current_period_start: now,
+            current_period_end: nextReset,
+            updated_at: now,
+          })
+          .eq("user_id", userId);
+      }
+
+      const { error: balErr } = await client.from("credit_balances").upsert(
+        {
+          user_id: userId,
+          ai_credits: 100000,
+          ai_credit_limit: 100000,
+          code_credits: 200,
+          code_credit_limit: 200,
+          reset_at: nextReset,
+          updated_at: now,
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (balErr) {
+        console.warn("[subscription] Error upserting pro credit_balances, trying update fallback:", balErr);
+        await client
+          .from("credit_balances")
+          .update({
+            ai_credits: 100000,
+            ai_credit_limit: 100000,
+            code_credits: 200,
+            code_credit_limit: 200,
+            reset_at: nextReset,
+            updated_at: now,
+          })
+          .eq("user_id", userId);
+      }
 
       await client.from("credit_transactions").insert({
         user_id: userId,
@@ -441,15 +479,32 @@ export async function downgradeUserToFree(userId: string): Promise<{ success: bo
   if (!isGuest && isSupabaseConfigured) {
     try {
       const client = getServiceOrAnonClient();
-      await client.from("subscriptions").upsert({
-        user_id: userId,
-        plan: "free",
-        status: "active",
-        started_at: now,
-        current_period_start: now,
-        current_period_end: nextReset,
-        updated_at: now,
-      });
+      const { error: subErr } = await client.from("subscriptions").upsert(
+        {
+          user_id: userId,
+          plan: "free",
+          status: "active",
+          started_at: now,
+          current_period_start: now,
+          current_period_end: nextReset,
+          updated_at: now,
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (subErr) {
+        console.warn("[subscription] Error upserting free subscription, trying update fallback:", subErr);
+        await client
+          .from("subscriptions")
+          .update({
+            plan: "free",
+            status: "active",
+            current_period_start: now,
+            current_period_end: nextReset,
+            updated_at: now,
+          })
+          .eq("user_id", userId);
+      }
 
       // Sesuaikan kredit agar tidak melebihi batas paket Free
       const { data: cred } = await client
@@ -461,15 +516,33 @@ export async function downgradeUserToFree(userId: string): Promise<{ success: bo
       const aiCredits = Math.min(cred?.ai_credits ?? 10000, 10000);
       const codeCredits = Math.min(cred?.code_credits ?? 50, 50);
 
-      await client.from("credit_balances").upsert({
-        user_id: userId,
-        ai_credits: aiCredits,
-        ai_credit_limit: 10000,
-        code_credits: codeCredits,
-        code_credit_limit: 50,
-        reset_at: nextReset,
-        updated_at: now,
-      });
+      const { error: balErr } = await client.from("credit_balances").upsert(
+        {
+          user_id: userId,
+          ai_credits: aiCredits,
+          ai_credit_limit: 10000,
+          code_credits: codeCredits,
+          code_credit_limit: 50,
+          reset_at: nextReset,
+          updated_at: now,
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (balErr) {
+        console.warn("[subscription] Error upserting free credit_balances, trying update fallback:", balErr);
+        await client
+          .from("credit_balances")
+          .update({
+            ai_credits: aiCredits,
+            ai_credit_limit: 10000,
+            code_credits: codeCredits,
+            code_credit_limit: 50,
+            reset_at: nextReset,
+            updated_at: now,
+          })
+          .eq("user_id", userId);
+      }
 
       return {
         success: true,

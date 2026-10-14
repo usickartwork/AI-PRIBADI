@@ -2,11 +2,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getUserSubscription } from "@/lib/subscriptionServer";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { prompt } = body;
+    const { prompt, userId } = body;
+
+    const sub = await getUserSubscription(userId || "guest");
+    if (sub.plan === "free") {
+      return NextResponse.json(
+        { error: "Fitur Image Translator eksklusif untuk pelanggan paket Usick One Pro.", requiresUpgrade: true },
+        { status: 403 }
+      );
+    }
 
     if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
       return NextResponse.json(
