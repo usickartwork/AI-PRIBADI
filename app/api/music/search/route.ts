@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
     const type = searchParams.get("type") || "track,artist,album,playlist";
-    const limit = Math.min(Number(searchParams.get("limit")) || 20, 50);
+    const requestedLimit = Math.min(Math.max(Number(searchParams.get("limit")) || 20, 5), 50);
 
     const token = await getSpotifyToken();
 
@@ -74,48 +74,96 @@ export async function GET(req: NextRequest) {
     // Default search query if empty (popular Indonesian & global hits for discovery)
     const effectiveQuery = query || "year:2024-2026";
 
-    const spotifyUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-      effectiveQuery
-    )}&type=${encodeURIComponent(type)}&limit=${limit}&market=ID`;
+    // Spotify developer tier strictly caps single request limit to maximum 10.
+    // To satisfy requestedLimit (e.g. 20 or 30), fetch pages of 10 concurrently.
+    const PAGE_SIZE = 10;
+    const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 4); // Max 40 items
 
-    const spotifyRes = await fetch(spotifyUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
+      const offset = pageIdx * PAGE_SIZE;
+      const spotifyUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+        effectiveQuery
+      )}&type=${encodeURIComponent(type)}&limit=${PAGE_SIZE}&offset=${offset}&market=ID`;
+
+      try {
+        const res = await fetch(spotifyUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          next: { revalidate: 3600 },
+        });
+
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.warn(`[music/search] Spotify page ${pageIdx} returned ${res.status}:`, errBody);
+          return null;
+        }
+
+        return await res.json();
+      } catch (err) {
+        console.error(`[music/search] Page ${pageIdx} fetch failed:`, err);
+        return null;
+      }
     });
 
-    if (!spotifyRes.ok) {
-      if (spotifyRes.status === 429) {
-        return NextResponse.json(
-          {
-            success: false,
-            configured: true,
-            error: "Spotify API rate limit terlampaui. Coba beberapa saat lagi.",
-            data: { tracks: [], artists: [], albums: [], playlists: [] },
-          },
-          { status: 429 }
-        );
-      }
+    const pageResults = await Promise.all(pagePromises);
 
-      const errText = await spotifyRes.text();
-      console.warn("[music/search] Spotify API error:", spotifyRes.status, errText);
-      return NextResponse.json(
-        {
-          success: false,
-          configured: true,
-          error: `Spotify API merespons dengan status ${spotifyRes.status}.`,
-          data: { tracks: [], artists: [], albums: [], playlists: [] },
-        },
-        { status: 502 }
-      );
+    const rawTracks: any[] = [];
+    const rawArtists: any[] = [];
+    const rawAlbums: any[] = [];
+    const rawPlaylists: any[] = [];
+
+    for (const json of pageResults) {
+      if (!json) continue;
+      if (json.tracks?.items) rawTracks.push(...json.tracks.items);
+      if (json.artists?.items) rawArtists.push(...json.artists.items);
+      if (json.albums?.items) rawAlbums.push(...json.albums.items);
+      if (json.playlists?.items) rawPlaylists.push(...json.playlists.items.filter(Boolean));
     }
 
-    const json = await spotifyRes.json();
+    // Deduplicate tracks by id
+    const seenTracks = new Set<string>();
+    const tracks = rawTracks
+      .filter((t) => {
+        if (!t?.id || seenTracks.has(t.id)) return false;
+        seenTracks.add(t.id);
+        return true;
+      })
+      .slice(0, requestedLimit)
+      .map(mapSpotifyTrack);
 
-    const tracks = (json.tracks?.items || []).map(mapSpotifyTrack);
-    const artists = (json.artists?.items || []).map(mapSpotifyArtist);
-    const albums = (json.albums?.items || []).map(mapSpotifyAlbum);
-    const playlists = (json.playlists?.items || []).filter(Boolean).map(mapSpotifyPlaylist);
+    // Deduplicate artists by id
+    const seenArtists = new Set<string>();
+    const artists = rawArtists
+      .filter((a) => {
+        if (!a?.id || seenArtists.has(a.id)) return false;
+        seenArtists.add(a.id);
+        return true;
+      })
+      .slice(0, 15)
+      .map(mapSpotifyArtist);
+
+    // Deduplicate albums by id
+    const seenAlbums = new Set<string>();
+    const albums = rawAlbums
+      .filter((al) => {
+        if (!al?.id || seenAlbums.has(al.id)) return false;
+        seenAlbums.add(al.id);
+        return true;
+      })
+      .slice(0, 15)
+      .map(mapSpotifyAlbum);
+
+    // Deduplicate playlists by id
+    const seenPlaylists = new Set<string>();
+    const playlists = rawPlaylists
+      .filter((p) => {
+        if (!p?.id || seenPlaylists.has(p.id)) return false;
+        seenPlaylists.add(p.id);
+        return true;
+      })
+      .slice(0, 15)
+      .map(mapSpotifyPlaylist);
 
     return NextResponse.json({
       success: true,
@@ -140,4 +188,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

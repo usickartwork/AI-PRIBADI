@@ -303,15 +303,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setIsSearching(true);
     setSearchError(null);
     try {
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=25`);
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=20`);
       const json = await res.json();
 
       setIsSpotifyConfigured(json.configured ?? false);
 
       if (json.success && json.data) {
-        if (json.data.tracks && json.data.tracks.length > 0) {
-          setTracks(json.data.tracks);
-        }
+        setTracks(json.data.tracks || []);
         if (json.data.artists) setArtists(json.data.artists);
         if (json.data.albums) setAlbums(json.data.albums);
         if (json.data.playlists) setPlaylistsList(json.data.playlists);
@@ -334,6 +332,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setSearchQuery(val);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
+    if (val.trim()) {
+      if (subTab !== "discover") setSubTab("discover");
+      if (selectedLocalPlaylist) setSelectedLocalPlaylist(null);
+    }
+
     if (!val.trim()) {
       fetchSpotifyMusic("");
       return;
@@ -343,11 +346,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       addRecentSearch(val.trim());
       setRecentSearches(getRecentSearches());
       fetchSpotifyMusic(val.trim());
-    }, 450);
+    }, 350);
   };
 
   const handleSelectRecentSearch = (term: string) => {
     setSearchQuery(term);
+    if (subTab !== "discover") setSubTab("discover");
+    if (selectedLocalPlaylist) setSelectedLocalPlaylist(null);
     fetchSpotifyMusic(term);
   };
 
@@ -1214,7 +1219,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Track Rows */}
               <div className="space-y-1">
-                {(subTab === "liked" ? likedSongs : tracks).map((track, idx) => {
+                {searchError && (
+                  <div className="py-6 px-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center mb-3">
+                    {searchError}
+                  </div>
+                )}
+
+                {!isSearching && (searchQuery ? tracks : (subTab === "liked" ? likedSongs : tracks)).length === 0 && (
+                  <div className="py-12 text-center space-y-2">
+                    <div className="text-3xl">🔍</div>
+                    <h4 className="text-sm font-bold text-zinc-300">
+                      {searchQuery ? `Tidak ada lagu ditemukan untuk "${searchQuery}"` : "Belum ada lagu"}
+                    </h4>
+                    <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                      {searchQuery
+                        ? "Coba periksa ejaan atau gunakan kata kunci judul lagu dan nama penyanyi lainnya."
+                        : "Jelajahi lagu baru di atas atau cari lagu favoritmu."}
+                    </p>
+                  </div>
+                )}
+
+                {(searchQuery ? tracks : (subTab === "liked" ? likedSongs : tracks)).map((track, idx) => {
                   const isCurrent = currentTrack?.id === track.id;
                   const isTrackPlaying = isCurrent && isPlaying;
                   const isLiked = isTrackLiked(track.id);
