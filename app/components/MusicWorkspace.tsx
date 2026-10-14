@@ -149,11 +149,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const isControllerCreatedRef = useRef(false);
   const pendingPlayUriRef = useRef<string | null>(null);
 
+  // Spotify Web Playback SDK State & Refs (For Full Song Audio Streaming)
+  const [userToken, setUserToken] = useState<string | null>(null);
+  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
+  const [isSdkConnected, setIsSdkConnected] = useState(false);
+  const [sdkError, setSdkError] = useState<string | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [manualTokenInput, setManualTokenInput] = useState("");
+  const sdkPlayerRef = useRef<any>(null);
+
   // Audio Ref for preview tracks (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ─── Initialize Local Data ──────────────────────────────────────────────────
+  // ─── Initialize Local Data & Check Spotify OAuth Token ─────────────────────
   useEffect(() => {
     setLikedSongs(getLikedSongs());
     setLocalPlaylists(getLocalPlaylists());
@@ -167,7 +176,158 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         setCurrentTrack(savedQueue.items[savedQueue.currentIndex]);
       }
     }
+
+    // Check URL hash for OAuth access_token from Spotify OAuth redirect or saved token
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token=")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const token = params.get("access_token");
+        if (token) {
+          localStorage.setItem("usick_spotify_user_token", token);
+          setUserToken(token);
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      } else {
+        const savedToken = localStorage.getItem("usick_spotify_user_token");
+        if (savedToken) {
+          setUserToken(savedToken);
+        }
+      }
+    }
   }, []);
+
+  // ─── Initialize Spotify Web Playback SDK when userToken exists ─────────────
+  useEffect(() => {
+    if (!userToken) return;
+
+    let script = document.getElementById("spotify-web-player-sdk-script") as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = "spotify-web-player-sdk-script";
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const initSdkPlayer = () => {
+      if (!(window as any).Spotify || !(window as any).Spotify.Player) return;
+
+      try {
+        const player = new (window as any).Spotify.Player({
+          name: "Usick One Web Player",
+          getOAuthToken: (cb: (token: string) => void) => {
+            cb(userToken);
+          },
+          volume: volume,
+        });
+
+        player.addListener("ready", ({ device_id }: { device_id: string }) => {
+          console.log("[Spotify SDK] Ready with Device ID:", device_id);
+          setSdkDeviceId(device_id);
+          setIsSdkConnected(true);
+          setSdkError(null);
+        });
+
+        player.addListener("not_ready", ({ device_id }: { device_id: string }) => {
+          console.warn("[Spotify SDK] Device has gone offline:", device_id);
+          setIsSdkConnected(false);
+        });
+
+        player.addListener("player_state_changed", (state: any) => {
+          if (!state) return;
+          setIsPlaying(!state.paused);
+          if (typeof state.position === "number") {
+            setCurrentTime(state.position / 1000);
+          }
+          if (typeof state.duration === "number") {
+            setDuration(state.duration / 1000);
+          }
+        });
+
+        player.addListener("account_error", ({ message }: { message: string }) => {
+          console.error("[Spotify SDK] Account Error:", message);
+          setSdkError("Akun ini belum memiliki Spotify Premium. Lagu Full memerlukan Spotify Premium.");
+        });
+
+        player.addListener("authentication_error", ({ message }: { message: string }) => {
+          console.error("[Spotify SDK] Auth Error:", message);
+          setSdkError("Token Spotify kedaluwarsa atau tidak valid. Silakan login ulang.");
+          localStorage.removeItem("usick_spotify_user_token");
+          setUserToken(null);
+          setIsSdkConnected(false);
+        });
+
+        player.addListener("initialization_error", ({ message }: { message: string }) => {
+          console.error("[Spotify SDK] Init Error:", message);
+          setSdkError(message);
+        });
+
+        player.connect();
+        sdkPlayerRef.current = player;
+      } catch (err) {
+        console.error("[Spotify SDK] Failed to instantiate player:", err);
+      }
+    };
+
+    if ((window as any).Spotify && (window as any).Spotify.Player) {
+      initSdkPlayer();
+    } else {
+      (window as any).onSpotifyWebPlaybackSDKReady = () => {
+        initSdkPlayer();
+      };
+    }
+
+    return () => {
+      if (sdkPlayerRef.current) {
+        try {
+          sdkPlayerRef.current.disconnect();
+        } catch {}
+      }
+    };
+  }, [userToken, volume]);
+
+  const handleSpotifyOAuthLogin = () => {
+    if (typeof window === "undefined") return;
+    const clientId = "8eba26c985cc441e9eb3f24576fbeaa0";
+    const redirectUri = window.location.origin;
+    const scopes = [
+      "streaming",
+      "user-read-email",
+      "user-read-private",
+      "user-read-playback-state",
+      "user-modify-playback-state",
+    ].join("%20");
+
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&scope=${scopes}&show_dialog=true`;
+
+    window.location.href = authUrl;
+  };
+
+  const handleSaveManualToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualTokenInput.trim()) return;
+    const cleanToken = manualTokenInput.trim();
+    localStorage.setItem("usick_spotify_user_token", cleanToken);
+    setUserToken(cleanToken);
+    setManualTokenInput("");
+    setShowConnectModal(false);
+  };
+
+  const handleDisconnectSpotify = () => {
+    localStorage.removeItem("usick_spotify_user_token");
+    if (sdkPlayerRef.current) {
+      try {
+        sdkPlayerRef.current.disconnect();
+      } catch {}
+    }
+    setUserToken(null);
+    setIsSdkConnected(false);
+    setSdkDeviceId(null);
+    setSdkError(null);
+  };
 
   // ─── 1. Load Spotify IFrame API Script ──────────────────────────────────────
   useEffect(() => {
@@ -334,7 +494,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     const trackUri = track.uri || (track.providerItemId ? `spotify:track:${track.providerItemId}` : null);
 
-    // Trigger instant Spotify playback directly via IFrame controller
+    // 1. If Web Playback SDK is connected, stream FULL audio via Spotify Connect API!
+    if (isSdkConnected && sdkDeviceId && userToken && trackUri) {
+      fetch(`https://api.spotify.com/v1/me/player/play?device_id=${sdkDeviceId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({ uris: [trackUri] }),
+      }).catch((err) => {
+        console.warn("[Spotify SDK] Playback error, falling back to controller:", err);
+      });
+      return;
+    }
+
+    // 2. Fallback: IFrame Controller
     if (trackUri) {
       if (controllerRef.current) {
         try {
@@ -348,7 +523,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    // Fallback if audio element preview exists
+    // 3. Fallback: Audio preview element
     if (audioRef.current) {
       if (track.previewUrl) {
         audioRef.current.src = track.previewUrl;
@@ -365,6 +540,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
+    // 1. If Web Playback SDK is active
+    if (isSdkConnected && sdkPlayerRef.current) {
+      sdkPlayerRef.current.togglePlay().catch(() => {});
+      return;
+    }
+
+    // 2. IFrame Controller
     if (controllerRef.current) {
       try {
         controllerRef.current.togglePlay();
@@ -781,21 +963,43 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Right Status Badge */}
+            {/* Right Status Badge & Connect Spotify Mode */}
             <div className="flex items-center gap-2">
-              {isSpotifyConfigured === false ? (
+              {isSdkConnected ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Mode Full Audio Aktif (SDK)</span>
+                  </div>
+                  <button
+                    onClick={handleDisconnectSpotify}
+                    className="text-[11px] text-zinc-500 hover:text-red-400 transition cursor-pointer"
+                    title="Disconnect Spotify"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowConnectModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-500 text-black hover:bg-emerald-400 transition cursor-pointer shadow-md"
+                  title="Connect Spotify Premium untuk memutar lagu Full 100%"
+                >
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                  </svg>
+                  <span>Connect Spotify (Lagu Full)</span>
+                </button>
+              )}
+
+              {isSpotifyConfigured === false && (
                 <button
                   onClick={() => setShowSetupModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span>Setup Spotify API</span>
+                  <span>Setup API</span>
                 </button>
-              ) : (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span>Spotify Online</span>
-                </div>
               )}
             </div>
           </div>
@@ -914,6 +1118,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   : "bg-white border-zinc-200/90 shadow-md"
               }`}
             >
+              {/* SDK Error Banner */}
+              {sdkError && (
+                <div className="mb-3.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3 animate-in fade-in-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚠️</span>
+                    <span>{sdkError}</span>
+                  </div>
+                  <button
+                    onClick={() => setSdkError(null)}
+                    className="p-1 hover:text-white cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
@@ -924,30 +1144,133 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-extrabold tracking-tight">
-                        Pemutar Musik Langsung di Halaman
+                        {isSdkConnected
+                          ? "Pemutar Full Audio (Web Playback SDK)"
+                          : "Pemutar Musik Langsung di Halaman"}
                       </h3>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        Auto-Play Langsung
+                        {isSdkConnected ? "Full Audio 100%" : "Auto-Play Langsung"}
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-400">
-                      Lagu otomatis diputar saat diklik dari daftar lagu di bawah
+                      {isSdkConnected
+                        ? "Streaming audio lagu penuh aktif via Spotify Web Playback SDK"
+                        : "Lagu otomatis diputar saat diklik dari daftar lagu di bawah"}
                     </p>
                   </div>
                 </div>
 
-                {/* Tips Login Full */}
-                <div className="flex items-center gap-2 text-[11px] px-3.5 py-1.5 rounded-2xl bg-zinc-800/50 border border-zinc-700/50 text-zinc-300">
-                  <span className="text-amber-400 font-bold">💡 Tips Lagu Full:</span>
-                  <span>
-                    Login Spotify sekali di player untuk mendengarkan lagu secara <strong>Full</strong> tanpa terpotong (Free & Premium).
-                  </span>
+                {/* Right Action: Connect or Status */}
+                <div className="flex items-center gap-2">
+                  {isSdkConnected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        Mode Full Aktif
+                      </span>
+                      <button
+                        onClick={handleDisconnectSpotify}
+                        className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:border-red-500/50 hover:text-red-400 text-zinc-400 text-[11px] font-semibold transition cursor-pointer"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowConnectModal(true)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-extrabold text-xs transition cursor-pointer shadow-md"
+                    >
+                      <span>⚡ Aktifkan Lagu Full (SDK)</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Spotify Official IFrame Player Container */}
-              <div className="rounded-2xl overflow-hidden shadow-inner border border-zinc-800/80 bg-black/60 relative min-h-[152px]">
+              {/* Native Web Playback SDK Active View */}
+              {isSdkConnected && currentTrack && (
+                <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 mb-3 animate-in fade-in-0">
+                  <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
+                    {currentTrack.artworkUrl ? (
+                      <img
+                        src={currentTrack.artworkUrl}
+                        alt={currentTrack.title}
+                        className="w-14 h-14 rounded-2xl object-cover shadow-lg shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center text-lg shrink-0">
+                        🎵
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                          Now Playing Full
+                        </span>
+                        {isPlaying && (
+                          <div className="flex items-end gap-0.5 h-3">
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2.5" />
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-1.5" style={{ animationDelay: "0.2s" }} />
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" style={{ animationDelay: "0.4s" }} />
+                          </div>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold text-white truncate mt-1">
+                        {currentTrack.title}
+                      </h4>
+                      <p className="text-xs text-zinc-400 truncate">
+                        {currentTrack.artistNames.join(", ")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quick Controls inside SDK Card */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={playPrevious}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                      title="Sebelumnya"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={togglePlayPause}
+                      className="p-3 rounded-full bg-emerald-400 text-black hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer"
+                      title={isPlaying ? "Jeda" : "Putar"}
+                    >
+                      {isPlaying ? (
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={playNext}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+                      title="Berikutnya"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Spotify Official IFrame Player Container (Active when SDK is not connected) */}
+              <div
+                className={`rounded-2xl overflow-hidden shadow-inner border border-zinc-800/80 bg-black/60 relative ${
+                  isSdkConnected ? "hidden" : "min-h-[152px]"
+                }`}
+              >
                 {!isEmbedReady && (
                   <div className="absolute inset-0 flex items-center justify-center gap-2 text-xs text-zinc-400 bg-black/80 z-10">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -1243,7 +1566,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   const pct = (e.clientX - rect.left) / rect.width;
                   const newTime = pct * duration;
                   setCurrentTime(newTime);
-                  if (controllerRef.current) {
+                  if (isSdkConnected && sdkPlayerRef.current) {
+                    sdkPlayerRef.current.seek(Math.floor(newTime * 1000)).catch(() => {});
+                  } else if (controllerRef.current) {
                     try {
                       controllerRef.current.seek(Math.floor(newTime));
                     } catch {}
@@ -1268,7 +1593,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
               title="Lirik"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 fill-none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
             </button>
@@ -1289,7 +1614,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             {/* Volume control */}
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setIsMuted((prev) => !prev)}
+                onClick={() => {
+                  const nextMuted = !isMuted;
+                  setIsMuted(nextMuted);
+                  const targetVol = nextMuted ? 0 : volume || 0.5;
+                  if (isSdkConnected && sdkPlayerRef.current) {
+                    sdkPlayerRef.current.setVolume(targetVol).catch(() => {});
+                  }
+                  if (audioRef.current) audioRef.current.volume = targetVol;
+                }}
                 className="p-1 text-zinc-400 hover:text-white transition cursor-pointer"
               >
                 {isMuted ? (
@@ -1313,6 +1646,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   const val = parseFloat(e.target.value);
                   setVolume(val);
                   setIsMuted(val === 0);
+                  if (isSdkConnected && sdkPlayerRef.current) {
+                    sdkPlayerRef.current.setVolume(val).catch(() => {});
+                  }
                   if (audioRef.current) audioRef.current.volume = val;
                 }}
                 className="w-16 h-1 rounded-full bg-zinc-700 accent-emerald-400 cursor-pointer"
@@ -1338,6 +1674,86 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           </div>
         </div>
       </footer>
+
+      {/* ─── MODAL 0: CONNECT SPOTIFY WEB PLAYBACK SDK (MODE LAGU FULL) ─────── */}
+      {showConnectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
+          <div
+            className={`w-full max-w-lg rounded-3xl border p-6 space-y-5 shadow-2xl ${
+              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Connect Spotify Web Playback SDK</h3>
+                  <p className="text-xs text-zinc-500">Putar lagu secara FULL 100% langsung di web</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConnectModal(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs leading-relaxed text-zinc-300">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-1">
+                <p className="font-bold">✨ Cara Kerja Spotify Web Playback SDK:</p>
+                <p>
+                  Dengan menghubungkan akun <strong>Spotify Premium</strong> Anda, web browser ini akan bertindak sebagai perangkat pemutar resmi Spotify. Seluruh lagu yang Anda klik akan terputar <strong>FULL 100%</strong> tanpa batas 30 detik!
+                </p>
+              </div>
+
+              {/* Opsi 1: Login OAuth Langsung */}
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 space-y-2.5">
+                <h4 className="font-bold text-white text-xs">Opsi 1: Login Otomatis ke Spotify (OAuth)</h4>
+                <p className="text-[11px] text-zinc-400">
+                  Klik tombol di bawah untuk login ke akun Spotify Anda. Pastikan Redirect URI di Spotify Developer Dashboard sudah mencakup <code className="text-emerald-400">{typeof window !== "undefined" ? window.location.origin : ""}</code>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSpotifyOAuthLogin}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                  </svg>
+                  <span>Login dengan Spotify Premium</span>
+                </button>
+              </div>
+
+              {/* Opsi 2: Masukkan User Access Token Manual */}
+              <form onSubmit={handleSaveManualToken} className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 space-y-2.5">
+                <h4 className="font-bold text-white text-xs">Opsi 2: Masukkan User Token Manual (Testing Instan)</h4>
+                <p className="text-[11px] text-zinc-400">
+                  Untuk pengujian langsung tanpa redirect, Anda juga bisa menyalin User OAuth Access Token langsung ke sini:
+                </p>
+                <input
+                  type="text"
+                  value={manualTokenInput}
+                  onChange={(e) => setManualTokenInput(e.target.value)}
+                  placeholder="Paste OAuth Access Token (Bearer)..."
+                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-zinc-700 text-white font-mono text-xs outline-none focus:border-emerald-400"
+                />
+                <button
+                  type="submit"
+                  disabled={!manualTokenInput.trim()}
+                  className="w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer"
+                >
+                  Simpan & Hubungkan Player
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── MODAL 1: SPOTIFY SETUP & API CREDENTIALS GUIDE ──────────────────── */}
       {showSetupModal && (
