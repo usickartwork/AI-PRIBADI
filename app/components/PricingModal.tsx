@@ -21,6 +21,9 @@ export function PricingModal({
   onOpenUsageHistory,
 }: PricingModalProps) {
   const [upgrading, setUpgrading] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -29,6 +32,10 @@ export function PricingModal({
   const currentPlan = subscription?.plan || "free";
 
   const handleUpgrade = async () => {
+    if (!accessCode || accessCode.trim() !== "Onemind1") {
+      setErrorMsg("Kode aktivasi tidak valid. Silakan masukkan kode akses Pro yang benar.");
+      return;
+    }
     setUpgrading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -39,6 +46,7 @@ export function PricingModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "upgrade",
+          code: accessCode.trim(),
           userId: subscription?.userId || "guest",
         }),
       });
@@ -49,6 +57,8 @@ export function PricingModal({
       }
 
       setSuccessMsg(data.message || "Selamat! Akun Anda berhasil di-upgrade ke Pro.");
+      setShowCodeInput(false);
+      setAccessCode("");
       if (data.subscription) {
         onSubscriptionUpdated(data.subscription);
       }
@@ -56,6 +66,38 @@ export function PricingModal({
       setErrorMsg(err?.message || "Terjadi kesalahan saat upgrade.");
     } finally {
       setUpgrading(false);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    if (!confirm("Apakah Anda yakin ingin beralih kembali ke Paket Free?")) return;
+    setDowngrading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await fetch("/api/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "downgrade",
+          userId: subscription?.userId || "guest",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Gagal beralih ke paket Free.");
+      }
+
+      setSuccessMsg(data.message || "Paket Anda telah berhasil dialihkan kembali ke Paket Free.");
+      if (data.subscription) {
+        onSubscriptionUpdated(data.subscription);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Terjadi kesalahan saat beralih paket.");
+    } finally {
+      setDowngrading(false);
     }
   };
 
@@ -261,23 +303,41 @@ export function PricingModal({
                     ) : (
                       <button
                         type="button"
-                        onClick={handleUpgrade}
+                        onClick={() => {
+                          setErrorMsg(null);
+                          setShowCodeInput(true);
+                        }}
                         disabled={upgrading}
                         className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-lg cursor-pointer bg-white text-black hover:bg-zinc-200 disabled:opacity-50"
                       >
-                        {upgrading ? "Memproses..." : "Upgrade to Pro"}
+                        Upgrade to Pro
                       </button>
                     )
                   ) : id === "free" ? (
-                    <button
-                      type="button"
-                      disabled
-                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold cursor-default ${
-                        isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-600"
-                      }`}
-                    >
-                      {isCurrent ? "Paket Saat Ini" : "Start for Free"}
-                    </button>
+                    isCurrent ? (
+                      <button
+                        type="button"
+                        disabled
+                        className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold cursor-default ${
+                          isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-600"
+                        }`}
+                      >
+                        Paket Saat Ini
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleDowngrade}
+                        disabled={downgrading}
+                        className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                          isDark
+                            ? "bg-zinc-800 hover:bg-zinc-750 text-white border-zinc-700 hover:border-zinc-500"
+                            : "bg-zinc-100 hover:bg-zinc-200 text-black border-zinc-300"
+                        }`}
+                      >
+                        {downgrading ? "Beralih..." : "Pilih Paket Free"}
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"
@@ -300,7 +360,7 @@ export function PricingModal({
           isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-200 text-zinc-500"
         }`}>
           <div>
-            Kredit reset otomatis setiap bulan tanpa akumulasi sisa.
+            Kredit reset otomatis setiap hari (24 jam) tanpa akumulasi sisa.
           </div>
           {onOpenUsageHistory && (
             <button
@@ -314,6 +374,85 @@ export function PricingModal({
             </button>
           )}
         </div>
+
+        {/* Modal Dialog Input Kode Aktivasi Pro */}
+        {showCodeInput && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity"
+              onClick={() => {
+                setShowCodeInput(false);
+                setAccessCode("");
+              }}
+            />
+            <div className={`relative w-full max-w-sm rounded-3xl p-6 border shadow-2xl transition-all ${
+              isDark ? "bg-[#18181b] border-zinc-700 text-white" : "bg-white border-zinc-300 text-black"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-base font-bold">Aktivasi Usick One Pro</h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCodeInput(false);
+                    setAccessCode("");
+                  }}
+                  className={`rounded-full p-1 transition cursor-pointer ${
+                    isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <p className={`text-xs mb-4 leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                Untuk sementara belum ada payment gateway, silakan masukkan kode akses aktivasi Pro di bawah:
+              </p>
+
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  placeholder="Masukkan kode aktivasi..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none font-mono ${
+                    isDark ? "bg-zinc-900 border-zinc-700 text-white focus:border-white" : "bg-zinc-50 border-zinc-300 text-black focus:border-black"
+                  }`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && accessCode.trim()) {
+                      handleUpgrade();
+                    }
+                  }}
+                  autoFocus
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCodeInput(false);
+                      setAccessCode("");
+                    }}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-semibold cursor-pointer ${
+                      isDark ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300"
+                    }`}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUpgrade}
+                    disabled={upgrading || !accessCode.trim()}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 disabled:opacity-50 cursor-pointer shadow-md transition"
+                  >
+                    {upgrading ? "Memverifikasi..." : "Aktivasi Pro"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

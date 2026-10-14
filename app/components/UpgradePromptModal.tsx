@@ -23,11 +23,18 @@ export function UpgradePromptModal({
   isDark,
 }: UpgradePromptModalProps) {
   const [upgrading, setUpgrading] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleUpgrade = async () => {
+    if (!accessCode || accessCode.trim() !== "Onemind1") {
+      setErrorMsg("Kode aktivasi tidak valid. Silakan masukkan kode akses Pro yang benar.");
+      return;
+    }
+
     setUpgrading(true);
     setErrorMsg(null);
 
@@ -37,6 +44,7 @@ export function UpgradePromptModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "upgrade",
+          code: accessCode.trim(),
           userId,
         }),
       });
@@ -145,31 +153,78 @@ export function UpgradePromptModal({
         )}
 
         {/* Actions */}
-        <div className="space-y-2.5">
-          <button
-            type="button"
-            onClick={handleUpgrade}
-            disabled={upgrading}
-            className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg cursor-pointer bg-white text-black hover:bg-zinc-200 disabled:opacity-50"
-          >
-            {upgrading ? "Memproses Upgrade..." : "Upgrade to Pro"}
-          </button>
-
-          {onOpenPricingPlans && (
+        {showCodeInput ? (
+          <div className="space-y-3 text-left">
+            <label className={`text-[11px] font-semibold ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
+              Kode Aktivasi Pro (Sementara):
+            </label>
+            <input
+              type="password"
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value)}
+              placeholder="Masukkan kode aktivasi..."
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none font-mono ${
+                isDark ? "bg-zinc-900 border-zinc-700 text-white focus:border-white" : "bg-zinc-50 border-zinc-300 text-black focus:border-black"
+              }`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && accessCode.trim()) {
+                  handleUpgrade();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCodeInput(false);
+                  setAccessCode("");
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-semibold cursor-pointer ${
+                  isDark ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                disabled={upgrading || !accessCode.trim()}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 disabled:opacity-50 cursor-pointer shadow-md transition"
+              >
+                {upgrading ? "Memverifikasi..." : "Aktifkan Pro"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
             <button
               type="button"
               onClick={() => {
-                onClose();
-                onOpenPricingPlans();
+                setErrorMsg(null);
+                setShowCodeInput(true);
               }}
-              className={`w-full py-2 text-xs font-semibold transition hover:underline cursor-pointer ${
-                isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
-              }`}
+              className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition shadow-lg cursor-pointer bg-white text-black hover:bg-zinc-200"
             >
-              Lihat Detail Semua Paket →
+              Upgrade to Pro
             </button>
-          )}
-        </div>
+
+            {onOpenPricingPlans && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPricingPlans();
+                }}
+                className={`w-full py-2 text-xs font-semibold transition hover:underline cursor-pointer ${
+                  isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                }`}
+              >
+                Lihat Detail Semua Paket →
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

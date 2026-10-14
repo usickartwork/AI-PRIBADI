@@ -44,6 +44,7 @@ export type UserSubscriptionInfo = {
   scheduleLimit: number;
   resetAt: string;
   resetsInDays: number;
+  resetsInHours?: number;
 };
 
 export type CreditTransaction = {
@@ -80,19 +81,21 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, PlanDefinition> = {
     name: "FREE",
     price: 0,
     priceFormatted: "Rp0",
-    period: "Forever",
+    period: "Selamanya",
     aiCreditLimit: FREE_AI_CREDITS,
     codeCreditLimit: FREE_CODE_CREDITS,
     scheduleLimit: FREE_SCHEDULE_LIMIT,
     allowedModels: [USICK_ONE_FLAGSHIP_MODEL],
     features: [
-      { text: "Usick One AI", included: true },
-      { text: "AI Credits", included: true },
-      { text: "Code Credits", included: true },
-      { text: "3 Schedules", included: true },
+      { text: "Usick One AI Flagship", included: true },
+      { text: "10.000 AI Credits (Reset Harian)", included: true },
+      { text: "50 Code Credits (Reset Harian)", included: true },
+      { text: "Maksimal 3 Jadwal Aktif", included: true },
       { text: "Email Reminders", included: true },
-      { text: "Monthly Credit Reset", included: true },
-      { text: "External AI Models (Gemini, Claude, GPT, dll.)", included: false },
+      { text: "Reset Otomatis Setiap Hari", included: true },
+      { text: "Model Eksternal (Gemini, Claude, GPT, DeepSeek, Qwen)", included: false },
+      { text: "Tab Lainnya: Akses Game & Faith", included: false },
+      { text: "Tab Image: Generator & Terjemahan Gambar AI", included: false },
     ],
     cta: "Start for Free",
   },
@@ -101,21 +104,22 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, PlanDefinition> = {
     name: "PRO",
     price: 49000,
     priceFormatted: "Rp49.000",
-    period: "/month",
+    period: "/bulan",
     badge: "MOST POPULAR",
     aiCreditLimit: PRO_AI_CREDITS,
     codeCreditLimit: PRO_CODE_CREDITS,
     scheduleLimit: PRO_SCHEDULE_LIMIT,
     allowedModels: "*",
     features: [
-      { text: "Everything in Free", included: true },
-      { text: "All Available AI Models", included: true },
-      { text: "Higher AI Credits", included: true },
-      { text: "Higher Code Credits", included: true },
-      { text: "50 Schedules", included: true },
-      { text: "Email Reminders", included: true },
-      { text: "New Model Access", included: true },
-      { text: "Monthly Credit Reset", included: true },
+      { text: "Semua Fitur di Paket Free", included: true },
+      { text: "100.000 AI Credits (Reset Harian)", included: true },
+      { text: "200 Code Credits (Reset Harian)", included: true },
+      { text: "Maksimal 50 Jadwal Aktif", included: true },
+      { text: "Semua Model AI Eksternal (Gemini, Claude, GPT, DeepSeek, Qwen)", included: true },
+      { text: "Tab Lainnya: Akses Penuh Game & Faith", included: true },
+      { text: "Tab Image: Generator & Terjemahan Gambar AI", included: true },
+      { text: "Reset Otomatis Setiap Hari", included: true },
+      { text: "Prioritas Kecepatan Respons & Akses Fitur Baru", included: true },
     ],
     cta: "Upgrade to Pro",
   },
@@ -358,11 +362,24 @@ export function formatCreditNumber(num: number): string {
   return num.toLocaleString("id-ID");
 }
 
+export function getNextDailyResetDate(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+export function getHoursUntilReset(resetDateString?: string): number {
+  if (!resetDateString) return 24;
+  const reset = new Date(resetDateString).getTime();
+  const now = Date.now();
+  const diff = reset - now;
+  if (diff <= 0) return 0;
+  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60)));
+}
+
 export function getDaysUntilReset(resetDateString?: string): number {
-  if (!resetDateString) {
-    // Default 30 hari ke depan
-    return 30;
-  }
+  if (!resetDateString) return 1;
   const reset = new Date(resetDateString).getTime();
   const now = Date.now();
   const diff = reset - now;
@@ -371,7 +388,6 @@ export function getDaysUntilReset(resetDateString?: string): number {
 }
 
 export function getNextMonthlyResetDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 30);
-  return d.toISOString();
+  // Aliased to getNextDailyResetDate() for backward compatibility
+  return getNextDailyResetDate();
 }

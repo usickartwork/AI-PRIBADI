@@ -6,6 +6,8 @@ import {
   CreditTransaction,
   getPlanDefinition,
   getDaysUntilReset,
+  getHoursUntilReset,
+  getNextDailyResetDate,
   getNextMonthlyResetDate,
 } from "@/lib/pricing";
 
@@ -43,15 +45,16 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
       status: "active",
       startedAt: new Date().toISOString(),
       currentPeriodStart: new Date().toISOString(),
-      currentPeriodEnd: getNextMonthlyResetDate(),
+      currentPeriodEnd: getNextDailyResetDate(),
       aiCredits: 10000,
       aiCreditLimit: 10000,
       codeCredits: 50,
       codeCreditLimit: 50,
       activeSchedulesCount: 0,
       scheduleLimit: 3,
-      resetAt: getNextMonthlyResetDate(),
-      resetsInDays: 30,
+      resetAt: getNextDailyResetDate(),
+      resetsInDays: 1,
+      resetsInHours: 24,
     };
     memoryUserSubscriptions.set("guest", defaultGuest);
     return defaultGuest;
@@ -88,7 +91,9 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
 
       let aiCredits = creditData?.ai_credits ?? planDef.aiCreditLimit;
       let codeCredits = creditData?.code_credits ?? planDef.codeCreditLimit;
-      let resetAt = creditData?.reset_at || getNextMonthlyResetDate();
+      let resetAt = creditData?.reset_at || getNextDailyResetDate();
+      let aiCreditLimit = creditData?.ai_credit_limit ?? planDef.aiCreditLimit;
+      let codeCreditLimit = creditData?.code_credit_limit ?? planDef.codeCreditLimit;
 
       // Jika belum ada record saldo, buatkan sekarang
       if (!creditData) {
@@ -105,19 +110,47 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
         } catch {}
       }
 
-      // Cek apakah siklus bulanan sudah berakhir -> reset otomatis
-      if (new Date() >= new Date(resetAt)) {
-        resetAt = getNextMonthlyResetDate();
+      // 4. Auto-Sync jika user adalah PRO tetapi saldo/limit di DB masih Free limit
+      if (userPlan === "pro" && aiCreditLimit < planDef.aiCreditLimit) {
+        aiCreditLimit = planDef.aiCreditLimit;
+        codeCreditLimit = planDef.codeCreditLimit;
         aiCredits = planDef.aiCreditLimit;
         codeCredits = planDef.codeCreditLimit;
+        resetAt = getNextDailyResetDate();
         try {
           await client
             .from("credit_balances")
             .update({
               ai_credits: aiCredits,
-              ai_credit_limit: planDef.aiCreditLimit,
+              ai_credit_limit: aiCreditLimit,
               code_credits: codeCredits,
-              code_credit_limit: planDef.codeCreditLimit,
+              code_credit_limit: codeCreditLimit,
+              reset_at: resetAt,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+        } catch {}
+      }
+
+      // 5. Cek apakah siklus reset harian sudah jatuh tempo (Daily Reset)
+      const now = new Date();
+      const resetTime = new Date(resetAt).getTime();
+      const isDailyResetDue = now.getTime() >= resetTime || (resetTime - now.getTime() > 24 * 60 * 60 * 1000);
+
+      if (isDailyResetDue) {
+        resetAt = getNextDailyResetDate();
+        aiCredits = planDef.aiCreditLimit;
+        codeCredits = planDef.codeCreditLimit;
+        aiCreditLimit = planDef.aiCreditLimit;
+        codeCreditLimit = planDef.codeCreditLimit;
+        try {
+          await client
+            .from("credit_balances")
+            .update({
+              ai_credits: aiCredits,
+              ai_credit_limit: aiCreditLimit,
+              code_credits: codeCredits,
+              code_credit_limit: codeCreditLimit,
               reset_at: resetAt,
               updated_at: new Date().toISOString(),
             })
@@ -133,13 +166,14 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
         currentPeriodStart: subData?.current_period_start || new Date().toISOString(),
         currentPeriodEnd: subData?.current_period_end || resetAt,
         aiCredits,
-        aiCreditLimit: creditData?.ai_credit_limit ?? planDef.aiCreditLimit,
+        aiCreditLimit,
         codeCredits,
-        codeCreditLimit: creditData?.code_credit_limit ?? planDef.codeCreditLimit,
+        codeCreditLimit,
         activeSchedulesCount: scheduleCount || 0,
         scheduleLimit: planDef.scheduleLimit,
         resetAt,
         resetsInDays: getDaysUntilReset(resetAt),
+        resetsInHours: getHoursUntilReset(resetAt),
       };
     } catch (dbErr) {
       console.warn("[subscription] Error reading from Supabase, using fallback:", dbErr);
@@ -150,6 +184,7 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
   const cached = memoryUserSubscriptions.get(userId);
   if (cached) {
     cached.resetsInDays = getDaysUntilReset(cached.resetAt);
+    cached.resetsInHours = getHoursUntilReset(cached.resetAt);
     return cached;
   }
 
@@ -159,15 +194,16 @@ export async function getUserSubscription(userId: string = "guest"): Promise<Use
     status: "active",
     startedAt: new Date().toISOString(),
     currentPeriodStart: new Date().toISOString(),
-    currentPeriodEnd: getNextMonthlyResetDate(),
+    currentPeriodEnd: getNextDailyResetDate(),
     aiCredits: 10000,
     aiCreditLimit: 10000,
     codeCredits: 50,
     codeCreditLimit: 50,
     activeSchedulesCount: 0,
     scheduleLimit: 3,
-    resetAt: getNextMonthlyResetDate(),
-    resetsInDays: 30,
+    resetAt: getNextDailyResetDate(),
+    resetsInDays: 1,
+    resetsInHours: 24,
   };
   memoryUserSubscriptions.set(userId, fallback);
   return fallback;
@@ -187,6 +223,9 @@ export async function deductCredits(params: {
 }): Promise<{ success: boolean; error?: string; remainingCredits?: number }> {
   const { userId, creditType, amount, modelId, taskType, inputTokens, outputTokens } = params;
 
+  // Pastikan daily reset dan quota auto-sync sudah berjalan terlebih dahulu
+  const sub = await getUserSubscription(userId);
+
   const isGuest = !userId || userId === "guest";
 
   // Jika di Supabase
@@ -205,23 +244,60 @@ export async function deductCredits(params: {
         p_output_tokens: outputTokens || null,
       });
 
-      if (!error && data) {
-        if (data.success) {
-          return { success: true, remainingCredits: data.balance_after };
+      if (!error && data && data.success) {
+        return { success: true, remainingCredits: data.balance_after };
+      }
+
+      // Jika RPC tidak tersedia atau gagal karena batasan lain, lakukan direct update aman
+      const { data: balanceRow } = await client
+        .from("credit_balances")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (balanceRow) {
+        const field = creditType === "ai" ? "ai_credits" : "code_credits";
+        const currentBal = balanceRow[field] ?? 0;
+
+        if (currentBal >= amount) {
+          const newBal = currentBal - amount;
+          await client
+            .from("credit_balances")
+            .update({
+              [field]: newBal,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+
+          await client.from("credit_transactions").insert({
+            user_id: userId,
+            credit_type: creditType,
+            amount: -amount,
+            balance_before: currentBal,
+            balance_after: newBal,
+            transaction_type: "usage",
+            model_id: modelId || null,
+            task_type: taskType || (creditType === "ai" ? "chat" : "code"),
+            input_tokens: inputTokens || null,
+            output_tokens: outputTokens || null,
+            total_tokens: (inputTokens || 0) + (outputTokens || 0),
+            created_at: new Date().toISOString(),
+          });
+
+          return { success: true, remainingCredits: newBal };
         } else {
-          return { success: false, error: data.error || "Insufficient credits" };
+          return { success: false, error: "Insufficient credits", remainingCredits: currentBal };
         }
       }
     } catch (rpcErr) {
-      console.warn("[subscription] deduct_credits RPC fallback:", rpcErr);
+      console.warn("[subscription] deduct_credits direct fallback error:", rpcErr);
     }
   }
 
   // Fallback memory state
-  const sub = await getUserSubscription(userId);
   if (creditType === "ai") {
     if (sub.aiCredits < amount) {
-      return { success: false, error: "Insufficient AI credits" };
+      return { success: false, error: "Insufficient AI credits", remainingCredits: sub.aiCredits };
     }
     const balanceBefore = sub.aiCredits;
     sub.aiCredits = Math.max(0, sub.aiCredits - amount);
@@ -246,7 +322,7 @@ export async function deductCredits(params: {
     return { success: true, remainingCredits: sub.aiCredits };
   } else {
     if (sub.codeCredits < amount) {
-      return { success: false, error: "Insufficient Code credits" };
+      return { success: false, error: "Insufficient Code credits", remainingCredits: sub.codeCredits };
     }
     const balanceBefore = sub.codeCredits;
     sub.codeCredits = Math.max(0, sub.codeCredits - amount);
@@ -273,12 +349,21 @@ export async function deductCredits(params: {
 }
 
 /**
- * Melakukan upgrade user ke Pro (langsung aktifkan kuota & model).
+ * Melakukan upgrade user ke Pro (langsung aktifkan kuota & model) dengan validasi kode Onemind1.
  */
-export async function upgradeUserToPro(userId: string): Promise<{ success: boolean; plan: string; message: string }> {
+export async function upgradeUserToPro(userId: string, code?: string): Promise<{ success: boolean; plan: string; message: string }> {
+  // Verifikasi kode sandi aktivasi sementara
+  if (!code || code.trim() !== "Onemind1") {
+    return {
+      success: false,
+      plan: "free",
+      message: "Kode aktivasi tidak valid. Silakan masukkan kode akses Pro yang benar (Onemind1).",
+    };
+  }
+
   const isGuest = !userId || userId === "guest";
   const now = new Date().toISOString();
-  const nextReset = getNextMonthlyResetDate();
+  const nextReset = getNextDailyResetDate();
 
   if (!isGuest && isSupabaseConfigured) {
     try {
@@ -317,7 +402,7 @@ export async function upgradeUserToPro(userId: string): Promise<{ success: boole
       return {
         success: true,
         plan: "pro",
-        message: "Selamat! Akun Anda berhasil di-upgrade ke Usick One Pro. Semua model AI kini terbuka.",
+        message: "Selamat! Akun Anda berhasil di-upgrade ke Usick One Pro. Semua model AI, Game, Faith, dan Image generator kini terbuka.",
       };
     } catch (err) {
       console.error("[subscription] Error upgrading user in Supabase:", err);
@@ -334,13 +419,86 @@ export async function upgradeUserToPro(userId: string): Promise<{ success: boole
   existing.scheduleLimit = 50;
   existing.currentPeriodEnd = nextReset;
   existing.resetAt = nextReset;
-  existing.resetsInDays = 30;
+  existing.resetsInDays = 1;
+  existing.resetsInHours = 24;
   memoryUserSubscriptions.set(userId, existing);
 
   return {
     success: true,
     plan: "pro",
-    message: "Selamat! Akun Anda berhasil di-upgrade ke Usick One Pro. Semua model AI kini terbuka.",
+    message: "Selamat! Akun Anda berhasil di-upgrade ke Usick One Pro. Semua model AI, Game, Faith, dan Image generator kini terbuka.",
+  };
+}
+
+/**
+ * Mengalihkan paket user kembali ke Free.
+ */
+export async function downgradeUserToFree(userId: string): Promise<{ success: boolean; plan: string; message: string }> {
+  const isGuest = !userId || userId === "guest";
+  const now = new Date().toISOString();
+  const nextReset = getNextDailyResetDate();
+
+  if (!isGuest && isSupabaseConfigured) {
+    try {
+      const client = getServiceOrAnonClient();
+      await client.from("subscriptions").upsert({
+        user_id: userId,
+        plan: "free",
+        status: "active",
+        started_at: now,
+        current_period_start: now,
+        current_period_end: nextReset,
+        updated_at: now,
+      });
+
+      // Sesuaikan kredit agar tidak melebihi batas paket Free
+      const { data: cred } = await client
+        .from("credit_balances")
+        .select("ai_credits, code_credits")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const aiCredits = Math.min(cred?.ai_credits ?? 10000, 10000);
+      const codeCredits = Math.min(cred?.code_credits ?? 50, 50);
+
+      await client.from("credit_balances").upsert({
+        user_id: userId,
+        ai_credits: aiCredits,
+        ai_credit_limit: 10000,
+        code_credits: codeCredits,
+        code_credit_limit: 50,
+        reset_at: nextReset,
+        updated_at: now,
+      });
+
+      return {
+        success: true,
+        plan: "free",
+        message: "Paket Anda telah berhasil dialihkan kembali ke Paket Free.",
+      };
+    } catch (err) {
+      console.error("[subscription] Error downgrading user in Supabase:", err);
+    }
+  }
+
+  // Memory fallback
+  const existing = await getUserSubscription(userId);
+  existing.plan = "free";
+  existing.aiCredits = Math.min(existing.aiCredits, 10000);
+  existing.aiCreditLimit = 10000;
+  existing.codeCredits = Math.min(existing.codeCredits, 50);
+  existing.codeCreditLimit = 50;
+  existing.scheduleLimit = 3;
+  existing.currentPeriodEnd = nextReset;
+  existing.resetAt = nextReset;
+  existing.resetsInDays = 1;
+  existing.resetsInHours = 24;
+  memoryUserSubscriptions.set(userId, existing);
+
+  return {
+    success: true,
+    plan: "free",
+    message: "Paket Anda telah berhasil dialihkan kembali ke Paket Free.",
   };
 }
 

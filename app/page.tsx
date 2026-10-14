@@ -4546,7 +4546,7 @@ export default function Home() {
                           </span>
                         </div>
                         <div className={`text-xs mt-1.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                          Reset dalam {subscription?.resetsInDays ?? 30} hari • Tanpa akumulasi sisa
+                          {subscription?.resetsInHours ? `Reset harian dalam ~${subscription.resetsInHours} jam` : "Reset harian setiap 24 jam"} • Tanpa akumulasi sisa
                         </div>
                       </div>
                       <button
@@ -4701,13 +4701,13 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>10.000 AI Credits / bulan</span>
+                              <span>10.000 AI Credits (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>50 Code Credits / bulan</span>
+                              <span>50 Code Credits (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4719,23 +4719,64 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Model reasoning dasar & web search</span>
+                              <span>Model Usick One AI Flagship</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Model Eksternal (Gemini, Claude, GPT, dll.)</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Tab Lainnya: Akses Game & Faith</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Tab Image: Generator & Terjemahan Gambar</span>
                             </li>
                           </ul>
                         </div>
 
                         <div className="pt-5 mt-4 border-t border-zinc-200/60 dark:border-zinc-800/60">
-                          <button
-                            type="button"
-                            disabled={(subscription?.plan || "free") === "free"}
-                            className={`w-full py-2 rounded-xl text-xs font-semibold transition text-center ${
-                              (subscription?.plan || "free") === "free"
-                                ? "bg-zinc-200/50 dark:bg-zinc-800/50 text-zinc-400 cursor-default"
-                                : (isDark ? "bg-zinc-800 hover:bg-zinc-700 text-white cursor-pointer" : "bg-zinc-200 hover:bg-zinc-300 text-black cursor-pointer")
-                            }`}
-                          >
-                            {(subscription?.plan || "free") === "free" ? "Aktif Digunakan" : "Pilih Free"}
-                          </button>
+                          {(subscription?.plan || "free") === "free" ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full py-2 rounded-xl text-xs font-semibold bg-zinc-200/50 dark:bg-zinc-800/50 text-zinc-400 cursor-default text-center"
+                            >
+                              Paket Saat Ini
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!confirm("Apakah Anda yakin ingin beralih kembali ke Paket Free?")) return;
+                                try {
+                                  const res = await fetch("/api/subscription", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ action: "downgrade", userId: user?.id || "guest" }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.subscription) {
+                                    setSubscription(data.subscription);
+                                  }
+                                } catch {}
+                              }}
+                              className={`w-full py-2 rounded-xl text-xs font-bold transition text-center cursor-pointer border ${
+                                isDark
+                                  ? "bg-zinc-800 hover:bg-zinc-750 text-white border-zinc-700 hover:border-zinc-500"
+                                  : "bg-zinc-100 hover:bg-zinc-200 text-black border-zinc-300"
+                              }`}
+                            >
+                              Pilih Paket Free
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -4768,25 +4809,43 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span><strong>500.000 AI Credits</strong> / bulan</span>
+                              <span><strong>100.000 AI Credits</strong> (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span><strong>1.500 Code Credits</strong> / bulan</span>
+                              <span><strong>200 Code Credits</strong> (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Maksimal <strong>20 jadwal aktif</strong></span>
+                              <span>Maksimal <strong>50 jadwal aktif</strong></span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Prioritas reasoning speed & model flagship</span>
+                              <span>Semua Model Eksternal (Gemini, Claude, GPT, dll.)</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Akses Penuh Tab Lainnya: Game & Faith</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Akses Penuh Tab Image: Generator & Terjemahan</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Prioritas reasoning speed & akses fitur baru</span>
                             </li>
                           </ul>
                         </div>

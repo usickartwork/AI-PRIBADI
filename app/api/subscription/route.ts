@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getUserSubscription, upgradeUserToPro, deductCredits } from "@/lib/subscriptionServer";
+import { getUserSubscription, upgradeUserToPro, downgradeUserToFree, deductCredits } from "@/lib/subscriptionServer";
 import { supabase } from "@/lib/supabase";
 
 async function getUserIdFromRequest(req: NextRequest): Promise<string> {
@@ -43,11 +43,28 @@ export async function POST(req: NextRequest) {
       userId = await getUserIdFromRequest(req);
     }
 
-    const { action } = body;
+    const { action, code, password } = body;
 
-    // 1. Upgrade ke Pro
+    // 1. Upgrade ke Pro (wajib kode Onemind1)
     if (action === "upgrade") {
-      const res = await upgradeUserToPro(userId);
+      const passCode = (code || password || "").trim();
+      const res = await upgradeUserToPro(userId, passCode);
+      if (!res.success) {
+        return NextResponse.json(
+          { success: false, error: res.message },
+          { status: 400 }
+        );
+      }
+      const updatedSub = await getUserSubscription(userId);
+      return NextResponse.json({
+        ...res,
+        subscription: updatedSub,
+      });
+    }
+
+    // 2. Downgrade ke Free (klik langsung kembali ke free)
+    if (action === "downgrade") {
+      const res = await downgradeUserToFree(userId);
       const updatedSub = await getUserSubscription(userId);
       return NextResponse.json({
         ...res,
