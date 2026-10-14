@@ -486,6 +486,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     fetchSpotifyMusic("", "all", 50);
   }, [fetchSpotifyMusic]);
 
+  // Debounced search as user types in chat box (seamless typing without interruption)
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setHasSearched(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setHasSearched(true);
+      fetchSpotifyMusic(trimmed, "all", 50);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, fetchSpotifyMusic]);
+
   // ─── Search Execution Handlers ─────────────────────────────────────────────
   const handleExecuteSearch = (query: string) => {
     if (!query.trim()) return;
@@ -778,16 +792,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   // ─── Render Centered or Sticky Search Chat Box (Styled like Tab Chat) ───────
-  const renderSearchChatBox = (isTopBar: boolean = false) => (
-    <div
-      className={`prompt-bar-glow relative w-full ${
-        isTopBar ? "rounded-[22px] sm:rounded-[26px]" : "rounded-[26px] sm:rounded-[28px]"
-      } p-[1.5px] shadow-2xl transition-all`}
-    >
+  const renderSearchChatBox = () => (
+    <div className="prompt-bar-glow relative w-full rounded-[24px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
       <div
-        className={`w-full ${
-          isTopBar ? "rounded-[20px] sm:rounded-[24px]" : "rounded-[24px] sm:rounded-[26px]"
-        } border transition-all relative ${
+        className={`w-full rounded-[22px] sm:rounded-[26px] border transition-all relative ${
           isDark
             ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
             : "bg-white border-zinc-200/80 shadow-zinc-200/80"
@@ -809,17 +817,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </svg>
           </div>
 
-          {/* Input Field */}
+          {/* Input Field (Persistent DOM node with stable key & ref to prevent focus loss) */}
           <input
-            ref={!isTopBar ? chatInputRef : undefined}
+            ref={chatInputRef}
+            key="music-search-input"
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchQuery(val);
+              if (!val.trim()) {
+                setHasSearched(false);
+              }
+            }}
             placeholder="Ketik lagu atau artis yang ingin kamu putar..."
             className={`flex-1 bg-transparent px-2 py-1.5 sm:py-2 text-sm sm:text-base outline-none leading-relaxed ${
               isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-400"
             }`}
-            autoFocus={!isTopBar}
+            autoFocus
           />
 
           {/* Clear Input Button */}
@@ -828,6 +843,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               type="button"
               onClick={() => {
                 setSearchQuery("");
+                setHasSearched(false);
                 if (chatInputRef.current) chatInputRef.current.focus();
               }}
               className="p-1.5 rounded-full text-zinc-400 hover:text-white cursor-pointer transition shrink-0"
@@ -1055,11 +1071,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         <div id="youtube-music-player" />
       </div>
 
-      {/* ─── TOP HEADER BAR (Theme-Adaptive, Zero Clutter, Clean Mobile-Optimized) ─── */}
+      {/* ─── TOP HEADER BAR (Clean, Transparent, Minimalist) ─── */}
       <header
-        className={`sticky top-0 z-20 backdrop-blur-xl px-3.5 sm:px-8 py-2.5 sm:py-3.5 border-b flex items-center justify-between gap-3 transition ${
-          isDark ? "bg-[#121215]/85 border-zinc-800/80" : "bg-[#fafafc]/85 border-zinc-200/80"
-        }`}
+        className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-8 py-2.5 sm:py-3.5 bg-transparent border-none transition"
       >
         {/* Left: Hamburger & Brand Title */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -1079,18 +1093,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center font-black text-xs shadow-md shrink-0 ${
-                isDark ? "bg-white text-black" : "bg-black text-white"
-              }`}
-            >
-              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-              </svg>
-            </div>
-            <span className="font-extrabold text-sm sm:text-base tracking-tight truncate">Music</span>
-          </div>
+          <span className="font-extrabold text-sm sm:text-base tracking-tight truncate">Music One</span>
         </div>
 
         {/* Center: Clean 2-Tab Switcher (Musik & Playlist) */}
@@ -1153,50 +1156,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           </button>
         </div>
 
-        {/* Right: Setup Modal & Close */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            onClick={() => setShowSetupModal(true)}
-            title="Pengaturan Spotify API"
-            className={`p-2 rounded-xl border transition cursor-pointer ${
-              isDark
-                ? "border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-600 hover:text-black"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-
-          {onClose && (
-            <button
-              onClick={onClose}
-              title="Tutup Musik"
-              className={`p-2 rounded-xl border transition cursor-pointer ${
-                isDark
-                  ? "border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                  : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-600 hover:text-black"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {/* Right: Clean Spacer (Gear and X removed as requested) */}
+        <div className="w-9 sm:w-10 shrink-0" />
       </header>
 
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 bg-transparent">
         <div className="px-3.5 sm:px-8 py-4 sm:py-6 flex-1 flex flex-col">
-          {/* ─── TAB 1: MUSIK / SEARCH (Centered Chat Box or Song List) ───────── */}
+          {/* ─── TAB 1: MUSIK / SEARCH (Persistent Chat Box: Centered or Results List) ───────── */}
           {subTab === "home" && (
-            <>
-              {/* STATE 1: Empty / Centered Chat Box ("Tampilan Obrolan Baru di Tab Chat") */}
-              {!hasSearched && !searchQuery.trim() ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center my-auto py-8 sm:py-16 px-3 sm:px-4 max-w-2xl mx-auto w-full animate-in fade-in-0 duration-300">
+            <div
+              className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
+                !searchQuery.trim() ? "justify-center my-auto py-6 sm:py-12" : "pt-2"
+              }`}
+            >
+              {/* Initial Hero: Avatar & Greeting (Visible ONLY when search box is empty) */}
+              {!searchQuery.trim() && (
+                <div className="flex flex-col items-center justify-center text-center mb-3 sm:mb-4 px-3 sm:px-4 animate-in fade-in-0 duration-200">
                   {/* Avatar Icon (Exact same blinking avatar from tab chat) */}
                   <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center">
                     <Avatar
@@ -1212,46 +1188,42 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
                     Mau dengar apa hari ini{userName ? `, ${userName}` : ""}?
                   </h1>
-                  <p className={`mt-2 mb-6 sm:mb-8 text-xs sm:text-sm font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  <p className={`mt-2 mb-4 text-xs sm:text-sm font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                     Ketik judul lagu, musisi, atau genre untuk memutar musik langsung.
                   </p>
+                </div>
+              )}
 
-                  {/* Centered Chat Box Card */}
-                  <div className="w-full">
-                    {renderSearchChatBox(false)}
-                  </div>
+              {/* PERSISTENT SINGLE CHAT BOX (Never unmounts, preserves focus seamlessly) */}
+              <div className={`w-full max-w-2xl mx-auto ${searchQuery.trim() ? "sticky top-0 z-20 pt-1 pb-3 backdrop-blur-md" : "py-1"}`}>
+                {renderSearchChatBox()}
+              </div>
 
-                  {/* Subtle Quick Inspiration Pills */}
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                    {["Top Hits 2025", "Bernadya", "Pop Indonesia", "Billie Eilish", "Chill Vibes"].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleQuickSearch(tag)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border ${
-                          isDark
-                            ? "bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 hover:text-white border-zinc-800"
-                            : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-black border-zinc-200"
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
+              {/* Lower Section: Quick Inspiration Pills (When empty) OR Results & Tracks (When typed) */}
+              {!searchQuery.trim() ? (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 pb-6 animate-in fade-in-0 duration-200">
+                  {["Top Hits 2025", "Bernadya", "Pop Indonesia", "Billie Eilish", "Chill Vibes"].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleQuickSearch(tag)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border ${
+                        isDark
+                          ? "bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 hover:text-white border-zinc-800"
+                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-black border-zinc-200"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
               ) : (
-                /* STATE 2: Song Results List with Pinned Top Chat Box */
-                <div className="space-y-5 animate-in fade-in-0 duration-200 w-full max-w-5xl mx-auto">
-                  {/* Sticky Top Chat Box */}
-                  <div className="max-w-2xl mx-auto w-full sticky top-0 z-20 pt-1 pb-3 backdrop-blur-md">
-                    {renderSearchChatBox(true)}
-                  </div>
-
+                <div className="space-y-4 pt-2 pb-8 w-full animate-in fade-in-0 duration-200">
                   {/* Results Header Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-b border-zinc-800/40 pb-3">
                     <div>
                       <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                        {searchQuery ? `Hasil: "${searchQuery}"` : "Daftar Lagu Spotify"}
+                        Hasil: &quot;{searchQuery}&quot;
                       </h2>
                       <p className="text-xs text-zinc-500">
                         {isSearching
@@ -1269,7 +1241,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                             : "border-zinc-200 bg-white text-zinc-600 hover:text-black hover:bg-zinc-100"
                         }`}
                       >
-                        Pencarian Baru
+                        Bersihkan
                       </button>
 
                       {tracks.length > 0 && (
@@ -1305,7 +1277,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {!isSearching && renderTrackTable(tracks)}
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* ─── TAB 3: PLAYLISTS ───────────────────────────────────────────── */}
@@ -1575,7 +1547,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
 
             {/* Right: Like, Previous, Play/Pause, Next, Queue */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               {currentTrack && (
                 <button
                   type="button"
@@ -1585,7 +1557,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }`}
                   title="Sukai lagu"
                 >
-                  <svg className={`w-4 h-4 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-4.5 h-4.5 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -1594,10 +1566,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playPrevious}
-                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
                 title="Sebelumnya"
               >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </button>
@@ -1605,17 +1577,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={togglePlayPause}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition shadow-md cursor-pointer ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition shadow-md cursor-pointer ${
                   isDark ? "bg-white text-black" : "bg-black text-white"
                 }`}
                 title={isPlaying ? "Jeda" : "Putar"}
               >
                 {isPlaying ? (
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                   </svg>
                 ) : (
-                  <svg className="w-3.5 h-3.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                  <svg className="w-4.5 h-4.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 )}
@@ -1624,10 +1596,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playNext}
-                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
                 title="Berikutnya"
               >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                 </svg>
               </button>
@@ -1635,10 +1607,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer relative"
+                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer relative"
                 title="Antrean"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
@@ -1679,14 +1651,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={() => toggleLike(currentTrack)}
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  className={`p-2 rounded-lg transition cursor-pointer ${
                     isTrackLiked(currentTrack.id)
                       ? "text-red-500"
                       : "text-zinc-500 hover:text-white"
                   }`}
                   title="Sukai lagu"
                 >
-                  <svg className={`w-4 h-4 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-5 h-5 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -1695,17 +1667,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             {/* Center: Controls & Interactive Timeline Slider */}
             <div className="flex flex-col items-center gap-1.5 w-1/2 max-w-xl">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 sm:gap-5">
                 {/* Shuffle */}
                 <button
                   type="button"
                   onClick={() => setIsShuffle((prev) => !prev)}
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  className={`p-2 rounded-xl transition cursor-pointer ${
                     isShuffle ? "text-white bg-white/10" : "text-zinc-500 hover:text-white"
                   }`}
                   title="Shuffle"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
                 </button>
@@ -1714,10 +1686,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playPrevious}
-                  className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
                   title="Sebelumnya"
                 >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                   </svg>
                 </button>
@@ -1726,17 +1698,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={togglePlayPause}
-                  className={`p-3 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
                     isDark ? "bg-white text-black" : "bg-black text-white"
                   }`}
                   title={isPlaying ? "Jeda" : "Putar"}
                 >
                   {isPlaying ? (
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <svg className="w-5.5 h-5.5 fill-current" viewBox="0 0 24 24">
                       <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                    <svg className="w-5.5 h-5.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
                       <path d="M8 5v14l11-7z" />
                     </svg>
                   )}
@@ -1746,10 +1718,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playNext}
-                  className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
                   title="Berikutnya"
                 >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                   </svg>
                 </button>
@@ -1760,12 +1732,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={() =>
                     setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
                   }
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  className={`p-2 rounded-xl transition cursor-pointer ${
                     repeatMode !== "off" ? "text-white bg-white/10 font-bold" : "text-zinc-500 hover:text-white"
                   }`}
                   title={`Repeat: ${repeatMode}`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
@@ -1792,37 +1764,37 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Right: Queue & Volume */}
-            <div className="flex items-center justify-end gap-2.5 w-1/4">
+            {/* Right: Queue & Inset Volume Control (Shifted leftward, longer slider, larger icon) */}
+            <div className="flex items-center justify-end gap-3 sm:gap-4 w-1/4 pr-4 sm:pr-8">
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer relative"
+                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer relative"
                 title="Antrean Putar"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white" />
                 )}
               </button>
 
               {/* Volume control */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className="p-1 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
                   title={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                     </svg>
                   )}
@@ -1837,7 +1809,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     const val = parseFloat(e.target.value);
                     handleVolumeChange(val);
                   }}
-                  className="w-16 h-1 rounded-full bg-zinc-700 accent-white cursor-pointer"
+                  className="w-24 sm:w-32 md:w-40 h-1.5 rounded-full bg-zinc-700 accent-white cursor-pointer transition-all"
                 />
               </div>
             </div>
