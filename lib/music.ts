@@ -17,6 +17,7 @@ export interface MusicItem {
   externalUrl: string;
   previewUrl?: string | null;
   uri?: string; // Spotify URI for embed
+  youtubeVideoId?: string; // Optional resolved YouTube video ID for full playback
 }
 
 export interface LocalPlaylist {

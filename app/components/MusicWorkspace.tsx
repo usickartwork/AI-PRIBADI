@@ -45,6 +45,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 213573,
     externalUrl: "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT",
     uri: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
+    youtubeVideoId: "3BFTio5296w",
   },
   {
     id: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
@@ -58,6 +59,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 233712,
     externalUrl: "https://open.spotify.com/track/7qiZfU4dY1lWllzX7mPBI3",
     uri: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
+    youtubeVideoId: "_dK2tDK9grQ",
   },
   {
     id: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
@@ -71,6 +73,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200040,
     externalUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
     uri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
+    youtubeVideoId: "fHI8X4OXluQ",
   },
   {
     id: "spotify:track:5QO79kh1waicV47BqGRL3g",
@@ -84,6 +87,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 215626,
     externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g",
     uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
+    youtubeVideoId: "u6lihZAcy4s",
   },
   {
     id: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
@@ -97,6 +101,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 222973,
     externalUrl: "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
     uri: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+    youtubeVideoId: "l7MaKmKJqoc",
   },
 ];
 
@@ -141,28 +146,31 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
 
-  // Spotify Official IFrame API Player State & Refs
-  const [spotifyIFrameAPI, setSpotifyIFrameAPI] = useState<any>(null);
-  const [isEmbedReady, setIsEmbedReady] = useState(false);
-  const embedContainerRef = useRef<HTMLDivElement | null>(null);
-  const controllerRef = useRef<any>(null);
-  const isControllerCreatedRef = useRef(false);
-  const pendingPlayUriRef = useRef<string | null>(null);
+  // YouTube Full Song Player State & Refs
+  const ytPlayerRef = useRef<any>(null);
+  const isYtReadyRef = useRef<boolean>(false);
+  const [isYtReady, setIsYtReady] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [isResolvingAudio, setIsResolvingAudio] = useState(false);
+  const pendingVideoIdRef = useRef<string | null>(null);
+  const [currentVideoId, setCurrentVideoId] = useState<string>("3BFTio5296w");
 
-  // Spotify Web Playback SDK State & Refs (For Full Song Audio Streaming)
-  const [userToken, setUserToken] = useState<string | null>(null);
-  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
-  const [isSdkConnected, setIsSdkConnected] = useState(false);
-  const [sdkError, setSdkError] = useState<string | null>(null);
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [manualTokenInput, setManualTokenInput] = useState("");
-  const sdkPlayerRef = useRef<any>(null);
+  // Synchronized state refs for callbacks (avoid stale closures)
+  const queueRef = useRef<MusicItem[]>(queue);
+  const queueIndexRef = useRef<number>(queueIndex);
+  const repeatModeRef = useRef<"off" | "all" | "one">(repeatMode);
+  const isShuffleRef = useRef<boolean>(isShuffle);
 
-  // Audio Ref for preview tracks (fallback)
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
+  useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+  useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+
+  // Audio Ref (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ─── Initialize Local Data & Check Spotify OAuth Token ─────────────────────
+  // ─── Initialize Local Storage Data ──────────────────────────────────────────
   useEffect(() => {
     setLikedSongs(getLikedSongs());
     setLocalPlaylists(getLocalPlaylists());
@@ -176,187 +184,95 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         setCurrentTrack(savedQueue.items[savedQueue.currentIndex]);
       }
     }
-
-    // 1. Check server-provided user token (Option A: Automatic Full Playback without visitor login)
-    fetch("/api/music/user-token")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.configured && data.token) {
-          setUserToken(data.token);
-        }
-      })
-      .catch(() => {});
-
-    // 2. Check URL hash for OAuth access_token from Spotify OAuth redirect or saved token
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash;
-      if (hash && hash.includes("access_token=")) {
-        const params = new URLSearchParams(hash.substring(1));
-        const token = params.get("access_token");
-        if (token) {
-          localStorage.setItem("usick_spotify_user_token", token);
-          setUserToken(token);
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      } else {
-        const savedToken = localStorage.getItem("usick_spotify_user_token");
-        if (savedToken) {
-          setUserToken(savedToken);
-        }
-      }
-    }
   }, []);
 
-  // ─── Initialize Spotify Web Playback SDK when userToken exists ─────────────
-  useEffect(() => {
-    if (!userToken) return;
-
-    let script = document.getElementById("spotify-web-player-sdk-script") as HTMLScriptElement;
-    if (!script) {
-      script = document.createElement("script");
-      script.id = "spotify-web-player-sdk-script";
-      script.src = "https://sdk.scdn.co/spotify-player.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    const initSdkPlayer = () => {
-      if (!(window as any).Spotify || !(window as any).Spotify.Player) return;
-
-      try {
-        const player = new (window as any).Spotify.Player({
-          name: "Usick One Web Player",
-          getOAuthToken: (cb: (token: string) => void) => {
-            cb(userToken);
-          },
-          volume: volume,
-        });
-
-        player.addListener("ready", ({ device_id }: { device_id: string }) => {
-          console.log("[Spotify SDK] Ready with Device ID:", device_id);
-          setSdkDeviceId(device_id);
-          setIsSdkConnected(true);
-          setSdkError(null);
-        });
-
-        player.addListener("not_ready", ({ device_id }: { device_id: string }) => {
-          console.warn("[Spotify SDK] Device has gone offline:", device_id);
-          setIsSdkConnected(false);
-        });
-
-        player.addListener("player_state_changed", (state: any) => {
-          if (!state) return;
-          setIsPlaying(!state.paused);
-          if (typeof state.position === "number") {
-            setCurrentTime(state.position / 1000);
-          }
-          if (typeof state.duration === "number") {
-            setDuration(state.duration / 1000);
-          }
-        });
-
-        player.addListener("account_error", ({ message }: { message: string }) => {
-          console.error("[Spotify SDK] Account Error:", message);
-          setSdkError("Akun ini belum memiliki Spotify Premium. Lagu Full memerlukan Spotify Premium.");
-        });
-
-        player.addListener("authentication_error", ({ message }: { message: string }) => {
-          console.error("[Spotify SDK] Auth Error:", message);
-          setSdkError("Token Spotify kedaluwarsa atau tidak valid. Silakan login ulang.");
-          localStorage.removeItem("usick_spotify_user_token");
-          setUserToken(null);
-          setIsSdkConnected(false);
-        });
-
-        player.addListener("initialization_error", ({ message }: { message: string }) => {
-          console.error("[Spotify SDK] Init Error:", message);
-          setSdkError(message);
-        });
-
-        player.connect();
-        sdkPlayerRef.current = player;
-      } catch (err) {
-        console.error("[Spotify SDK] Failed to instantiate player:", err);
-      }
-    };
-
-    if ((window as any).Spotify && (window as any).Spotify.Player) {
-      initSdkPlayer();
-    } else {
-      (window as any).onSpotifyWebPlaybackSDKReady = () => {
-        initSdkPlayer();
-      };
-    }
-
-    return () => {
-      if (sdkPlayerRef.current) {
-        try {
-          sdkPlayerRef.current.disconnect();
-        } catch {}
-      }
-    };
-  }, [userToken, volume]);
-
-  const handleSpotifyOAuthLogin = () => {
-    if (typeof window !== "undefined") {
-      window.location.href = "/api/music/setup/login";
-    }
-  };
-
-  const handleSaveManualToken = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualTokenInput.trim()) return;
-    const cleanToken = manualTokenInput.trim();
-    localStorage.setItem("usick_spotify_user_token", cleanToken);
-    setUserToken(cleanToken);
-    setManualTokenInput("");
-    setShowConnectModal(false);
-  };
-
-  const handleDisconnectSpotify = () => {
-    localStorage.removeItem("usick_spotify_user_token");
-    if (sdkPlayerRef.current) {
-      try {
-        sdkPlayerRef.current.disconnect();
-      } catch {}
-    }
-    setUserToken(null);
-    setIsSdkConnected(false);
-    setSdkDeviceId(null);
-    setSdkError(null);
-  };
-
-  // ─── 1. Load Spotify IFrame API Script ──────────────────────────────────────
+  // ─── Initialize YouTube IFrame Player API for 100% Full Playback ───────────
   useEffect(() => {
     let isMounted = true;
 
-    const handleApiReady = (IFrameAPI: any) => {
-      if (isMounted) {
-        setSpotifyIFrameAPI(IFrameAPI);
+    const initPlayer = () => {
+      if (!isMounted) return;
+      if (!(window as any).YT || !(window as any).YT.Player) return;
+      if (ytPlayerRef.current) return;
+
+      const el = document.getElementById("youtube-music-player");
+      if (!el) return;
+
+      try {
+        const player = new (window as any).YT.Player("youtube-music-player", {
+          height: "100%",
+          width: "100%",
+          videoId: currentVideoId || "3BFTio5296w",
+          playerVars: {
+            autoplay: 1,
+            controls: 1,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
+            enablejsapi: 1,
+            origin: typeof window !== "undefined" ? window.location.origin : undefined,
+          },
+          events: {
+            onReady: (event: any) => {
+              if (!isMounted) return;
+              ytPlayerRef.current = event.target;
+              isYtReadyRef.current = true;
+              setIsYtReady(true);
+              try {
+                event.target.setVolume(volume * 100);
+              } catch {}
+              if (pendingVideoIdRef.current) {
+                const vid = pendingVideoIdRef.current;
+                pendingVideoIdRef.current = null;
+                event.target.loadVideoById(vid);
+                event.target.playVideo();
+              }
+            },
+            onStateChange: (event: any) => {
+              if (!isMounted) return;
+              // 1: PLAYING, 2: PAUSED, 0: ENDED
+              if (event.data === 1) {
+                setIsPlaying(true);
+                try {
+                  const dur = event.target.getDuration();
+                  if (dur > 0) setDuration(dur);
+                } catch {}
+              } else if (event.data === 2) {
+                setIsPlaying(false);
+              } else if (event.data === 0) {
+                setIsPlaying(false);
+                handleTrackEnded();
+              }
+            },
+            onError: (err: any) => {
+              console.warn("[YouTube Player Error]:", err);
+            },
+          },
+        });
+        ytPlayerRef.current = player;
+      } catch (e) {
+        console.error("[YouTube Init Error]:", e);
       }
     };
 
     if (typeof window !== "undefined") {
-      if ((window as any).SpotifyIframeApi) {
-        handleApiReady((window as any).SpotifyIframeApi);
-      } else {
-        const prevCallback = (window as any).onSpotifyIframeApiReady;
-        (window as any).onSpotifyIframeApiReady = (IFrameAPI: any) => {
-          if (typeof prevCallback === "function") {
-            try {
-              prevCallback(IFrameAPI);
-            } catch {}
-          }
-          handleApiReady(IFrameAPI);
-        };
-
-        if (!document.getElementById("spotify-iframe-api-script")) {
-          const script = document.createElement("script");
-          script.id = "spotify-iframe-api-script";
-          script.src = "https://open.spotify.com/embed/iframe-api/v1";
-          script.async = true;
-          document.body.appendChild(script);
+      if (!(window as any).YT) {
+        const existingScript = document.getElementById("youtube-iframe-api-script");
+        if (!existingScript) {
+          const tag = document.createElement("script");
+          tag.id = "youtube-iframe-api-script";
+          tag.src = "https://www.youtube.com/iframe_api";
+          document.body.appendChild(tag);
         }
+        const prevReady = (window as any).onYouTubeIframeAPIReady;
+        (window as any).onYouTubeIframeAPIReady = () => {
+          if (typeof prevReady === "function") {
+            try { prevReady(); } catch {}
+          }
+          initPlayer();
+        };
+      } else {
+        initPlayer();
       }
     }
 
@@ -365,59 +281,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
   }, []);
 
-  // ─── 2. Initialize Spotify Embed Controller ────────────────────────────────
+  // ─── Real-Time Scrubber & Duration Synchronizer ────────────────────────────
   useEffect(() => {
-    if (!spotifyIFrameAPI || isControllerCreatedRef.current || !embedContainerRef.current) return;
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === "function") {
+        try {
+          const cur = ytPlayerRef.current.getCurrentTime();
+          const dur = ytPlayerRef.current.getDuration();
+          if (typeof cur === "number" && !isNaN(cur)) setCurrentTime(cur);
+          if (typeof dur === "number" && dur > 0 && !isNaN(dur)) setDuration(dur);
+        } catch {}
+      }
+    }, 400);
 
-    isControllerCreatedRef.current = true;
-    const initialUri =
-      currentTrack?.uri ||
-      FEATURED_STARTER_TRACKS[0].uri ||
-      "spotify:track:4cOdK2wGLETKBW3PvgPWqT";
-
-    const options = {
-      width: "100%",
-      height: "152",
-      uri: initialUri,
-    };
-
-    try {
-      spotifyIFrameAPI.createController(
-        embedContainerRef.current,
-        options,
-        (controller: any) => {
-          controllerRef.current = controller;
-
-          controller.addListener("ready", () => {
-            setIsEmbedReady(true);
-            if (pendingPlayUriRef.current) {
-              try {
-                controller.loadUri(pendingPlayUriRef.current);
-                controller.play();
-              } catch (err) {
-                console.error("Error playing pending URI:", err);
-              }
-              pendingPlayUriRef.current = null;
-            }
-          });
-
-          controller.addListener("playback_update", (e: any) => {
-            if (e && e.data) {
-              setIsPlaying(!e.data.isPaused);
-              if (typeof e.data.position === "number") {
-                setCurrentTime(e.data.position / 1000);
-              }
-              if (typeof e.data.duration === "number" && e.data.duration > 0) {
-                setDuration(e.data.duration / 1000);
-              }
-            }
-          });
-        }
-      );
-    } catch (err) {
-      console.error("Failed to create Spotify embed controller:", err);
-    }
-  }, [spotifyIFrameAPI, currentTrack?.uri]);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   // ─── Initial Spotify Search / Catalog Fetch ─────────────────────────────────
   const fetchSpotifyMusic = useCallback(async (query: string = "") => {
@@ -472,64 +351,70 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     fetchSpotifyMusic(term);
   };
 
-  // ─── Audio Playback Logic ───────────────────────────────────────────────────
-  const playTrack = (track: MusicItem) => {
+  // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
+  const playTrack = useCallback(async (track: MusicItem) => {
     setCurrentTrack(track);
     setIsPlaying(true);
     setCurrentTime(0);
 
     // Update queue if track not in queue
-    const existingIdx = queue.findIndex((item) => item.id === track.id);
-    if (existingIdx !== -1) {
-      setQueueIndex(existingIdx);
-    } else {
-      const newQueue = [track, ...queue];
-      setQueue(newQueue);
-      setQueueIndex(0);
-      saveQueueState({ items: newQueue, currentIndex: 0, updatedAt: new Date().toISOString() });
+    setQueue((prevQueue) => {
+      const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
+      let newQueue = prevQueue;
+      let newIdx = 0;
+      if (existingIdx !== -1) {
+        newIdx = existingIdx;
+      } else {
+        newQueue = [track, ...prevQueue];
+        newIdx = 0;
+      }
+      setQueueIndex(newIdx);
+      saveQueueState({ items: newQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
+      return newQueue;
+    });
+
+    if (track.durationMs && track.durationMs > 0) {
+      setDuration(track.durationMs / 1000);
     }
 
-    const trackUri = track.uri || (track.providerItemId ? `spotify:track:${track.providerItemId}` : null);
+    let videoId = track.youtubeVideoId;
 
-    // 1. If Web Playback SDK is connected, stream FULL audio via Spotify Connect API!
-    if (isSdkConnected && sdkDeviceId && userToken && trackUri) {
-      fetch(`https://api.spotify.com/v1/me/player/play?device_id=${sdkDeviceId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        },
-        body: JSON.stringify({ uris: [trackUri] }),
-      }).catch((err) => {
-        console.warn("[Spotify SDK] Playback error, falling back to controller:", err);
-      });
-      return;
-    }
-
-    // 2. Fallback: IFrame Controller
-    if (trackUri) {
-      if (controllerRef.current) {
-        try {
-          controllerRef.current.loadUri(trackUri);
-          controllerRef.current.play();
-        } catch (err) {
-          console.warn("Spotify controller playback error:", err);
+    if (!videoId) {
+      setIsResolvingAudio(true);
+      try {
+        const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
+        const res = await fetch(
+          `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
+        );
+        const data = await res.json();
+        if (data.success && data.videoId) {
+          videoId = data.videoId;
+          track.youtubeVideoId = videoId;
         }
-      } else {
-        pendingPlayUriRef.current = trackUri;
+      } catch (err) {
+        console.warn("Failed to resolve audio for track:", err);
+      } finally {
+        setIsResolvingAudio(false);
       }
     }
 
-    // 3. Fallback: Audio preview element
-    if (audioRef.current) {
-      if (track.previewUrl) {
-        audioRef.current.src = track.previewUrl;
-        audioRef.current.play().catch(() => {});
-      } else {
-        audioRef.current.pause();
+    const targetVideoId = videoId || "3BFTio5296w";
+    setCurrentVideoId(targetVideoId);
+
+    if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
+      try {
+        ytPlayerRef.current.loadVideoById({
+          videoId: targetVideoId,
+          startSeconds: 0,
+        });
+        ytPlayerRef.current.playVideo();
+      } catch (err) {
+        console.warn("ytPlayer loadVideoById error:", err);
       }
+    } else {
+      pendingVideoIdRef.current = targetVideoId;
     }
-  };
+  }, []);
 
   const togglePlayPause = () => {
     if (!currentTrack) {
@@ -537,50 +422,103 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
-    // 1. If Web Playback SDK is active
-    if (isSdkConnected && sdkPlayerRef.current) {
-      sdkPlayerRef.current.togglePlay().catch(() => {});
-      return;
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+      try {
+        if (isPlaying) {
+          ytPlayerRef.current.pauseVideo();
+          setIsPlaying(false);
+        } else {
+          ytPlayerRef.current.playVideo();
+          setIsPlaying(true);
+        }
+        return;
+      } catch (err) {
+        console.warn("togglePlay error:", err);
+      }
     }
 
-    // 2. IFrame Controller
-    if (controllerRef.current) {
-      try {
-        controllerRef.current.togglePlay();
-      } catch (err) {
-        console.warn("Spotify controller toggle error:", err);
-      }
-    } else {
-      const nextState = !isPlaying;
-      setIsPlaying(nextState);
+    setIsPlaying(!isPlaying);
+  };
 
-      if (audioRef.current && currentTrack.previewUrl) {
-        if (nextState) audioRef.current.play().catch(() => {});
-        else audioRef.current.pause();
-      }
+  const handleSeek = (newTime: number) => {
+    setCurrentTime(newTime);
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === "function") {
+      try {
+        ytPlayerRef.current.seekTo(newTime, true);
+      } catch {}
+    }
+  };
+
+  const handleVolumeChange = (val: number) => {
+    setVolume(val);
+    setIsMuted(val === 0);
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.setVolume === "function") {
+      try {
+        ytPlayerRef.current.setVolume(val * 100);
+        if (val === 0) ytPlayerRef.current.mute();
+        else ytPlayerRef.current.unMute();
+      } catch {}
+    }
+  };
+
+  const toggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (ytPlayerRef.current) {
+      try {
+        if (nextMuted) {
+          ytPlayerRef.current.mute();
+        } else {
+          ytPlayerRef.current.unMute();
+          ytPlayerRef.current.setVolume((volume || 0.8) * 100);
+        }
+      } catch {}
     }
   };
 
   const playNext = () => {
-    if (queue.length === 0) return;
-    let nextIdx = queueIndex + 1;
-    if (isShuffle) {
-      nextIdx = Math.floor(Math.random() * queue.length);
-    } else if (nextIdx >= queue.length) {
-      nextIdx = repeatMode === "all" ? 0 : queue.length - 1;
+    const currentQueue = queueRef.current;
+    const currentIndex = queueIndexRef.current;
+    if (currentQueue.length === 0) return;
+
+    let nextIdx = currentIndex + 1;
+    if (isShuffleRef.current) {
+      nextIdx = Math.floor(Math.random() * currentQueue.length);
+    } else if (nextIdx >= currentQueue.length) {
+      nextIdx = repeatModeRef.current === "all" ? 0 : currentQueue.length - 1;
     }
     setQueueIndex(nextIdx);
-    playTrack(queue[nextIdx]);
+    const nextTrack = currentQueue[nextIdx];
+    if (nextTrack) playTrack(nextTrack);
   };
 
   const playPrevious = () => {
-    if (queue.length === 0) return;
-    let prevIdx = queueIndex - 1;
+    if (currentTime > 3) {
+      handleSeek(0);
+      return;
+    }
+    const currentQueue = queueRef.current;
+    const currentIndex = queueIndexRef.current;
+    if (currentQueue.length === 0) return;
+
+    let prevIdx = currentIndex - 1;
     if (prevIdx < 0) {
-      prevIdx = queue.length - 1;
+      prevIdx = currentQueue.length - 1;
     }
     setQueueIndex(prevIdx);
-    playTrack(queue[prevIdx]);
+    const prevTrack = currentQueue[prevIdx];
+    if (prevTrack) playTrack(prevTrack);
+  };
+
+  const handleTrackEnded = () => {
+    if (repeatModeRef.current === "one") {
+      handleSeek(0);
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+        ytPlayerRef.current.playVideo();
+      }
+      return;
+    }
+    playNext();
   };
 
   // ─── Like / Playlist Actions ────────────────────────────────────────────────
@@ -960,34 +898,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Right Status Badge & Connect Spotify Mode */}
+            {/* Right Status Badge */}
             <div className="flex items-center gap-2">
-              {isSdkConnected ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Mode Full Audio Aktif (SDK)</span>
-                  </div>
-                  <button
-                    onClick={handleDisconnectSpotify}
-                    className="text-[11px] text-zinc-500 hover:text-red-400 transition cursor-pointer"
-                    title="Disconnect Spotify"
-                  >
-                    Disconnect
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowConnectModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-500 text-black hover:bg-emerald-400 transition cursor-pointer shadow-md"
-                  title="Connect Spotify Premium untuk memutar lagu Full 100%"
-                >
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                  </svg>
-                  <span>Connect Spotify (Lagu Full)</span>
-                </button>
-              )}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Full Music 100% Aktif</span>
+              </div>
 
               {isSpotifyConfigured === false && (
                 <button
@@ -1107,7 +1023,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             )}
 
-            {/* ─── IN-PAGE SPOTIFY DIRECT WEB PLAYER (Langsung di Halaman) ─────────────── */}
+            {/* ─── IN-PAGE FULL AUDIO PLAYER (Pemutar Musik Full 100% Otomatis) ─────────────── */}
             <div
               className={`rounded-3xl border p-4 sm:p-5 transition shadow-xl ${
                 isDark
@@ -1115,102 +1031,91 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   : "bg-white border-zinc-200/90 shadow-md"
               }`}
             >
-              {/* SDK Error Banner */}
-              {sdkError && (
-                <div className="mb-3.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3 animate-in fade-in-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">⚠️</span>
-                    <span>{sdkError}</span>
-                  </div>
-                  <button
-                    onClick={() => setSdkError(null)}
-                    className="p-1 hover:text-white cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                     <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
                     </svg>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-extrabold tracking-tight">
-                        {isSdkConnected
-                          ? "Pemutar Full Audio (Web Playback SDK)"
-                          : "Pemutar Musik Langsung di Halaman"}
+                        Pemutar Musik Full 100%
                       </h3>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        {isSdkConnected ? "Full Audio 100%" : "Auto-Play Langsung"}
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Lagu Penuh Otomatis
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-400">
-                      {isSdkConnected
-                        ? "Streaming audio lagu penuh aktif via Spotify Web Playback SDK"
-                        : "Lagu otomatis diputar saat diklik dari daftar lagu di bawah"}
+                      Klik lagu mana saja di bawah untuk langsung mendengarkan full tanpa henti dan tanpa login.
                     </p>
                   </div>
                 </div>
 
-                {/* Right Action: Connect or Status */}
+                {/* Right Action: Video Toggle */}
                 <div className="flex items-center gap-2">
-                  {isSdkConnected ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        Mode Full Aktif
-                      </span>
-                      <button
-                        onClick={handleDisconnectSpotify}
-                        className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:border-red-500/50 hover:text-red-400 text-zinc-400 text-[11px] font-semibold transition cursor-pointer"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowConnectModal(true)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-extrabold text-xs transition cursor-pointer shadow-md"
-                    >
-                      <span>⚡ Aktifkan Lagu Full (SDK)</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowVideo((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                      showVideo
+                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                        : isDark
+                        ? "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white"
+                        : "border-zinc-200 bg-zinc-100 text-zinc-600 hover:text-black"
+                    }`}
+                  >
+                    <span>{showVideo ? "🎵 Mode Audio Saja" : "🎬 Tampilkan Video"}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Native Web Playback SDK Active View */}
-              {isSdkConnected && currentTrack && (
-                <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 mb-3 animate-in fade-in-0">
+              {/* YouTube Player Container (Always in DOM to keep audio streaming uninterrupted) */}
+              <div
+                className={`transition-all duration-300 rounded-2xl overflow-hidden bg-black ${
+                  showVideo
+                    ? "w-full aspect-video max-h-[340px] mb-3.5 border border-zinc-800 shadow-2xl relative"
+                    : "w-0 h-0 opacity-0 pointer-events-none absolute -left-[9999px]"
+                }`}
+              >
+                <div id="youtube-music-player-container" className="w-full h-full">
+                  <div id="youtube-music-player" className="w-full h-full" />
+                </div>
+              </div>
+
+              {/* Now Playing Active Card */}
+              {currentTrack && (
+                <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in-0">
                   <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
-                    {currentTrack.artworkUrl ? (
-                      <img
-                        src={currentTrack.artworkUrl}
-                        alt={currentTrack.title}
-                        className="w-14 h-14 rounded-2xl object-cover shadow-lg shrink-0"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center text-lg shrink-0">
-                        🎵
-                      </div>
-                    )}
+                    <div className="relative shrink-0">
+                      {currentTrack.artworkUrl ? (
+                        <img
+                          src={currentTrack.artworkUrl}
+                          alt={currentTrack.title}
+                          className="w-14 h-14 rounded-2xl object-cover shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center text-lg">
+                          🎵
+                        </div>
+                      )}
+                      {isPlaying && (
+                        <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center gap-0.5">
+                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" />
+                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
+                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
+                        </div>
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                          Now Playing Full
+                          {isResolvingAudio ? "Memuat Audio..." : "Playing Full 100%"}
                         </span>
-                        {isPlaying && (
-                          <div className="flex items-end gap-0.5 h-3">
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2.5" />
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-1.5" style={{ animationDelay: "0.2s" }} />
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" style={{ animationDelay: "0.4s" }} />
-                          </div>
-                        )}
+                        <span className="text-[10px] text-zinc-500">
+                          {formatDurationMs(duration * 1000)}
+                        </span>
                       </div>
                       <h4 className="text-sm font-bold text-white truncate mt-1">
                         {currentTrack.title}
@@ -1221,7 +1126,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     </div>
                   </div>
 
-                  {/* Quick Controls inside SDK Card */}
+                  {/* Quick Controls inside Card */}
                   <div className="flex items-center gap-3">
                     <button
                       onClick={playPrevious}
@@ -1261,21 +1166,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </div>
                 </div>
               )}
-
-              {/* Spotify Official IFrame Player Container (Active when SDK is not connected) */}
-              <div
-                className={`rounded-2xl overflow-hidden shadow-inner border border-zinc-800/80 bg-black/60 relative ${
-                  isSdkConnected ? "hidden" : "min-h-[152px]"
-                }`}
-              >
-                {!isEmbedReady && (
-                  <div className="absolute inset-0 flex items-center justify-center gap-2 text-xs text-zinc-400 bg-black/80 z-10">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>Menghubungkan ke Pemutar Resmi Spotify...</span>
-                  </div>
-                )}
-                <div ref={embedContainerRef} className="w-full min-h-[152px]" />
-              </div>
             </div>
 
             {/* 3. TRACK LIST TABLE (Matching Reference Image "New Music" Table) */}
@@ -1562,16 +1452,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   const rect = e.currentTarget.getBoundingClientRect();
                   const pct = (e.clientX - rect.left) / rect.width;
                   const newTime = pct * duration;
-                  setCurrentTime(newTime);
-                  if (isSdkConnected && sdkPlayerRef.current) {
-                    sdkPlayerRef.current.seek(Math.floor(newTime * 1000)).catch(() => {});
-                  } else if (controllerRef.current) {
-                    try {
-                      controllerRef.current.seek(Math.floor(newTime));
-                    } catch {}
-                  } else if (audioRef.current) {
-                    audioRef.current.currentTime = newTime;
-                  }
+                  handleSeek(newTime);
                 }}
               >
                 <div
@@ -1611,15 +1492,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             {/* Volume control */}
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => {
-                  const nextMuted = !isMuted;
-                  setIsMuted(nextMuted);
-                  const targetVol = nextMuted ? 0 : volume || 0.5;
-                  if (isSdkConnected && sdkPlayerRef.current) {
-                    sdkPlayerRef.current.setVolume(targetVol).catch(() => {});
-                  }
-                  if (audioRef.current) audioRef.current.volume = targetVol;
-                }}
+                onClick={toggleMute}
                 className="p-1 text-zinc-400 hover:text-white transition cursor-pointer"
               >
                 {isMuted ? (
@@ -1641,116 +1514,31 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 value={isMuted ? 0 : volume}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  setVolume(val);
-                  setIsMuted(val === 0);
-                  if (isSdkConnected && sdkPlayerRef.current) {
-                    sdkPlayerRef.current.setVolume(val).catch(() => {});
-                  }
-                  if (audioRef.current) audioRef.current.volume = val;
+                  handleVolumeChange(val);
                 }}
                 className="w-16 h-1 rounded-full bg-zinc-700 accent-emerald-400 cursor-pointer"
               />
             </div>
 
-            {/* Scroll to In-Page Spotify Player Button */}
+            {/* Scroll to In-Page Player Button */}
             <button
               onClick={() => {
-                const el = embedContainerRef.current;
+                const el = document.getElementById("youtube-music-player-container");
                 if (el) {
                   el.scrollIntoView({ behavior: "smooth", block: "center" });
                 }
               }}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-[11px] font-bold transition hover:bg-emerald-500/20 cursor-pointer"
-              title="Lihat Pemutar Spotify di Halaman"
+              title="Lihat Pemutar Musik di Halaman"
             >
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
               </svg>
               <span>Player</span>
             </button>
           </div>
         </div>
       </footer>
-
-      {/* ─── MODAL 0: CONNECT SPOTIFY WEB PLAYBACK SDK (MODE LAGU FULL) ─────── */}
-      {showConnectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
-          <div
-            className={`w-full max-w-lg rounded-3xl border p-6 space-y-5 shadow-2xl ${
-              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">Connect Spotify Web Playback SDK</h3>
-                  <p className="text-xs text-zinc-500">Putar lagu secara FULL 100% langsung di web</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowConnectModal(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs leading-relaxed text-zinc-300">
-              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-1">
-                <p className="font-bold">✨ Cara Kerja Spotify Web Playback SDK:</p>
-                <p>
-                  Dengan menghubungkan akun <strong>Spotify Premium</strong> Anda, web browser ini akan bertindak sebagai perangkat pemutar resmi Spotify. Seluruh lagu yang Anda klik akan terputar <strong>FULL 100%</strong> tanpa batas 30 detik!
-                </p>
-              </div>
-
-              {/* Opsi 1: Login OAuth Langsung */}
-              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 space-y-2.5">
-                <h4 className="font-bold text-white text-xs">Opsi 1: Login Otomatis ke Spotify (OAuth)</h4>
-                <p className="text-[11px] text-zinc-400">
-                  Klik tombol di bawah untuk login ke akun Spotify Anda. Pastikan Redirect URI di Spotify Developer Dashboard sudah mencakup <code className="text-emerald-400">{typeof window !== "undefined" ? window.location.origin : ""}</code>.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSpotifyOAuthLogin}
-                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                  </svg>
-                  <span>Login dengan Spotify Premium</span>
-                </button>
-              </div>
-
-              {/* Opsi 2: Masukkan User Access Token Manual */}
-              <form onSubmit={handleSaveManualToken} className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 space-y-2.5">
-                <h4 className="font-bold text-white text-xs">Opsi 2: Masukkan User Token Manual (Testing Instan)</h4>
-                <p className="text-[11px] text-zinc-400">
-                  Untuk pengujian langsung tanpa redirect, Anda juga bisa menyalin User OAuth Access Token langsung ke sini:
-                </p>
-                <input
-                  type="text"
-                  value={manualTokenInput}
-                  onChange={(e) => setManualTokenInput(e.target.value)}
-                  placeholder="Paste OAuth Access Token (Bearer)..."
-                  className="w-full px-3 py-2 rounded-xl bg-black/60 border border-zinc-700 text-white font-mono text-xs outline-none focus:border-emerald-400"
-                />
-                <button
-                  type="submit"
-                  disabled={!manualTokenInput.trim()}
-                  className="w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer"
-                >
-                  Simpan & Hubungkan Player
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── MODAL 1: SPOTIFY SETUP & API CREDENTIALS GUIDE ──────────────────── */}
       {showSetupModal && (
