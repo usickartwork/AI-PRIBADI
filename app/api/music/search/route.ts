@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
     const type = searchParams.get("type") || "track,artist,album,playlist";
-    const requestedLimit = Math.min(Math.max(Number(searchParams.get("limit")) || 20, 5), 50);
+    const category = searchParams.get("category")?.trim() || "";
+    const requestedLimit = Math.min(Math.max(Number(searchParams.get("limit")) || 30, 5), 50);
 
     const token = await getSpotifyToken();
 
@@ -71,13 +72,30 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Default search query if empty (popular Indonesian & global hits for discovery)
-    const effectiveQuery = query || "year:2024-2026";
+    // Default search query if empty, or map based on category
+    let effectiveQuery = query;
+    if (!effectiveQuery) {
+      if (category === "indonesia") {
+        effectiveQuery = "top hits indonesia OR lagu pop indonesia";
+      } else if (category === "global") {
+        effectiveQuery = "top global hits 2025 OR today top hits";
+      } else if (category === "viral") {
+        effectiveQuery = "viral hits 2025 OR viral tiktok";
+      } else if (category === "chill") {
+        effectiveQuery = "chill vibes acoustic lofi relax";
+      } else if (category === "workout") {
+        effectiveQuery = "workout energy motivation pop dance";
+      } else if (category === "rock") {
+        effectiveQuery = "rock hits classic alternative";
+      } else {
+        effectiveQuery = "top hits 2025 OR year:2024-2026";
+      }
+    }
 
     // Spotify developer tier strictly caps single request limit to maximum 10.
-    // To satisfy requestedLimit (e.g. 20 or 30), fetch pages of 10 concurrently.
+    // To satisfy requestedLimit (e.g. 30, 40, or 50), fetch pages of 10 concurrently.
     const PAGE_SIZE = 10;
-    const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 4); // Max 40 items
+    const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 5); // Max 50 items
 
     const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
       const offset = pageIdx * PAGE_SIZE;

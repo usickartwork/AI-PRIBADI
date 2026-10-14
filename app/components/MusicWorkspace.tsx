@@ -29,7 +29,7 @@ interface MusicWorkspaceProps {
 
 type SubTab = "home" | "search" | "playlists";
 
-// Curated starter tracks for initial preview
+// Curated starter tracks for initial preview (Rich selection of 16 popular global & Indonesian hits)
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
     id: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
@@ -101,7 +101,205 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     uri: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
     youtubeVideoId: "l7MaKmKJqoc",
   },
+  {
+    id: "spotify:track:6dOtVTDmmpvnLNaRLtuX9Y",
+    provider: "spotify",
+    providerItemId: "6dOtVTDmmpvnLNaRLtuX9Y",
+    itemType: "track",
+    title: "BIRDS OF A FEATHER",
+    artistNames: ["Billie Eilish"],
+    albumTitle: "HIT ME HARD AND SOFT",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27371d62ea7ea8a5be92d3c1f62",
+    durationMs: 196884,
+    externalUrl: "https://open.spotify.com/track/6dOtVTDmmpvnLNaRLtuX9Y",
+    uri: "spotify:track:6dOtVTDmmpvnLNaRLtuX9Y",
+    youtubeVideoId: "d5gf9dXbPi0",
+  },
+  {
+    id: "spotify:track:2plbrEY59IikOBgB57599W",
+    provider: "spotify",
+    providerItemId: "2plbrEY59IikOBgB57599W",
+    itemType: "track",
+    title: "Die With A Smile",
+    artistNames: ["Lady Gaga", "Bruno Mars"],
+    albumTitle: "Die With A Smile",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27382ea2e9e1f582d6e35cf4ef9",
+    durationMs: 251667,
+    externalUrl: "https://open.spotify.com/track/2plbrEY59IikOBgB57599W",
+    uri: "spotify:track:2plbrEY59IikOBgB57599W",
+    youtubeVideoId: "kPa7bsKwL-c",
+  },
+  {
+    id: "spotify:track:2qSkXiYg9xqBtA3auRPCgg",
+    provider: "spotify",
+    providerItemId: "2qSkXiYg9xqBtA3auRPCgg",
+    itemType: "track",
+    title: "Espresso",
+    artistNames: ["Sabrina Carpenter"],
+    albumTitle: "Short n' Sweet",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fd8d7a8d96871e791cb1f628",
+    durationMs: 175459,
+    externalUrl: "https://open.spotify.com/track/2qSkXiYg9xqBtA3auRPCgg",
+    uri: "spotify:track:2qSkXiYg9xqBtA3auRPCgg",
+    youtubeVideoId: "Qdcg7d8i39E",
+  },
+  {
+    id: "spotify:track:5enxwA8aAbwZbf5ncJizRY",
+    provider: "spotify",
+    providerItemId: "5enxwA8aAbwZbf5ncJizRY",
+    itemType: "track",
+    title: "Taste",
+    artistNames: ["Sabrina Carpenter"],
+    albumTitle: "Short n' Sweet",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fd8d7a8d96871e791cb1f628",
+    durationMs: 157279,
+    externalUrl: "https://open.spotify.com/track/5enxwA8aAbwZbf5ncJizRY",
+    uri: "spotify:track:5enxwA8aAbwZbf5ncJizRY",
+    youtubeVideoId: "3f538x0mF0A",
+  },
+  {
+    id: "spotify:track:1BxfuPKGuaTgP7aM0XbdQA",
+    provider: "spotify",
+    providerItemId: "1BxfuPKGuaTgP7aM0XbdQA",
+    itemType: "track",
+    title: "Cruel Summer",
+    artistNames: ["Taylor Swift"],
+    albumTitle: "Lover",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647",
+    durationMs: 178426,
+    externalUrl: "https://open.spotify.com/track/1BxfuPKGuaTgP7aM0XbdQA",
+    uri: "spotify:track:1BxfuPKGuaTgP7aM0XbdQA",
+    youtubeVideoId: "ic8j13piAhQ",
+  },
+  {
+    id: "spotify:track:71BbaJkM4bW31HqM1e2q5y",
+    provider: "spotify",
+    providerItemId: "71BbaJkM4bW31HqM1e2q5y",
+    itemType: "track",
+    title: "Satu Bulan",
+    artistNames: ["Bernadya"],
+    albumTitle: "Sialnya, Hidup Harus Tetap Berjalan",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e04e9c60e34c38d415cb27ea",
+    durationMs: 195431,
+    externalUrl: "https://open.spotify.com/track/71BbaJkM4bW31HqM1e2q5y",
+    uri: "spotify:track:71BbaJkM4bW31HqM1e2q5y",
+    youtubeVideoId: "kXF3V8daH_o",
+  },
+  {
+    id: "spotify:track:4jXl6VOGUieZvQI4902931",
+    provider: "spotify",
+    providerItemId: "4jXl6VOGUieZvQI4902931",
+    itemType: "track",
+    title: "Evaluasi",
+    artistNames: ["Hindia"],
+    albumTitle: "Menari Dengan Bayangan",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2732997b69c2794eb827a5ab06b",
+    durationMs: 204000,
+    externalUrl: "https://open.spotify.com/track/4jXl6VOGUieZvQI4902931",
+    uri: "spotify:track:4jXl6VOGUieZvQI4902931",
+    youtubeVideoId: "cWn8w4Y2Hek",
+  },
+  {
+    id: "spotify:track:2Fxq9o3nF4aXw1K2v8w1e4",
+    provider: "spotify",
+    providerItemId: "2Fxq9o3nF4aXw1K2v8w1e4",
+    itemType: "track",
+    title: "Rayuan Perempuan Gila",
+    artistNames: ["Nadin Amizah"],
+    albumTitle: "Untuk Dunia, Cinta, dan Kotornya",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2733c91a329432fefb7bc8b42ce",
+    durationMs: 297500,
+    externalUrl: "https://open.spotify.com/track/2Fxq9o3nF4aXw1K2v8w1e4",
+    uri: "spotify:track:2Fxq9o3nF4aXw1K2v8w1e4",
+    youtubeVideoId: "ZgT6xY1V4eA",
+  },
+  {
+    id: "spotify:track:1hxaaA0G618K1oW6w9s1s2",
+    provider: "spotify",
+    providerItemId: "1hxaaA0G618K1oW6w9s1s2",
+    itemType: "track",
+    title: "Viva La Vida",
+    artistNames: ["Coldplay"],
+    albumTitle: "Viva La Vida or Death and All His Friends",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e2e352d89826aef6dbd5ff8f",
+    durationMs: 242000,
+    externalUrl: "https://open.spotify.com/track/1hxaaA0G618K1oW6w9s1s2",
+    uri: "spotify:track:1hxaaA0G618K1oW6w9s1s2",
+    youtubeVideoId: "dvgZkm1xWPE",
+  },
+  {
+    id: "spotify:track:5nujrmhLynf4yMoTvjACaq",
+    provider: "spotify",
+    providerItemId: "5nujrmhLynf4yMoTvjACaq",
+    itemType: "track",
+    title: "Levitating",
+    artistNames: ["Dua Lipa"],
+    albumTitle: "Future Nostalgia",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273bd26ede1ae6932772020a665",
+    durationMs: 203807,
+    externalUrl: "https://open.spotify.com/track/5nujrmhLynf4yMoTvjACaq",
+    uri: "spotify:track:5nujrmhLynf4yMoTvjACaq",
+    youtubeVideoId: "TUVcZfQe-Kw",
+  },
+  {
+    id: "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+    provider: "spotify",
+    providerItemId: "4u7EnebtmKWzUH433cf5Qv",
+    itemType: "track",
+    title: "Bohemian Rhapsody",
+    artistNames: ["Queen"],
+    albumTitle: "A Night At The Opera",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ce4f1737bc8a646c8c4bd25a",
+    durationMs: 354320,
+    externalUrl: "https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv",
+    uri: "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+    youtubeVideoId: "fJ9rUzIMcZQ",
+  },
 ];
+
+// Spotify-style Featured Curated Collections for the Home Tab
+const SPOTIFY_FEATURED_COLLECTIONS = [
+  {
+    id: "global",
+    name: "Today's Top Hits",
+    description: "Lagu terpopuler & nomor 1 di seluruh dunia saat ini.",
+    tag: "Global Hits",
+  },
+  {
+    id: "indonesia",
+    name: "Top Hits Indonesia",
+    description: "Lagu pop & hits viral paling banyak didengarkan di Indonesia.",
+    tag: "Indonesia",
+  },
+  {
+    id: "viral",
+    name: "Trending & Viral",
+    description: "Koleksi lagu paling viral di media sosial dan tangga lagu terkini.",
+    tag: "Trending",
+  },
+  {
+    id: "chill",
+    name: "Chill & Santai",
+    description: "Petikan gitar akustik & lo-fi santai untuk menemani istirahat atau kerja.",
+    tag: "Relax & Lo-Fi",
+  },
+  {
+    id: "workout",
+    name: "Workout Energy",
+    description: "Beat cepat berenergi tinggi untuk olahraga dan penambah semangat.",
+    tag: "Energy",
+  },
+] as const;
+
+const SPOTIFY_HOME_CATEGORIES = [
+  { id: "all", label: "Semua Lagu" },
+  { id: "indonesia", label: "Populer Indonesia" },
+  { id: "global", label: "Top Hits Global" },
+  { id: "viral", label: "Trending & Viral" },
+  { id: "chill", label: "Santai & Chill" },
+  { id: "workout", label: "Workout & Energy" },
+  { id: "rock", label: "Rock & Alternative" },
+] as const;
 
 export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: MusicWorkspaceProps) {
   // Navigation & View State (Strictly 3 tabs: home, search, playlists)
@@ -111,7 +309,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSpotifyConfigured, setIsSpotifyConfigured] = useState<boolean | null>(null);
 
-  // Music Catalog State
+  // Home Tab Category Filter State
+  const [homeCategory, setHomeCategory] = useState<string>("all");
+
+  // Music Catalog State (Defaults to rich 16-song starter selection)
   const [tracks, setTracks] = useState<MusicItem[]>(FEATURED_STARTER_TRACKS);
   const [artists, setArtists] = useState<MusicItem[]>([]);
   const [albums, setAlbums] = useState<MusicItem[]>([]);
@@ -136,8 +337,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [queue, setQueue] = useState<MusicItem[]>(FEATURED_STARTER_TRACKS);
   const [queueIndex, setQueueIndex] = useState(0);
 
-  // Modals & Drawers
-  const [showLyricsModal, setShowLyricsModal] = useState(false);
+  // Modals & Drawers (Lyrics modal removed as requested)
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
@@ -300,18 +500,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // ─── Initial Spotify Search / Catalog Fetch ─────────────────────────────────
-  const fetchSpotifyMusic = useCallback(async (query: string = "") => {
+  // ─── Initial & Category-Based Spotify Catalog Fetch (Loads 50 songs) ──────
+  const fetchSpotifyMusic = useCallback(async (query: string = "", category: string = "all", limit: number = 50) => {
     setIsSearching(true);
     setSearchError(null);
     try {
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=20`);
+      const categoryParam = category !== "all" ? `&category=${encodeURIComponent(category)}` : "";
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}${categoryParam}&limit=${limit}`);
       const json = await res.json();
 
       setIsSpotifyConfigured(json.configured ?? false);
 
       if (json.success && json.data) {
-        setTracks(json.data.tracks || []);
+        const fetchedTracks = json.data.tracks || [];
+        if (fetchedTracks.length > 0) {
+          setTracks(fetchedTracks);
+        }
         if (json.data.artists) setArtists(json.data.artists);
         if (json.data.albums) setAlbums(json.data.albums);
         if (json.data.playlists) setPlaylistsList(json.data.playlists);
@@ -325,9 +529,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   }, []);
 
+  // Initial load: Fetch 50 tracks from Spotify
   useEffect(() => {
-    fetchSpotifyMusic();
+    fetchSpotifyMusic("", "all", 50);
   }, [fetchSpotifyMusic]);
+
+  // Handle Home category selection
+  const handleSelectCategory = (catId: string, autoPlay: boolean = false) => {
+    setHomeCategory(catId);
+    fetchSpotifyMusic("", catId, 50).then(() => {
+      if (autoPlay && tracks.length > 0) {
+        playTrack(tracks[0]);
+      }
+    });
+  };
 
   // ─── Debounced Search ───────────────────────────────────────────────────────
   const handleSearchChange = (val: string) => {
@@ -341,14 +556,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
 
     if (!val.trim()) {
-      fetchSpotifyMusic("");
+      fetchSpotifyMusic("", homeCategory, 50);
       return;
     }
 
     searchTimeoutRef.current = setTimeout(() => {
       addRecentSearch(val.trim());
       setRecentSearches(getRecentSearches());
-      fetchSpotifyMusic(val.trim());
+      fetchSpotifyMusic(val.trim(), "all", 50);
     }, 350);
   };
 
@@ -357,7 +572,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (subTab !== "search") setSubTab("search");
     if (selectedLocalPlaylist) setSelectedLocalPlaylist(null);
     if (isViewingLiked) setIsViewingLiked(false);
-    fetchSpotifyMusic(term);
+    fetchSpotifyMusic(term, "all", 50);
   };
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
@@ -673,6 +888,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }, 5500);
     return () => clearInterval(interval);
   }, [isHeroHovered, heroSlides.length]);
+
+  // Current category label
+  const currentCategoryLabel = useMemo(() => {
+    const found = SPOTIFY_HOME_CATEGORIES.find((c) => c.id === homeCategory);
+    return found ? found.label : "Semua Lagu";
+  }, [homeCategory]);
 
   // ─── Reusable Track List Table (Theme Styled, Zero Emojis) ──────────────────
   const renderTrackTable = (
@@ -1045,7 +1266,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 bg-transparent">
         <div className="px-4 sm:px-8 py-6 space-y-8">
-          {/* ─── TAB 1: HOME ────────────────────────────────────────────────── */}
+          {/* ─── TAB 1: HOME (Rich Spotify Lists & Sections) ───────────────── */}
           {subTab === "home" && (
             <div className="space-y-8 animate-in fade-in-0 duration-200">
               {/* Dynamic Changing Hero Banner Carousel */}
@@ -1173,16 +1394,122 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               </div>
 
-              {/* Track Catalog */}
-              <div className="space-y-4">
+              {/* ─── SPOTIFY CATEGORY PILL SELECTOR ───────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {SPOTIFY_HOME_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => handleSelectCategory(cat.id)}
+                      className={`px-4 py-2 rounded-2xl text-xs font-bold shrink-0 transition cursor-pointer ${
+                        homeCategory === cat.id
+                          ? isDark
+                            ? "bg-white text-black shadow-md"
+                            : "bg-black text-white shadow-md"
+                          : isDark
+                          ? "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800"
+                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black border border-zinc-200"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── SECTION 1: SPOTIFY FEATURED PLAYLISTS / COLLECTIONS ───── */}
+              <div className="space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold tracking-tight">New Music</h2>
+                    <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
+                      Tangga Lagu & Playlist Spotify
+                    </h3>
                     <p className="text-xs text-zinc-500">
-                      {tracks.length} trek musik pilihan dari katalog Spotify
+                      Koleksi musik kurasi terpopuler untuk diputar langsung
                     </p>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                  {SPOTIFY_FEATURED_COLLECTIONS.map((col) => (
+                    <div
+                      key={col.id}
+                      onClick={() => handleSelectCategory(col.id)}
+                      className={`group relative p-4 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between h-44 overflow-hidden ${
+                        homeCategory === col.id
+                          ? isDark
+                            ? "bg-zinc-800/90 border-zinc-500 shadow-xl"
+                            : "bg-zinc-200/90 border-zinc-400 shadow-lg"
+                          : isDark
+                          ? "bg-[#18181f]/80 hover:bg-zinc-800/60 border-zinc-800/90 hover:border-zinc-700 shadow-md"
+                          : "bg-white hover:bg-zinc-50 border-zinc-200 hover:border-zinc-300 shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-zinc-300">
+                          {col.tag}
+                        </span>
+                        {/* Quick Play Button on card hover */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectCategory(col.id, true);
+                          }}
+                          className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg hover:scale-110 cursor-pointer"
+                          title={`Putar ${col.name}`}
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-extrabold text-white group-hover:underline">
+                          {col.name}
+                        </h4>
+                        <p className="text-[11px] text-zinc-400 line-clamp-2 leading-tight">
+                          {col.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── SECTION 2: THE MAIN TRACK LIST (Lots of Songs from Spotify) ─ */}
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                      {currentCategoryLabel}
+                    </h2>
+                    <p className="text-xs text-zinc-500">
+                      {isSearching
+                        ? "Memuat daftar lagu dari Spotify..."
+                        : `${tracks.length} lagu tersedia dari katalog Spotify`}
+                    </p>
+                  </div>
+
+                  {tracks.length > 0 && (
+                    <button
+                      onClick={() => playAllTracks(tracks)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      <span>Putar Semua ({tracks.length} Lagu)</span>
+                    </button>
+                  )}
+                </div>
+
+                {isSearching && (
+                  <div className="flex items-center gap-2 py-6 justify-center text-xs text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-zinc-400 animate-ping" />
+                    <span>Mengambil daftar lagu Spotify...</span>
+                  </div>
+                )}
 
                 {renderTrackTable(tracks)}
               </div>
@@ -1455,7 +1782,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       className={`p-5 rounded-3xl border transition cursor-pointer group flex flex-col justify-between h-44 ${
                         isDark
                           ? "bg-gradient-to-br from-zinc-900/90 via-[#16161c] to-zinc-950 border-zinc-800 hover:border-zinc-700 shadow-lg"
-                          : "bg-gradient-to-br from-zinc-100 to-white border-zinc-200 hover:border-zinc-300 shadow-md"
+                            : "bg-gradient-to-br from-zinc-100 to-white border-zinc-200 hover:border-zinc-300 shadow-md"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -1537,7 +1864,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       </main>
 
-      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Theme Styled: Zero Emojis, No Emerald) ─ */}
+      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Lyrics button removed as requested) ─── */}
       <footer
         className={`shrink-0 border-t z-30 px-4 sm:px-8 py-3 backdrop-blur-xl transition ${
           isDark
@@ -1679,18 +2006,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
           </div>
 
-          {/* Right: Lyrics, Queue, Volume */}
+          {/* Right: Queue & Volume (Lyrics button removed as requested) */}
           <div className="flex items-center justify-end gap-2.5 w-full sm:w-1/4">
-            <button
-              onClick={() => setShowLyricsModal(true)}
-              className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
-              title="Lirik"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </button>
-
             <button
               onClick={() => setShowQueueModal(true)}
               className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer relative"
@@ -1796,58 +2113,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       )}
 
-      {/* ─── MODAL 2: LYRICS MODAL ───────────────────────────────────────────── */}
-      {showLyricsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
-          <div
-            className={`w-full max-w-md rounded-3xl border p-6 space-y-4 shadow-2xl ${
-              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold">Lirik Lagu</h3>
-                <p className="text-xs text-zinc-500">{currentTrack?.title} — {currentTrack?.artistNames.join(", ")}</p>
-              </div>
-              <button
-                onClick={() => setShowLyricsModal(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="py-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center mx-auto text-zinc-400">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-                </svg>
-              </div>
-              <h4 className="text-sm font-bold">Lirik Terlisensi Belum Tersedia</h4>
-              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Sesuai ketentuan hak cipta Spotify Web API dan lisensi resmi, lirik lengkap dilindungi hak cipta penerbit.
-              </p>
-              <div className="pt-2">
-                <a
-                  href={currentTrack?.externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold hover:bg-zinc-800 transition text-zinc-200"
-                >
-                  <span>Buka Lirik di Spotify App</span>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL 3: QUEUE MODAL ────────────────────────────────────────────── */}
+      {/* ─── MODAL 2: QUEUE MODAL ────────────────────────────────────────────── */}
       {showQueueModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
           <div
@@ -1923,7 +2189,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       )}
 
-      {/* ─── MODAL 4: CREATE / ADD TO PLAYLIST MODAL ─────────────────────────── */}
+      {/* ─── MODAL 3: CREATE / ADD TO PLAYLIST MODAL ─────────────────────────── */}
       {(showCreatePlaylistModal || addToPlaylistTrack) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
           <div
