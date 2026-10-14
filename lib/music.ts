@@ -63,22 +63,22 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const SPOTIFY_GENRES = [
-  { id: "pop", label: "Pop", emoji: "🎵" },
-  { id: "rock", label: "Rock", emoji: "🎸" },
-  { id: "hip-hop", label: "Hip Hop", emoji: "🎤" },
-  { id: "r-n-b", label: "R&B", emoji: "🎶" },
-  { id: "electronic", label: "Electronic", emoji: "⚡" },
-  { id: "jazz", label: "Jazz", emoji: "🎷" },
-  { id: "classical", label: "Classical", emoji: "🎻" },
-  { id: "indie", label: "Indie", emoji: "🎹" },
-  { id: "k-pop", label: "K-Pop", emoji: "🌸" },
-  { id: "metal", label: "Metal", emoji: "🤘" },
-  { id: "country", label: "Country", emoji: "🤠" },
-  { id: "reggae", label: "Reggae", emoji: "🏝️" },
-  { id: "latin", label: "Latin", emoji: "💃" },
-  { id: "blues", label: "Blues", emoji: "🎺" },
-  { id: "soul", label: "Soul", emoji: "❤️" },
-  { id: "anime", label: "Anime", emoji: "🌀" },
+  { id: "pop", label: "Pop" },
+  { id: "rock", label: "Rock" },
+  { id: "hip-hop", label: "Hip Hop" },
+  { id: "r-n-b", label: "R&B" },
+  { id: "electronic", label: "Electronic" },
+  { id: "jazz", label: "Jazz" },
+  { id: "classical", label: "Classical" },
+  { id: "indie", label: "Indie" },
+  { id: "k-pop", label: "K-Pop" },
+  { id: "metal", label: "Metal" },
+  { id: "country", label: "Country" },
+  { id: "reggae", label: "Reggae" },
+  { id: "latin", label: "Latin" },
+  { id: "blues", label: "Blues" },
+  { id: "soul", label: "Soul" },
+  { id: "acoustic", label: "Acoustic" },
 ] as const;
 
 export const MOOD_SHORTCUTS = [

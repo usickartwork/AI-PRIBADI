@@ -19,7 +19,6 @@ import {
   clearRecentSearches,
   formatDurationMs,
   generatePlaylistId,
-  getSpotifyEmbedUrl,
 } from "@/lib/music";
 
 interface MusicWorkspaceProps {
@@ -29,9 +28,9 @@ interface MusicWorkspaceProps {
   userName?: string;
 }
 
-type SubTab = "discover" | "artists" | "albums" | "liked" | "playlists" | "made_for_you";
+type SubTab = "home" | "search" | "playlists";
 
-// Curated fallback tracks for initial offline/unconfigured preview
+// Curated fallback starter tracks for initial preview
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
     id: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
@@ -106,8 +105,8 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
 ];
 
 export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: MusicWorkspaceProps) {
-  // Navigation & View State
-  const [subTab, setSubTab] = useState<SubTab>("discover");
+  // Navigation & View State (Strictly 3 tabs: home, search, playlists)
+  const [subTab, setSubTab] = useState<SubTab>("home");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -123,6 +122,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [likedSongs, setLikedSongs] = useState<MusicItem[]>([]);
   const [localPlaylists, setLocalPlaylists] = useState<LocalPlaylist[]>([]);
   const [selectedLocalPlaylist, setSelectedLocalPlaylist] = useState<LocalPlaylist | null>(null);
+  const [isViewingLiked, setIsViewingLiked] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   // Playback & Queue State
@@ -146,16 +146,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
 
-  // YouTube Full Song Player State & Refs
+  // YouTube Full Song Streaming Refs
   const ytPlayerRef = useRef<any>(null);
   const isYtReadyRef = useRef<boolean>(false);
   const [isYtReady, setIsYtReady] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
   const [isResolvingAudio, setIsResolvingAudio] = useState(false);
   const pendingVideoIdRef = useRef<string | null>(null);
   const [currentVideoId, setCurrentVideoId] = useState<string>("3BFTio5296w");
 
-  // Synchronized state refs for callbacks (avoid stale closures)
+  // Synchronized state refs for callbacks (prevent stale closures)
   const queueRef = useRef<MusicItem[]>(queue);
   const queueIndexRef = useRef<number>(queueIndex);
   const repeatModeRef = useRef<"off" | "all" | "one">(repeatMode);
@@ -333,8 +332,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     if (val.trim()) {
-      if (subTab !== "discover") setSubTab("discover");
+      if (subTab !== "search") setSubTab("search");
       if (selectedLocalPlaylist) setSelectedLocalPlaylist(null);
+      if (isViewingLiked) setIsViewingLiked(false);
     }
 
     if (!val.trim()) {
@@ -351,8 +351,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   const handleSelectRecentSearch = (term: string) => {
     setSearchQuery(term);
-    if (subTab !== "discover") setSubTab("discover");
+    if (subTab !== "search") setSubTab("search");
     if (selectedLocalPlaylist) setSelectedLocalPlaylist(null);
+    if (isViewingLiked) setIsViewingLiked(false);
     fetchSpotifyMusic(term);
   };
 
@@ -420,6 +421,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       pendingVideoIdRef.current = targetVideoId;
     }
   }, []);
+
+  const playAllTracks = (items: MusicItem[]) => {
+    if (!items || items.length === 0) return;
+    setQueue(items);
+    setQueueIndex(0);
+    saveQueueState({ items, currentIndex: 0, updatedAt: new Date().toISOString() });
+    playTrack(items[0]);
+  };
 
   const togglePlayPause = () => {
     if (!currentTrack) {
@@ -581,6 +590,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setAddToPlaylistTrack(null);
   };
 
+  const removeTrackFromPlaylist = (playlistId: string, trackId: string) => {
+    const updated = localPlaylists.map((pl) => {
+      if (pl.id === playlistId) {
+        const nextItems = pl.items.filter((item) => item.id !== trackId);
+        const updatedPl = { ...pl, items: nextItems, updatedAt: new Date().toISOString() };
+        if (selectedLocalPlaylist?.id === playlistId) {
+          setSelectedLocalPlaylist(updatedPl);
+        }
+        return updatedPl;
+      }
+      return pl;
+    });
+    setLocalPlaylists(updated);
+    saveLocalPlaylists(updated);
+  };
+
   const deletePlaylist = (playlistId: string) => {
     if (!confirm("Hapus playlist ini?")) return;
     const updated = localPlaylists.filter((pl) => pl.id !== playlistId);
@@ -591,10 +616,176 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   };
 
-  // ─── Featured Hero Item ─────────────────────────────────────────────────────
+  // Featured Hero Item for Home Tab
   const heroTrack = useMemo(() => {
     return tracks[0] || FEATURED_STARTER_TRACKS[0];
   }, [tracks]);
+
+  // ─── Reusable Track List Table (Theme Styled, Zero Emojis) ──────────────────
+  const renderTrackTable = (
+    items: MusicItem[],
+    options?: {
+      emptyMessage?: string;
+      showRemoveFromPlaylist?: boolean;
+      onRemoveFromPlaylist?: (trackId: string) => void;
+    }
+  ) => {
+    if (items.length === 0) {
+      return (
+        <div className="py-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-center mx-auto text-zinc-400">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-bold text-zinc-300">
+            {options?.emptyMessage || "Belum ada lagu"}
+          </h4>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {/* Track Table Header */}
+        <div
+          className={`grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded-xl ${
+            isDark ? "text-zinc-500 bg-zinc-900/40" : "text-zinc-400 bg-zinc-100/60"
+          }`}
+        >
+          <div className="col-span-1 text-center">#</div>
+          <div className="col-span-5 sm:col-span-5">TITLE</div>
+          <div className="hidden sm:block sm:col-span-3">ALBUM</div>
+          <div className="col-span-4 sm:col-span-2 text-right">TIME</div>
+          <div className="col-span-2 sm:col-span-1 text-center">ACTION</div>
+        </div>
+
+        {/* Track Rows */}
+        {items.map((track, idx) => {
+          const isCurrent = currentTrack?.id === track.id;
+          const isTrackPlaying = isCurrent && isPlaying;
+          const isLiked = isTrackLiked(track.id);
+
+          return (
+            <div
+              key={`${track.id}-${idx}`}
+              onClick={() => playTrack(track)}
+              className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 rounded-2xl transition cursor-pointer group ${
+                isCurrent
+                  ? isDark
+                    ? "bg-zinc-800/80 border border-zinc-700/80 shadow-md"
+                    : "bg-zinc-200/80 border border-zinc-300"
+                  : isDark
+                  ? "hover:bg-zinc-900/80 border border-transparent hover:border-zinc-800"
+                  : "hover:bg-zinc-100/80 border border-transparent"
+              }`}
+            >
+              {/* # Index / Play State */}
+              <div className="col-span-1 flex items-center justify-center text-xs font-bold text-zinc-500">
+                {isTrackPlaying ? (
+                  <div className="flex items-end gap-0.5 h-3.5">
+                    <span className="w-1 bg-white rounded-full animate-bounce h-3" />
+                    <span className="w-1 bg-white rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
+                    <span className="w-1 bg-white rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
+                  </div>
+                ) : (
+                  <span className="group-hover:hidden">{idx + 1}</span>
+                )}
+                {!isTrackPlaying && (
+                  <span className="hidden group-hover:block text-zinc-300">
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+
+              {/* Title + Thumbnail + Artist */}
+              <div className="col-span-5 sm:col-span-5 flex items-center gap-3 min-w-0">
+                {track.artworkUrl ? (
+                  <img
+                    src={track.artworkUrl}
+                    alt={track.title}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-zinc-400">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                    </svg>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h4
+                    className={`text-xs sm:text-sm font-semibold truncate ${
+                      isCurrent ? "text-white font-bold" : isDark ? "text-white" : "text-zinc-900"
+                    }`}
+                  >
+                    {track.title}
+                  </h4>
+                  <p className="text-[11px] text-zinc-500 truncate">
+                    {track.artistNames.join(", ")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Album Title */}
+              <div className="hidden sm:block sm:col-span-3 text-xs text-zinc-400 truncate">
+                {track.albumTitle || "—"}
+              </div>
+
+              {/* Duration */}
+              <div className="col-span-4 sm:col-span-2 text-right text-xs font-medium text-zinc-400">
+                {track.durationMs ? formatDurationMs(track.durationMs) : "3:30"}
+              </div>
+
+              {/* Actions: Heart + Add to Playlist + Optional Remove */}
+              <div
+                className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => toggleLike(track)}
+                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                    isLiked
+                      ? "text-red-500 hover:scale-110"
+                      : "text-zinc-500 hover:text-white"
+                  }`}
+                  title={isLiked ? "Hapus dari disukai" : "Sukai"}
+                >
+                  <svg className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+
+                {options?.showRemoveFromPlaylist && options.onRemoveFromPlaylist ? (
+                  <button
+                    onClick={() => options.onRemoveFromPlaylist!(track.id)}
+                    className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition cursor-pointer"
+                    title="Hapus dari Playlist"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setAddToPlaylistTrack(track)}
+                    className="p-1.5 rounded-lg text-zinc-500 hover:text-white transition cursor-pointer"
+                    title="Tambahkan ke Playlist"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -625,7 +816,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
       {/* ─── MAIN WORKSPACE BODY (SIDEBAR + CONTENT) ─────────────────────────── */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* ─── LEFT SUB-SIDEBAR (Reference design: MuzixStra style) ───────────── */}
+        {/* ─── LEFT SUB-SIDEBAR (Strictly 3 Navigation Panels) ───────────────── */}
         <aside
           className={`w-56 sm:w-64 shrink-0 flex flex-col justify-between p-4 border-r transition-all z-10 ${
             isDark
@@ -652,7 +843,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               </div>
 
-              {/* 3-dots Option button */}
+              {/* Settings button */}
               <button
                 onClick={() => setShowSetupModal(true)}
                 title="Pengaturan Spotify"
@@ -668,15 +859,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Navigation Menu List */}
+            {/* Navigation Menu List: Strictly 3 Tabs (Home, Search, Playlist) */}
             <nav className="space-y-1 text-xs font-semibold">
+              {/* 1. Home */}
               <button
                 onClick={() => {
-                  setSubTab("discover");
+                  setSubTab("home");
                   setSelectedLocalPlaylist(null);
+                  setIsViewingLiked(false);
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "discover" && !selectedLocalPlaylist
+                  subTab === "home"
                     ? isDark
                       ? "bg-white/10 text-white font-bold"
                       : "bg-black/10 text-black font-bold"
@@ -686,18 +879,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 }`}
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
-                <span>Recently Added</span>
+                <span>Home</span>
               </button>
 
+              {/* 2. Search */}
               <button
                 onClick={() => {
-                  setSubTab("artists");
+                  setSubTab("search");
                   setSelectedLocalPlaylist(null);
+                  setIsViewingLiked(false);
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "artists"
+                  subTab === "search"
                     ? isDark
                       ? "bg-white/10 text-white font-bold"
                       : "bg-black/10 text-black font-bold"
@@ -707,69 +902,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 }`}
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <span>Artists</span>
+                <span>Search</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setSubTab("albums");
-                  setSelectedLocalPlaylist(null);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "albums"
-                    ? isDark
-                      ? "bg-white/10 text-white font-bold"
-                      : "bg-black/10 text-black font-bold"
-                    : isDark
-                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
-                }`}
-              >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                <span>Albums</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSubTab("liked");
-                  setSelectedLocalPlaylist(null);
-                }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "liked"
-                    ? isDark
-                      ? "bg-white/10 text-white font-bold"
-                      : "bg-black/10 text-black font-bold"
-                    : isDark
-                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <svg className="w-4 h-4 shrink-0 text-red-500 fill-red-500" viewBox="0 0 24 24">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                  </svg>
-                  <span>Liked Songs</span>
-                </div>
-                {likedSongs.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
-                    isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
-                  }`}>
-                    {likedSongs.length}
-                  </span>
-                )}
-              </button>
-
+              {/* 3. Playlist */}
               <button
                 onClick={() => {
                   setSubTab("playlists");
                   setSelectedLocalPlaylist(null);
+                  setIsViewingLiked(false);
                 }}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "playlists" && !selectedLocalPlaylist
+                  subTab === "playlists"
                     ? isDark
                       ? "bg-white/10 text-white font-bold"
                       : "bg-black/10 text-black font-bold"
@@ -782,7 +928,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                   </svg>
-                  <span>Playlists</span>
+                  <span>Playlist</span>
                 </div>
                 <span
                   onClick={(e) => {
@@ -796,27 +942,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                   </svg>
                 </span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSubTab("made_for_you");
-                  setSelectedLocalPlaylist(null);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
-                  subTab === "made_for_you"
-                    ? isDark
-                      ? "bg-white/10 text-white font-bold"
-                      : "bg-black/10 text-black font-bold"
-                    : isDark
-                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
-                }`}
-              >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span>Made For You</span>
               </button>
             </nav>
           </div>
@@ -852,7 +977,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
         {/* ─── RIGHT MAIN VIEW AREA ───────────────────────────────────────────── */}
         <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28">
-          {/* Top Bar: Hamburger, Search, User Info */}
+          {/* Top Bar: Hamburger, Search, API Configuration status */}
           <div className="sticky top-0 z-20 backdrop-blur-md px-4 sm:px-8 py-3.5 border-b flex flex-wrap items-center justify-between gap-3 transition">
             <div className="flex items-center gap-3 flex-1 min-w-[240px]">
               {onTogglePanel && (
@@ -875,6 +1000,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => {
+                    if (subTab !== "search") setSubTab("search");
+                  }}
                   placeholder="Cari lagu, artis, album, atau genre..."
                   className={`w-full rounded-2xl border pl-10 pr-9 py-2 text-xs sm:text-sm outline-none transition ${
                     isDark
@@ -903,453 +1031,470 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Right Status Badge */}
+            {/* Right Status / Setup Button (Clean Theme Colors, No Emote, No Emerald) */}
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Full Music 100% Aktif</span>
-              </div>
-
               {isSpotifyConfigured === false && (
                 <button
                   onClick={() => setShowSetupModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                    isDark
+                      ? "bg-zinc-800/80 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                      : "bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200"
+                  }`}
                 >
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse" />
                   <span>Setup API</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* ─── CONTENT AREA ─────────────────────────────────────────────────── */}
+          {/* ─── CONTENT AREA (Organized strictly into 3 Tabs) ────────────────── */}
           <div className="px-4 sm:px-8 py-6 space-y-8">
-            {/* 1. HERO BANNER (Reference design hero banner with astronaut / atmospheric style) */}
-            {subTab === "discover" && !searchQuery && (
-              <div
-                className={`relative rounded-3xl overflow-hidden p-6 sm:p-10 border shadow-2xl transition ${
-                  isDark ? "bg-[#18181f] border-zinc-800" : "bg-zinc-900 text-white border-zinc-800"
-                }`}
-              >
-                {/* Visualizer Backdrop Glow */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10" />
-                {heroTrack.artworkUrl && (
-                  <img
-                    src={heroTrack.artworkUrl}
-                    alt={heroTrack.title}
-                    className="absolute right-0 top-0 h-full w-2/3 object-cover object-center filter blur-xs opacity-40 scale-105 pointer-events-none"
-                  />
-                )}
-
-                <div className="relative z-20 max-w-lg space-y-3">
-                  <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-white/20 text-white backdrop-blur-md">
-                    Featured Discovery
-                  </span>
-                  <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
-                    {heroTrack.title}
-                  </h1>
-                  <p className="text-xs sm:text-sm font-medium text-zinc-300">
-                    Oleh <span className="text-white font-bold">{heroTrack.artistNames.join(", ")}</span> • Album {heroTrack.albumTitle || "Single"}
-                  </p>
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      onClick={() => playTrack(heroTrack)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-black font-extrabold text-xs sm:text-sm hover:scale-105 transition shadow-lg cursor-pointer"
-                    >
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                      <span>Play Track</span>
-                    </button>
-
-                    <button
-                      onClick={() => toggleLike(heroTrack)}
-                      className={`p-2.5 rounded-2xl border transition cursor-pointer ${
-                        isTrackLiked(heroTrack.id)
-                          ? "bg-red-500/20 border-red-500 text-red-400"
-                          : "border-white/20 hover:bg-white/10 text-white"
-                      }`}
-                      title="Suka lagu ini"
-                    >
-                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                      </svg>
-                    </button>
-
-                    <a
-                      href={heroTrack.externalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2.5 rounded-2xl border border-white/20 text-xs font-semibold text-white hover:bg-white/10 transition"
-                    >
-                      Open Spotify ↗
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. MOOD & GENRE CHIPS */}
-            {subTab === "discover" && !searchQuery && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Mood & Genre Shortcuts
-                </h3>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                  {MOOD_SHORTCUTS.map((mood) => (
-                    <button
-                      key={mood.id}
-                      onClick={() => handleSearchChange(mood.query)}
-                      className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer ${
-                        isDark
-                          ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                          : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
-                      }`}
-                    >
-                      {mood.label}
-                    </button>
-                  ))}
-                  {SPOTIFY_GENRES.slice(0, 8).map((genre) => (
-                    <button
-                      key={genre.id}
-                      onClick={() => handleSearchChange(genre.label)}
-                      className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer flex items-center gap-1.5 ${
-                        isDark
-                          ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                          : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
-                      }`}
-                    >
-                      <span>{genre.emoji}</span>
-                      <span>{genre.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ─── IN-PAGE FULL AUDIO PLAYER (Pemutar Musik Full 100% Otomatis) ─────────────── */}
+            {/* Background YouTube Audio Container (Invisible offscreen to guarantee uninterrupted audio) */}
             <div
-              className={`rounded-3xl border p-4 sm:p-5 transition shadow-xl ${
-                isDark
-                  ? "bg-gradient-to-br from-[#16161f] via-[#121217] to-[#0e0e13] border-zinc-800/90"
-                  : "bg-white border-zinc-200/90 shadow-md"
-              }`}
+              id="youtube-music-player-container"
+              className="fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden"
+              aria-hidden="true"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-extrabold tracking-tight">
-                        Pemutar Musik Full 100%
-                      </h3>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Lagu Penuh Otomatis
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400">
-                      Klik lagu mana saja di bawah untuk langsung mendengarkan full tanpa henti dan tanpa login.
+              <div id="youtube-music-player" />
+            </div>
+
+            {/* ─── TAB 1: HOME ────────────────────────────────────────────────── */}
+            {subTab === "home" && (
+              <div className="space-y-8 animate-in fade-in-0 duration-200">
+                {/* Hero Banner */}
+                <div
+                  className={`relative rounded-3xl overflow-hidden p-6 sm:p-10 border shadow-2xl transition ${
+                    isDark ? "bg-[#18181f] border-zinc-800" : "bg-zinc-900 text-white border-zinc-800"
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent z-10" />
+                  {heroTrack.artworkUrl && (
+                    <img
+                      src={heroTrack.artworkUrl}
+                      alt={heroTrack.title}
+                      className="absolute right-0 top-0 h-full w-2/3 object-cover object-center filter blur-xs opacity-40 scale-105 pointer-events-none"
+                    />
+                  )}
+
+                  <div className="relative z-20 max-w-lg space-y-3">
+                    <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-white/20 text-white backdrop-blur-md">
+                      Featured Track
+                    </span>
+                    <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+                      {heroTrack.title}
+                    </h1>
+                    <p className="text-xs sm:text-sm font-medium text-zinc-300">
+                      Oleh <span className="text-white font-bold">{heroTrack.artistNames.join(", ")}</span> • Album {heroTrack.albumTitle || "Single"}
                     </p>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        onClick={() => playTrack(heroTrack)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-black font-extrabold text-xs sm:text-sm hover:scale-105 transition shadow-lg cursor-pointer"
+                      >
+                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <span>Play Track</span>
+                      </button>
+
+                      <button
+                        onClick={() => toggleLike(heroTrack)}
+                        className={`p-2.5 rounded-2xl border transition cursor-pointer ${
+                          isTrackLiked(heroTrack.id)
+                            ? "bg-red-500/20 border-red-500 text-red-400"
+                            : "border-white/20 hover:bg-white/10 text-white"
+                        }`}
+                        title="Suka lagu ini"
+                      >
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                      </button>
+
+                      <a
+                        href={heroTrack.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-white/20 text-xs font-semibold text-white hover:bg-white/10 transition"
+                      >
+                        <span>Open Spotify</span>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right Action: Video Toggle */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowVideo((prev) => !prev)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      showVideo
-                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                        : isDark
-                        ? "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white"
-                        : "border-zinc-200 bg-zinc-100 text-zinc-600 hover:text-black"
-                    }`}
-                  >
-                    <span>{showVideo ? "🎵 Mode Audio Saja" : "🎬 Tampilkan Video"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* YouTube Player Container (Always in DOM to keep audio streaming uninterrupted) */}
-              <div
-                className={`transition-all duration-300 rounded-2xl overflow-hidden bg-black ${
-                  showVideo
-                    ? "w-full aspect-video max-h-[340px] mb-3.5 border border-zinc-800 shadow-2xl relative"
-                    : "w-0 h-0 opacity-0 pointer-events-none absolute -left-[9999px]"
-                }`}
-              >
-                <div id="youtube-music-player-container" className="w-full h-full">
-                  <div id="youtube-music-player" className="w-full h-full" />
-                </div>
-              </div>
-
-              {/* Now Playing Active Card */}
-              {currentTrack && (
-                <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in-0">
-                  <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
-                    <div className="relative shrink-0">
-                      {currentTrack.artworkUrl ? (
-                        <img
-                          src={currentTrack.artworkUrl}
-                          alt={currentTrack.title}
-                          className="w-14 h-14 rounded-2xl object-cover shadow-lg"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center text-lg">
-                          🎵
-                        </div>
-                      )}
-                      {isPlaying && (
-                        <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center gap-0.5">
-                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" />
-                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
-                          <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                          {isResolvingAudio ? "Memuat Audio..." : "Playing Full 100%"}
-                        </span>
-                        <span className="text-[10px] text-zinc-500">
-                          {formatDurationMs(duration * 1000)}
-                        </span>
-                      </div>
-                      <h4 className="text-sm font-bold text-white truncate mt-1">
-                        {currentTrack.title}
-                      </h4>
-                      <p className="text-xs text-zinc-400 truncate">
-                        {currentTrack.artistNames.join(", ")}
+                {/* Track Catalog */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold tracking-tight">New Music</h2>
+                      <p className="text-xs text-zinc-500">
+                        {tracks.length} trek musik pilihan dari katalog Spotify
                       </p>
                     </div>
                   </div>
 
-                  {/* Quick Controls inside Card */}
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={playPrevious}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                      title="Sebelumnya"
-                    >
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                      </svg>
-                    </button>
+                  {renderTrackTable(tracks)}
+                </div>
+              </div>
+            )}
 
-                    <button
-                      onClick={togglePlayPause}
-                      className="p-3 rounded-full bg-emerald-400 text-black hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer"
-                      title={isPlaying ? "Jeda" : "Putar"}
-                    >
-                      {isPlaying ? (
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={playNext}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
-                      title="Berikutnya"
-                    >
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                      </svg>
-                    </button>
+            {/* ─── TAB 2: SEARCH ──────────────────────────────────────────────── */}
+            {subTab === "search" && (
+              <div className="space-y-6 animate-in fade-in-0 duration-200">
+                {/* Mood & Genre Shortcuts (Clean Text Pills, Zero Emojis) */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                    Mood & Genre Shortcuts
+                  </h3>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    {MOOD_SHORTCUTS.map((mood) => (
+                      <button
+                        key={mood.id}
+                        onClick={() => handleSearchChange(mood.query)}
+                        className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer ${
+                          searchQuery.toLowerCase() === mood.query.toLowerCase()
+                            ? "bg-white text-black border-white"
+                            : isDark
+                            ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        {mood.label}
+                      </button>
+                    ))}
+                    {SPOTIFY_GENRES.map((genre) => (
+                      <button
+                        key={genre.id}
+                        onClick={() => handleSearchChange(genre.label)}
+                        className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer ${
+                          searchQuery.toLowerCase() === genre.label.toLowerCase()
+                            ? "bg-white text-black border-white"
+                            : isDark
+                            ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        {genre.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* 3. TRACK LIST TABLE (Matching Reference Image "New Music" Table) */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                    {subTab === "liked"
-                      ? "Liked Songs"
-                      : subTab === "playlists"
-                      ? "Your Playlists"
-                      : subTab === "artists"
-                      ? "Top Artists"
-                      : subTab === "albums"
-                      ? "Top Albums"
-                      : searchQuery
-                      ? `Hasil Pencarian: "${searchQuery}"`
-                      : "New Music"}
-                  </h2>
-                  <p className="text-xs text-zinc-500">
-                    {tracks.length} trek musik tersedia dari katalog Spotify
-                  </p>
-                </div>
-              </div>
-
-              {/* Loading indicator */}
-              {isSearching && (
-                <div className="flex items-center gap-2 py-8 justify-center text-xs text-zinc-400">
-                  <span className="w-2 h-2 rounded-full bg-zinc-400 animate-ping" />
-                  <span>Mencari di Spotify Web API...</span>
-                </div>
-              )}
-
-              {/* Track Table Header */}
-              <div
-                className={`grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded-xl ${
-                  isDark ? "text-zinc-500 bg-zinc-900/40" : "text-zinc-400 bg-zinc-100/60"
-                }`}
-              >
-                <div className="col-span-1 text-center">#</div>
-                <div className="col-span-5 sm:col-span-5">TITLE</div>
-                <div className="hidden sm:block sm:col-span-3">ALBUM</div>
-                <div className="col-span-4 sm:col-span-2 text-right">TIME</div>
-                <div className="col-span-2 sm:col-span-1 text-center">ACTION</div>
-              </div>
-
-              {/* Track Rows */}
-              <div className="space-y-1">
-                {searchError && (
-                  <div className="py-6 px-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center mb-3">
-                    {searchError}
+                {/* Recent Searches (if available) */}
+                {recentSearches.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                        Pencarian Terakhir
+                      </span>
+                      <button
+                        onClick={() => {
+                          clearRecentSearches();
+                          setRecentSearches([]);
+                        }}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
+                      >
+                        Hapus Riwayat
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {recentSearches.map((term) => (
+                        <button
+                          key={term}
+                          onClick={() => handleSelectRecentSearch(term)}
+                          className={`px-3 py-1 rounded-lg border text-xs font-medium transition cursor-pointer ${
+                            isDark
+                              ? "border-zinc-800/80 bg-zinc-900/40 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:text-black hover:bg-zinc-100"
+                          }`}
+                        >
+                          {term}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {!isSearching && (searchQuery ? tracks : (subTab === "liked" ? likedSongs : tracks)).length === 0 && (
-                  <div className="py-12 text-center space-y-2">
-                    <div className="text-3xl">🔍</div>
-                    <h4 className="text-sm font-bold text-zinc-300">
-                      {searchQuery ? `Tidak ada lagu ditemukan untuk "${searchQuery}"` : "Belum ada lagu"}
-                    </h4>
-                    <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                      {searchQuery
-                        ? "Coba periksa ejaan atau gunakan kata kunci judul lagu dan nama penyanyi lainnya."
-                        : "Jelajahi lagu baru di atas atau cari lagu favoritmu."}
-                    </p>
+                {/* Search Results / Header */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                        {searchQuery ? `Hasil Pencarian: "${searchQuery}"` : "Katalog Spotify"}
+                      </h2>
+                      <p className="text-xs text-zinc-500">
+                        {isSearching
+                          ? "Mencari musik..."
+                          : searchQuery
+                          ? `${tracks.length} lagu ditemukan`
+                          : "Pilih mood di atas atau cari judul lagu di kolom pencarian"}
+                      </p>
+                    </div>
                   </div>
-                )}
 
-                {(searchQuery ? tracks : (subTab === "liked" ? likedSongs : tracks)).map((track, idx) => {
-                  const isCurrent = currentTrack?.id === track.id;
-                  const isTrackPlaying = isCurrent && isPlaying;
-                  const isLiked = isTrackLiked(track.id);
+                  {/* Loading indicator */}
+                  {isSearching && (
+                    <div className="flex items-center gap-2 py-8 justify-center text-xs text-zinc-400">
+                      <span className="w-2 h-2 rounded-full bg-zinc-400 animate-ping" />
+                      <span>Mencari di katalog Spotify...</span>
+                    </div>
+                  )}
 
-                  return (
-                    <div
-                      key={track.id}
-                      onClick={() => playTrack(track)}
-                      className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 rounded-2xl transition cursor-pointer group ${
-                        isCurrent
-                          ? isDark
-                            ? "bg-zinc-800/80 border border-zinc-700/80 shadow-md"
-                            : "bg-zinc-200/80 border border-zinc-300"
-                          : isDark
-                          ? "hover:bg-zinc-900/80 border border-transparent hover:border-zinc-800"
-                          : "hover:bg-zinc-100/80 border border-transparent"
-                      }`}
-                    >
-                      {/* # Index / Play State */}
-                      <div className="col-span-1 flex items-center justify-center text-xs font-bold text-zinc-500">
-                        {isTrackPlaying ? (
-                          <div className="flex items-end gap-0.5 h-3.5">
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" />
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
-                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
-                          </div>
-                        ) : (
-                          <span className="group-hover:hidden">{idx + 1}</span>
-                        )}
-                        {!isTrackPlaying && (
-                          <span className="hidden group-hover:block text-zinc-300">▶</span>
-                        )}
+                  {/* Error display */}
+                  {searchError && (
+                    <div className="py-4 px-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
+                      {searchError}
+                    </div>
+                  )}
+
+                  {/* Empty state when no tracks found */}
+                  {!isSearching && tracks.length === 0 && (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-center mx-auto text-zinc-400">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-sm font-bold text-zinc-300">
+                        {searchQuery ? `Tidak ada lagu ditemukan untuk "${searchQuery}"` : "Cari Musik"}
+                      </h4>
+                      <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                        {searchQuery
+                          ? "Coba periksa ejaan atau gunakan kata kunci judul lagu dan nama penyanyi lainnya."
+                          : "Ketik judul lagu, penyanyi, atau album pada kolom pencarian di atas."}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isSearching && tracks.length > 0 && renderTrackTable(tracks)}
+                </div>
+              </div>
+            )}
+
+            {/* ─── TAB 3: PLAYLISTS ───────────────────────────────────────────── */}
+            {subTab === "playlists" && (
+              <div className="space-y-6 animate-in fade-in-0 duration-200">
+                {/* Mode A: Viewing Liked Songs */}
+                {isViewingLiked && (
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setIsViewingLiked(false)}
+                          className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
+                          title="Kembali ke Daftar Playlist"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <div className="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
+                          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-base sm:text-lg font-bold tracking-tight">Lagu Disukai</h2>
+                          <p className="text-xs text-zinc-500">{likedSongs.length} lagu tersimpan</p>
+                        </div>
                       </div>
 
-                      {/* Title + Thumbnail + Artist */}
-                      <div className="col-span-5 sm:col-span-5 flex items-center gap-3 min-w-0">
-                        {track.artworkUrl ? (
-                          <img
-                            src={track.artworkUrl}
-                            alt={track.title}
-                            className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-xs"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-xs font-bold text-zinc-500">
-                            🎵
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <h4
-                            className={`text-xs sm:text-sm font-semibold truncate ${
-                              isCurrent ? "text-emerald-400 font-bold" : isDark ? "text-white" : "text-zinc-900"
-                            }`}
-                          >
-                            {track.title}
-                          </h4>
-                          <p className="text-[11px] text-zinc-500 truncate">
-                            {track.artistNames.join(", ")}
+                      {likedSongs.length > 0 && (
+                        <button
+                          onClick={() => playAllTracks(likedSongs)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                        >
+                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                          <span>Putar Semua</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {renderTrackTable(likedSongs, {
+                      emptyMessage: "Belum ada lagu yang kamu sukai. Klik ikon hati pada lagu untuk menyimpannya di sini.",
+                    })}
+                  </div>
+                )}
+
+                {/* Mode B: Viewing a Specific Custom Playlist */}
+                {!isViewingLiked && selectedLocalPlaylist && (
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setSelectedLocalPlaylist(null)}
+                          className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
+                          title="Kembali ke Daftar Playlist"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-base sm:text-lg font-bold tracking-tight">{selectedLocalPlaylist.name}</h2>
+                          <p className="text-xs text-zinc-500">
+                            {selectedLocalPlaylist.items.length} lagu {selectedLocalPlaylist.description ? `• ${selectedLocalPlaylist.description}` : ""}
                           </p>
                         </div>
                       </div>
 
-                      {/* Album Title */}
-                      <div className="hidden sm:block sm:col-span-3 text-xs text-zinc-400 truncate">
-                        {track.albumTitle || "—"}
-                      </div>
-
-                      {/* Duration */}
-                      <div className="col-span-4 sm:col-span-2 text-right text-xs font-medium text-zinc-400">
-                        {track.durationMs ? formatDurationMs(track.durationMs) : "3:30"}
-                      </div>
-
-                      {/* Actions: Heart + Add to Playlist */}
-                      <div
-                        className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => toggleLike(track)}
-                          className={`p-1.5 rounded-lg transition cursor-pointer ${
-                            isLiked
-                              ? "text-red-500 hover:scale-110"
-                              : "text-zinc-500 hover:text-white"
-                          }`}
-                          title={isLiked ? "Hapus dari disukai" : "Sukai"}
-                        >
-                          <svg className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                        </button>
+                      <div className="flex items-center gap-2">
+                        {selectedLocalPlaylist.items.length > 0 && (
+                          <button
+                            onClick={() => playAllTracks(selectedLocalPlaylist.items)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                          >
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <span>Putar Semua</span>
+                          </button>
+                        )}
 
                         <button
-                          onClick={() => setAddToPlaylistTrack(track)}
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-white transition cursor-pointer"
-                          title="Tambahkan ke Playlist"
+                          onClick={() => deletePlaylist(selectedLocalPlaylist.id)}
+                          className="p-2 rounded-xl border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition cursor-pointer"
+                          title="Hapus Playlist"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
                     </div>
-                  );
-                })}
+
+                    {renderTrackTable(selectedLocalPlaylist.items, {
+                      emptyMessage: "Playlist ini masih kosong. Cari lagu dan klik ikon '+' untuk menambahkannya ke playlist ini.",
+                      showRemoveFromPlaylist: true,
+                      onRemoveFromPlaylist: (trackId) => removeTrackFromPlaylist(selectedLocalPlaylist.id, trackId),
+                    })}
+                  </div>
+                )}
+
+                {/* Mode C: Main Playlist Cards Overview */}
+                {!isViewingLiked && !selectedLocalPlaylist && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-bold tracking-tight">Koleksi & Playlist</h2>
+                        <p className="text-xs text-zinc-500">Daftar putar pribadi yang kamu simpan</p>
+                      </div>
+                      <button
+                        onClick={() => setShowCreatePlaylistModal(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Buat Playlist</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Liked Songs Card */}
+                      <div
+                        onClick={() => setIsViewingLiked(true)}
+                        className={`p-5 rounded-3xl border transition cursor-pointer group flex flex-col justify-between h-44 ${
+                          isDark
+                            ? "bg-gradient-to-br from-zinc-900/90 via-[#16161c] to-zinc-950 border-zinc-800 hover:border-zinc-700 shadow-lg"
+                            : "bg-gradient-to-br from-zinc-100 to-white border-zinc-200 hover:border-zinc-300 shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 shadow-inner">
+                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                            </svg>
+                          </div>
+                          <span className="text-xs font-bold text-zinc-500 group-hover:text-white transition">
+                            Buka →
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="text-base font-extrabold text-white">Lagu Disukai</h3>
+                          <p className="text-xs text-zinc-400 mt-0.5">{likedSongs.length} Lagu Favorit</p>
+                        </div>
+                      </div>
+
+                      {/* User Custom Playlists */}
+                      {localPlaylists.map((pl) => (
+                        <div
+                          key={pl.id}
+                          onClick={() => setSelectedLocalPlaylist(pl)}
+                          className={`p-5 rounded-3xl border transition cursor-pointer group flex flex-col justify-between h-44 relative ${
+                            isDark
+                              ? "bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 shadow-lg"
+                              : "bg-white border-zinc-200 hover:border-zinc-300 shadow-md"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                              </svg>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePlaylist(pl.id);
+                              }}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition"
+                              title="Hapus Playlist"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base font-extrabold text-white truncate">{pl.name}</h3>
+                            <p className="text-xs text-zinc-400 mt-0.5 truncate">
+                              {pl.items.length} Lagu {pl.description ? `• ${pl.description}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Quick Create Card if user has zero custom playlists */}
+                      {localPlaylists.length === 0 && (
+                        <div
+                          onClick={() => setShowCreatePlaylistModal(true)}
+                          className="p-5 rounded-3xl border border-dashed border-zinc-800 hover:border-zinc-600 transition cursor-pointer flex flex-col items-center justify-center text-center h-44 gap-2 text-zinc-500 hover:text-zinc-300"
+                        >
+                          <div className="w-10 h-10 rounded-2xl bg-zinc-800/50 flex items-center justify-center text-zinc-400">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <p className="text-xs font-bold">Buat Playlist Baru</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </main>
       </div>
 
-      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Reference design floating bar) ─────── */}
+      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Theme Styled: Zero Emojis, No Emerald) ─ */}
       <footer
         className={`shrink-0 border-t z-30 px-4 sm:px-8 py-3 backdrop-blur-xl transition ${
           isDark
@@ -1367,8 +1512,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md"
               />
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-sm font-bold text-zinc-500">
-                🎵
+              <div className="w-12 h-12 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-zinc-400">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                </svg>
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -1401,8 +1548,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Shuffle */}
               <button
                 onClick={() => setIsShuffle((prev) => !prev)}
-                className={`p-1.5 transition cursor-pointer ${
-                  isShuffle ? "text-emerald-400" : "text-zinc-500 hover:text-white"
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  isShuffle ? "text-white bg-white/10" : "text-zinc-500 hover:text-white"
                 }`}
                 title="Shuffle"
               >
@@ -1457,8 +1604,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 onClick={() =>
                   setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
                 }
-                className={`p-1.5 transition cursor-pointer ${
-                  repeatMode !== "off" ? "text-emerald-400 font-bold" : "text-zinc-500 hover:text-white"
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  repeatMode !== "off" ? "text-white bg-white/10 font-bold" : "text-zinc-500 hover:text-white"
                 }`}
                 title={`Repeat: ${repeatMode}`}
               >
@@ -1468,7 +1615,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Progress Bar Slider */}
+            {/* Progress Bar Slider (Clean White Accent) */}
             <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
               <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}</span>
               <div
@@ -1481,22 +1628,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 }}
               >
                 <div
-                  className="h-full bg-emerald-400 rounded-full transition-all"
-                  style={{ width: `${(currentTime / duration) * 100}%` }}
+                  className="h-full bg-white rounded-full transition-all"
+                  style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
                 />
               </div>
               <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}</span>
             </div>
           </div>
 
-          {/* Right: Lyrics, Queue, Volume, and Spotify Embed Toggle */}
+          {/* Right: Lyrics, Queue, Volume */}
           <div className="flex items-center justify-end gap-2.5 w-full sm:w-1/4">
             <button
               onClick={() => setShowLyricsModal(true)}
               className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
               title="Lirik"
             >
-              <svg className="w-4 h-4 fill-none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
             </button>
@@ -1510,7 +1657,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
               {queue.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white" />
               )}
             </button>
 
@@ -1541,26 +1688,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   const val = parseFloat(e.target.value);
                   handleVolumeChange(val);
                 }}
-                className="w-16 h-1 rounded-full bg-zinc-700 accent-emerald-400 cursor-pointer"
+                className="w-16 h-1 rounded-full bg-zinc-700 accent-white cursor-pointer"
               />
             </div>
-
-            {/* Scroll to In-Page Player Button */}
-            <button
-              onClick={() => {
-                const el = document.getElementById("youtube-music-player-container");
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-[11px] font-bold transition hover:bg-emerald-500/20 cursor-pointer"
-              title="Lihat Pemutar Musik di Halaman"
-            >
-              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-              </svg>
-              <span>Player</span>
-            </button>
           </div>
         </div>
       </footer>
@@ -1575,7 +1705,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white">
                   <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                     <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
                   </svg>
@@ -1589,20 +1719,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 onClick={() => setShowSetupModal(false)}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
             <div className="space-y-3 text-xs leading-relaxed text-zinc-300">
               <p>
-                Agar fitur pencarian musik dapat mengakses seluruh 100+ juta lagu di katalog Spotify, masukkan API Credentials di file <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-emerald-400">.env.local</code>:
+                Agar fitur pencarian musik dapat mengakses seluruh 100+ juta lagu di katalog Spotify, masukkan API Credentials di file <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 font-mono">.env.local</code>:
               </p>
               <div className="p-3.5 rounded-2xl bg-black/60 border border-zinc-800 font-mono text-[11px] text-zinc-300 space-y-1">
                 <div>SPOTIFY_CLIENT_ID=your_client_id_here</div>
                 <div>SPOTIFY_CLIENT_SECRET=your_client_secret_here</div>
               </div>
               <div className="space-y-1 text-zinc-400">
-                <p>1. Buka <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-emerald-400 underline">developer.spotify.com/dashboard</a>.</p>
+                <p>1. Buka <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-white underline font-semibold">developer.spotify.com/dashboard</a>.</p>
                 <p>2. Login dengan akun Spotify kamu dan klik <strong>Create App</strong>.</p>
                 <p>3. Salin <strong>Client ID</strong> dan <strong>Client Secret</strong> ke file <code>.env.local</code>.</p>
                 <p>4. Fitur pencarian otomatis aktif tanpa perlu login ulang pengguna!</p>
@@ -1621,7 +1753,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       )}
 
-      {/* ─── MODAL 2: LYRICS MODAL ───────────────────────────────────────────── */}
+      {/* ─── MODAL 2: LYRICS MODAL (Custom Microphone SVG, Zero Emojis) ─────── */}
       {showLyricsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
           <div
@@ -1638,24 +1770,33 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 onClick={() => setShowLyricsModal(false)}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="py-8 text-center space-y-2">
-              <div className="text-3xl">🎤</div>
+            <div className="py-8 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center mx-auto text-zinc-400">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                </svg>
+              </div>
               <h4 className="text-sm font-bold">Lirik Terlisensi Belum Tersedia</h4>
               <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Sesuai ketentuan hak cipta Spotify Web API dan lisensi musik resmi, lirik lengkap dilindungi hak penerbit.
+                Sesuai ketentuan hak cipta Spotify Web API dan lisensi resmi, lirik lengkap dilindungi hak cipta penerbit.
               </p>
               <div className="pt-2">
                 <a
                   href={currentTrack?.externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold hover:bg-zinc-800 transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold hover:bg-zinc-800 transition text-zinc-200"
                 >
-                  Buka Lirik di Spotify App ↗
+                  <span>Buka Lirik di Spotify App</span>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
                 </a>
               </div>
             </div>
@@ -1676,7 +1817,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <h3 className="text-sm font-bold">Antrean Pemutaran ({queue.length})</h3>
                 <p className="text-xs text-zinc-500">Daftar lagu yang akan diputar berikutnya</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
                     setQueue([]);
@@ -1690,7 +1831,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={() => setShowQueueModal(false)}
                   className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
                 >
-                  ✕
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -1705,14 +1848,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }}
                   className={`flex items-center justify-between p-2.5 rounded-xl transition cursor-pointer ${
                     queueIndex === idx
-                      ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400"
+                      ? "bg-white/10 border border-white/20 text-white font-bold"
                       : "hover:bg-zinc-800/60 text-zinc-300"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs font-mono text-zinc-500 w-4 text-center">{idx + 1}</span>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold truncate">{item.title}</p>
+                      <p className="text-xs truncate">{item.title}</p>
                       <p className="text-[10px] text-zinc-500 truncate">{item.artistNames.join(", ")}</p>
                     </div>
                   </div>
@@ -1726,7 +1869,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     className="p-1 text-zinc-500 hover:text-red-400"
                     title="Hapus dari antrean"
                   >
-                    ✕
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               ))}
@@ -1746,7 +1891,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold">
-                  {addToPlaylistTrack ? `Tambahkan ke Playlist` : "Buat Playlist Baru"}
+                  {addToPlaylistTrack ? "Tambahkan ke Playlist" : "Buat Playlist Baru"}
                 </h3>
                 {addToPlaylistTrack && (
                   <p className="text-xs text-zinc-500 truncate">{addToPlaylistTrack.title}</p>
@@ -1759,7 +1904,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 }}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -1788,7 +1935,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 value={newPlaylistName}
                 onChange={(e) => setNewPlaylistName(e.target.value)}
                 placeholder="Nama playlist (contoh: Lagu Santai)"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600 text-white placeholder-zinc-500"
                 required
               />
               <input
@@ -1796,7 +1943,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 value={newPlaylistDesc}
                 onChange={(e) => setNewPlaylistDesc(e.target.value)}
                 placeholder="Deskripsi singkat (opsional)"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600 text-white placeholder-zinc-500"
               />
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -1805,7 +1952,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     setShowCreatePlaylistModal(false);
                     setAddToPlaylistTrack(null);
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-800 hover:bg-zinc-800 transition cursor-pointer text-zinc-300"
                 >
                   Batal
                 </button>
@@ -1823,5 +1970,5 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     </div>
   );
 }
-export default MusicWorkspace;
 
+export default MusicWorkspace;
