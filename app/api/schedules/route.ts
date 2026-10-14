@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { ScheduleItem } from "@/lib/schedules";
+import { ScheduleItem, isSchedulePast } from "@/lib/schedules";
 import { getUserSubscription } from "@/lib/subscriptionServer";
 
 function getSupabaseClient(req: NextRequest) {
@@ -71,9 +71,33 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const items = data || [];
+    const pastIdsToComplete: string[] = [];
+    const sanitized = items.map((item: any) => {
+      if (item.status === "upcoming") {
+        const isPast = isSchedulePast(item.date, item.time, item.duration_minutes, item.timezone);
+        if (isPast) {
+          pastIdsToComplete.push(item.id);
+          return { ...item, status: "completed" };
+        }
+      }
+      return item;
+    });
+
+    if (pastIdsToComplete.length > 0) {
+      try {
+        await client
+          .from("schedules")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .in("id", pastIdsToComplete);
+      } catch (e: any) {
+        console.warn("[schedules] auto sweep error:", e);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: sanitized,
       source: "supabase",
     });
   } catch (err: any) {

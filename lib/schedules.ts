@@ -229,10 +229,10 @@ export function groupSchedules(
     } else {
       if (s.status === "cancelled") {
         cancelled.push(s);
-      } else if (s.status === "completed" || past) {
-        completed.push(s);
       } else if (s.date === todayStr) {
         today.push(s);
+      } else if (s.status === "completed" || past) {
+        completed.push(s);
       } else {
         upcoming.push(s);
       }
