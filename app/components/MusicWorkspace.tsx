@@ -177,7 +177,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    // Check URL hash for OAuth access_token from Spotify OAuth redirect or saved token
+    // 1. Check server-provided user token (Option A: Automatic Full Playback without visitor login)
+    fetch("/api/music/user-token")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.configured && data.token) {
+          setUserToken(data.token);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Check URL hash for OAuth access_token from Spotify OAuth redirect or saved token
     if (typeof window !== "undefined") {
       const hash = window.location.hash;
       if (hash && hash.includes("access_token=")) {
@@ -288,22 +298,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   }, [userToken, volume]);
 
   const handleSpotifyOAuthLogin = () => {
-    if (typeof window === "undefined") return;
-    const clientId = "8eba26c985cc441e9eb3f24576fbeaa0";
-    const redirectUri = window.location.origin;
-    const scopes = [
-      "streaming",
-      "user-read-email",
-      "user-read-private",
-      "user-read-playback-state",
-      "user-modify-playback-state",
-    ].join("%20");
-
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&scope=${scopes}&show_dialog=true`;
-
-    window.location.href = authUrl;
+    if (typeof window !== "undefined") {
+      window.location.href = "/api/music/setup/login";
+    }
   };
 
   const handleSaveManualToken = (e: React.FormEvent) => {
