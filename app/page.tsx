@@ -10,6 +10,7 @@ import { FaithWorkspace } from "./components/FaithWorkspace";
 import { ImageWorkspace } from "./components/ImageWorkspace";
 import MessagesWorkspace from "./components/MessagesWorkspace";
 import { GameWorkspace } from "./components/GameWorkspace";
+import { MusicWorkspace } from "./components/MusicWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
@@ -669,12 +670,12 @@ export default function Home() {
   });
 
   // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game", pertahankan saat refresh; selain itu default ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman">(() => {
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music">(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("usick-active-view");
         if (saved === "halaman" || saved === "faith" || saved === "game") return "halaman";
-        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages") return saved;
+        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music") return saved;
       } catch {}
     }
     return "chats";
@@ -3483,6 +3484,24 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Music Feature Button (Spotify Web Player & Discovery) */}
+            <div
+              onClick={() => {
+                setActiveView("music");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "music"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+              </svg>
+              <span>Music</span>
+            </div>
+
             {/* Lainnya Tab (Dropdown/Accordion Fitur: Game & Faith) */}
             <div className="space-y-1">
               <div
@@ -3859,6 +3878,17 @@ export default function Home() {
           />
         </div>
 
+        {/* MusicWorkspace dijaga tetap ter-mount di latar belakang agar audio player / Spotify embed tidak terputus saat beralih tab */}
+        <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
+          <MusicWorkspace
+            key="music-workspace-instance"
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            userName={chatAccountName}
+          />
+        </div>
+
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
           {(subscription?.plan || "free") === "free" ? (
@@ -3966,7 +3996,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             />
           )
-        ) : activeView === "code" || activeView === "messages" || isHalamanActive ? null : (
+        ) : activeView === "code" || activeView === "messages" || activeView === "music" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${

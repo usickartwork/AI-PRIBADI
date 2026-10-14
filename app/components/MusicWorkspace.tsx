@@ -1,0 +1,1445 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import {
+  MusicItem,
+  LocalPlaylist,
+  QueueState,
+  SpotifySearchResult,
+  SPOTIFY_GENRES,
+  MOOD_SHORTCUTS,
+  getLocalPlaylists,
+  saveLocalPlaylists,
+  getLikedSongs,
+  saveLikedSongs,
+  getQueueState,
+  saveQueueState,
+  getRecentSearches,
+  addRecentSearch,
+  clearRecentSearches,
+  formatDurationMs,
+  generatePlaylistId,
+  getSpotifyEmbedUrl,
+} from "@/lib/music";
+
+interface MusicWorkspaceProps {
+  isDark: boolean;
+  onClose: () => void;
+  onTogglePanel?: () => void;
+  userName?: string;
+}
+
+type SubTab = "discover" | "artists" | "albums" | "liked" | "playlists" | "made_for_you";
+
+// Curated fallback tracks for initial offline/unconfigured preview
+const FEATURED_STARTER_TRACKS: MusicItem[] = [
+  {
+    id: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
+    provider: "spotify",
+    providerItemId: "4cOdK2wGLETKBW3PvgPWqT",
+    itemType: "track",
+    title: "Never Gonna Give You Up",
+    artistNames: ["Rick Astley"],
+    albumTitle: "Whenever You Need Somebody",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2735755e164993798e0c9ef7d7a",
+    durationMs: 213573,
+    externalUrl: "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT",
+    uri: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
+  },
+  {
+    id: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
+    provider: "spotify",
+    providerItemId: "7qiZfU4dY1lWllzX7mPBI3",
+    itemType: "track",
+    title: "Shape of You",
+    artistNames: ["Ed Sheeran"],
+    albumTitle: "÷ (Divide)",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96",
+    durationMs: 233712,
+    externalUrl: "https://open.spotify.com/track/7qiZfU4dY1lWllzX7mPBI3",
+    uri: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
+  },
+  {
+    id: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
+    provider: "spotify",
+    providerItemId: "0VjIjW4GlUZAMYd2vXMi3b",
+    itemType: "track",
+    title: "Blinding Lights",
+    artistNames: ["The Weeknd"],
+    albumTitle: "After Hours",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
+    durationMs: 200040,
+    externalUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
+    uri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
+  },
+  {
+    id: "spotify:track:5QO79kh1waicV47BqGRL3g",
+    provider: "spotify",
+    providerItemId: "5QO79kh1waicV47BqGRL3g",
+    itemType: "track",
+    title: "Save Your Tears",
+    artistNames: ["The Weeknd"],
+    albumTitle: "After Hours",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
+    durationMs: 215626,
+    externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g",
+    uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
+  },
+  {
+    id: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+    provider: "spotify",
+    providerItemId: "3n3Ppam7vgaVa1iaRUc9Lp",
+    itemType: "track",
+    title: "Mr. Brightside",
+    artistNames: ["The Killers"],
+    albumTitle: "Hot Fuss",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2730bf18361b7f041ee235ef980",
+    durationMs: 222973,
+    externalUrl: "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
+    uri: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+  },
+];
+
+export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: MusicWorkspaceProps) {
+  // Navigation & View State
+  const [subTab, setSubTab] = useState<SubTab>("discover");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSpotifyConfigured, setIsSpotifyConfigured] = useState<boolean | null>(null);
+
+  // Music Catalog State
+  const [tracks, setTracks] = useState<MusicItem[]>(FEATURED_STARTER_TRACKS);
+  const [artists, setArtists] = useState<MusicItem[]>([]);
+  const [albums, setAlbums] = useState<MusicItem[]>([]);
+  const [playlistsList, setPlaylistsList] = useState<MusicItem[]>([]);
+
+  // User Library State
+  const [likedSongs, setLikedSongs] = useState<MusicItem[]>([]);
+  const [localPlaylists, setLocalPlaylists] = useState<LocalPlaylist[]>([]);
+  const [selectedLocalPlaylist, setSelectedLocalPlaylist] = useState<LocalPlaylist | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Playback & Queue State
+  const [currentTrack, setCurrentTrack] = useState<MusicItem | null>(FEATURED_STARTER_TRACKS[0]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(30);
+  const [volume, setVolume] = useState(0.8);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">("off");
+  const [queue, setQueue] = useState<MusicItem[]>(FEATURED_STARTER_TRACKS);
+  const [queueIndex, setQueueIndex] = useState(0);
+
+  // Modals & Drawers
+  const [showSpotifyEmbed, setShowSpotifyEmbed] = useState(true);
+  const [showLyricsModal, setShowLyricsModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
+  const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
+
+  // Audio Ref for preview tracks
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ─── Initialize Local Data ──────────────────────────────────────────────────
+  useEffect(() => {
+    setLikedSongs(getLikedSongs());
+    setLocalPlaylists(getLocalPlaylists());
+    setRecentSearches(getRecentSearches());
+
+    const savedQueue = getQueueState();
+    if (savedQueue && savedQueue.items.length > 0) {
+      setQueue(savedQueue.items);
+      setQueueIndex(Math.min(savedQueue.currentIndex, savedQueue.items.length - 1));
+      if (savedQueue.items[savedQueue.currentIndex]) {
+        setCurrentTrack(savedQueue.items[savedQueue.currentIndex]);
+      }
+    }
+  }, []);
+
+  // ─── Initial Spotify Search / Catalog Fetch ─────────────────────────────────
+  const fetchSpotifyMusic = useCallback(async (query: string = "") => {
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=25`);
+      const json = await res.json();
+
+      setIsSpotifyConfigured(json.configured ?? false);
+
+      if (json.success && json.data) {
+        if (json.data.tracks && json.data.tracks.length > 0) {
+          setTracks(json.data.tracks);
+        }
+        if (json.data.artists) setArtists(json.data.artists);
+        if (json.data.albums) setAlbums(json.data.albums);
+        if (json.data.playlists) setPlaylistsList(json.data.playlists);
+      } else if (json.error) {
+        setSearchError(json.error);
+      }
+    } catch (err: any) {
+      setSearchError(err?.message || "Gagal menghubungkan ke Spotify API.");
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSpotifyMusic();
+  }, [fetchSpotifyMusic]);
+
+  // ─── Debounced Search ───────────────────────────────────────────────────────
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!val.trim()) {
+      fetchSpotifyMusic("");
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      addRecentSearch(val.trim());
+      setRecentSearches(getRecentSearches());
+      fetchSpotifyMusic(val.trim());
+    }, 450);
+  };
+
+  const handleSelectRecentSearch = (term: string) => {
+    setSearchQuery(term);
+    fetchSpotifyMusic(term);
+  };
+
+  // ─── Audio Playback Logic ───────────────────────────────────────────────────
+  const playTrack = (track: MusicItem) => {
+    setCurrentTrack(track);
+    setIsPlaying(true);
+    setCurrentTime(0);
+
+    // Update queue if track not in queue
+    const existingIdx = queue.findIndex((item) => item.id === track.id);
+    if (existingIdx !== -1) {
+      setQueueIndex(existingIdx);
+    } else {
+      const newQueue = [track, ...queue];
+      setQueue(newQueue);
+      setQueueIndex(0);
+      saveQueueState({ items: newQueue, currentIndex: 0, updatedAt: new Date().toISOString() });
+    }
+
+    // If audio element preview exists
+    if (audioRef.current) {
+      if (track.previewUrl) {
+        audioRef.current.src = track.previewUrl;
+        audioRef.current.play().catch(() => {});
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!currentTrack) {
+      if (tracks.length > 0) playTrack(tracks[0]);
+      return;
+    }
+    const nextState = !isPlaying;
+    setIsPlaying(nextState);
+
+    if (audioRef.current && currentTrack.previewUrl) {
+      if (nextState) audioRef.current.play().catch(() => {});
+      else audioRef.current.pause();
+    }
+  };
+
+  const playNext = () => {
+    if (queue.length === 0) return;
+    let nextIdx = queueIndex + 1;
+    if (isShuffle) {
+      nextIdx = Math.floor(Math.random() * queue.length);
+    } else if (nextIdx >= queue.length) {
+      nextIdx = repeatMode === "all" ? 0 : queue.length - 1;
+    }
+    setQueueIndex(nextIdx);
+    playTrack(queue[nextIdx]);
+  };
+
+  const playPrevious = () => {
+    if (queue.length === 0) return;
+    let prevIdx = queueIndex - 1;
+    if (prevIdx < 0) {
+      prevIdx = queue.length - 1;
+    }
+    setQueueIndex(prevIdx);
+    playTrack(queue[prevIdx]);
+  };
+
+  // ─── Like / Playlist Actions ────────────────────────────────────────────────
+  const isTrackLiked = (trackId: string) => likedSongs.some((t) => t.id === trackId);
+
+  const toggleLike = (track: MusicItem) => {
+    let updated: MusicItem[];
+    if (isTrackLiked(track.id)) {
+      updated = likedSongs.filter((t) => t.id !== track.id);
+    } else {
+      updated = [track, ...likedSongs];
+    }
+    setLikedSongs(updated);
+    saveLikedSongs(updated);
+  };
+
+  const handleCreatePlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlaylistName.trim()) return;
+
+    const newPl: LocalPlaylist = {
+      id: generatePlaylistId(),
+      name: newPlaylistName.trim(),
+      description: newPlaylistDesc.trim() || undefined,
+      items: addToPlaylistTrack ? [addToPlaylistTrack] : [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updated = [newPl, ...localPlaylists];
+    setLocalPlaylists(updated);
+    saveLocalPlaylists(updated);
+
+    setNewPlaylistName("");
+    setNewPlaylistDesc("");
+    setAddToPlaylistTrack(null);
+    setShowCreatePlaylistModal(false);
+  };
+
+  const addTrackToPlaylist = (playlistId: string, track: MusicItem) => {
+    const updated = localPlaylists.map((pl) => {
+      if (pl.id === playlistId) {
+        const exists = pl.items.some((item) => item.id === track.id);
+        if (exists) return pl;
+        return {
+          ...pl,
+          items: [...pl.items, track],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return pl;
+    });
+    setLocalPlaylists(updated);
+    saveLocalPlaylists(updated);
+    setAddToPlaylistTrack(null);
+  };
+
+  const deletePlaylist = (playlistId: string) => {
+    if (!confirm("Hapus playlist ini?")) return;
+    const updated = localPlaylists.filter((pl) => pl.id !== playlistId);
+    setLocalPlaylists(updated);
+    saveLocalPlaylists(updated);
+    if (selectedLocalPlaylist?.id === playlistId) {
+      setSelectedLocalPlaylist(null);
+    }
+  };
+
+  // ─── Featured Hero Item ─────────────────────────────────────────────────────
+  const heroTrack = useMemo(() => {
+    return tracks[0] || FEATURED_STARTER_TRACKS[0];
+  }, [tracks]);
+
+  return (
+    <div
+      className={`relative w-full h-full flex flex-col overflow-hidden select-none font-sans ${
+        isDark ? "bg-[#0c0c0e] text-zinc-100" : "bg-[#f5f5f7] text-zinc-900"
+      }`}
+    >
+      {/* Hidden Audio Player for audio previews */}
+      <audio
+        ref={audioRef}
+        onTimeUpdate={() => {
+          if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+            setDuration(audioRef.current.duration || 30);
+          }
+        }}
+        onEnded={() => {
+          if (repeatMode === "one") {
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(() => {});
+            }
+          } else {
+            playNext();
+          }
+        }}
+      />
+
+      {/* ─── MAIN WORKSPACE BODY (SIDEBAR + CONTENT) ─────────────────────────── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* ─── LEFT SUB-SIDEBAR (Reference design: MuzixStra style) ───────────── */}
+        <aside
+          className={`w-56 sm:w-64 shrink-0 flex flex-col justify-between p-4 border-r transition-all z-10 ${
+            isDark
+              ? "bg-[#121216]/95 border-zinc-800/80 shadow-2xl shadow-black/50"
+              : "bg-white/95 border-zinc-200/80 shadow-md"
+          }`}
+        >
+          <div className="space-y-6">
+            {/* Header / Brand */}
+            <div className="flex items-center justify-between px-2 pt-1">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shadow-md ${
+                    isDark ? "bg-white text-black" : "bg-black text-white"
+                  }`}
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold tracking-tight">Usick Music</h2>
+                  <p className="text-[10px] text-zinc-500 font-medium">Spotify Discovery</p>
+                </div>
+              </div>
+
+              {/* 3-dots Option button */}
+              <button
+                onClick={() => setShowSetupModal(true)}
+                title="Pengaturan Spotify"
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  isDark ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="19" cy="12" r="2" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Navigation Menu List */}
+            <nav className="space-y-1 text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setSubTab("discover");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "discover" && !selectedLocalPlaylist
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Recently Added</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSubTab("artists");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "artists"
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                </svg>
+                <span>Artists</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSubTab("albums");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "albums"
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span>Albums</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSubTab("liked");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "liked"
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-4 h-4 shrink-0 text-red-500 fill-red-500" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                  <span>Liked Songs</span>
+                </div>
+                {likedSongs.length > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                    isDark ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"
+                  }`}>
+                    {likedSongs.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setSubTab("playlists");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "playlists" && !selectedLocalPlaylist
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                  </svg>
+                  <span>Playlists</span>
+                </div>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCreatePlaylistModal(true);
+                  }}
+                  title="Buat Playlist Baru"
+                  className="p-1 hover:scale-110 transition cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-zinc-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSubTab("made_for_you");
+                  setSelectedLocalPlaylist(null);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                  subTab === "made_for_you"
+                    ? isDark
+                      ? "bg-white/10 text-white font-bold"
+                      : "bg-black/10 text-black font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                    : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Made For You</span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Bottom Settings & Back Buttons */}
+          <div className="pt-4 border-t border-zinc-800/60 space-y-1">
+            <button
+              onClick={() => setShowSetupModal(true)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                isDark ? "text-zinc-400 hover:text-white hover:bg-zinc-800/60" : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Spotify Settings</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                isDark ? "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Back to Chats</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ─── RIGHT MAIN VIEW AREA ───────────────────────────────────────────── */}
+        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28">
+          {/* Top Bar: Hamburger, Search, User Info */}
+          <div className="sticky top-0 z-20 backdrop-blur-md px-4 sm:px-8 py-3.5 border-b flex flex-wrap items-center justify-between gap-3 transition">
+            <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+              {onTogglePanel && (
+                <button
+                  onClick={onTogglePanel}
+                  title="Toggle Sidebar"
+                  className={`p-2 rounded-xl border transition cursor-pointer ${
+                    isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Search Bar Input */}
+              <div className="relative flex-1 max-w-xl">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Cari lagu, artis, album, atau genre..."
+                  className={`w-full rounded-2xl border pl-10 pr-9 py-2 text-xs sm:text-sm outline-none transition ${
+                    isDark
+                      ? "bg-zinc-900/90 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
+                      : "bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                  }`}
+                />
+                <svg
+                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearchChange("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right Status Badge */}
+            <div className="flex items-center gap-2">
+              {isSpotifyConfigured === false ? (
+                <button
+                  onClick={() => setShowSetupModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>Setup Spotify API</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>Spotify Online</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ─── CONTENT AREA ─────────────────────────────────────────────────── */}
+          <div className="px-4 sm:px-8 py-6 space-y-8">
+            {/* 1. HERO BANNER (Reference design hero banner with astronaut / atmospheric style) */}
+            {subTab === "discover" && !searchQuery && (
+              <div
+                className={`relative rounded-3xl overflow-hidden p-6 sm:p-10 border shadow-2xl transition ${
+                  isDark ? "bg-[#18181f] border-zinc-800" : "bg-zinc-900 text-white border-zinc-800"
+                }`}
+              >
+                {/* Visualizer Backdrop Glow */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10" />
+                {heroTrack.artworkUrl && (
+                  <img
+                    src={heroTrack.artworkUrl}
+                    alt={heroTrack.title}
+                    className="absolute right-0 top-0 h-full w-2/3 object-cover object-center filter blur-xs opacity-40 scale-105 pointer-events-none"
+                  />
+                )}
+
+                <div className="relative z-20 max-w-lg space-y-3">
+                  <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-white/20 text-white backdrop-blur-md">
+                    Featured Discovery
+                  </span>
+                  <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+                    {heroTrack.title}
+                  </h1>
+                  <p className="text-xs sm:text-sm font-medium text-zinc-300">
+                    Oleh <span className="text-white font-bold">{heroTrack.artistNames.join(", ")}</span> • Album {heroTrack.albumTitle || "Single"}
+                  </p>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={() => playTrack(heroTrack)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white text-black font-extrabold text-xs sm:text-sm hover:scale-105 transition shadow-lg cursor-pointer"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      <span>Play Track</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleLike(heroTrack)}
+                      className={`p-2.5 rounded-2xl border transition cursor-pointer ${
+                        isTrackLiked(heroTrack.id)
+                          ? "bg-red-500/20 border-red-500 text-red-400"
+                          : "border-white/20 hover:bg-white/10 text-white"
+                      }`}
+                      title="Suka lagu ini"
+                    >
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    </button>
+
+                    <a
+                      href={heroTrack.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 rounded-2xl border border-white/20 text-xs font-semibold text-white hover:bg-white/10 transition"
+                    >
+                      Open Spotify ↗
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. MOOD & GENRE CHIPS */}
+            {subTab === "discover" && !searchQuery && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Mood & Genre Shortcuts
+                </h3>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                  {MOOD_SHORTCUTS.map((mood) => (
+                    <button
+                      key={mood.id}
+                      onClick={() => handleSearchChange(mood.query)}
+                      className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer ${
+                        isDark
+                          ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                          : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                      }`}
+                    >
+                      {mood.label}
+                    </button>
+                  ))}
+                  {SPOTIFY_GENRES.slice(0, 8).map((genre) => (
+                    <button
+                      key={genre.id}
+                      onClick={() => handleSearchChange(genre.label)}
+                      className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 transition cursor-pointer flex items-center gap-1.5 ${
+                        isDark
+                          ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                          : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                      }`}
+                    >
+                      <span>{genre.emoji}</span>
+                      <span>{genre.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. TRACK LIST TABLE (Matching Reference Image "New Music" Table) */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                    {subTab === "liked"
+                      ? "Liked Songs"
+                      : subTab === "playlists"
+                      ? "Your Playlists"
+                      : subTab === "artists"
+                      ? "Top Artists"
+                      : subTab === "albums"
+                      ? "Top Albums"
+                      : searchQuery
+                      ? `Hasil Pencarian: "${searchQuery}"`
+                      : "New Music"}
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    {tracks.length} trek musik tersedia dari katalog Spotify
+                  </p>
+                </div>
+              </div>
+
+              {/* Loading indicator */}
+              {isSearching && (
+                <div className="flex items-center gap-2 py-8 justify-center text-xs text-zinc-400">
+                  <span className="w-2 h-2 rounded-full bg-zinc-400 animate-ping" />
+                  <span>Mencari di Spotify Web API...</span>
+                </div>
+              )}
+
+              {/* Track Table Header */}
+              <div
+                className={`grid grid-cols-12 gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded-xl ${
+                  isDark ? "text-zinc-500 bg-zinc-900/40" : "text-zinc-400 bg-zinc-100/60"
+                }`}
+              >
+                <div className="col-span-1 text-center">#</div>
+                <div className="col-span-5 sm:col-span-5">TITLE</div>
+                <div className="hidden sm:block sm:col-span-3">ALBUM</div>
+                <div className="col-span-4 sm:col-span-2 text-right">TIME</div>
+                <div className="col-span-2 sm:col-span-1 text-center">ACTION</div>
+              </div>
+
+              {/* Track Rows */}
+              <div className="space-y-1">
+                {(subTab === "liked" ? likedSongs : tracks).map((track, idx) => {
+                  const isCurrent = currentTrack?.id === track.id;
+                  const isTrackPlaying = isCurrent && isPlaying;
+                  const isLiked = isTrackLiked(track.id);
+
+                  return (
+                    <div
+                      key={track.id}
+                      onClick={() => playTrack(track)}
+                      className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 rounded-2xl transition cursor-pointer group ${
+                        isCurrent
+                          ? isDark
+                            ? "bg-zinc-800/80 border border-zinc-700/80 shadow-md"
+                            : "bg-zinc-200/80 border border-zinc-300"
+                          : isDark
+                          ? "hover:bg-zinc-900/80 border border-transparent hover:border-zinc-800"
+                          : "hover:bg-zinc-100/80 border border-transparent"
+                      }`}
+                    >
+                      {/* # Index / Play State */}
+                      <div className="col-span-1 flex items-center justify-center text-xs font-bold text-zinc-500">
+                        {isTrackPlaying ? (
+                          <div className="flex items-end gap-0.5 h-3.5">
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3" />
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
+                            <span className="w-1 bg-emerald-400 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
+                          </div>
+                        ) : (
+                          <span className="group-hover:hidden">{idx + 1}</span>
+                        )}
+                        {!isTrackPlaying && (
+                          <span className="hidden group-hover:block text-zinc-300">▶</span>
+                        )}
+                      </div>
+
+                      {/* Title + Thumbnail + Artist */}
+                      <div className="col-span-5 sm:col-span-5 flex items-center gap-3 min-w-0">
+                        {track.artworkUrl ? (
+                          <img
+                            src={track.artworkUrl}
+                            alt={track.title}
+                            className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-xs font-bold text-zinc-500">
+                            🎵
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <h4
+                            className={`text-xs sm:text-sm font-semibold truncate ${
+                              isCurrent ? "text-emerald-400 font-bold" : isDark ? "text-white" : "text-zinc-900"
+                            }`}
+                          >
+                            {track.title}
+                          </h4>
+                          <p className="text-[11px] text-zinc-500 truncate">
+                            {track.artistNames.join(", ")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Album Title */}
+                      <div className="hidden sm:block sm:col-span-3 text-xs text-zinc-400 truncate">
+                        {track.albumTitle || "—"}
+                      </div>
+
+                      {/* Duration */}
+                      <div className="col-span-4 sm:col-span-2 text-right text-xs font-medium text-zinc-400">
+                        {track.durationMs ? formatDurationMs(track.durationMs) : "3:30"}
+                      </div>
+
+                      {/* Actions: Heart + Add to Playlist */}
+                      <div
+                        className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => toggleLike(track)}
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                            isLiked
+                              ? "text-red-500 hover:scale-110"
+                              : "text-zinc-500 hover:text-white"
+                          }`}
+                          title={isLiked ? "Hapus dari disukai" : "Sukai"}
+                        >
+                          <svg className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
+
+                        <button
+                          onClick={() => setAddToPlaylistTrack(track)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-white transition cursor-pointer"
+                          title="Tambahkan ke Playlist"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Reference design floating bar) ─────── */}
+      <footer
+        className={`shrink-0 border-t z-30 px-4 sm:px-8 py-3 backdrop-blur-xl transition ${
+          isDark
+            ? "bg-[#141419]/95 border-zinc-800/80 shadow-2xl shadow-black"
+            : "bg-white/95 border-zinc-200 shadow-lg"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Left: Current Track Thumbnail & Metadata */}
+          <div className="flex items-center gap-3 w-full sm:w-1/4 min-w-0">
+            {currentTrack?.artworkUrl ? (
+              <img
+                src={currentTrack.artworkUrl}
+                alt={currentTrack.title}
+                className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-sm font-bold text-zinc-500">
+                🎵
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h4 className="text-xs sm:text-sm font-bold truncate">
+                {currentTrack?.title || "Belum ada trek yang diputar"}
+              </h4>
+              <p className="text-[11px] text-zinc-500 truncate">
+                {currentTrack?.artistNames.join(", ") || "Pilih lagu untuk memulai"}
+              </p>
+            </div>
+            {currentTrack && (
+              <button
+                onClick={() => toggleLike(currentTrack)}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  isTrackLiked(currentTrack.id)
+                    ? "text-red-500"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                <svg className={`w-4 h-4 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Center: Playback Controls & Interactive Timeline Slider */}
+          <div className="flex flex-col items-center gap-1.5 w-full sm:w-1/2">
+            <div className="flex items-center gap-4">
+              {/* Shuffle */}
+              <button
+                onClick={() => setIsShuffle((prev) => !prev)}
+                className={`p-1.5 transition cursor-pointer ${
+                  isShuffle ? "text-emerald-400" : "text-zinc-500 hover:text-white"
+                }`}
+                title="Shuffle"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+
+              {/* Previous */}
+              <button
+                onClick={playPrevious}
+                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                title="Sebelumnya"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                </svg>
+              </button>
+
+              {/* Play / Pause button */}
+              <button
+                onClick={togglePlayPause}
+                className={`p-3 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
+                  isDark ? "bg-white text-black" : "bg-black text-white"
+                }`}
+                title={isPlaying ? "Jeda" : "Putar"}
+              >
+                {isPlaying ? (
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Next */}
+              <button
+                onClick={playNext}
+                className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+                title="Berikutnya"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+              </button>
+
+              {/* Repeat */}
+              <button
+                onClick={() =>
+                  setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
+                }
+                className={`p-1.5 transition cursor-pointer ${
+                  repeatMode !== "off" ? "text-emerald-400 font-bold" : "text-zinc-500 hover:text-white"
+                }`}
+                title={`Repeat: ${repeatMode}`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Progress Bar Slider */}
+            <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
+              <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}</span>
+              <div
+                className="flex-1 h-1.5 rounded-full bg-zinc-700/50 relative overflow-hidden cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  const newTime = pct * duration;
+                  setCurrentTime(newTime);
+                  if (audioRef.current) audioRef.current.currentTime = newTime;
+                }}
+              >
+                <div
+                  className="h-full bg-emerald-400 rounded-full transition-all"
+                  style={{ width: `${(currentTime / duration) * 100}%` }}
+                />
+              </div>
+              <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}</span>
+            </div>
+          </div>
+
+          {/* Right: Lyrics, Queue, Volume, and Spotify Embed Toggle */}
+          <div className="flex items-center justify-end gap-2.5 w-full sm:w-1/4">
+            <button
+              onClick={() => setShowLyricsModal(true)}
+              className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer"
+              title="Lirik"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            </button>
+
+            <button
+              onClick={() => setShowQueueModal(true)}
+              className="p-1.5 text-zinc-400 hover:text-white transition cursor-pointer relative"
+              title="Antrean Putar"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              {queue.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400" />
+              )}
+            </button>
+
+            {/* Volume control */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsMuted((prev) => !prev)}
+                className="p-1 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                {isMuted ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVolume(val);
+                  setIsMuted(val === 0);
+                  if (audioRef.current) audioRef.current.volume = val;
+                }}
+                className="w-16 h-1 rounded-full bg-zinc-700 accent-emerald-400 cursor-pointer"
+              />
+            </div>
+
+            {/* Official Spotify Embed Player Toggle */}
+            <button
+              onClick={() => setShowSpotifyEmbed((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
+                showSpotifyEmbed
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                  : "border-zinc-800 hover:bg-zinc-800 text-zinc-400"
+              }`}
+              title="Official Spotify Embed Player"
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+              </svg>
+              <span>Embed</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Official Embedded Spotify IFrame Player (Direct In-Web Streaming) */}
+        {showSpotifyEmbed && currentTrack && (
+          <div className="max-w-7xl mx-auto mt-3 pt-3 border-t border-zinc-800/60 animate-in fade-in-0 duration-200">
+            <div className="flex items-center justify-between mb-1.5 text-[11px] text-zinc-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Pemutar Resmi Spotify Embed (Bebas Login & Streaming Langsung)</span>
+              </span>
+              <button
+                onClick={() => setShowSpotifyEmbed(false)}
+                className="hover:text-white cursor-pointer"
+              >
+                Tutup ✕
+              </button>
+            </div>
+            <iframe
+              title={`Spotify Embed: ${currentTrack.title}`}
+              src={getSpotifyEmbedUrl(currentTrack.uri || currentTrack.providerItemId, "track")}
+              width="100%"
+              height="80"
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              className="rounded-2xl shadow-lg border border-zinc-800/80"
+            />
+          </div>
+        )}
+      </footer>
+
+      {/* ─── MODAL 1: SPOTIFY SETUP & API CREDENTIALS GUIDE ──────────────────── */}
+      {showSetupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
+          <div
+            className={`w-full max-w-lg rounded-3xl border p-6 space-y-5 shadow-2xl ${
+              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Panduan Konfigurasi Spotify API</h3>
+                  <p className="text-xs text-zinc-500">Gratis 100% tanpa biaya langganan</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSetupModal(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-zinc-300">
+              <p>
+                Agar fitur pencarian musik dapat mengakses seluruh 100+ juta lagu di katalog Spotify, masukkan API Credentials di file <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-emerald-400">.env.local</code>:
+              </p>
+              <div className="p-3.5 rounded-2xl bg-black/60 border border-zinc-800 font-mono text-[11px] text-zinc-300 space-y-1">
+                <div>SPOTIFY_CLIENT_ID=your_client_id_here</div>
+                <div>SPOTIFY_CLIENT_SECRET=your_client_secret_here</div>
+              </div>
+              <div className="space-y-1 text-zinc-400">
+                <p>1. Buka <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="text-emerald-400 underline">developer.spotify.com/dashboard</a>.</p>
+                <p>2. Login dengan akun Spotify kamu dan klik <strong>Create App</strong>.</p>
+                <p>3. Salin <strong>Client ID</strong> dan <strong>Client Secret</strong> ke file <code>.env.local</code>.</p>
+                <p>4. Fitur pencarian otomatis aktif tanpa perlu login ulang pengguna!</p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowSetupModal(false)}
+                className="px-5 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 2: LYRICS MODAL ───────────────────────────────────────────── */}
+      {showLyricsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
+          <div
+            className={`w-full max-w-md rounded-3xl border p-6 space-y-4 shadow-2xl ${
+              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">Lirik Lagu</h3>
+                <p className="text-xs text-zinc-500">{currentTrack?.title} — {currentTrack?.artistNames.join(", ")}</p>
+              </div>
+              <button
+                onClick={() => setShowLyricsModal(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="py-8 text-center space-y-2">
+              <div className="text-3xl">🎤</div>
+              <h4 className="text-sm font-bold">Lirik Terlisensi Belum Tersedia</h4>
+              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                Sesuai ketentuan hak cipta Spotify Web API dan lisensi musik resmi, lirik lengkap dilindungi hak penerbit.
+              </p>
+              <div className="pt-2">
+                <a
+                  href={currentTrack?.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold hover:bg-zinc-800 transition"
+                >
+                  Buka Lirik di Spotify App ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 3: QUEUE MODAL ────────────────────────────────────────────── */}
+      {showQueueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
+          <div
+            className={`w-full max-w-lg rounded-3xl border p-6 space-y-4 shadow-2xl max-h-[80vh] flex flex-col ${
+              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">Antrean Pemutaran ({queue.length})</h3>
+                <p className="text-xs text-zinc-500">Daftar lagu yang akan diputar berikutnya</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setQueue([]);
+                    saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
+                  }}
+                  className="text-xs text-red-400 hover:underline cursor-pointer"
+                >
+                  Hapus Semua
+                </button>
+                <button
+                  onClick={() => setShowQueueModal(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+              {queue.map((item, idx) => (
+                <div
+                  key={`${item.id}-${idx}`}
+                  onClick={() => {
+                    setQueueIndex(idx);
+                    playTrack(item);
+                  }}
+                  className={`flex items-center justify-between p-2.5 rounded-xl transition cursor-pointer ${
+                    queueIndex === idx
+                      ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400"
+                      : "hover:bg-zinc-800/60 text-zinc-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xs font-mono text-zinc-500 w-4 text-center">{idx + 1}</span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate">{item.title}</p>
+                      <p className="text-[10px] text-zinc-500 truncate">{item.artistNames.join(", ")}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const updated = queue.filter((_, i) => i !== idx);
+                      setQueue(updated);
+                      saveQueueState({ items: updated, currentIndex: Math.min(queueIndex, updated.length - 1), updatedAt: new Date().toISOString() });
+                    }}
+                    className="p-1 text-zinc-500 hover:text-red-400"
+                    title="Hapus dari antrean"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: CREATE / ADD TO PLAYLIST MODAL ─────────────────────────── */}
+      {(showCreatePlaylistModal || addToPlaylistTrack) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
+          <div
+            className={`w-full max-w-md rounded-3xl border p-6 space-y-4 shadow-2xl ${
+              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">
+                  {addToPlaylistTrack ? `Tambahkan ke Playlist` : "Buat Playlist Baru"}
+                </h3>
+                {addToPlaylistTrack && (
+                  <p className="text-xs text-zinc-500 truncate">{addToPlaylistTrack.title}</p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreatePlaylistModal(false);
+                  setAddToPlaylistTrack(null);
+                }}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* List existing playlists if adding */}
+            {addToPlaylistTrack && localPlaylists.length > 0 && (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                <p className="text-xs font-semibold text-zinc-400">Pilih Playlist Tersimpan:</p>
+                {localPlaylists.map((pl) => (
+                  <button
+                    key={pl.id}
+                    onClick={() => addTrackToPlaylist(pl.id, addToPlaylistTrack)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-800/70 transition text-left text-xs cursor-pointer"
+                  >
+                    <span className="font-bold">{pl.name}</span>
+                    <span className="text-[10px] text-zinc-500">{pl.items.length} lagu</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Create new playlist form */}
+            <form onSubmit={handleCreatePlaylist} className="space-y-3 pt-2 border-t border-zinc-800/60">
+              <p className="text-xs font-semibold text-zinc-400">Atau Buat Playlist Baru:</p>
+              <input
+                type="text"
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                placeholder="Nama playlist (contoh: Lagu Santai)"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600"
+                required
+              />
+              <input
+                type="text"
+                value={newPlaylistDesc}
+                onChange={(e) => setNewPlaylistDesc(e.target.value)}
+                placeholder="Deskripsi singkat (opsional)"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2 text-xs outline-none focus:border-zinc-600"
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreatePlaylistModal(false);
+                    setAddToPlaylistTrack(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold border border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 transition cursor-pointer"
+                >
+                  Simpan Playlist
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+export default MusicWorkspace;
+
