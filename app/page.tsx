@@ -458,13 +458,15 @@ function LockedFeatureView({
       isDark ? "bg-black/40 text-white" : "bg-zinc-50/80 text-zinc-900"
     }`}>
       <div className={`w-16 h-16 mb-4 rounded-2xl flex items-center justify-center border shadow-xl ${
-        isDark ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-amber-50 border-amber-200 text-amber-600"
+        isDark ? "bg-zinc-800/90 border-zinc-700 text-zinc-300 shadow-black/40" : "bg-zinc-100 border-zinc-300 text-zinc-700 shadow-zinc-200"
       }`}>
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-8 h-8 opacity-90 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </div>
-      <span className="text-[11px] font-bold uppercase tracking-widest text-amber-500 mb-1">
+      <span className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${
+        isDark ? "text-zinc-400" : "text-zinc-500"
+      }`}>
         Fitur Khusus Usick One Pro
       </span>
       <h3 className={`text-xl font-bold tracking-tight mb-2 ${isDark ? "text-white" : "text-zinc-900"}`}>
@@ -728,7 +730,7 @@ export default function Home() {
     setSubscription(updated);
     if (updated.plan === "free") {
       setActiveView((prev) => {
-        if (prev === "image" || prev === "halaman" || prev === "game" || prev === "faith") {
+        if (prev === "image" || prev === "halaman" || prev === "game" || prev === "faith" || prev === "messages") {
           try {
             localStorage.removeItem("usick-active-view");
             localStorage.removeItem("usick-halaman-subtab");
@@ -744,13 +746,14 @@ export default function Home() {
         }
         return prev;
       });
+      setEffortLevel((prev) => (prev === "Max" ? "Balanced" : prev));
     }
   }, []);
 
   useEffect(() => {
     if (!subscription) return;
     if (subscription.plan === "free") {
-      if (activeView === "image" || isHalamanActive) {
+      if (activeView === "image" || isHalamanActive || activeView === "messages") {
         setActiveView("chats");
         try {
           localStorage.removeItem("usick-active-view");
@@ -761,8 +764,11 @@ export default function Home() {
       if (!isUsick) {
         setModel(FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini");
       }
+      if (effortLevel === "Max") {
+        setEffortLevel("Balanced");
+      }
     }
-  }, [subscription?.plan, activeView, isHalamanActive, model]);
+  }, [subscription?.plan, activeView, isHalamanActive, model, effortLevel]);
 
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
@@ -2995,19 +3001,30 @@ export default function Home() {
                       },
                     ].map((opt) => {
                       const isSelected = effortLevel === opt.id;
+                      const isMaxLocked = opt.id === "Max" && (subscription?.plan || "free") === "free";
                       return (
                         <button
                           key={opt.id}
                           type="button"
                           onClick={() => {
+                            if (isMaxLocked) {
+                              setSelectedLockedModelName("Upaya Penalaran: Max (Pro)");
+                              setShowUpgradeModal(true);
+                              setEffortMenuOpen(false);
+                              return;
+                            }
                             setEffortLevel(opt.id as any);
                             setEffortMenuOpen(false);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer text-left ${
-                            isSelected
+                            isSelected && !isMaxLocked
                               ? isDark
                                 ? "bg-white/10 text-white font-semibold"
                                 : "bg-zinc-100 text-zinc-950 font-semibold"
+                              : isMaxLocked
+                              ? isDark
+                                ? "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+                                : "text-zinc-600 hover:bg-zinc-100 hover:text-black font-medium"
                               : isDark
                               ? "hover:bg-white/5 text-zinc-300 hover:text-white"
                               : "hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950"
@@ -3016,7 +3033,18 @@ export default function Home() {
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">{opt.label}</span>
-                              {opt.badge && (
+                              {isMaxLocked ? (
+                                <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border ${
+                                  isDark
+                                    ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                                }`}>
+                                  <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                  PRO
+                                </span>
+                              ) : opt.badge ? (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
                                   opt.id === "Max"
                                     ? isDark ? "bg-white/20 text-white font-semibold" : "bg-black/10 text-black font-semibold"
@@ -3024,14 +3052,14 @@ export default function Home() {
                                 }`}>
                                   {opt.badge}
                                 </span>
-                              )}
+                              ) : null}
                             </div>
                             <span className={`text-[11px] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                               {opt.desc}
                             </span>
                           </div>
 
-                          {isSelected && (
+                          {isSelected && !isMaxLocked && (
                             <svg className={`w-4 h-4 shrink-0 ml-auto ${isDark ? "text-white" : "text-black"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
@@ -3396,9 +3424,13 @@ export default function Home() {
                 <span>Image</span>
               </div>
               {(subscription?.plan || "free") === "free" && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                  isDark
+                    ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                }`}>
+                  <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                   PRO
                 </span>
@@ -3408,6 +3440,11 @@ export default function Home() {
             {/* Messages Feature Button (Chat pribadi antar teman) */}
             <div
               onClick={() => {
+                if ((subscription?.plan || "free") === "free") {
+                  setSelectedLockedModelName("Messages (Pro)");
+                  setShowUpgradeModal(true);
+                  return;
+                }
                 setActiveView("messages");
                 setMessagesResetNonce((prev) => prev + 1);
                 closeSidebarOnMobile();
@@ -3424,13 +3461,26 @@ export default function Home() {
                 </svg>
                 <span>Messages</span>
               </div>
-              {unreadMessagesCount > 0 && (
-                <span className={`inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ${
-                  isDark ? "bg-white text-black" : "bg-black text-white"
-                }`}>
-                  {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {(subscription?.plan || "free") === "free" ? (
+                  <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                      : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                  }`}>
+                    <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    PRO
+                  </span>
+                ) : unreadMessagesCount > 0 ? (
+                  <span className={`inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ${
+                    isDark ? "bg-white text-black" : "bg-black text-white"
+                  }`}>
+                    {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             {/* Lainnya Tab (Dropdown/Accordion Fitur: Game & Faith) */}
@@ -3493,9 +3543,13 @@ export default function Home() {
                       <span>Game</span>
                     </div>
                     {(subscription?.plan || "free") === "free" && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
-                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                        isDark
+                          ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                          : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                      }`}>
+                        <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                         PRO
                       </span>
@@ -3526,9 +3580,13 @@ export default function Home() {
                       <span>Faith</span>
                     </div>
                     {(subscription?.plan || "free") === "free" && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
-                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 ${
+                        isDark
+                          ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                          : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                      }`}>
+                        <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                         PRO
                       </span>
@@ -3827,16 +3885,29 @@ export default function Home() {
 
         {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
         <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
-          <MessagesWorkspace
-            key="messages-workspace-instance"
-            isDark={isDark}
-            userId={user?.id}
-            isVisible={activeView === "messages"}
-            resetNonce={messagesResetNonce}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            onRequireAuth={() => setShowAuthModal(true)}
-            onUnreadCountChange={setUnreadMessagesCount}
-          />
+          {(subscription?.plan || "free") === "free" ? (
+            <LockedFeatureView
+              isDark={isDark}
+              title="Messages (Eksklusif Pro)"
+              description="Fitur pertemanan dan percakapan pribadi antar pengguna secara realtime hanya dapat diakses pada paket Usick One Pro."
+              onUpgrade={() => {
+                setSelectedLockedModelName("Messages (Pro)");
+                setShowUpgradeModal(true);
+              }}
+              onBack={() => setActiveView("chats")}
+            />
+          ) : (
+            <MessagesWorkspace
+              key="messages-workspace-instance"
+              isDark={isDark}
+              userId={user?.id}
+              isVisible={activeView === "messages"}
+              resetNonce={messagesResetNonce}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              onRequireAuth={() => setShowAuthModal(true)}
+              onUnreadCountChange={setUnreadMessagesCount}
+            />
+          )}
         </div>
 
         {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
@@ -4900,6 +4971,24 @@ export default function Home() {
                               </svg>
                               <span>Model Usick One AI Flagship</span>
                             </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Upaya Penalaran: Faster & Balanced</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Upaya Penalaran: Mode Max (Mendalam)</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Fitur Messages: Chat Pribadi Antar Teman</span>
+                            </li>
                             <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -4995,6 +5084,18 @@ export default function Home() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
                               <span><strong>200 Code Credits</strong> (Reset Harian)</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Upaya Penalaran: <strong>Akses Penuh Mode Max</strong></span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Akses Penuh <strong>Fitur Messages (Realtime Chat)</strong></span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
