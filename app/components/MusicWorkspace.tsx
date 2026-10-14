@@ -538,6 +538,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setIsPlaying(true);
     setCurrentTime(0);
 
+    // Keep mobile background audio alive by acquiring HTML5 audio session lock
+    if (audioRef.current) {
+      try {
+        if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+          audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+          audioRef.current.loop = true;
+        }
+        audioRef.current.play().catch(() => {});
+      } catch {}
+    }
+
     // Update queue if track not in queue
     setQueue((prevQueue) => {
       const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
@@ -615,9 +626,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       try {
         if (isPlaying) {
           ytPlayerRef.current.pauseVideo();
+          if (audioRef.current) {
+            try { audioRef.current.pause(); } catch {}
+          }
           setIsPlaying(false);
         } else {
           ytPlayerRef.current.playVideo();
+          if (audioRef.current) {
+            try {
+              if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+                audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+                audioRef.current.loop = true;
+              }
+              audioRef.current.play().catch(() => {});
+            } catch {}
+          }
           setIsPlaying(true);
         }
         return;
@@ -709,6 +732,116 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
     playNext();
   };
+
+  // ─── Mobile Background Playback & MediaSession Integration ────────────────
+  useEffect(() => {
+    if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+
+    if (currentTrack) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentTrack.title,
+          artist: currentTrack.artistNames.join(", "),
+          album: currentTrack.albumTitle || "Music One",
+          artwork: currentTrack.artworkUrl
+            ? [
+                { src: currentTrack.artworkUrl, sizes: "96x96", type: "image/jpeg" },
+                { src: currentTrack.artworkUrl, sizes: "128x128", type: "image/jpeg" },
+                { src: currentTrack.artworkUrl, sizes: "192x192", type: "image/jpeg" },
+                { src: currentTrack.artworkUrl, sizes: "256x256", type: "image/jpeg" },
+                { src: currentTrack.artworkUrl, sizes: "512x512", type: "image/jpeg" },
+              ]
+            : [],
+        });
+      } catch (err) {
+        console.warn("MediaMetadata error:", err);
+      }
+    }
+
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+
+    const handlePlay = () => {
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+        ytPlayerRef.current.playVideo();
+      }
+      if (audioRef.current) {
+        try {
+          if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+            audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+            audioRef.current.loop = true;
+          }
+          audioRef.current.play().catch(() => {});
+        } catch {}
+      }
+      setIsPlaying(true);
+    };
+
+    const handlePause = () => {
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
+        ytPlayerRef.current.pauseVideo();
+      }
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch {}
+      }
+      setIsPlaying(false);
+    };
+
+    const handlePrev = () => {
+      playPrevious();
+    };
+
+    const handleNext = () => {
+      playNext();
+    };
+
+    const handleSeekTo = (details: any) => {
+      if (details.seekTime !== undefined && details.seekTime !== null) {
+        handleSeek(details.seekTime);
+      }
+    };
+
+    try {
+      navigator.mediaSession.setActionHandler("play", handlePlay);
+      navigator.mediaSession.setActionHandler("pause", handlePause);
+      navigator.mediaSession.setActionHandler("previoustrack", handlePrev);
+      navigator.mediaSession.setActionHandler("nexttrack", handleNext);
+      navigator.mediaSession.setActionHandler("seekto", handleSeekTo);
+    } catch (err) {
+      console.warn("MediaSession action handler error:", err);
+    }
+
+    return () => {
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler("play", null);
+          navigator.mediaSession.setActionHandler("pause", null);
+          navigator.mediaSession.setActionHandler("previoustrack", null);
+          navigator.mediaSession.setActionHandler("nexttrack", null);
+          navigator.mediaSession.setActionHandler("seekto", null);
+        } catch {}
+      }
+    };
+  }, [currentTrack, isPlaying]);
+
+  // Synchronize playback position with OS lockscreen scrubber
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      "mediaSession" in navigator &&
+      "setPositionState" in navigator.mediaSession &&
+      duration > 0 &&
+      currentTime >= 0 &&
+      currentTime <= duration
+    ) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: Math.max(duration, 1),
+          playbackRate: 1,
+          position: Math.min(currentTime, duration),
+        });
+      } catch {}
+    }
+  }, [currentTime, duration]);
 
   // ─── Like / Playlist Actions ────────────────────────────────────────────────
   const isTrackLiked = (trackId: string) => likedSongs.some((t) => t.id === trackId);
@@ -941,7 +1074,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     <span className="group-hover:hidden">{idx + 1}</span>
                     <span className="hidden group-hover:block text-zinc-300">
                       <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
+                        <polygon points="6 4, 18 12, 6 20" />
                       </svg>
                     </span>
                   </>
@@ -1041,31 +1174,32 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
-      {/* Hidden Audio Player for audio previews */}
+      {/* Hidden Audio Player for audio previews & mobile background keepalive */}
       <audio
         ref={audioRef}
+        playsInline
         onTimeUpdate={() => {
-          if (audioRef.current) {
+          if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
             setCurrentTime(audioRef.current.currentTime);
             setDuration(audioRef.current.duration || 30);
           }
         }}
         onEnded={() => {
-          if (repeatMode === "one") {
-            if (audioRef.current) {
+          if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+            if (repeatMode === "one") {
               audioRef.current.currentTime = 0;
               audioRef.current.play().catch(() => {});
+            } else {
+              playNext();
             }
-          } else {
-            playNext();
           }
         }}
       />
 
-      {/* Background YouTube Audio Container (Invisible offscreen to guarantee uninterrupted audio) */}
+      {/* Background YouTube Audio Container (Placed in viewport to prevent mobile browser suspension) */}
       <div
         id="youtube-music-player-container"
-        className="fixed -left-[9999px] top-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden"
+        className="fixed bottom-0 right-0 w-1 h-1 pointer-events-none opacity-[0.001] z-[-1] overflow-hidden"
         aria-hidden="true"
       >
         <div id="youtube-music-player" />
@@ -1165,7 +1299,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div
               className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
                 !searchQuery.trim()
-                  ? "justify-center items-center my-auto min-h-0 translate-y-3 sm:translate-y-5"
+                  ? "justify-center items-center my-auto min-h-0 -translate-y-1 sm:-translate-y-2"
                   : "pt-2"
               }`}
             >
@@ -1249,7 +1383,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
                         >
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
+                            <polygon points="6 4, 18 12, 6 20" />
                           </svg>
                           <span>Putar Semua ({tracks.length})</span>
                         </button>
@@ -1313,7 +1447,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
                       >
                         <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
+                          <polygon points="6 4, 18 12, 6 20" />
                         </svg>
                         <span>Putar Semua</span>
                       </button>
@@ -1360,7 +1494,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
                         >
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
+                            <polygon points="6 4, 18 12, 6 20" />
                           </svg>
                           <span>Putar Semua</span>
                         </button>
@@ -1610,11 +1744,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               >
                 {isPlaying ? (
                   <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                    <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                   </svg>
                 ) : (
-                  <svg className="w-4.5 h-4.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
+                  <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
+                    <polygon points="6 4, 18 12, 6 20" />
                   </svg>
                 )}
               </button>
@@ -1745,11 +1879,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 >
                   {isPlaying ? (
                     <svg className="w-5.5 h-5.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                      <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                     </svg>
                   ) : (
-                    <svg className="w-5.5 h-5.5 fill-current translate-x-0.5" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
+                    <svg className="w-5.5 h-5.5 fill-current" viewBox="0 0 24 24">
+                      <polygon points="6 4, 18 12, 6 20" />
                     </svg>
                   )}
                 </button>
