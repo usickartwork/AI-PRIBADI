@@ -189,9 +189,26 @@ export function isScheduleToday(schedule: ScheduleItem): boolean {
   return schedule.date === getTodayDateString();
 }
 
-export function groupSchedules(schedules: ScheduleItem[]) {
+export function isSchedulePast(
+  dateStr: string,
+  timeStr: string,
+  durationMinutes: number = 60,
+  timezone: string = "Asia/Jakarta"
+): boolean {
+  try {
+    const start = parseScheduleDateTime(dateStr, timeStr, timezone);
+    const end = new Date(start.getTime() + (durationMinutes || 60) * 60 * 1000);
+    return new Date() >= end;
+  } catch {
+    return false;
+  }
+}
+
+export function groupSchedules(
+  schedules: ScheduleItem[],
+  filter?: "all" | "today" | "upcoming" | "completed" | "cancelled"
+) {
   const todayStr = getTodayDateString();
-  const currentTime = getCurrentTimeString();
 
   const today: ScheduleItem[] = [];
   const upcoming: ScheduleItem[] = [];
@@ -199,22 +216,26 @@ export function groupSchedules(schedules: ScheduleItem[]) {
   const cancelled: ScheduleItem[] = [];
 
   for (const s of schedules) {
-    if (s.status === "cancelled") {
-      cancelled.push(s);
-      continue;
-    }
-    if (s.status === "completed") {
-      completed.push(s);
-      continue;
-    }
+    const past = isSchedulePast(s.date, s.time, s.duration_minutes, s.timezone);
 
-    if (s.date === todayStr) {
+    if (filter === "today") {
       today.push(s);
-    } else if (s.date > todayStr) {
+    } else if (filter === "upcoming") {
       upcoming.push(s);
-    } else {
-      // Tanggal sudah lewat namun belum completed/cancelled
+    } else if (filter === "completed") {
       completed.push(s);
+    } else if (filter === "cancelled") {
+      cancelled.push(s);
+    } else {
+      if (s.status === "cancelled") {
+        cancelled.push(s);
+      } else if (s.status === "completed" || past) {
+        completed.push(s);
+      } else if (s.date === todayStr) {
+        today.push(s);
+      } else {
+        upcoming.push(s);
+      }
     }
   }
 

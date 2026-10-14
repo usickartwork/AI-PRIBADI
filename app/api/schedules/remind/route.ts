@@ -132,14 +132,27 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
 
     const reminderMinutes = schedule.reminder_minutes ?? 15;
     const reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
+    const eventEndTime = new Date(
+      scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
+    );
     const oneDayPast = new Date(scheduleDate.getTime() + 24 * 60 * 60 * 1000);
+
+    // Auto-complete jika jadwal sudah melewati waktu akhir acara dan masih upcoming
+    if (now >= eventEndTime && schedule.status === "upcoming") {
+      if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+        await client
+          .from("schedules")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", schedule.id);
+      }
+    }
 
     // Jika waktu jadwal sudah lewat lebih dari 1 hari, tandai skipped agar tidak spamming
     if (now > oneDayPast) {
       if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
         await client
           .from("schedules")
-          .update({ reminder_status: "skipped" })
+          .update({ reminder_status: "skipped", status: "completed", updated_at: new Date().toISOString() })
           .eq("id", schedule.id);
       }
       continue;

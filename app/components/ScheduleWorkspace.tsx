@@ -20,6 +20,7 @@ import {
   getLocalSchedules,
   saveLocalSchedules,
   parseScheduleDateTime,
+  isSchedulePast,
 } from "@/lib/schedules";
 
 type ScheduleWorkspaceProps = {
@@ -185,9 +186,9 @@ export function ScheduleWorkspace({
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta";
 
     // 1. Client-Side Browser & In-App Notification Check
-    for (const schedule of currentItems) {
-      if (schedule.status !== "upcoming") continue;
+    const autoCompletedIds: string[] = [];
 
+    for (const schedule of currentItems) {
       const scheduleDate = parseScheduleDateTime(
         schedule.date,
         schedule.time,
@@ -198,6 +199,14 @@ export function ScheduleWorkspace({
       const eventEndTime = new Date(
         scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
       );
+
+      // Auto-complete jika jadwal sudah melewati batas akhir acara dan masih upcoming
+      if (schedule.status === "upcoming" && now >= eventEndTime) {
+        autoCompletedIds.push(schedule.id);
+        continue;
+      }
+
+      if (schedule.status !== "upcoming") continue;
 
       // Trigger jika sudah melewati waktu pengingat dan belum melewati batas toleransi akhir acara (2 jam)
       const gracePeriodEnd = new Date(eventEndTime.getTime() + 2 * 60 * 60 * 1000);
@@ -242,6 +251,32 @@ export function ScheduleWorkspace({
 
           // C. In-App Banner Alert
           setActiveReminderAlert(schedule);
+        }
+      }
+    }
+
+    // Auto-update item yang sudah selesai ke state dan database
+    if (autoCompletedIds.length > 0) {
+      const completedSet = new Set(autoCompletedIds);
+      const updatedList = currentItems.map((s) =>
+        completedSet.has(s.id)
+          ? { ...s, status: "completed" as ScheduleStatus, updated_at: new Date().toISOString() }
+          : s
+      );
+      updateSchedulesState(updatedList);
+
+      if (user?.id && isSupabaseConfigured) {
+        const realDbIds = autoCompletedIds.filter((id) => !id.startsWith("local_"));
+        if (realDbIds.length > 0) {
+          try {
+            await supabase
+              .from("schedules")
+              .update({ status: "completed", updated_at: new Date().toISOString() })
+              .in("id", realDbIds)
+              .eq("user_id", user.id);
+          } catch (supErr) {
+            console.warn("[supabase] auto-complete sync exception:", supErr);
+          }
         }
       }
     }
@@ -323,6 +358,18 @@ export function ScheduleWorkspace({
     setChatMessages([]);
     setCurrentPendingDraft(null);
 
+    const sweepPastCompleted = (items: ScheduleItem[]): ScheduleItem[] => {
+      return items.map((item) => {
+        if (
+          item.status === "upcoming" &&
+          isSchedulePast(item.date, item.time, item.duration_minutes, item.timezone)
+        ) {
+          return { ...item, status: "completed" as ScheduleStatus };
+        }
+        return item;
+      });
+    };
+
     async function loadData() {
       setLoading(true);
       try {
@@ -341,8 +388,9 @@ export function ScheduleWorkspace({
 
               if (!error && Array.isArray(data)) {
                 if (isMounted) {
-                  setSchedules(data);
-                  saveLocalSchedules(user.id, data);
+                  const swept = sweepPastCompleted(data);
+                  setSchedules(swept);
+                  saveLocalSchedules(user.id, swept);
                   loaded = true;
                 }
               } else if (error) {
@@ -361,8 +409,9 @@ export function ScheduleWorkspace({
               const json = await res.json();
               if (isMounted) {
                 if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-                  setSchedules(json.data);
-                  saveLocalSchedules(user.id, json.data);
+                  const swept = sweepPastCompleted(json.data);
+                  setSchedules(swept);
+                  saveLocalSchedules(user.id, swept);
                   loaded = true;
                 }
               }
@@ -373,18 +422,18 @@ export function ScheduleWorkspace({
 
           // 3. Fallback jika offline ke local cache milik user ini
           if (!loaded && isMounted) {
-            const cached = getLocalSchedules(user.id);
+            const cached = sweepPastCompleted(getLocalSchedules(user.id));
             setSchedules(cached);
           }
         } else {
-          const guestItems = getLocalSchedules("guest");
+          const guestItems = sweepPastCompleted(getLocalSchedules("guest"));
           if (isMounted) {
             setSchedules(guestItems);
           }
         }
       } catch (err) {
         console.error("Gagal memuat schedule:", err);
-        const cached = getLocalSchedules(userId);
+        const cached = sweepPastCompleted(getLocalSchedules(userId));
         if (isMounted) setSchedules(cached);
       } finally {
         if (isMounted) setLoading(false);
@@ -1005,14 +1054,54 @@ export function ScheduleWorkspace({
   };
 
   // ─── Filtered & Grouped Schedules ────────────────────────────────────────────
+  const tabCounts = useMemo(() => {
+    const todayStr = getTodayDateString();
+    let todayCount = 0;
+    let upcomingCount = 0;
+    let completedCount = 0;
+    let cancelledCount = 0;
+
+    for (const item of schedules) {
+      const past = isSchedulePast(item.date, item.time, item.duration_minutes, item.timezone);
+      const isDone = item.status === "completed" || (item.status !== "cancelled" && past);
+
+      if (item.status === "cancelled") {
+        cancelledCount++;
+      } else if (isDone) {
+        completedCount++;
+        if (item.date === todayStr) {
+          todayCount++;
+        }
+      } else {
+        upcomingCount++;
+        if (item.date === todayStr) {
+          todayCount++;
+        }
+      }
+    }
+
+    return {
+      all: schedules.length,
+      today: todayCount,
+      upcoming: upcomingCount,
+      completed: completedCount,
+      cancelled: cancelledCount,
+    };
+  }, [schedules]);
+
   const filteredSchedules = useMemo(() => {
+    const todayStr = getTodayDateString();
     return schedules.filter((item) => {
+      const past = isSchedulePast(item.date, item.time, item.duration_minutes, item.timezone);
+      const isDone = item.status === "completed" || (item.status !== "cancelled" && past);
+
       if (statusFilter === "today") {
-        if (item.date !== getTodayDateString()) return false;
+        if (item.date !== todayStr) return false;
+        if (item.status === "cancelled") return false;
       } else if (statusFilter === "upcoming") {
-        if (item.status !== "upcoming") return false;
+        if (item.status === "cancelled" || isDone) return false;
       } else if (statusFilter === "completed") {
-        if (item.status !== "completed") return false;
+        if (!isDone) return false;
       } else if (statusFilter === "cancelled") {
         if (item.status !== "cancelled") return false;
       }
@@ -1027,8 +1116,8 @@ export function ScheduleWorkspace({
   }, [schedules, statusFilter, searchQuery]);
 
   const grouped = useMemo(() => {
-    return groupSchedules(filteredSchedules);
-  }, [filteredSchedules]);
+    return groupSchedules(filteredSchedules, statusFilter);
+  }, [filteredSchedules, statusFilter]);
 
   const renderScheduleInputCard = () => (
     <div className="prompt-bar-glow relative w-full rounded-[26px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
@@ -1178,24 +1267,32 @@ export function ScheduleWorkspace({
       {activeReminderAlert && (
         <div className="z-30 px-3.5 sm:px-6 pt-3 animate-fadeIn">
           <div
-            className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl border shadow-xl backdrop-blur-md ${
+            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border shadow-xl backdrop-blur-md ${
               isDark
-                ? "bg-zinc-900/95 border-amber-500/50 text-white shadow-amber-500/5"
-                : "bg-amber-50/95 border-amber-300 text-zinc-900 shadow-amber-500/10"
+                ? "bg-zinc-900/95 border-zinc-700/80 text-white shadow-black/40"
+                : "bg-white/95 border-zinc-300 text-zinc-900 shadow-zinc-400/20"
             }`}
           >
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+              <div
+                className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                  isDark ? "bg-zinc-800 text-white" : "bg-zinc-100 text-black"
+                }`}
+              >
                 <svg className="w-5 h-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      isDark ? "text-zinc-300" : "text-zinc-700"
+                    }`}
+                  >
                     ⏰ Pengingat Jadwal
                   </span>
-                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span className={`inline-block w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-black"} animate-ping`} />
                 </div>
                 <div className="text-sm font-bold mt-0.5">{activeReminderAlert.title}</div>
                 <div className="text-xs text-zinc-400 mt-0.5">
@@ -1212,17 +1309,53 @@ export function ScheduleWorkspace({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center flex-wrap gap-2 shrink-0 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateStatus(activeReminderAlert, "completed");
+                  setActiveReminderAlert(null);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                }`}
+                title="Tandai Selesai"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Tandai Selesai</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateStatus(activeReminderAlert, "cancelled");
+                  setActiveReminderAlert(null);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer flex items-center gap-1.5 transition ${
+                  isDark
+                    ? "border-zinc-700 hover:bg-zinc-800 text-zinc-300"
+                    : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+                title="Batalkan Jadwal"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Batalkan</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setSelectedItem(activeReminderAlert);
                   setActiveReminderAlert(null);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer transition ${
                   isDark
-                    ? "bg-white text-black hover:bg-zinc-200"
-                    : "bg-black text-white hover:bg-zinc-800"
+                    ? "border-zinc-700 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                    : "border-zinc-300 hover:bg-zinc-100 text-zinc-600 hover:text-black"
                 }`}
               >
                 Detail
@@ -1230,7 +1363,7 @@ export function ScheduleWorkspace({
               <button
                 type="button"
                 onClick={() => setActiveReminderAlert(null)}
-                className={`p-1.5 rounded-xl cursor-pointer ${
+                className={`p-1.5 rounded-xl cursor-pointer transition ${
                   isDark ? "hover:bg-zinc-800 text-zinc-400" : "hover:bg-zinc-200 text-zinc-600"
                 }`}
                 title="Tutup Notifikasi"
@@ -1538,11 +1671,11 @@ export function ScheduleWorkspace({
             <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
               {(
                 [
-                  { id: "all", label: "Semua", count: schedules.length },
-                  { id: "today", label: "Hari Ini", count: grouped.today.length },
-                  { id: "upcoming", label: "Akan Datang", count: grouped.upcoming.length },
-                  { id: "completed", label: "Selesai", count: grouped.completed.length },
-                  { id: "cancelled", label: "Dibatalkan", count: grouped.cancelled.length },
+                  { id: "all", label: "Semua", count: tabCounts.all },
+                  { id: "today", label: "Hari Ini", count: tabCounts.today },
+                  { id: "upcoming", label: "Akan Datang", count: tabCounts.upcoming },
+                  { id: "completed", label: "Selesai", count: tabCounts.completed },
+                  { id: "cancelled", label: "Dibatalkan", count: tabCounts.cancelled },
                 ] as const
               ).map((tab) => {
                 const active = statusFilter === tab.id;
@@ -1655,6 +1788,9 @@ export function ScheduleWorkspace({
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
+                  onToggleCancel={(item) =>
+                    handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
+                  }
                 />
               )}
 
@@ -1668,6 +1804,9 @@ export function ScheduleWorkspace({
                   onDelete={handleDeleteSchedule}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                  onToggleCancel={(item) =>
+                    handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
                 />
               )}
@@ -1683,6 +1822,9 @@ export function ScheduleWorkspace({
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
+                  onToggleCancel={(item) =>
+                    handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
+                  }
                 />
               )}
 
@@ -1696,6 +1838,9 @@ export function ScheduleWorkspace({
                   onDelete={handleDeleteSchedule}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
+                  }
+                  onToggleCancel={(item) =>
+                    handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
                 />
               )}
@@ -2020,7 +2165,19 @@ export function ScheduleWorkspace({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {selectedItem.status !== "cancelled" ? (
+                  {selectedItem.status === "cancelled" ? (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateStatus(selectedItem, "upcoming")}
+                      className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                        isDark
+                          ? "text-zinc-300 hover:text-white hover:bg-zinc-800"
+                          : "text-zinc-700 hover:text-black hover:bg-zinc-100"
+                      }`}
+                    >
+                      Pulihkan Jadwal
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => handleUpdateStatus(selectedItem, "cancelled")}
@@ -2032,7 +2189,7 @@ export function ScheduleWorkspace({
                     >
                       Batalkan Jadwal
                     </button>
-                  ) : null}
+                  )}
 
                   <button
                     type="button"
@@ -2082,6 +2239,7 @@ function ScheduleSection({
   onEdit,
   onDelete,
   onToggleComplete,
+  onToggleCancel,
 }: {
   title: string;
   items: ScheduleItem[];
@@ -2090,6 +2248,7 @@ function ScheduleSection({
   onEdit: (item: ScheduleItem) => void;
   onDelete: (item: ScheduleItem) => void;
   onToggleComplete: (item: ScheduleItem) => void;
+  onToggleCancel?: (item: ScheduleItem) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -2152,7 +2311,7 @@ function ScheduleSection({
                           : "bg-zinc-100 text-zinc-700 border-zinc-200"
                       }`}
                     >
-                      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                       </svg>
                       <span>{item.reminder_minutes}m</span>
@@ -2204,6 +2363,33 @@ function ScheduleSection({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
                   </button>
+
+                  {onToggleCancel && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleCancel(item)}
+                      title={isCancelled ? "Pulihkan jadwal" : "Batalkan jadwal"}
+                      className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                        isCancelled
+                          ? isDark
+                            ? "border-zinc-600 bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-300 bg-zinc-100 text-zinc-700 hover:text-black"
+                          : isDark
+                          ? "border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white"
+                          : "border-zinc-200 hover:border-zinc-400 text-zinc-500 hover:text-black hover:bg-zinc-100"
+                      }`}
+                    >
+                      {isCancelled ? (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
 
                   <button
                     type="button"
