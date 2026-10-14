@@ -308,6 +308,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [isResolvingAudio, setIsResolvingAudio] = useState(false);
   const pendingVideoIdRef = useRef<string | null>(null);
   const [currentVideoId, setCurrentVideoId] = useState<string>("3BFTio5296w");
+  const loadedTrackIdRef = useRef<string | null>(null);
 
   // Synchronized state refs for callbacks (prevent stale closures)
   const queueRef = useRef<MusicItem[]>(queue);
@@ -334,8 +335,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (savedQueue && savedQueue.items.length > 0) {
       setQueue(savedQueue.items);
       setQueueIndex(Math.min(savedQueue.currentIndex, savedQueue.items.length - 1));
-      if (savedQueue.items[savedQueue.currentIndex]) {
-        setCurrentTrack(savedQueue.items[savedQueue.currentIndex]);
+      const initial = savedQueue.items[savedQueue.currentIndex];
+      if (initial) {
+        setCurrentTrack(initial);
+        if (initial.youtubeVideoId) {
+          setCurrentVideoId(initial.youtubeVideoId);
+          pendingVideoIdRef.current = initial.youtubeVideoId;
+        }
       }
     }
   }, []);
@@ -358,7 +364,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           width: "100%",
           videoId: currentVideoId || "3BFTio5296w",
           playerVars: {
-            autoplay: 1,
+            autoplay: 0,
             controls: 1,
             modestbranding: 1,
             rel: 0,
@@ -379,7 +385,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 const vid = pendingVideoIdRef.current;
                 pendingVideoIdRef.current = null;
                 event.target.loadVideoById(vid);
-                event.target.playVideo();
               }
             },
             onStateChange: (event: any) => {
@@ -533,10 +538,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
+  // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
   const playTrack = useCallback(async (track: MusicItem) => {
     setCurrentTrack(track);
     setIsPlaying(true);
     setCurrentTime(0);
+    loadedTrackIdRef.current = track.id;
 
     // Keep mobile background audio alive by acquiring HTML5 audio session lock
     if (audioRef.current) {
@@ -582,6 +589,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         if (data.success && data.videoId) {
           videoId = data.videoId;
           track.youtubeVideoId = videoId;
+          // Persist the resolved videoId to the queue
+          setQueue((prevQueue) => {
+            const updated = prevQueue.map((item) =>
+              item.id === track.id ? { ...item, youtubeVideoId: videoId } : item
+            );
+            saveQueueState({ items: updated, currentIndex: queueIndexRef.current, updatedAt: new Date().toISOString() });
+            return updated;
+          });
         }
       } catch (err) {
         console.warn("Failed to resolve audio for track:", err);
@@ -590,7 +605,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    const targetVideoId = videoId || "3BFTio5296w";
+    if (!videoId) {
+      console.warn("Could not resolve videoId for track:", track.title);
+      return;
+    }
+
+    const targetVideoId = videoId;
     setCurrentVideoId(targetVideoId);
 
     if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
@@ -622,6 +642,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
+    // If the displayed track hasn't been loaded into the YouTube engine yet
+    // (e.g. restored from saved queue when opening the tab), load and play it directly!
+    if (loadedTrackIdRef.current !== currentTrack.id) {
+      playTrack(currentTrack);
+      return;
+    }
+
     if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
       try {
         if (isPlaying) {
@@ -649,7 +676,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    setIsPlaying(!isPlaying);
+    playTrack(currentTrack);
   };
 
   const handleSeek = (newTime: number) => {
@@ -761,6 +788,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 
     const handlePlay = () => {
+      if (currentTrack && loadedTrackIdRef.current !== currentTrack.id) {
+        playTrack(currentTrack);
+        return;
+      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         ytPlayerRef.current.playVideo();
       }
@@ -1672,12 +1703,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
           <div className="px-3.5 py-2 flex items-center justify-between gap-2.5">
             {/* Left: Thumbnail & Song Info */}
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div
+              onClick={() => {
+                if (currentTrack) {
+                  if (loadedTrackIdRef.current !== currentTrack.id || !isPlaying) {
+                    playTrack(currentTrack);
+                  } else {
+                    togglePlayPause();
+                  }
+                }
+              }}
+              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer select-none group"
+              title={currentTrack ? `Putar ${currentTrack.title}` : undefined}
+            >
               {currentTrack?.artworkUrl ? (
                 <img
                   src={currentTrack.artworkUrl}
                   alt={currentTrack.title}
-                  className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-sm"
+                  className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-sm group-hover:opacity-90 transition-opacity"
                 />
               ) : (
                 <div
@@ -1693,7 +1736,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-bold truncate">
+                <h4 className="text-xs font-bold truncate group-hover:underline">
                   {currentTrack?.title || "Belum ada trek diputar"}
                 </h4>
                 <p className="text-[10px] text-zinc-400 truncate">
@@ -1737,12 +1780,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={togglePlayPause}
+                disabled={isResolvingAudio}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition shadow-md cursor-pointer ${
                   isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                }`}
-                title={isPlaying ? "Jeda" : "Putar"}
+                } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
+                title={isResolvingAudio ? "Memuat audio..." : isPlaying ? "Jeda" : "Putar"}
               >
-                {isPlaying ? (
+                {isResolvingAudio ? (
+                  <svg className="w-4.5 h-4.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                ) : isPlaying ? (
                   <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                   </svg>
@@ -1785,12 +1834,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         <div className="hidden sm:block px-4 sm:px-8 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             {/* Left: Metadata */}
-            <div className="flex items-center gap-3 w-1/4 min-w-0">
+            <div
+              onClick={() => {
+                if (currentTrack) {
+                  if (loadedTrackIdRef.current !== currentTrack.id || !isPlaying) {
+                    playTrack(currentTrack);
+                  } else {
+                    togglePlayPause();
+                  }
+                }
+              }}
+              className="flex items-center gap-3 w-1/4 min-w-0 cursor-pointer select-none group"
+              title={currentTrack ? `Putar ${currentTrack.title}` : undefined}
+            >
               {currentTrack?.artworkUrl ? (
                 <img
                   src={currentTrack.artworkUrl}
                   alt={currentTrack.title}
-                  className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md"
+                  className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md group-hover:opacity-90 transition-opacity"
                 />
               ) : (
                 <div
@@ -1806,7 +1867,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs sm:text-sm font-bold truncate">
+                <h4 className="text-xs sm:text-sm font-bold truncate group-hover:underline">
                   {currentTrack?.title || "Belum ada trek yang diputar"}
                 </h4>
                 <p className="text-[11px] text-zinc-500 truncate">
@@ -1816,7 +1877,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {currentTrack && (
                 <button
                   type="button"
-                  onClick={() => toggleLike(currentTrack)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleLike(currentTrack);
+                  }}
                   className={`p-2 rounded-lg transition cursor-pointer ${
                     isTrackLiked(currentTrack.id)
                       ? "text-red-500"
@@ -1872,12 +1936,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={togglePlayPause}
+                  disabled={isResolvingAudio}
                   className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                  }`}
-                  title={isPlaying ? "Jeda" : "Putar"}
+                  } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
+                  title={isResolvingAudio ? "Memuat audio..." : isPlaying ? "Jeda" : "Putar"}
                 >
-                  {isPlaying ? (
+                  {isResolvingAudio ? (
+                    <svg className="w-5.5 h-5.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  ) : isPlaying ? (
                     <svg className="w-5.5 h-5.5 fill-current" viewBox="0 0 24 24">
                       <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                     </svg>
