@@ -1096,83 +1096,82 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           <span className="font-extrabold text-sm sm:text-base tracking-tight truncate">Music One</span>
         </div>
 
-        {/* Center: Clean 2-Tab Switcher (Musik & Playlist) */}
-        <div
-          className={`flex items-center p-1 rounded-2xl border backdrop-blur-md shrink-0 ${
-            isDark ? "bg-zinc-900/80 border-zinc-800" : "bg-zinc-200/80 border-zinc-300"
-          }`}
-        >
-          <button
-            onClick={() => {
-              setSubTab("home");
-              setSelectedLocalPlaylist(null);
-              setIsViewingLiked(false);
-            }}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              subTab === "home"
-                ? isDark
-                  ? "bg-white text-black shadow-sm"
-                  : "bg-black text-white shadow-sm"
-                : isDark
-                ? "text-zinc-400 hover:text-white"
-                : "text-zinc-600 hover:text-black"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-            </svg>
-            <span>Musik</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setSubTab("playlists");
-              setSelectedLocalPlaylist(null);
-              setIsViewingLiked(false);
-            }}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              subTab === "playlists"
-                ? isDark
-                  ? "bg-white text-black shadow-sm"
-                  : "bg-black text-white shadow-sm"
-                : isDark
-                ? "text-zinc-400 hover:text-white"
-                : "text-zinc-600 hover:text-black"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
-            <span>Playlist</span>
-            {likedSongs.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                subTab === "playlists"
-                  ? isDark ? "bg-black/15 text-black" : "bg-white/20 text-white"
-                  : "bg-zinc-700 text-zinc-300"
-              }`}>
-                {likedSongs.length}
-              </span>
-            )}
-          </button>
+        {/* Right: Bespoke Liquid-Glass Playlist / Musik Toggle Icon Button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {subTab === "home" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSubTab("playlists");
+                setSelectedLocalPlaylist(null);
+                setIsViewingLiked(false);
+              }}
+              title="Playlist & Koleksi"
+              aria-label="Buka Playlist"
+              className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+              }`}
+            >
+              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              {likedSongs.length > 0 && (
+                <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
+                  isDark ? "bg-white text-black" : "bg-black text-white"
+                }`}>
+                  {likedSongs.length}
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setSubTab("home");
+              }}
+              title="Kembali ke Musik"
+              aria-label="Kembali ke Musik"
+              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-white text-black hover:bg-zinc-200 shadow-white/10"
+                  : "bg-black text-white hover:bg-zinc-800 shadow-black/10"
+              }`}
+            >
+              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+              </svg>
+            </button>
+          )}
         </div>
-
-        {/* Right: Clean Spacer (Gear and X removed as requested) */}
-        <div className="w-9 sm:w-10 shrink-0" />
       </header>
 
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 bg-transparent">
-        <div className="px-3.5 sm:px-8 py-4 sm:py-6 flex-1 flex flex-col">
+      <main
+        className={`flex-1 flex flex-col min-h-0 overflow-y-auto bg-transparent ${
+          searchQuery.trim() || subTab === "playlists" ? "pb-28" : "pb-2"
+        }`}
+      >
+        <div
+          className={`px-3.5 sm:px-8 flex-1 flex flex-col ${
+            !searchQuery.trim() && subTab === "home"
+              ? "justify-center items-center my-auto min-h-0"
+              : "py-4 sm:py-6"
+          }`}
+        >
           {/* ─── TAB 1: MUSIK / SEARCH (Persistent Chat Box: Centered or Results List) ───────── */}
           {subTab === "home" && (
             <div
               className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
-                !searchQuery.trim() ? "justify-center my-auto py-6 sm:py-12" : "pt-2"
+                !searchQuery.trim()
+                  ? "justify-center items-center my-auto min-h-0 translate-y-3 sm:translate-y-5"
+                  : "pt-2"
               }`}
             >
               {/* Initial Hero: Avatar & Greeting (Visible ONLY when search box is empty) */}
               {!searchQuery.trim() && (
-                <div className="flex flex-col items-center justify-center text-center mb-3 sm:mb-4 px-3 sm:px-4 animate-in fade-in-0 duration-200">
+                <div className="flex flex-col items-center justify-center text-center mb-4 sm:mb-5 px-3 sm:px-4 animate-in fade-in-0 duration-200">
                   {/* Avatar Icon (Exact same blinking avatar from tab chat) */}
                   <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center">
                     <Avatar
@@ -1188,7 +1187,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
                     Mau dengar apa hari ini{userName ? `, ${userName}` : ""}?
                   </h1>
-                  <p className={`mt-2 mb-4 text-xs sm:text-sm font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  <p className={`mt-2 mb-2 text-xs sm:text-sm font-medium max-w-md px-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                     Ketik judul lagu, musisi, atau genre untuk memutar musik langsung.
                   </p>
                 </div>
@@ -1201,7 +1200,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Lower Section: Quick Inspiration Pills (When empty) OR Results & Tracks (When typed) */}
               {!searchQuery.trim() ? (
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 pb-6 animate-in fade-in-0 duration-200">
+                <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-center gap-2 animate-in fade-in-0 duration-200">
                   {["Top Hits 2025", "Bernadya", "Pop Indonesia", "Billie Eilish", "Chill Vibes"].map((tag) => (
                     <button
                       key={tag}
@@ -1390,20 +1389,37 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Mode C: Main Playlist Cards Overview */}
               {!isViewingLiked && !selectedLocalPlaylist && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-base sm:text-lg font-bold tracking-tight">Koleksi & Playlist</h2>
                       <p className="text-xs text-zinc-500">Daftar putar pribadi yang kamu simpan</p>
                     </div>
-                    <button
-                      onClick={() => setShowCreatePlaylistModal(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span>Buat Playlist</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSubTab("home")}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                          isDark
+                            ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                            : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span>Kembali ke Musik</span>
+                      </button>
+
+                      <button
+                        onClick={() => setShowCreatePlaylistModal(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Buat Playlist</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1495,19 +1511,19 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       </main>
 
-      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Mobile-Optimized Dual-Mode) ─────── */}
+      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Premium Translucent Glass Finish) ─────── */}
       <footer
-        className={`shrink-0 border-t z-30 transition relative ${
+        className={`shrink-0 z-30 transition-all relative backdrop-blur-2xl border-t ${
           isDark
-            ? "bg-[#141419]/95 border-zinc-800/80 shadow-2xl shadow-black"
-            : "bg-white/95 border-zinc-200 shadow-lg"
+            ? "bg-[#121215]/65 border-white/[0.08] text-white shadow-[0_-12px_36px_rgba(0,0,0,0.45)]"
+            : "bg-[#fafafc]/75 border-black/[0.06] text-zinc-900 shadow-[0_-12px_36px_rgba(0,0,0,0.04)]"
         } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
       >
         {/* ─── MOBILE VIEW (< sm): Compact 54px Row with Pinned Top Progress Bar ─ */}
         <div className="block sm:hidden">
           {/* Top Progress Bar */}
           <div
-            className="w-full h-1 bg-zinc-800/60 cursor-pointer overflow-hidden relative"
+            className={`w-full h-1 cursor-pointer overflow-hidden relative ${isDark ? "bg-white/10" : "bg-black/10"}`}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const pct = (e.clientX - rect.left) / rect.width;
@@ -1515,7 +1531,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             }}
           >
             <div
-              className="h-full bg-white transition-all"
+              className={`h-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
               style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
             />
           </div>
@@ -1530,7 +1546,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-sm"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-zinc-400">
+                <div
+                  className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center ${
+                    isDark
+                      ? "bg-zinc-800/70 border border-white/5 text-zinc-400"
+                      : "bg-zinc-200/80 border border-black/5 text-zinc-500"
+                  }`}
+                >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                   </svg>
@@ -1553,7 +1575,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={() => toggleLike(currentTrack)}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    isTrackLiked(currentTrack.id) ? "text-red-500" : "text-zinc-400 hover:text-white"
+                    isTrackLiked(currentTrack.id)
+                      ? "text-red-500"
+                      : isDark
+                      ? "text-zinc-400 hover:text-white"
+                      : "text-zinc-500 hover:text-black"
                   }`}
                   title="Sukai lagu"
                 >
@@ -1566,7 +1592,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playPrevious}
-                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
+                className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                 title="Sebelumnya"
               >
                 <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
@@ -1578,7 +1604,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 type="button"
                 onClick={togglePlayPause}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition shadow-md cursor-pointer ${
-                  isDark ? "bg-white text-black" : "bg-black text-white"
+                  isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                 }`}
                 title={isPlaying ? "Jeda" : "Putar"}
               >
@@ -1596,7 +1622,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playNext}
-                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
+                className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                 title="Berikutnya"
               >
                 <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
@@ -1607,14 +1633,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer relative"
+                className={`p-2 transition cursor-pointer relative ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                 title="Antrean"
               >
                 <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-white" />
+                  <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
                 )}
               </button>
             </div>
@@ -1633,7 +1659,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center text-zinc-400">
+                <div
+                  className={`w-12 h-12 rounded-xl shrink-0 flex items-center justify-center ${
+                    isDark
+                      ? "bg-zinc-800/70 border border-white/5 text-zinc-400"
+                      : "bg-zinc-200/80 border border-black/5 text-zinc-500"
+                  }`}
+                >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                   </svg>
@@ -1654,7 +1686,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   className={`p-2 rounded-lg transition cursor-pointer ${
                     isTrackLiked(currentTrack.id)
                       ? "text-red-500"
-                      : "text-zinc-500 hover:text-white"
+                      : isDark
+                      ? "text-zinc-500 hover:text-white"
+                      : "text-zinc-500 hover:text-black"
                   }`}
                   title="Sukai lagu"
                 >
@@ -1673,7 +1707,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={() => setIsShuffle((prev) => !prev)}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    isShuffle ? "text-white bg-white/10" : "text-zinc-500 hover:text-white"
+                    isShuffle
+                      ? isDark
+                        ? "text-white bg-white/10"
+                        : "text-black bg-black/10 font-bold"
+                      : isDark
+                      ? "text-zinc-500 hover:text-white"
+                      : "text-zinc-500 hover:text-black"
                   }`}
                   title="Shuffle"
                 >
@@ -1686,7 +1726,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playPrevious}
-                  className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                   title="Sebelumnya"
                 >
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -1699,7 +1739,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={togglePlayPause}
                   className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
-                    isDark ? "bg-white text-black" : "bg-black text-white"
+                    isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                   }`}
                   title={isPlaying ? "Jeda" : "Putar"}
                 >
@@ -1718,7 +1758,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playNext}
-                  className="p-2 text-zinc-400 hover:text-white transition cursor-pointer"
+                  className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                   title="Berikutnya"
                 >
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -1733,7 +1773,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
                   }
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    repeatMode !== "off" ? "text-white bg-white/10 font-bold" : "text-zinc-500 hover:text-white"
+                    repeatMode !== "off"
+                      ? isDark
+                        ? "text-white bg-white/10 font-bold"
+                        : "text-black bg-black/10 font-bold"
+                      : isDark
+                      ? "text-zinc-500 hover:text-white"
+                      : "text-zinc-500 hover:text-black"
                   }`}
                   title={`Repeat: ${repeatMode}`}
                 >
@@ -1743,11 +1789,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </button>
               </div>
 
-              {/* Progress Bar Slider (Clean White Accent) */}
+              {/* Progress Bar Slider (Clean White/Black Accent) */}
               <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
                 <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}</span>
                 <div
-                  className="flex-1 h-1.5 rounded-full bg-zinc-700/50 relative overflow-hidden cursor-pointer"
+                  className={`flex-1 h-1.5 rounded-full relative overflow-hidden cursor-pointer ${
+                    isDark ? "bg-white/10" : "bg-black/10"
+                  }`}
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const pct = (e.clientX - rect.left) / rect.width;
@@ -1756,7 +1804,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }}
                 >
                   <div
-                    className="h-full bg-white rounded-full transition-all"
+                    className={`h-full rounded-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
                     style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
                   />
                 </div>
@@ -1769,14 +1817,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className="p-2 text-zinc-400 hover:text-white transition cursor-pointer relative"
+                className={`p-2 transition cursor-pointer relative ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                 title="Antrean Putar"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white" />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
                 )}
               </button>
 
@@ -1785,7 +1833,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
+                  className={`p-1.5 rounded-lg transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
                   title={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted ? (
@@ -1809,7 +1857,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     const val = parseFloat(e.target.value);
                     handleVolumeChange(val);
                   }}
-                  className="w-24 sm:w-32 md:w-40 h-1.5 rounded-full bg-zinc-700 accent-white cursor-pointer transition-all"
+                  className={`w-24 sm:w-32 md:w-40 h-1.5 rounded-full cursor-pointer transition-all ${
+                    isDark ? "bg-white/15 accent-white" : "bg-black/15 accent-black"
+                  }`}
                 />
               </div>
             </div>
