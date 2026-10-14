@@ -133,7 +133,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [queueIndex, setQueueIndex] = useState(0);
 
   // Modals & Drawers
-  const [showSpotifyEmbed, setShowSpotifyEmbed] = useState(true);
   const [showLyricsModal, setShowLyricsModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -142,7 +141,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
 
-  // Audio Ref for preview tracks
+  // Spotify Official IFrame API Player State & Refs
+  const [spotifyIFrameAPI, setSpotifyIFrameAPI] = useState<any>(null);
+  const [isEmbedReady, setIsEmbedReady] = useState(false);
+  const embedContainerRef = useRef<HTMLDivElement | null>(null);
+  const controllerRef = useRef<any>(null);
+  const isControllerCreatedRef = useRef(false);
+  const pendingPlayUriRef = useRef<string | null>(null);
+
+  // Audio Ref for preview tracks (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -161,6 +168,99 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
   }, []);
+
+  // ─── 1. Load Spotify IFrame API Script ──────────────────────────────────────
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleApiReady = (IFrameAPI: any) => {
+      if (isMounted) {
+        setSpotifyIFrameAPI(IFrameAPI);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      if ((window as any).SpotifyIframeApi) {
+        handleApiReady((window as any).SpotifyIframeApi);
+      } else {
+        const prevCallback = (window as any).onSpotifyIframeApiReady;
+        (window as any).onSpotifyIframeApiReady = (IFrameAPI: any) => {
+          if (typeof prevCallback === "function") {
+            try {
+              prevCallback(IFrameAPI);
+            } catch {}
+          }
+          handleApiReady(IFrameAPI);
+        };
+
+        if (!document.getElementById("spotify-iframe-api-script")) {
+          const script = document.createElement("script");
+          script.id = "spotify-iframe-api-script";
+          script.src = "https://open.spotify.com/embed/iframe-api/v1";
+          script.async = true;
+          document.body.appendChild(script);
+        }
+      }
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // ─── 2. Initialize Spotify Embed Controller ────────────────────────────────
+  useEffect(() => {
+    if (!spotifyIFrameAPI || isControllerCreatedRef.current || !embedContainerRef.current) return;
+
+    isControllerCreatedRef.current = true;
+    const initialUri =
+      currentTrack?.uri ||
+      FEATURED_STARTER_TRACKS[0].uri ||
+      "spotify:track:4cOdK2wGLETKBW3PvgPWqT";
+
+    const options = {
+      width: "100%",
+      height: "152",
+      uri: initialUri,
+    };
+
+    try {
+      spotifyIFrameAPI.createController(
+        embedContainerRef.current,
+        options,
+        (controller: any) => {
+          controllerRef.current = controller;
+
+          controller.addListener("ready", () => {
+            setIsEmbedReady(true);
+            if (pendingPlayUriRef.current) {
+              try {
+                controller.loadUri(pendingPlayUriRef.current);
+                controller.play();
+              } catch (err) {
+                console.error("Error playing pending URI:", err);
+              }
+              pendingPlayUriRef.current = null;
+            }
+          });
+
+          controller.addListener("playback_update", (e: any) => {
+            if (e && e.data) {
+              setIsPlaying(!e.data.isPaused);
+              if (typeof e.data.position === "number") {
+                setCurrentTime(e.data.position / 1000);
+              }
+              if (typeof e.data.duration === "number" && e.data.duration > 0) {
+                setDuration(e.data.duration / 1000);
+              }
+            }
+          });
+        }
+      );
+    } catch (err) {
+      console.error("Failed to create Spotify embed controller:", err);
+    }
+  }, [spotifyIFrameAPI, currentTrack?.uri]);
 
   // ─── Initial Spotify Search / Catalog Fetch ─────────────────────────────────
   const fetchSpotifyMusic = useCallback(async (query: string = "") => {
@@ -232,7 +332,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       saveQueueState({ items: newQueue, currentIndex: 0, updatedAt: new Date().toISOString() });
     }
 
-    // If audio element preview exists
+    const trackUri = track.uri || (track.providerItemId ? `spotify:track:${track.providerItemId}` : null);
+
+    // Trigger instant Spotify playback directly via IFrame controller
+    if (trackUri) {
+      if (controllerRef.current) {
+        try {
+          controllerRef.current.loadUri(trackUri);
+          controllerRef.current.play();
+        } catch (err) {
+          console.warn("Spotify controller playback error:", err);
+        }
+      } else {
+        pendingPlayUriRef.current = trackUri;
+      }
+    }
+
+    // Fallback if audio element preview exists
     if (audioRef.current) {
       if (track.previewUrl) {
         audioRef.current.src = track.previewUrl;
@@ -248,12 +364,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (tracks.length > 0) playTrack(tracks[0]);
       return;
     }
-    const nextState = !isPlaying;
-    setIsPlaying(nextState);
 
-    if (audioRef.current && currentTrack.previewUrl) {
-      if (nextState) audioRef.current.play().catch(() => {});
-      else audioRef.current.pause();
+    if (controllerRef.current) {
+      try {
+        controllerRef.current.togglePlay();
+      } catch (err) {
+        console.warn("Spotify controller toggle error:", err);
+      }
+    } else {
+      const nextState = !isPlaying;
+      setIsPlaying(nextState);
+
+      if (audioRef.current && currentTrack.previewUrl) {
+        if (nextState) audioRef.current.play().catch(() => {});
+        else audioRef.current.pause();
+      }
     }
   };
 
@@ -781,6 +906,58 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             )}
 
+            {/* ─── IN-PAGE SPOTIFY DIRECT WEB PLAYER (Langsung di Halaman) ─────────────── */}
+            <div
+              className={`rounded-3xl border p-4 sm:p-5 transition shadow-xl ${
+                isDark
+                  ? "bg-gradient-to-br from-[#16161f] via-[#121217] to-[#0e0e13] border-zinc-800/90"
+                  : "bg-white border-zinc-200/90 shadow-md"
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-extrabold tracking-tight">
+                        Pemutar Musik Langsung di Halaman
+                      </h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        Auto-Play Langsung
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400">
+                      Lagu otomatis diputar saat diklik dari daftar lagu di bawah
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tips Login Full */}
+                <div className="flex items-center gap-2 text-[11px] px-3.5 py-1.5 rounded-2xl bg-zinc-800/50 border border-zinc-700/50 text-zinc-300">
+                  <span className="text-amber-400 font-bold">💡 Tips Lagu Full:</span>
+                  <span>
+                    Login Spotify sekali di player untuk mendengarkan lagu secara <strong>Full</strong> tanpa terpotong (Free & Premium).
+                  </span>
+                </div>
+              </div>
+
+              {/* Spotify Official IFrame Player Container */}
+              <div className="rounded-2xl overflow-hidden shadow-inner border border-zinc-800/80 bg-black/60 relative min-h-[152px]">
+                {!isEmbedReady && (
+                  <div className="absolute inset-0 flex items-center justify-center gap-2 text-xs text-zinc-400 bg-black/80 z-10">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Menghubungkan ke Pemutar Resmi Spotify...</span>
+                  </div>
+                )}
+                <div ref={embedContainerRef} className="w-full min-h-[152px]" />
+              </div>
+            </div>
+
             {/* 3. TRACK LIST TABLE (Matching Reference Image "New Music" Table) */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1066,7 +1243,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   const pct = (e.clientX - rect.left) / rect.width;
                   const newTime = pct * duration;
                   setCurrentTime(newTime);
-                  if (audioRef.current) audioRef.current.currentTime = newTime;
+                  if (controllerRef.current) {
+                    try {
+                      controllerRef.current.seek(Math.floor(newTime));
+                    } catch {}
+                  } else if (audioRef.current) {
+                    audioRef.current.currentTime = newTime;
+                  }
                 }}
               >
                 <div
@@ -1136,51 +1319,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               />
             </div>
 
-            {/* Official Spotify Embed Player Toggle */}
+            {/* Scroll to In-Page Spotify Player Button */}
             <button
-              onClick={() => setShowSpotifyEmbed((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
-                showSpotifyEmbed
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                  : "border-zinc-800 hover:bg-zinc-800 text-zinc-400"
-              }`}
-              title="Official Spotify Embed Player"
+              onClick={() => {
+                const el = embedContainerRef.current;
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-[11px] font-bold transition hover:bg-emerald-500/20 cursor-pointer"
+              title="Lihat Pemutar Spotify di Halaman"
             >
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                 <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
               </svg>
-              <span>Embed</span>
+              <span>Player</span>
             </button>
           </div>
         </div>
-
-        {/* Official Embedded Spotify IFrame Player (Direct In-Web Streaming) */}
-        {showSpotifyEmbed && currentTrack && (
-          <div className="max-w-7xl mx-auto mt-3 pt-3 border-t border-zinc-800/60 animate-in fade-in-0 duration-200">
-            <div className="flex items-center justify-between mb-1.5 text-[11px] text-zinc-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Pemutar Resmi Spotify Embed (Bebas Login & Streaming Langsung)</span>
-              </span>
-              <button
-                onClick={() => setShowSpotifyEmbed(false)}
-                className="hover:text-white cursor-pointer"
-              >
-                Tutup ✕
-              </button>
-            </div>
-            <iframe
-              title={`Spotify Embed: ${currentTrack.title}`}
-              src={getSpotifyEmbedUrl(currentTrack.uri || currentTrack.providerItemId, "track")}
-              width="100%"
-              height="80"
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              className="rounded-2xl shadow-lg border border-zinc-800/80"
-            />
-          </div>
-        )}
       </footer>
 
       {/* ─── MODAL 1: SPOTIFY SETUP & API CREDENTIALS GUIDE ──────────────────── */}
