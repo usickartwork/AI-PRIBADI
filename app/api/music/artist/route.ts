@@ -87,25 +87,35 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // 3. Fetch Artist Albums & Singles
-    const albumsPromise = fetch(
-      `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&limit=20&market=ID`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 },
+    // 3. Fetch Artist Albums & Singles (Spotify returns 400 for limit > 10, so fetch 3 pages of 10)
+    const albumPagePromises = [0, 10, 20].map(async (offset) => {
+      try {
+        const res = await fetch(
+          `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&limit=10&offset=${offset}&market=ID`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            next: { revalidate: 3600 },
+          }
+        );
+        if (!res.ok) {
+          console.warn(`[music/artist] Albums offset ${offset} status:`, res.status);
+          return [];
+        }
+        const json = await res.json();
+        return json.items || [];
+      } catch (err) {
+        console.warn(`[music/artist] Albums offset ${offset} error:`, err);
+        return [];
       }
-    ).then(async (res) => {
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json.items || [];
-    }).catch(() => []);
+    });
 
-    const [trackPages, rawAlbums] = await Promise.all([
+    const [trackPages, albumPages] = await Promise.all([
       Promise.all(trackPagePromises),
-      albumsPromise,
+      Promise.all(albumPagePromises),
     ]);
 
     const rawTracks = trackPages.flat();
+    const rawAlbums = albumPages.flat();
 
     // Deduplicate tracks by id
     const seenTracks = new Set<string>();
@@ -152,3 +162,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

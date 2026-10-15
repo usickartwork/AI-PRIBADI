@@ -294,6 +294,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumDetailData | null>(null);
   const [isLoadingAlbum, setIsLoadingAlbum] = useState(false);
   const [albumError, setAlbumError] = useState<string | null>(null);
+  const [discographyFilter, setDiscographyFilter] = useState<"all" | "album" | "single">("all");
 
   // User Library State
   const [likedSongs, setLikedSongs] = useState<MusicItem[]>([]);
@@ -698,6 +699,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setSelectedAlbum(null);
     setIsLoadingArtist(true);
     setArtistError(null);
+    setDiscographyFilter("all");
     if (subTab !== "home") setSubTab("home");
 
     try {
@@ -754,6 +756,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setSelectedArtist(null);
     setSelectedAlbum(null);
     setArtistError(null);
+    setDiscographyFilter("all");
   }, []);
 
   const closeAlbumDetail = useCallback(() => {
@@ -1767,57 +1770,119 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           })}
         </div>
 
-        {/* Section: Albums & Singles */}
-        {selectedArtist.albums.length > 0 && (
-          <div className="space-y-3 pt-4 border-t border-zinc-800/40">
-            <div className="flex items-center justify-between">
+        {/* Section: Albums & Singles (Diskografi Spotify-Style) */}
+        <div className="space-y-4 pt-5 border-t border-zinc-800/40">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight">
-                Album & Single
+                Diskografi
               </h2>
-              <span className="text-xs text-zinc-500">
-                {selectedArtist.albums.length} rilis
-              </span>
+              <p className="text-xs text-zinc-500">
+                {selectedArtist.albums.length} rilis album & single
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-              {selectedArtist.albums.map((album) => (
-                <div
-                  key={album.id}
-                  onClick={() => openAlbumDetail(album.providerItemId)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer group flex flex-col ${
-                    isDark
-                      ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/60 hover:border-zinc-700"
-                      : "bg-white hover:bg-zinc-50 border-zinc-200 shadow-xs"
-                  }`}
-                >
-                  <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-2.5 bg-zinc-800">
-                    {album.artworkUrl ? (
-                      <img
-                        src={album.artworkUrl}
-                        alt={album.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <h4 className={`text-xs sm:text-sm font-semibold truncate group-hover:underline ${
-                    isDark ? "text-white" : "text-zinc-900"
-                  }`}>
-                    {album.title}
-                  </h4>
-                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                    {album.albumTitle || "Album / Single"}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {/* Filter Pills: Semua | Album | Single & EP */}
+            {selectedArtist.albums.length > 0 && (
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                {(
+                  [
+                    { id: "all", label: "Semua" },
+                    { id: "album", label: "Album" },
+                    { id: "single", label: "Single & EP" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setDiscographyFilter(tab.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      discographyFilter === tab.id
+                        ? isDark
+                          ? "bg-white text-black shadow-sm"
+                          : "bg-black text-white shadow-sm"
+                        : isDark
+                        ? "text-zinc-400 hover:text-white"
+                        : "text-zinc-600 hover:text-black"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {(() => {
+            const filteredAlbums = selectedArtist.albums.filter((album) => {
+              if (discographyFilter === "album") {
+                return (album.albumTitle || "").toLowerCase().includes("album");
+              }
+              if (discographyFilter === "single") {
+                return (album.albumTitle || "").toLowerCase().includes("single");
+              }
+              return true;
+            });
+
+            if (filteredAlbums.length === 0) {
+              return (
+                <div className="py-10 text-center text-xs text-zinc-500">
+                  Tidak ada {discographyFilter === "album" ? "album" : "single"} yang ditemukan untuk artis ini.
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4.5 pt-1">
+                {filteredAlbums.map((album) => (
+                  <div
+                    key={album.id}
+                    onClick={() => openAlbumDetail(album.providerItemId)}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer group flex flex-col relative select-none ${
+                      isDark
+                        ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/60 hover:border-zinc-700"
+                        : "bg-white hover:bg-zinc-50 border-zinc-200 shadow-xs"
+                    }`}
+                  >
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-2.5 bg-zinc-800 shadow-md">
+                      {album.artworkUrl ? (
+                        <img
+                          src={album.artworkUrl}
+                          alt={album.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                          </svg>
+                        </div>
+                      )}
+
+                      {/* Spotify-style floating play button overlay */}
+                      <div className="absolute right-2 bottom-2 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 shadow-xl">
+                        <div className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:scale-105">
+                          <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+                            <polygon points="6 4, 18 12, 6 20" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <h4 className={`text-xs sm:text-sm font-semibold truncate group-hover:underline ${
+                      isDark ? "text-white" : "text-zinc-900"
+                    }`}>
+                      {album.title}
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                      {album.albumTitle || "Rilisan"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
       </div>
     );
   };

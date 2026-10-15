@@ -276,6 +276,8 @@ export function mapSpotifyArtist(artist: any): MusicItem {
 }
 
 export function mapSpotifyAlbum(album: any): MusicItem {
+  const year = album.release_date ? album.release_date.slice(0, 4) : "";
+  const typeLabel = album.album_type === "single" ? "Single" : "Album";
   return {
     id: `spotify:album:${album.id}`,
     provider: "spotify",
@@ -283,6 +285,7 @@ export function mapSpotifyAlbum(album: any): MusicItem {
     itemType: "album",
     title: album.name || "Unknown Album",
     artistNames: album.artists?.map((a: any) => a.name) || ["Unknown Artist"],
+    albumTitle: year ? `${year} • ${typeLabel}` : typeLabel,
     artworkUrl: album.images?.[0]?.url || album.images?.[1]?.url,
     externalUrl: album.external_urls?.spotify || `https://open.spotify.com/album/${album.id}`,
     uri: album.uri || `spotify:album:${album.id}`,
