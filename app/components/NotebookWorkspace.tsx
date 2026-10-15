@@ -1139,93 +1139,96 @@ export function NotebookWorkspace({
   // HALAMAN 1: HOME / LANDING COVER VIEW (Persis Desain Cover Referensi Monokrom)
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
-    <div className="flex-1 flex flex-col h-full w-full relative overflow-y-auto overflow-x-hidden select-none animate-in fade-in-0 duration-200">
-      {/* Header Atas: Bersih tanpa badge dan tanpa tombol semua catatan */}
-      <div className="w-full max-w-4xl mx-auto shrink-0 z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
-        {onTogglePanel ? (
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            title="Menu Navigasi"
-            className={`p-2 rounded-xl transition md:hidden ${
-              isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
-            }`}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        ) : <div />}
-        <div />
-      </div>
+    <div className="flex-1 flex flex-col justify-between h-full w-full relative overflow-y-auto overflow-x-hidden select-none animate-in fade-in-0 duration-200">
+      {/* ── BAGIAN ATAS: Header & Hero Content ── */}
+      <div className="w-full flex flex-col items-center shrink-0">
+        {/* Header Atas */}
+        <div className="w-full max-w-4xl mx-auto z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
+          {onTogglePanel ? (
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              title="Menu Navigasi"
+              className={`p-2 rounded-xl transition md:hidden ${
+                isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          ) : <div />}
+          <div />
+        </div>
 
-      {/* Konten Hero Atas */}
-      <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-2 sm:pt-4 pb-6 sm:pb-8">
-        <h1 className="text-3xl sm:text-5xl md:text-[54px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
-          One Stop Digital<br />
-          Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
-        </h1>
+        {/* Konten Hero Atas */}
+        <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-2 sm:pt-4 pb-3 sm:pb-4">
+          <h1 className="text-3xl sm:text-5xl md:text-[52px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
+            One Stop Digital<br />
+            Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
+          </h1>
 
-        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-6 sm:mb-8">
-          Digital library of thoughts, notes, and ideas chosen by creatives for everyday clarity.
-        </p>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-5 sm:mb-6">
+            Digital library of thoughts, notes, and ideas chosen by creatives for everyday clarity.
+          </p>
 
-        {/* 2 Tombol Aksi Sesuai Permintaan */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
-          {/* Tombol 1: Create New -> Menampilkan modal input judul terlebih dahulu */}
-          <button
-            type="button"
-            onClick={openNewNoteModal}
-            className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer ${
-              isDark
-                ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
-                : "bg-black text-white hover:bg-zinc-800 shadow-zinc-900/10"
-            }`}
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Create New</span>
-          </button>
+          {/* 2 Tombol Aksi Sesuai Permintaan */}
+          <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+            {/* Tombol 1: Create New -> Menampilkan modal input judul terlebih dahulu */}
+            <button
+              type="button"
+              onClick={openNewNoteModal}
+              className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer ${
+                isDark
+                  ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
+                  : "bg-black text-white hover:bg-zinc-800 shadow-zinc-900/10"
+              }`}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Create New</span>
+            </button>
 
-          {/* Tombol 2: File Catatan -> Langsung membuka Halaman 3 (Semua File Catatan) */}
-          <button
-            type="button"
-            onClick={() => setPageView("files")}
-            className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 border flex items-center gap-2 cursor-pointer ${
-              isDark
-                ? "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white border-zinc-700/80 shadow-md"
-                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black border-zinc-300 shadow-sm"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>File Catatan {notes.length > 0 ? `(${notes.length})` : ""}</span>
-          </button>
+            {/* Tombol 2: File Catatan -> Langsung membuka Halaman 3 (Semua File Catatan) */}
+            <button
+              type="button"
+              onClick={() => setPageView("files")}
+              className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 border flex items-center gap-2 cursor-pointer ${
+                isDark
+                  ? "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white border-zinc-700/80 shadow-md"
+                  : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black border-zinc-300 shadow-sm"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>File Catatan {notes.length > 0 ? `(${notes.length})` : ""}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ─── DESAIN FOLDER DOKUMEN PERSIS FIGMA MOCKUP (6 Showcase Cards + Frosted Glass Pocket Sleeve) ─── */}
-      <div className="w-full max-w-3xl mx-auto px-4 pb-12 sm:pb-16 flex items-center justify-center z-10">
+      {/* ── BAGIAN BAWAH: DESAIN FOLDER DOKUMEN FIGMA (Posisi Agak Kebawah / Anchored Lower) ── */}
+      <div className="w-full max-w-4xl mx-auto px-4 pt-4 sm:pt-8 md:pt-10 pb-4 sm:pb-6 flex items-end justify-center z-10 shrink-0">
         <div 
           onClick={() => setPageView("files")}
-          className="relative w-full max-w-[360px] sm:max-w-[540px] md:max-w-[640px] h-[260px] sm:h-[340px] md:h-[390px] flex items-end justify-center group cursor-pointer"
+          className="relative w-full max-w-[360px] sm:max-w-[560px] md:max-w-[680px] h-[270px] sm:h-[360px] md:h-[410px] flex items-end justify-center group cursor-pointer"
         >
           {/* 1. SILUET FOLDER BELAKANG (Back Folder Shape) */}
           {/* Tab folder di kiri atas */}
           <div 
-            className={`absolute top-2 sm:top-0 left-6 sm:left-10 w-32 sm:w-44 h-8 sm:h-10 rounded-t-2xl sm:rounded-t-3xl border-t border-x transition-colors z-0 ${
-              isDark ? "bg-[#27272a] border-zinc-700" : "bg-[#d8d9de] border-[#c7c9cf]"
+            className={`absolute top-0 left-6 sm:left-12 w-36 sm:w-52 md:w-64 h-9 sm:h-12 rounded-t-[24px] sm:rounded-t-[32px] border-t border-x transition-colors z-0 ${
+              isDark ? "bg-[#25252b] border-zinc-700" : "bg-[#d3d4da] border-[#c2c4cb]"
             }`} 
           />
           {/* Badan folder belakang */}
           <div 
-            className={`absolute inset-x-2 sm:inset-x-4 top-7 sm:top-8 bottom-0 rounded-[28px] sm:rounded-[36px] border shadow-xl transition-colors z-0 ${
-              isDark ? "bg-[#1f1f23] border-zinc-700/80" : "bg-[#e2e3e7] border-[#cbccd2]"
+            className={`absolute inset-x-2 sm:inset-x-4 top-8 sm:top-10 bottom-0 rounded-[32px] sm:rounded-[44px] border shadow-2xl transition-colors z-0 ${
+              isDark ? "bg-[#1c1c21] border-zinc-700/80" : "bg-[#dbdce2] border-[#c4c6cd]"
             }`} 
           />
 
-          {/* 2. ENAM KARTU SHOWCASE FIGMA YANG MEKAH DARI DALAM FOLDER */}
-          <div className="relative w-full h-full flex items-end justify-center z-10 pb-4 sm:pb-6">
+          {/* 2. ENAM KARTU SHOWCASE FIGMA YANG MEKAH SECARA SIMETRIS DARI DALAM FOLDER */}
+          <div className="relative w-full h-full flex items-end justify-center z-10 pb-3 sm:pb-4">
             
-            {/* ── KARTU 1: La Tennis Club (Paling Kiri, Angled -17° ~ -20°) ── */}
+            {/* ── KARTU 1: La Tennis Club (Paling Kiri, Angled -22°, Muncul di Sisi Kiri Luar Kantong) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-50 sm:h-66 md:h-74 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200 shadow-xl overflow-hidden text-zinc-900 transition-all duration-300 group-hover:-rotate-20 group-hover:-translate-x-34 sm:group-hover:-translate-x-48 -rotate-17 -translate-x-28 sm:-translate-x-40 md:-translate-x-46 translate-y-3 sm:translate-y-4 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-52 h-52 sm:h-68 md:h-78 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-900 transition-all duration-300 group-hover:-rotate-[24deg] group-hover:-translate-x-38 sm:group-hover:-translate-x-54 -rotate-[22deg] -translate-x-32 sm:-translate-x-46 md:-translate-x-56 translate-y-5 sm:translate-y-7 z-10 flex flex-col justify-between"
             >
               <div>
                 <p className="font-serif italic text-xs sm:text-base md:text-lg font-bold tracking-tight text-zinc-950 leading-tight">
@@ -1238,7 +1241,6 @@ export function NotebookWorkspace({
 
               {/* Lapangan Tenis Hijau dengan Garis Putih & Net 3D */}
               <div className="w-full h-20 sm:h-28 md:h-32 bg-[#335639] rounded-xl sm:rounded-2xl relative overflow-hidden mt-2 border border-emerald-900/50 shadow-inner flex flex-col justify-end">
-                {/* Garis-garis Lapangan Tenis */}
                 <div className="absolute inset-x-2 inset-y-1.5 border border-white/60 rounded-xs">
                   <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/60" />
                   <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-white/60" />
@@ -1252,13 +1254,13 @@ export function NotebookWorkspace({
               </div>
             </div>
 
-            {/* ── KARTU 2: Contact Us (Kiri Atas, Angled -10°) ── */}
+            {/* ── KARTU 2: Contact Us (Kiri Atas, Angled -11°, Headline Hitam Ekstra Besar) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:-rotate-12 -rotate-10 -translate-x-16 sm:-translate-x-24 md:-translate-x-28 -translate-y-4 sm:-translate-y-6 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-50 md:w-58 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:-rotate-[13deg] -rotate-[11deg] -translate-x-18 sm:-translate-x-26 md:-translate-x-32 -translate-y-6 sm:-translate-y-10 md:-translate-y-12 z-10 flex flex-col justify-between"
             >
               <div>
                 <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">CONNECT</span>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-zinc-950 tracking-tighter leading-none mt-0.5 sm:mt-1">
+                <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-zinc-950 tracking-tighter leading-none mt-0.5 sm:mt-1">
                   Contact Us
                 </h2>
                 <p className="text-[7.5px] sm:text-[9px] text-zinc-500 mt-1 leading-snug">
@@ -1280,9 +1282,9 @@ export function NotebookWorkspace({
               </div>
             </div>
 
-            {/* ── KARTU 3: Frequently Asked Questions (Tengah Kiri, Dark Card + Lime Pill "Let's work ↗", Angled -5°) ── */}
+            {/* ── KARTU 3: Frequently Asked Questions (Tengah Kiri, Dark Card + Lime Pill "Let's work ↗", Angled -6°) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-40 sm:w-52 md:w-62 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-2xl overflow-hidden text-white transition-all duration-300 group-hover:-rotate-6 -rotate-5 -translate-x-7 sm:-translate-x-10 md:-translate-x-12 -translate-y-1 sm:-translate-y-2 z-15 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-40 sm:w-54 md:w-64 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-2xl overflow-hidden text-white transition-all duration-300 group-hover:-rotate-[8deg] -rotate-[6deg] -translate-x-7 sm:-translate-x-10 md:-translate-x-12 -translate-y-2 sm:-translate-y-4 z-15 flex flex-col justify-between"
             >
               <div>
                 <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">FAQ</span>
@@ -1319,7 +1321,7 @@ export function NotebookWorkspace({
 
             {/* ── KARTU 4: Pricing plans (Tengah Depan, 0°, 3 Kolom: Starter, Pro Peach Pink, Team) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-56 sm:w-76 md:w-88 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#fcfcfd] border border-zinc-200/90 shadow-2xl transition-all duration-300 group-hover:-translate-y-5 rotate-0 translate-x-0 -translate-y-2 sm:-translate-y-4 z-20 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-58 sm:w-82 md:w-96 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#fcfcfd] border border-zinc-200/90 shadow-2xl transition-all duration-300 group-hover:-translate-y-6 rotate-0 translate-x-0 -translate-y-3 sm:-translate-y-5 md:-translate-y-7 z-20 flex flex-col justify-between"
             >
               <div>
                 <h3 className="text-xs sm:text-base md:text-lg font-black text-zinc-900 tracking-tight text-center">
@@ -1394,16 +1396,16 @@ export function NotebookWorkspace({
               </div>
             </div>
 
-            {/* ── KARTU 5: deu chair (Kanan Atas, Angled +8°) ── */}
+            {/* ── KARTU 5: deu chair (Kanan Atas, Angled +9°, Tipografi Modern) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:rotate-10 rotate-8 translate-x-16 sm:translate-x-24 md:translate-x-28 -translate-y-4 sm:-translate-y-6 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-50 md:w-58 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:rotate-[11deg] rotate-[9deg] translate-x-18 sm:translate-x-26 md:translate-x-32 -translate-y-6 sm:-translate-y-10 md:-translate-y-12 z-10 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between text-zinc-900">
                   <span className="font-mono font-black text-xs sm:text-sm">d:</span>
                   <div className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
                 </div>
-                <h3 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight text-zinc-950 mt-1">
+                <h3 className="text-base sm:text-2xl md:text-3xl font-bold tracking-tight text-zinc-950 mt-1">
                   deu chair
                 </h3>
                 <p className="text-[7px] sm:text-[8px] text-zinc-400 font-mono mt-0.5">SERIES 01 / ORGANIC WOOD</p>
@@ -1411,11 +1413,9 @@ export function NotebookWorkspace({
 
               {/* Artwork Kursi Minimalis Modern Berbentuk Melengkung (Circular Backrest) */}
               <div className="relative w-full h-24 sm:h-32 md:h-36 flex items-center justify-center my-auto">
-                {/* Backrest Kayu Melingkar Modern */}
                 <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full border-[10px] sm:border-[13px] border-[#9b6641] bg-amber-50/40 shadow-md flex items-center justify-center">
                   <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#7c4d2d]/30" />
                 </div>
-                {/* Kaki Kursi Minimalis */}
                 <div className="absolute bottom-1 w-16 sm:w-22 h-[2px] bg-zinc-900" />
                 <div className="absolute bottom-1 left-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
                 <div className="absolute bottom-1 right-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
@@ -1427,9 +1427,9 @@ export function NotebookWorkspace({
               </div>
             </div>
 
-            {/* ── KARTU 6: Get In Touch (Paling Kanan, Dark Card + Ambient Interior Light Render, Angled +16°) ── */}
+            {/* ── KARTU 6: Get In Touch (Paling Kanan, Dark Card + Ambient Interior Light Render, Angled +18°, Muncul di Sisi Kanan Luar Kantong) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-50 sm:h-66 md:h-74 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-xl overflow-hidden text-white transition-all duration-300 group-hover:rotate-18 group-hover:translate-x-34 sm:group-hover:translate-x-48 rotate-16 translate-x-28 sm:translate-x-40 md:translate-x-46 translate-y-3 sm:translate-y-4 z-15 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-52 h-52 sm:h-68 md:h-78 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-xl overflow-hidden text-white transition-all duration-300 group-hover:rotate-[20deg] group-hover:translate-x-38 sm:group-hover:translate-x-54 rotate-[18deg] translate-x-32 sm:translate-x-46 md:translate-x-56 translate-y-5 sm:translate-y-7 z-15 flex flex-col justify-between"
             >
               <div>
                 <h3 className="text-xs sm:text-sm md:text-base font-semibold text-white tracking-tight leading-tight">
@@ -1447,11 +1447,8 @@ export function NotebookWorkspace({
 
               {/* Render Interior Hangat dengan Pencahayaan Ambient Strip Kuning Emas */}
               <div className="w-full h-20 sm:h-26 md:h-30 bg-[#1c1a17] rounded-xl sm:rounded-2xl relative overflow-hidden border border-amber-950/40 p-2 flex flex-col justify-between">
-                {/* Dinding Kayu Slatted */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000010_1px,transparent_1px)] [background-size:6px_100%] opacity-40" />
-                {/* Garis LED Ambient Cahaya Emas */}
                 <div className="relative w-full h-1 bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.9)] rounded-full" />
-                {/* Sofa / Tempat Tidur Minimalis */}
                 <div className="relative w-full h-9 sm:h-12 bg-[#2a241f] rounded-lg border-t border-amber-500/20 shadow-md" />
               </div>
 
@@ -1468,24 +1465,24 @@ export function NotebookWorkspace({
 
           </div>
 
-          {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (Clean Translucent Pocket Sleeve + Circular ↗ Button) */}
+          {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (FLOATING ROUNDED RECTANGLE DI TENGAH BAWAH PERSIS FIGMA MOCKUP) */}
           <div 
-            className={`absolute bottom-0 inset-x-0 h-32 sm:h-42 md:h-46 rounded-[28px] sm:rounded-[36px] border shadow-2xl backdrop-blur-2xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
+            className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-[82%] sm:w-[84%] md:w-[86%] h-36 sm:h-48 md:h-54 rounded-[28px] sm:rounded-[38px] md:rounded-[44px] border shadow-2xl backdrop-blur-3xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
               isDark 
-                ? "bg-zinc-900/40 border-t border-x border-b border-white/15 shadow-black/60" 
-                : "bg-white/45 border-t border-x border-b border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)]"
+                ? "bg-zinc-900/40 border-white/20 shadow-black/60" 
+                : "bg-white/45 border-white/75 shadow-[0_25px_60px_rgba(0,0,0,0.18)]"
             }`}
           >
-            {/* Tombol Panah Melingkar Hitam/Putih Bersih di Sudut Kanan Bawah Sesuai Gambar Figma */}
+            {/* Tombol Panah Melingkar Hitam Pekat Sesuai Gambar Figma (↗ Arrow Button) */}
             <div 
               title="Buka Semua Catatan"
-              className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all transform group-hover:scale-110 active:scale-95 shadow-2xl ${
+              className={`w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-full flex items-center justify-center transition-all transform group-hover:scale-108 active:scale-95 shadow-2xl ${
                 isDark 
                   ? "bg-white text-zinc-950 group-hover:bg-zinc-200" 
                   : "bg-[#18181b] text-white group-hover:bg-black"
               }`}
             >
-              <ArrowUpRight className="w-6 h-6 sm:w-8 sm:h-8 stroke-[3]" />
+              <ArrowUpRight className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 stroke-[3]" />
             </div>
           </div>
         </div>
