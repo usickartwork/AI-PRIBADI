@@ -321,7 +321,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const isPlayingRef = useRef<boolean>(isPlaying);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
-  // Synchronized Lyrics State
+  // Synchronized Lyrics State & High-Performance Playback Clock
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyricsData, setLyricsData] = useState<LyricsData | null>(null);
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
@@ -330,7 +330,32 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const activeLineRef = useRef<HTMLDivElement | null>(null);
-  const [lyricOffset, setLyricOffset] = useState<number>(0);
+
+  // High-performance active lyric index (updated ONLY when line index changes via rAF)
+  const [activeLyricIndex, setActiveLyricIndex] = useState<number>(-1);
+  const activeLyricIndexRef = useRef<number>(-1);
+  useEffect(() => {
+    activeLyricIndexRef.current = activeLyricIndex;
+  }, [activeLyricIndex]);
+
+  // Monotonic Playback Clock Snapshot (performance.now() based interpolation)
+  const playbackClockRef = useRef<{
+    positionSeconds: number;
+    snapshotPerfTime: number;
+    isPlaying: boolean;
+    duration: number;
+    trackId: string;
+  }>({
+    positionSeconds: 0,
+    snapshotPerfTime: typeof performance !== "undefined" ? performance.now() : 0,
+    isPlaying: false,
+    duration: 0,
+    trackId: "",
+  });
+
+  // Race-condition guard refs for lyrics fetch requests
+  const fetchLyricsRequestIdRef = useRef<number>(0);
+  const fetchLyricsAbortControllerRef = useRef<AbortController | null>(null);
 
   // Synchronized state refs for callbacks (prevent stale closures)
   const queueRef = useRef<MusicItem[]>(queue);
@@ -416,8 +441,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 setIsPlaying(true);
                 userRequestedPauseRef.current = false;
                 try {
-                  const dur = event.target.getDuration();
+                  const cur = event.target.getCurrentTime() || 0;
+                  const dur = event.target.getDuration() || 0;
                   if (dur > 0) setDuration(dur);
+                  playbackClockRef.current = {
+                    positionSeconds: cur,
+                    snapshotPerfTime: performance.now(),
+                    isPlaying: true,
+                    duration: dur,
+                    trackId: currentTrack?.id || "",
+                  };
                 } catch {}
               } else if (event.data === 2) {
                 // Background playback protection: if browser/OS paused playback due to tab switch or app minimize, keep playing!
@@ -427,8 +460,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     return;
                   } catch {}
                 }
+                playbackClockRef.current.isPlaying = false;
+                try {
+                  playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
+                } catch {}
                 setIsPlaying(false);
               } else if (event.data === 0) {
+                playbackClockRef.current.isPlaying = false;
                 setIsPlaying(false);
                 handleTrackEnded();
               }
@@ -496,7 +534,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
   }, []);
 
-  // ─── Real-Time Scrubber & Duration Synchronizer ────────────────────────────
+  // ─── Periodic Player State & Scrubber Synchronizer (Light 500ms cadence) ──
   useEffect(() => {
     if (!isPlaying) return;
     const interval = setInterval(() => {
@@ -504,14 +542,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         try {
           const cur = ytPlayerRef.current.getCurrentTime();
           const dur = ytPlayerRef.current.getDuration();
-          if (typeof cur === "number" && !isNaN(cur)) setCurrentTime(cur);
+          if (typeof cur === "number" && !isNaN(cur)) {
+            setCurrentTime(cur);
+            // Re-sync monotonic clock snapshot to correct any hardware/buffer drift
+            playbackClockRef.current = {
+              positionSeconds: cur,
+              snapshotPerfTime: performance.now(),
+              isPlaying: true,
+              duration: typeof dur === "number" && dur > 0 ? dur : playbackClockRef.current.duration,
+              trackId: currentTrack?.id || "",
+            };
+          }
           if (typeof dur === "number" && dur > 0 && !isNaN(dur)) setDuration(dur);
         } catch {}
       }
-    }, 250);
+    }, 500);
 
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, currentTrack?.id]);
 
   // ─── Initial & Category-Based Spotify Catalog Fetch (Loads 50 songs) ──────
   const fetchSpotifyMusic = useCallback(async (query: string = "", category: string = "all", limit: number = 50) => {
@@ -600,6 +648,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     userRequestedPauseRef.current = false;
     setCurrentTime(0);
     loadedTrackIdRef.current = track.id;
+
+    // Reset clock snapshot and lyric index immediately to prevent stale interpolation
+    playbackClockRef.current = {
+      positionSeconds: 0,
+      snapshotPerfTime: performance.now(),
+      isPlaying: true,
+      duration: track.durationMs ? track.durationMs / 1000 : 0,
+      trackId: track.id,
+    };
+    activeLyricIndexRef.current = -1;
+    setActiveLyricIndex(-1);
 
     // Keep mobile background audio alive by acquiring HTML5 audio session lock
     if (audioRef.current) {
@@ -739,6 +798,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   const handleSeek = (newTime: number) => {
     setCurrentTime(newTime);
+    playbackClockRef.current = {
+      positionSeconds: newTime,
+      snapshotPerfTime: performance.now(),
+      isPlaying: isPlayingRef.current,
+      duration: playbackClockRef.current.duration,
+      trackId: currentTrack?.id || "",
+    };
     if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === "function") {
       try {
         ytPlayerRef.current.seekTo(newTime, true);
@@ -942,6 +1008,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const album = track.albumTitle || "";
     const durationSec = track.durationMs ? Math.round(track.durationMs / 1000) : undefined;
 
+    // Abort previous in-flight request if track changed rapidly
+    if (fetchLyricsAbortControllerRef.current) {
+      fetchLyricsAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    fetchLyricsAbortControllerRef.current = controller;
+    const requestId = ++fetchLyricsRequestIdRef.current;
+
     // Check client-side localStorage cache first (< 5ms response)
     const cached = getClientLyricsCache(title, artist);
     if (cached) {
@@ -961,7 +1035,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         ...(durationSec ? { duration: String(durationSec) } : {}),
       });
 
-      const res = await fetch(`/api/music/lyrics?${params.toString()}`);
+      const res = await fetch(`/api/music/lyrics?${params.toString()}`, {
+        signal: controller.signal,
+      });
+
+      // Ignore response if a newer track request was already initiated
+      if (requestId !== fetchLyricsRequestIdRef.current) return;
+
       if (res.status === 429) {
         setLyricsError("Batas permintaan lirik tercapai. Coba lagi dalam beberapa saat.");
         setLyricsData(null);
@@ -969,6 +1049,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
 
       const json = await res.json();
+      if (requestId !== fetchLyricsRequestIdRef.current) return;
+
       if (json.success && json.data) {
         setLyricsData(json.data);
         setClientLyricsCache(title, artist, json.data);
@@ -980,10 +1062,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         setLyricsError(json.error || "Gagal memuat lirik.");
       }
     } catch (err: any) {
+      if (err.name === "AbortError" || requestId !== fetchLyricsRequestIdRef.current) {
+        return;
+      }
       setLyricsData(null);
       setLyricsError(err?.message || "Koneksi ke server lirik terputus.");
     } finally {
-      setIsLoadingLyrics(false);
+      if (requestId === fetchLyricsRequestIdRef.current) {
+        setIsLoadingLyrics(false);
+      }
     }
   }, []);
 
@@ -994,46 +1081,72 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   }, [currentTrack?.id, fetchLyricsForTrack]);
 
-  // Load saved custom lyric offset for the current track
-  useEffect(() => {
-    if (typeof window !== "undefined" && currentTrack) {
-      try {
-        const saved = localStorage.getItem(`usick_lyric_offset_${currentTrack.id}`);
-        setLyricOffset(saved !== null ? parseFloat(saved) : 0);
-      } catch {}
+  // Monotonic Clock Interpolation: calculates frame-accurate playback position
+  // positionMs + (performance.now() - snapshotPerfTime)
+  const getInterpolatedPlaybackTime = useCallback((): number => {
+    const clock = playbackClockRef.current;
+    if (!clock.isPlaying) {
+      return clock.positionSeconds;
     }
-  }, [currentTrack?.id]);
+    const elapsedSec = (performance.now() - clock.snapshotPerfTime) / 1000;
+    // Limit extrapolation to maximum 2 seconds without snapshot refresh
+    const clampedElapsed = Math.min(Math.max(0, elapsedSec), 2.0);
+    const estimated = clock.positionSeconds + clampedElapsed;
+    return clock.duration > 0 ? Math.min(estimated, clock.duration) : estimated;
+  }, []);
 
-  const handleAdjustOffset = (delta: number, isReset: boolean = false) => {
-    const newOffset = isReset ? 0 : Math.round((lyricOffset + delta) * 100) / 100;
-    setLyricOffset(newOffset);
-    if (typeof window !== "undefined" && currentTrack) {
-      try {
-        if (newOffset === 0) {
-          localStorage.removeItem(`usick_lyric_offset_${currentTrack.id}`);
-        } else {
-          localStorage.setItem(`usick_lyric_offset_${currentTrack.id}`, String(newOffset));
+  // High-performance requestAnimationFrame loop for real-time lyric highlighting
+  // Frame-accurate (60/120Hz) without causing full React re-renders on every frame.
+  // React state is ONLY dispatched when active line index actually transitions.
+  useEffect(() => {
+    if (!showLyrics || !isPlaying || !lyricsData || !lyricsData.synced || !lyricsData.lines || lyricsData.lines.length === 0) {
+      return;
+    }
+
+    let animationFrameId: number;
+
+    const loop = () => {
+      const curTime = getInterpolatedPlaybackTime();
+      // findActiveLyricIndex uses binary search O(log n), 0 offset by default
+      const newIdx = findActiveLyricIndex(lyricsData.lines, curTime, 0);
+
+      // Crucial performance optimization: ONLY dispatch state update when active line index actually changes
+      if (newIdx !== activeLyricIndexRef.current) {
+        if (process.env.NODE_ENV !== "production") {
+          const activeLine = lyricsData.lines[newIdx];
+          console.debug(
+            `[LyricsSync] Active line changed -> #${newIdx} @ ${curTime.toFixed(3)}s (target: ${activeLine?.time.toFixed(2)}s | "${activeLine?.text}")`
+          );
         }
-      } catch {}
-    }
-  };
+        activeLyricIndexRef.current = newIdx;
+        setActiveLyricIndex(newIdx);
+      }
 
-  // Compute active lyric index based on playback currentTime using O(log n) binary search
-  // Incorporates base audio latency + real-time user calibration offset
-  const activeLyricIndex = useMemo(() => {
-    if (!lyricsData || !lyricsData.synced || !lyricsData.lines || lyricsData.lines.length === 0) {
-      return -1;
-    }
-    const totalOffset = 0.35 + lyricOffset;
-    return findActiveLyricIndex(lyricsData.lines, currentTime, totalOffset);
-  }, [lyricsData, currentTime, lyricOffset]);
+      animationFrameId = requestAnimationFrame(loop);
+    };
 
-  // Auto-scroll to active lyric line (if user is not manually scrolling)
+    animationFrameId = requestAnimationFrame(loop);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [showLyrics, isPlaying, lyricsData, getInterpolatedPlaybackTime]);
+
+  // Container-only auto-scroll to active lyric line (respects prefers-reduced-motion)
   useEffect(() => {
-    if (showLyrics && !isUserScrolling && activeLineRef.current && activeLyricIndex >= 0) {
-      activeLineRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
+    if (showLyrics && !isUserScrolling && lyricsContainerRef.current && activeLineRef.current && activeLyricIndex >= 0) {
+      const container = lyricsContainerRef.current;
+      const activeEl = activeLineRef.current;
+      const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // Scroll inside container only; avoids displacing outer page/window
+      const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: prefersReduced ? "auto" : "smooth",
       });
     }
   }, [activeLyricIndex, showLyrics, isUserScrolling]);
@@ -1055,10 +1168,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       clearTimeout(userScrollTimeoutRef.current);
     }
     setIsUserScrolling(false);
-    if (activeLineRef.current) {
-      activeLineRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
+    if (lyricsContainerRef.current && activeLineRef.current) {
+      const container = lyricsContainerRef.current;
+      const activeEl = activeLineRef.current;
+      const prefersReduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: prefersReduced ? "auto" : "smooth",
       });
     }
   };
@@ -1686,48 +1803,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
             </div>
 
-            {/* Minimalist Calibration Control Bar */}
-            {lyricsData?.synced && lyricsData.lines && lyricsData.lines.length > 0 && (
-              <div className="shrink-0 flex items-center justify-center gap-2 pt-2.5 pb-1 text-xs opacity-60 hover:opacity-100 transition-opacity select-none border-t border-white/5 dark:border-white/5">
-                <span className="text-[11px] text-zinc-400 font-medium">Sinkronisasi:</span>
-                <button
-                  type="button"
-                  onClick={() => handleAdjustOffset(-0.25)}
-                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-mono transition active:scale-95 cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/80 border-white/10 text-zinc-300 hover:text-white"
-                      : "bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
-                  }`}
-                  title="Percepat lirik 0.25 detik (-0.25s)"
-                >
-                  -0.25s
-                </button>
-                <span className="font-mono text-[11px] min-w-[42px] text-center font-bold">
-                  {lyricOffset > 0 ? `+${lyricOffset.toFixed(2)}s` : `${lyricOffset.toFixed(2)}s`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleAdjustOffset(0.25)}
-                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-mono transition active:scale-95 cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/80 border-white/10 text-zinc-300 hover:text-white"
-                      : "bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
-                  }`}
-                  title="Perlambat lirik 0.25 detik (+0.25s)"
-                >
-                  +0.25s
-                </button>
-                {lyricOffset !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => handleAdjustOffset(0, true)}
-                    className="text-[10px] text-zinc-400 hover:text-white underline ml-1 cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-            )}
+
 
             {/* Floating Action Button: "Kembali ke lirik aktif" */}
             {isUserScrolling && activeLyricIndex >= 0 && lyricsData?.synced && (
