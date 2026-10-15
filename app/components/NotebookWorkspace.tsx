@@ -119,6 +119,30 @@ export function NotebookWorkspace({
   const [currentTitle, setCurrentTitle] = useState("");
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRangeRef = useRef<Range | null>(null);
+  const loadedNoteIdRef = useRef<string | null>(null);
+
+  // Status tombol pemformatan aktif di toolbar
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false,
+    unorderedList: false,
+    orderedList: false,
+  });
+
+  const updateActiveFormats = useCallback(() => {
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState("bold"),
+        italic: document.queryCommandState("italic"),
+        underline: document.queryCommandState("underline"),
+        strikeThrough: document.queryCommandState("strikeThrough"),
+        unorderedList: document.queryCommandState("insertUnorderedList"),
+        orderedList: document.queryCommandState("insertOrderedList"),
+      });
+    } catch {}
+  }, []);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
@@ -170,16 +194,25 @@ export function NotebookWorkspace({
     fetchNotes();
   }, [fetchNotes]);
 
-  // Sinkronisasi form saat catatan aktif berubah
+  // Sinkronisasi form saat catatan aktif berubah (hanya saat berganti ID catatan yang berbeda)
   useEffect(() => {
     if (!activeNoteId) {
+      loadedNoteIdRef.current = null;
       setCurrentTitle("");
       setIsBodyEmpty(true);
       if (editorRef.current) editorRef.current.innerHTML = "<p><br></p>";
       return;
     }
+
+    // PENTING: Jika ID catatan yang aktif sama dengan yang sedang dimuat di editor,
+    // JANGAN PERNAH menimpa innerHTML karena akan merusak kursor pengetikan dan membuat kursor melompat ke atas!
+    if (loadedNoteIdRef.current === activeNoteId) {
+      return;
+    }
+
     const found = notes.find((n) => n.id === activeNoteId);
     if (found) {
+      loadedNoteIdRef.current = activeNoteId;
       setCurrentTitle(found.title);
       const html = ensureHtmlContent(found.content);
       if (editorRef.current) {
@@ -308,6 +341,7 @@ export function NotebookWorkspace({
     }
     document.execCommand(command, false, value);
     saveSelection();
+    updateActiveFormats();
     handleEditorInput();
   };
 
@@ -316,6 +350,7 @@ export function NotebookWorkspace({
     restoreSelection();
     document.execCommand("foreColor", false, color);
     saveSelection();
+    updateActiveFormats();
     setShowColorDropdown(false);
     handleEditorInput();
   };
@@ -332,6 +367,7 @@ export function NotebookWorkspace({
       }
     }
     saveSelection();
+    updateActiveFormats();
     setShowHighlightDropdown(false);
     handleEditorInput();
   };
@@ -353,8 +389,8 @@ export function NotebookWorkspace({
     const taskWrapper = document.createElement("div");
     taskWrapper.className = "flex items-start gap-2.5 my-1.5 task-item";
     taskWrapper.innerHTML = `
-      <input type="checkbox" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
-      <span class="flex-1 focus:outline-none" contenteditable="true">${itemText}</span>
+      <input type="checkbox" contenteditable="false" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
+      <span class="flex-1 focus:outline-none">${itemText}</span>
     `;
 
     range.deleteContents();
@@ -370,6 +406,7 @@ export function NotebookWorkspace({
     }
 
     handleEditorInput();
+    updateActiveFormats();
   };
 
   // Penanganan klik checkbox interaktif di dalam editor
@@ -466,6 +503,40 @@ export function NotebookWorkspace({
       return;
     }
 
+    // Tombol Backspace pada checklist item yang kosong
+    if (e.key === "Backspace") {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const anchorNode = sel.anchorNode;
+        const taskItem = anchorNode
+          ? ((anchorNode.nodeType === Node.ELEMENT_NODE
+              ? (anchorNode as HTMLElement)
+              : anchorNode.parentElement
+            )?.closest(".task-item") as HTMLElement | null)
+          : null;
+
+        if (taskItem) {
+          const span = taskItem.querySelector("span");
+          const itemText = span ? span.innerText.replace(/[\n\r]/g, "").trim() : "";
+          if (!itemText) {
+            e.preventDefault();
+            const p = document.createElement("p");
+            p.innerHTML = "<br>";
+            taskItem.parentNode?.insertBefore(p, taskItem);
+            taskItem.remove();
+            const range = document.createRange();
+            range.setStart(p, 0);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            handleEditorInput();
+            updateActiveFormats();
+            return;
+          }
+        }
+      }
+    }
+
     // Tombol Enter pada checklist interaktif
     if (e.key === "Enter") {
       const sel = window.getSelection();
@@ -480,7 +551,7 @@ export function NotebookWorkspace({
 
         if (taskItem) {
           const span = taskItem.querySelector("span");
-          const itemText = span ? span.innerText.trim() : "";
+          const itemText = span ? span.innerText.replace(/[\n\r]/g, "").trim() : "";
 
           // Jika checklist kosong dan ditekan enter -> keluar dari checklist ke paragraf biasa
           if (!itemText) {
@@ -495,6 +566,7 @@ export function NotebookWorkspace({
             sel.removeAllRanges();
             sel.addRange(range);
             handleEditorInput();
+            updateActiveFormats();
             return;
           }
 
@@ -503,8 +575,8 @@ export function NotebookWorkspace({
           const newTask = document.createElement("div");
           newTask.className = "flex items-start gap-2.5 my-1.5 task-item";
           newTask.innerHTML = `
-            <input type="checkbox" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
-            <span class="flex-1 focus:outline-none" contenteditable="true"><br></span>
+            <input type="checkbox" contenteditable="false" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
+            <span class="flex-1 focus:outline-none"><br></span>
           `;
           taskItem.parentNode?.insertBefore(newTask, taskItem.nextSibling);
 
@@ -517,9 +589,13 @@ export function NotebookWorkspace({
             sel.addRange(range);
           }
           handleEditorInput();
+          updateActiveFormats();
+          return;
         }
       }
     }
+
+    setTimeout(updateActiveFormats, 10);
   };
 
   // Buka modal input judul catatan baru sebelum masuk ke halaman canvas
@@ -551,6 +627,7 @@ export function NotebookWorkspace({
       updated_at: now,
     };
 
+    loadedNoteIdRef.current = tempId;
     setNotes((prev) => [newNote, ...prev]);
     setActiveNoteId(tempId);
     setCurrentTitle(trimmedTitle);
@@ -566,6 +643,7 @@ export function NotebookWorkspace({
     // Langsung arahkan kursor ke canvas penulisan
     setTimeout(() => {
       focusEditorAtStart();
+      updateActiveFormats();
     }, 120);
 
     try {
@@ -586,6 +664,12 @@ export function NotebookWorkspace({
           const data = await res.json();
           if (data.note?.id) {
             const realId = data.note.id;
+            if (loadedNoteIdRef.current === tempId) {
+              loadedNoteIdRef.current = realId;
+            }
+            if (activeNoteIdRef.current === tempId) {
+              activeNoteIdRef.current = realId;
+            }
             setNotes((prev) => prev.map((n) => (n.id === tempId ? { ...data.note } : n)));
             setActiveNoteId(realId);
           }
@@ -598,12 +682,19 @@ export function NotebookWorkspace({
 
   // Buka catatan tertentu dari Halaman 3 (Semua File) ke Halaman 2 (Canvas)
   const handleSelectNoteFromGrid = (note: NoteItem) => {
+    loadedNoteIdRef.current = note.id;
     setActiveNoteId(note.id);
     setCurrentTitle(note.title);
     if (editorRef.current) {
       editorRef.current.innerHTML = ensureHtmlContent(note.content);
+      const boxes = editorRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+      boxes.forEach((cb) => {
+        cb.checked = cb.hasAttribute("checked");
+      });
     }
+    setIsBodyEmpty(!extractPlainText(note.content).trim());
     setPageView("canvas");
+    setTimeout(updateActiveFormats, 50);
   };
 
   // Toggle Pin
@@ -647,6 +738,7 @@ export function NotebookWorkspace({
     const remaining = notes.filter((n) => n.id !== idToDelete);
     setNotes(remaining);
     setShowDeleteConfirm(false);
+    loadedNoteIdRef.current = null;
 
     try {
       localStorage.setItem(storageKey, JSON.stringify(remaining));
@@ -1174,7 +1266,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("bold"); }}
             title="Tebal (Bold) - Ctrl+B"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.bold
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <Bold className="w-4 h-4" />
@@ -1184,7 +1278,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("italic"); }}
             title="Miring (Italic) - Ctrl+I"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.italic
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <Italic className="w-4 h-4" />
@@ -1194,7 +1290,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("underline"); }}
             title="Garis Bawah (Underline) - Ctrl+U"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.underline
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <Underline className="w-4 h-4" />
@@ -1204,7 +1302,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("strikeThrough"); }}
             title="Coret (Strikethrough)"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.strikeThrough
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <Strikethrough className="w-4 h-4" />
@@ -1218,7 +1318,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("insertUnorderedList"); }}
             title="Daftar Poin (Bulleted List)"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.unorderedList
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <List className="w-4 h-4" />
@@ -1228,7 +1330,9 @@ export function NotebookWorkspace({
             onMouseDown={(e) => { e.preventDefault(); execFormat("insertOrderedList"); }}
             title="Daftar Nomor (Numbered List)"
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              activeFormats.orderedList
+                ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
+                : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
             <ListOrdered className="w-4 h-4" />
@@ -1444,10 +1548,20 @@ export function NotebookWorkspace({
             contentEditable
             suppressContentEditableWarning
             onInput={handleEditorInput}
-            onClick={handleEditorClick}
+            onClick={(e) => {
+              handleEditorClick(e);
+              saveSelection();
+              updateActiveFormats();
+            }}
             onKeyDown={handleEditorKeyDown}
-            onMouseUp={saveSelection}
-            onKeyUp={saveSelection}
+            onMouseUp={() => {
+              saveSelection();
+              updateActiveFormats();
+            }}
+            onKeyUp={() => {
+              saveSelection();
+              updateActiveFormats();
+            }}
             className={`notebook-canvas-editor flex-1 w-full focus:outline-none text-base sm:text-lg leading-relaxed min-h-[400px] select-text ${
               isDark ? "text-zinc-200" : "text-zinc-800"
             }`}
