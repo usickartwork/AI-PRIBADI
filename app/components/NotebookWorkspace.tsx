@@ -28,7 +28,9 @@ import {
   Undo2,
   Redo2,
   ChevronDown,
-  X
+  X,
+  ArrowUpRight,
+  Folder
 } from "lucide-react";
 
 export interface NoteItem {
@@ -1198,95 +1200,181 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* Ilustrasi Buku Monokromatik Fan di Bawah - Menempel Langsung di Dasar Halaman (Bleed to Bottom Tanpa Terpotong) */}
-      <div className="absolute bottom-0 inset-x-0 w-full z-10 pointer-events-none select-none flex items-end justify-center">
-        <div className="relative w-full max-w-4xl mx-auto h-44 sm:h-56 md:h-68 flex items-end justify-center">
-          {/* Buku 1 (Paling Kiri) */}
-          <div
-            className={`absolute bottom-0 w-28 sm:w-40 md:w-48 h-40 sm:h-52 md:h-60 rounded-t-2xl sm:rounded-t-3xl p-3 sm:p-4 border shadow-2xl transition-transform -rotate-14 -translate-x-24 sm:-translate-x-44 md:-translate-x-60 translate-y-4 sm:translate-y-6 md:translate-y-8 z-10 ${
-              isDark ? "bg-[#09090b] border-zinc-800 text-white" : "bg-zinc-900 border-zinc-800 text-white"
-            }`}
-          >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white/10 flex items-center justify-center mb-2 sm:mb-3">
-                  <span className="text-[9px] sm:text-[10px] font-black">UN</span>
+      {/* ─── DESAIN FOLDER DOKUMEN SESUAI GAMBAR REFERENSI FIGMA (Frosted Glass Pocket & Fanning Note Cards) ─── */}
+      <div className="w-full max-w-2xl mx-auto px-4 pb-6 sm:pb-8 pt-2 flex items-center justify-center z-10">
+        <div 
+          onClick={() => setPageView("files")}
+          className="relative w-full max-w-[340px] sm:max-w-[460px] md:max-w-[520px] h-[240px] sm:h-[300px] md:h-[340px] flex items-end justify-center group cursor-pointer"
+        >
+          {/* 1. SILUET FOLDER BELAKANG (Back Folder Shape) */}
+          {/* Tab folder di kiri atas */}
+          <div 
+            className={`absolute top-4 sm:top-2 left-6 sm:left-8 w-28 sm:w-36 h-7 sm:h-9 rounded-t-2xl border-t border-x transition-colors z-0 ${
+              isDark ? "bg-[#18181b] border-zinc-700/70" : "bg-zinc-200 border-zinc-300"
+            }`} 
+          />
+          {/* Badan folder belakang */}
+          <div 
+            className={`absolute inset-x-2 sm:inset-x-3 top-8 sm:top-7 bottom-0 rounded-3xl border shadow-xl transition-colors z-0 ${
+              isDark ? "bg-[#18181b] border-zinc-700/70" : "bg-zinc-200/90 border-zinc-300"
+            }`} 
+          />
+
+          {/* 2. KARTU-KARTU CATATAN MEREKAH DARI DALAM FOLDER (Fanning Note Cards) */}
+          <div className="relative w-full h-full flex items-end justify-center z-10 pb-6 sm:pb-8">
+            {/* Kartu 1 (Paling Kiri) */}
+            <div
+              className={`absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-44 sm:h-58 md:h-64 rounded-2xl p-3 sm:p-4 border shadow-xl transition-all duration-300 group-hover:-rotate-17 group-hover:-translate-x-28 -rotate-14 -translate-x-22 sm:-translate-x-32 md:-translate-x-38 translate-y-2 sm:translate-y-3 ${
+                isDark ? "bg-[#101014] border-zinc-700/80 text-white" : "bg-white border-zinc-300 text-zinc-900"
+              }`}
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white/10 flex items-center justify-center mb-2">
+                    <span className="text-[9px] sm:text-[10px] font-black">UN</span>
+                  </div>
+                  <p className="text-sm sm:text-base md:text-lg font-black tracking-tight leading-tight">USICK</p>
+                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-zinc-400">Archive Edition</p>
                 </div>
-                <p className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter leading-none">USICK</p>
-                <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-zinc-400 mt-1">Archive Edition</p>
-              </div>
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[7px] sm:text-[8px] text-zinc-500 font-mono">
-                <span>NO. 01</span>
-                <span>2026</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Buku 2 (Kiri) */}
-          <div
-            className={`absolute bottom-0 w-32 sm:w-44 md:w-52 h-44 sm:h-56 md:h-64 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-4 border shadow-2xl transition-transform -rotate-7 -translate-x-12 sm:-translate-x-22 md:-translate-x-30 translate-y-2 sm:translate-y-4 md:translate-y-5 z-20 ${
-              isDark ? "bg-zinc-900 border-zinc-700/80 text-zinc-200" : "bg-zinc-100 border-zinc-300 text-zinc-900"
-            }`}
-          >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-current opacity-40 flex items-center justify-center mb-2">
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-current opacity-60" />
+                <div className="space-y-1 sm:space-y-1.5 opacity-60">
+                  <div className="h-1.5 w-3/4 rounded-full bg-current opacity-30" />
+                  <div className="h-1.5 w-1/2 rounded-full bg-current opacity-20" />
                 </div>
-                <p className="text-xs sm:text-sm font-bold leading-tight">The Creative<br />Act</p>
               </div>
-              <span className="text-[8px] sm:text-[9px] opacity-50 font-mono">VOL. II</span>
             </div>
-          </div>
 
-          {/* Buku 3 (Tengah - Desain Utama) */}
-          <div
-            className={`absolute bottom-0 w-36 sm:w-48 md:w-56 h-48 sm:h-60 md:h-72 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-5 border shadow-2xl transition-transform rotate-1 translate-y-1 sm:translate-y-2 z-30 ${
-              isDark ? "bg-zinc-800 border-zinc-600/80 text-white" : "bg-zinc-50 border-zinc-300 text-zinc-900"
-            }`}
-          >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-60">Personal Notebook</span>
-                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-60" />
+            {/* Kartu 2 (Kiri) */}
+            <div
+              className={`absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-54 h-48 sm:h-62 md:h-70 rounded-2xl p-3.5 sm:p-4.5 border shadow-xl transition-all duration-300 group-hover:-rotate-9 group-hover:-translate-x-15 -rotate-7 -translate-x-11 sm:-translate-x-16 md:-translate-x-20 -translate-y-1 sm:-translate-y-2 ${
+                isDark ? "bg-[#141418] border-zinc-700/80 text-zinc-100" : "bg-zinc-50 border-zinc-300 text-zinc-900"
+              }`}
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <p className="text-base sm:text-xl md:text-2xl font-black tracking-tight leading-tight mb-1">
+                    Contact Us
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] opacity-60 leading-relaxed">
+                    Frequently Asked Questions
+                  </p>
                 </div>
-                <p className="text-sm sm:text-lg md:text-xl font-extrabold tracking-tight leading-snug">Designing<br />Ideas</p>
+                <div className="p-1.5 sm:p-2 rounded-lg bg-black/10 dark:bg-white/5 flex items-center justify-between text-[8px] sm:text-[9px] font-mono opacity-70">
+                  <span>INDEX 02</span>
+                  <span>Q&A</span>
+                </div>
               </div>
-              <div className="p-1.5 sm:p-2 rounded-lg bg-black/10 dark:bg-white/5 text-[8px] sm:text-[9px] font-mono flex items-center justify-between opacity-70">
-                <span>AUTOSYNC</span>
-                <span>SECURE</span>
+            </div>
+
+            {/* Kartu 3 (Tengah - Desain Utama / Paling Menonjol) */}
+            <div
+              className={`absolute bottom-4 sm:bottom-6 w-40 sm:w-52 md:w-60 h-52 sm:h-66 md:h-74 rounded-2xl p-4 sm:p-5 border shadow-2xl transition-all duration-300 group-hover:-translate-y-6 rotate-0 translate-x-0 -translate-y-3 sm:-translate-y-4 z-20 ${
+                isDark 
+                  ? "bg-[#1e1e24] border-zinc-500/80 text-white ring-1 ring-white/10" 
+                  : "bg-white border-zinc-300 text-zinc-900 ring-1 ring-black/5"
+              }`}
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-60">Personal Notebook</span>
+                    <Sparkles className="w-3.5 h-3.5 opacity-60" />
+                  </div>
+                  <p className="text-sm sm:text-lg md:text-xl font-extrabold tracking-tight leading-snug">
+                    Designing Ideas
+                  </p>
+                </div>
+
+                {/* 3 Pill Mini Layout Persis Referensi */}
+                <div className="grid grid-cols-3 gap-1 sm:gap-1.5 my-auto">
+                  <div className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center">
+                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">DRAFT</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold">Ideas</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-black/10 dark:bg-white/10 border border-black/15 dark:border-white/15 text-center">
+                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">ACTIVE</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold">Notes</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center">
+                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">SAVED</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold">Sync</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-[8px] sm:text-[9px] font-mono opacity-60">
+                  <span>AUTOSYNC</span>
+                  <span>SECURE</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Kartu 4 (Kanan) */}
+            <div
+              className={`absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-54 h-48 sm:h-62 md:h-70 rounded-2xl p-3.5 sm:p-4.5 border shadow-xl transition-all duration-300 group-hover:rotate-9 group-hover:translate-x-15 rotate-7 translate-x-11 sm:translate-x-16 md:translate-x-20 -translate-y-1 sm:-translate-y-2 ${
+                isDark ? "bg-[#141418] border-zinc-700/80 text-white" : "bg-zinc-50 border-zinc-300 text-black"
+              }`}
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1.5 opacity-60">
+                    <div className="w-2 h-2 rounded-full bg-current" />
+                    <span className="text-[8px] sm:text-[9px] font-mono">deu chair</span>
+                  </div>
+                  <p className="text-base sm:text-xl md:text-2xl font-black tracking-tight leading-tight">
+                    Creative Thoughts
+                  </p>
+                </div>
+                <div className="space-y-1.5 opacity-60">
+                  <div className="h-1.5 w-full rounded-full bg-current opacity-30" />
+                  <div className="h-1.5 w-2/3 rounded-full bg-current opacity-20" />
+                </div>
+              </div>
+            </div>
+
+            {/* Kartu 5 (Paling Kanan) */}
+            <div
+              className={`absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-44 sm:h-58 md:h-64 rounded-2xl p-3 sm:p-4 border shadow-xl transition-all duration-300 group-hover:rotate-17 group-hover:translate-x-28 rotate-14 translate-x-22 sm:translate-x-32 md:translate-x-38 translate-y-2 sm:translate-y-3 ${
+                isDark ? "bg-[#101014] border-zinc-700/80 text-zinc-300" : "bg-white border-zinc-300 text-zinc-800"
+              }`}
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-wider">Get In Touch</p>
+                  <p className="text-[8px] sm:text-[9px] opacity-60 mt-0.5">Works Collection</p>
+                </div>
+                <span className="text-[7px] sm:text-[8px] font-mono opacity-50">INDEX 05</span>
               </div>
             </div>
           </div>
 
-          {/* Buku 4 (Kanan) */}
-          <div
-            className={`absolute bottom-0 w-32 sm:w-44 md:w-52 h-44 sm:h-56 md:h-64 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-4 border shadow-2xl transition-transform rotate-7 translate-x-12 sm:translate-x-22 md:translate-x-30 translate-y-2 sm:translate-y-4 md:translate-y-5 z-20 ${
-              isDark ? "bg-zinc-900 border-zinc-700/80 text-white" : "bg-white border-zinc-300 text-black"
+          {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (Front Flap Pocket with Arrow Button) */}
+          <div 
+            className={`absolute bottom-0 inset-x-0 h-28 sm:h-36 md:h-40 rounded-3xl border shadow-2xl backdrop-blur-xl flex items-center justify-between px-5 sm:px-7 z-30 transition-all ${
+              isDark 
+                ? "bg-zinc-900/60 border-white/10 shadow-black/60" 
+                : "bg-white/60 border-zinc-300/80 shadow-zinc-900/10"
             }`}
           >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter leading-none mb-1">how</p>
-                <p className="text-[9px] sm:text-[11px] font-semibold leading-tight opacity-75">to capture thoughts & ideas.</p>
-              </div>
-              <span className="text-[7px] sm:text-[8px] font-mono opacity-50">DRAFT JOURNAL</span>
+            {/* Label Informasi Folder */}
+            <div className="flex flex-col">
+              <span className="text-[9px] sm:text-[11px] font-mono uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                Workspace Folder
+              </span>
+              <span className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2 mt-0.5">
+                <Folder className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                <span>{notes.length > 0 ? `${notes.length} Catatan Tersimpan` : "Catatan Digital"}</span>
+              </span>
             </div>
-          </div>
 
-          {/* Buku 5 (Paling Kanan) */}
-          <div
-            className={`absolute bottom-0 w-28 sm:w-40 md:w-48 h-40 sm:h-52 md:h-60 rounded-t-2xl sm:rounded-t-3xl p-3 sm:p-4 border shadow-2xl transition-transform rotate-14 translate-x-24 sm:translate-x-40 md:translate-x-60 translate-y-4 sm:translate-y-6 md:translate-y-8 z-10 ${
-              isDark ? "bg-[#09090b] border-zinc-800 text-zinc-300" : "bg-zinc-800 border-zinc-700 text-zinc-200"
-            }`}
-          >
-            <div className="flex flex-col justify-between h-full">
-              <div>
-                <p className="text-xs sm:text-sm font-bold uppercase tracking-wider">Works</p>
-                <p className="text-[8px] sm:text-[9px] opacity-60">Creative Notebook</p>
-              </div>
-              <span className="text-[7px] sm:text-[8px] font-mono opacity-40">INDEX 05</span>
+            {/* Tombol Panah Melingkar Persis Gambar Referensi (↗ Arrow Button) */}
+            <div 
+              title="Buka Folder Catatan"
+              className={`w-11 h-11 sm:w-13 sm:h-13 rounded-full flex items-center justify-center transition-all transform group-hover:scale-110 active:scale-95 shadow-xl ${
+                isDark 
+                  ? "bg-white text-black group-hover:bg-zinc-200" 
+                  : "bg-black text-white group-hover:bg-zinc-800"
+              }`}
+            >
+              <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
             </div>
           </div>
         </div>
