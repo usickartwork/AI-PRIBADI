@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams, origin } = new URL(req.url);
     const userId = searchParams.get("userId")?.trim();
+    const userEmail = searchParams.get("email")?.trim() || undefined;
 
     if (!userId || userId === "guest") {
       return NextResponse.json(
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const authUrl = generateGoogleAuthUrl(userId, origin);
+    const authUrl = generateGoogleAuthUrl(userId, origin, userEmail);
     return NextResponse.redirect(authUrl);
   } catch (err: any) {
     console.error("[google/calendar/auth] Error:", err);

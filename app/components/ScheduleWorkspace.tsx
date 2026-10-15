@@ -187,7 +187,8 @@ export function ScheduleWorkspace({
     }
     setGoogleLoading(true);
     const returnUrl = typeof window !== "undefined" ? window.location.href : "/";
-    window.location.href = `/api/google/calendar/auth?userId=${encodeURIComponent(user.id)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+    const emailToUse = userEmail || activeEmail || (user as any)?.email || "";
+    window.location.href = `/api/google/calendar/auth?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(emailToUse)}&returnUrl=${encodeURIComponent(returnUrl)}`;
   };
 
   // Handler: Putuskan koneksi Google Calendar

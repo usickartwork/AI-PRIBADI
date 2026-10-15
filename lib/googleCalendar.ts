@@ -78,7 +78,7 @@ function getSupabaseAdmin() {
 }
 
 // ─── OAuth 2.0 URL Generator ──────────────────────────────────────────────────
-export function generateGoogleAuthUrl(userId: string, origin?: string): string {
+export function generateGoogleAuthUrl(userId: string, origin?: string, userEmail?: string): string {
   const { clientId, redirectUri } = getGoogleConfig();
   if (!clientId) {
     throw new Error("GOOGLE_CLIENT_ID belum dikonfigurasi di server.");
@@ -109,6 +109,10 @@ export function generateGoogleAuthUrl(userId: string, origin?: string): string {
     prompt: "consent", // Pastikan selalu dapat refresh_token
     state,
   });
+
+  if (userEmail && userEmail.includes("@")) {
+    params.set("login_hint", userEmail.trim());
+  }
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
