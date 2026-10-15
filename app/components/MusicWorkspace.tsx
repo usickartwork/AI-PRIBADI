@@ -268,7 +268,128 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     uri: "spotify:track:4u7EnebtmKWzUH433cf5Qv",
     youtubeVideoId: "fJ9rUzIMcZQ",
   },
+  {
+    id: "spotify:track:4wqwP4NcmfG2dF91kM9kX7",
+    provider: "spotify",
+    providerItemId: "4wqwP4NcmfG2dF91kM9kX7",
+    itemType: "track",
+    title: "APT.",
+    artistNames: ["ROSÉ", "Bruno Mars"],
+    albumTitle: "rosie",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2733973347f7d4b4a3a3028d2e8",
+    durationMs: 169826,
+    externalUrl: "https://open.spotify.com/track/4wqwP4NcmfG2dF91kM9kX7",
+    uri: "spotify:track:4wqwP4NcmfG2dF91kM9kX7",
+    youtubeVideoId: "ekr2nIex040",
+  },
+  {
+    id: "spotify:track:37z5g2Z0jH8K8r2dY1s7W8",
+    provider: "spotify",
+    providerItemId: "37z5g2Z0jH8K8r2dY1s7W8",
+    itemType: "track",
+    title: "Untungnya, Hidup Harus Tetap Berjalan",
+    artistNames: ["Bernadya"],
+    albumTitle: "Sialnya, Hidup Harus Tetap Berjalan",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e04e9c60e34c38d415cb27ea",
+    durationMs: 172000,
+    externalUrl: "https://open.spotify.com/track/37z5g2Z0jH8K8r2dY1s7W8",
+    uri: "spotify:track:37z5g2Z0jH8K8r2dY1s7W8",
+    youtubeVideoId: "2nO7Xk1V6p8",
+  },
+  {
+    id: "spotify:track:4Dvkj6JhhA12EX05Qv97zP",
+    provider: "spotify",
+    providerItemId: "4Dvkj6JhhA12EX05Qv97zP",
+    itemType: "track",
+    title: "As It Was",
+    artistNames: ["Harry Styles"],
+    albumTitle: "Harry's House",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2732e8f63710beea634994e63b6",
+    durationMs: 167303,
+    externalUrl: "https://open.spotify.com/track/4Dvkj6JhhA12EX05Qv97zP",
+    uri: "spotify:track:4Dvkj6JhhA12EX05Qv97zP",
+    youtubeVideoId: "H5v3kku4y6Q",
+  },
+  {
+    id: "spotify:track:6xGruZOHBhkqPSww6zQnZs",
+    provider: "spotify",
+    providerItemId: "6xGruZOHBhkqPSww6zQnZs",
+    itemType: "track",
+    title: "Glimpse of Us",
+    artistNames: ["Joji"],
+    albumTitle: "SMITHEREENS",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ce96f7c70e9a584ec0654060",
+    durationMs: 233456,
+    externalUrl: "https://open.spotify.com/track/6xGruZOHBhkqPSww6zQnZs",
+    uri: "spotify:track:6xGruZOHBhkqPSww6zQnZs",
+    youtubeVideoId: "Nrs33rV6Ptw",
+  },
+  {
+    id: "spotify:track:3AJwUDP919kvQ9QcozQPxg",
+    provider: "spotify",
+    providerItemId: "3AJwUDP919kvQ9QcozQPxg",
+    itemType: "track",
+    title: "Yellow",
+    artistNames: ["Coldplay"],
+    albumTitle: "Parachutes",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2739164ba814e3518c01d4a8e23",
+    durationMs: 266773,
+    externalUrl: "https://open.spotify.com/track/3AJwUDP919kvQ9QcozQPxg",
+    uri: "spotify:track:3AJwUDP919kvQ9QcozQPxg",
+    youtubeVideoId: "yKNxeF4KMsY",
+  },
+  {
+    id: "spotify:track:7MXVkk9YM5IZxh0CF5kj9F",
+    provider: "spotify",
+    providerItemId: "7MXVkk9YM5IZxh0CF5kj9F",
+    itemType: "track",
+    title: "Starboy",
+    artistNames: ["The Weeknd", "Daft Punk"],
+    albumTitle: "Starboy",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452",
+    durationMs: 230453,
+    externalUrl: "https://open.spotify.com/track/7MXVkk9YM5IZxh0CF5kj9F",
+    uri: "spotify:track:7MXVkk9YM5IZxh0CF5kj9F",
+    youtubeVideoId: "34Na4j8AVgA",
+  },
+  {
+    id: "spotify:track:27R1lXf01VpG9Yq5PzT2e4",
+    provider: "spotify",
+    providerItemId: "27R1lXf01VpG9Yq5PzT2e4",
+    itemType: "track",
+    title: "Sial",
+    artistNames: ["Mahalini"],
+    albumTitle: "FÁBULA",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e1dc0ea410ffb60c4971c26d",
+    durationMs: 243000,
+    externalUrl: "https://open.spotify.com/track/27R1lXf01VpG9Yq5PzT2e4",
+    uri: "spotify:track:27R1lXf01VpG9Yq5PzT2e4",
+    youtubeVideoId: "aU-Z8fQ58Xk",
+  },
+  {
+    id: "spotify:track:667sF7D1aW1aJ1xQ8mY4e8",
+    provider: "spotify",
+    providerItemId: "667sF7D1aW1aJ1xQ8mY4e8",
+    itemType: "track",
+    title: "Komang",
+    artistNames: ["Raim Laode"],
+    albumTitle: "Komang",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273da9b57b1cbca0cefc25d48d0",
+    durationMs: 222000,
+    externalUrl: "https://open.spotify.com/track/667sF7D1aW1aJ1xQ8mY4e8",
+    uri: "spotify:track:667sF7D1aW1aJ1xQ8mY4e8",
+    youtubeVideoId: "7f4yEw7JmgY",
+  },
 ];
+
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: MusicWorkspaceProps) {
   // Navigation & View State (Clean 2 primary tabs: home & playlists)
@@ -280,7 +401,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [hasSearched, setHasSearched] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
-  // Music Catalog State (Defaults to rich 16-song starter selection)
+  // Discover Feed State (Randomized/shuffled starter collection like Spotify / Apple Music home)
+  const [discoverTracks, setDiscoverTracks] = useState<MusicItem[]>(() =>
+    shuffleArray(FEATURED_STARTER_TRACKS)
+  );
+
+  const handleShuffleDiscover = () => {
+    setDiscoverTracks(shuffleArray(FEATURED_STARTER_TRACKS));
+  };
+
+  const handlePlayAllDiscover = () => {
+    if (discoverTracks.length === 0) return;
+    playAllTracks(discoverTracks);
+  };
+
+  // Music Catalog State (Defaults to rich starter selection)
   const [tracks, setTracks] = useState<MusicItem[]>(FEATURED_STARTER_TRACKS);
   const [artists, setArtists] = useState<MusicItem[]>([]);
   const [albums, setAlbums] = useState<MusicItem[]>([]);
@@ -2638,13 +2773,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
           </div>
         ) : (
-          <div
-            className={`px-3.5 sm:px-8 flex-1 flex flex-col ${
-              !searchQuery.trim() && subTab === "home" && !selectedArtist && !selectedAlbum && !isLoadingArtist && !isLoadingAlbum
-                ? "justify-center items-center my-auto min-h-0"
-                : "py-4 sm:py-6"
-            }`}
-          >
+          <div className="px-3.5 sm:px-8 flex-1 flex flex-col py-4 sm:py-6">
           {/* ─── TAB 1: MUSIK / SEARCH / ARTIST / ALBUM ───────── */}
           {subTab === "home" && (
             selectedAlbum ? (
@@ -2669,7 +2798,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div
               className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
                 !searchQuery.trim()
-                  ? "justify-center items-center my-auto min-h-0"
+                  ? "pt-1 pb-8 sm:pb-12"
                   : "pt-2"
               }`}
             >
@@ -2704,21 +2833,163 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Lower Section: Quick Inspiration Pills (When empty) OR Results & Tracks (When typed) */}
               {!searchQuery.trim() ? (
-                <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-center gap-2 animate-in fade-in-0 duration-200">
-                  {["Top Hits 2025", "Bernadya", "Pop Indonesia", "Billie Eilish", "Chill Vibes"].map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleQuickSearch(tag)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border ${
-                        isDark
-                          ? "bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 hover:text-white border-zinc-800"
-                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-black border-zinc-200"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
+                <div className="space-y-6 sm:space-y-8 w-full mt-3 sm:mt-4 animate-in fade-in-0 duration-200">
+                  {/* Quick Inspiration Pills */}
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {["Top Hits 2025", "Bernadya", "Pop Indonesia", "Billie Eilish", "Chill Vibes"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleQuickSearch(tag)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border ${
+                          isDark
+                            ? "bg-zinc-900/70 hover:bg-zinc-800 text-zinc-400 hover:text-white border-zinc-800"
+                            : "bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-black border-zinc-200"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ─── SPOTIFY / APPLE MUSIC DISCOVER HOME (Clean One Mind Theme) ─── */}
+                  <div className="space-y-3 pt-2">
+                    {/* Header Controls: Section title + Shuffle (Acak) & Play All (Putar) */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-base sm:text-lg font-bold tracking-tight">
+                          Pilihan Cepat
+                        </h3>
+                        <p className="text-xs text-zinc-500">
+                          Rekomendasi lagu acak yang siap diputar langsung
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Acak Lagu Button */}
+                        <button
+                          type="button"
+                          onClick={handleShuffleDiscover}
+                          title="Acak Lagu Lainnya"
+                          aria-label="Acak Lagu Lainnya"
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border shadow-xs hover:scale-102 active:scale-98 ${
+                            isDark
+                              ? "bg-zinc-900/80 hover:bg-zinc-800 border-white/10 text-zinc-300 hover:text-white"
+                              : "bg-white hover:bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4l4 5-4 5H4M20 4h-4l-2 2.5m-4 5L8 14H4M20 20h-4l-4-5 4-5h4M16 4h4v4M16 20h4v-4" />
+                          </svg>
+                          <span>Acak</span>
+                        </button>
+
+                        {/* Putar Semua Button */}
+                        <button
+                          type="button"
+                          onClick={handlePlayAllDiscover}
+                          title="Putar Semua Rekomendasi"
+                          aria-label="Putar Semua Rekomendasi"
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-md hover:scale-102 active:scale-98 ${
+                            isDark
+                              ? "bg-white text-black hover:bg-zinc-200"
+                              : "bg-black text-white hover:bg-zinc-800"
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <polygon points="6 4, 18 12, 6 20" />
+                          </svg>
+                          <span>Putar</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Picks Cards Grid (2 cols mobile, 3 cols tablet/desktop) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                      {discoverTracks.slice(0, 6).map((track) => {
+                        const isCurrent = currentTrack?.id === track.id;
+                        const isTrackPlaying = isCurrent && isPlaying;
+
+                        return (
+                          <div
+                            key={`quick-pick-${track.id}`}
+                            onClick={() => playTrack(track)}
+                            className={`group relative flex items-center gap-2.5 sm:gap-3 p-1.5 sm:p-2 pr-3 sm:pr-4 rounded-xl sm:rounded-2xl transition cursor-pointer overflow-hidden border ${
+                              isCurrent
+                                ? isDark
+                                  ? "bg-white/15 border-white/25 shadow-md"
+                                  : "bg-black/10 border-black/20 shadow-xs"
+                                : isDark
+                                ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-white/5 hover:border-white/10"
+                                : "bg-white/80 hover:bg-white border-black/5 hover:border-black/10 shadow-xs"
+                            }`}
+                          >
+                            {/* Artwork */}
+                            <div className="relative w-11 h-11 sm:w-13 sm:h-13 rounded-lg sm:rounded-xl overflow-hidden shrink-0 bg-zinc-800 shadow-xs">
+                              {track.artworkUrl ? (
+                                <img
+                                  src={track.artworkUrl}
+                                  alt={track.title}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                                  </svg>
+                                </div>
+                              )}
+                              {/* Playing badge on art */}
+                              {isTrackPlaying && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                                  <span className="flex items-end gap-0.5 h-3">
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-3" />
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.4s" }} />
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Meta */}
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-xs sm:text-sm font-semibold truncate ${
+                                isCurrent ? "text-white font-bold" : isDark ? "text-zinc-100" : "text-zinc-900"
+                              }`}>
+                                {track.title}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-zinc-400 truncate mt-0.5">
+                                {track.artistNames.join(", ")}
+                              </p>
+                            </div>
+
+                            {/* Hover Play Button (Spotify style floating action) */}
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-white text-black shadow-lg hover:scale-105 active:scale-95 shrink-0">
+                              <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                                <polygon points="6 4, 18 12, 6 20" />
+                              </svg>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ─── FULL DISCOVER TRACK TABLE ───────────────────────────── */}
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight">
+                        Jelajahi Musik Lainnya
+                      </h3>
+                      <p className="text-xs text-zinc-500">
+                        {discoverTracks.length} pilihan trek lagu siap dinikmati
+                      </p>
+                    </div>
+
+                    {renderTrackTable(discoverTracks.slice(6), {
+                      emptyMessage: "Tidak ada lagu yang ditemukan.",
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4 pt-2 pb-8 w-full animate-in fade-in-0 duration-200">
