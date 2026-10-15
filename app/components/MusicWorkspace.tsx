@@ -315,15 +315,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [queue, setQueue] = useState<MusicItem[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
 
-  // Modals & Drawers
-  const [showQueueModal, setShowQueueModal] = useState(false);
+  // Modals, Drawers & Sidebars
+  const [showDesktopQueue, setShowDesktopQueue] = useState(false);
   const [showMobilePlayer, setShowMobilePlayer] = useState(false);
-  const [mobilePlayerMode, setMobilePlayerMode] = useState<"track" | "lyrics">("track");
+  const [mobilePlayerMode, setMobilePlayerMode] = useState<"track" | "lyrics" | "queue">("track");
+  const mobileQueueContainerRef = useRef<HTMLDivElement>(null);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
+
+  // Spotify-style Recommendations (derived from starter catalog, excluding currently playing and queued songs)
+  const recommendedTracks = useMemo(() => {
+    return FEATURED_STARTER_TRACKS.filter(
+      (t) => t.id !== currentTrack?.id && !queue.some((q) => q.id === t.id)
+    ).slice(0, 8);
+  }, [currentTrack?.id, queue]);
 
   // Interactive Continuous Scrubber State
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -1089,6 +1097,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
       if (mobilePlayerMode === "lyrics" && mobileLyricsContainerRef.current) {
         if (mobileLyricsContainerRef.current.scrollTop > 5) {
+          isTrackingTouchRef.current = false;
+          return;
+        }
+      }
+
+      if (mobilePlayerMode === "queue" && mobileQueueContainerRef.current) {
+        if (mobileQueueContainerRef.current.scrollTop > 5) {
           isTrackingTouchRef.current = false;
           return;
         }
@@ -2432,17 +2447,48 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </svg>
             </button>
           )}
+
+          {/* Desktop Queue Toggle Button in Header */}
+          <button
+            type="button"
+            onClick={() => setShowDesktopQueue((prev) => !prev)}
+            title={showDesktopQueue ? "Tutup Antrean" : "Antrean Putar"}
+            aria-label="Antrean Putar"
+            className={`hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 relative ${
+              showDesktopQueue
+                ? isDark
+                  ? "bg-white text-black shadow-white/10 font-bold"
+                  : "bg-black text-white shadow-black/10 font-bold"
+                : isDark
+                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+            }`}
+          >
+            <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            {queue.length > 0 && (
+              <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
+                showDesktopQueue
+                  ? isDark ? "bg-black text-white" : "bg-white text-black"
+                  : isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}>
+                {queue.length}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 
-      {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
-      <main
-        className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
-          searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
-            ? "pb-8 sm:pb-10"
-            : "pb-0"
-        }`}
-      >
+      {/* ─── MAIN WORKSPACE + DESKTOP QUEUE SIDEBAR CONTAINER ─────────────────── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        <main
+          className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
+            searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
+              ? "pb-8 sm:pb-10"
+              : "pb-0"
+          }`}
+        >
         {showLyrics ? (
           <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col px-4 sm:px-8 py-3 sm:py-6 h-full min-h-0 relative animate-in fade-in-0 duration-200">
             {/* Top Bar inside Lyrics: Clean Track Meta */}
@@ -3056,6 +3102,264 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         )}
       </main>
 
+        {/* ─── DESKTOP SPOTIFY-STYLE QUEUE SIDE PANEL ───────────────────────────── */}
+        {showDesktopQueue && (
+          <aside
+            className={`hidden sm:flex flex-col w-80 lg:w-96 shrink-0 h-full border-l overflow-hidden transition-all duration-300 animate-in slide-in-from-right z-20 select-none ${
+              isDark
+                ? "bg-[#121215]/95 backdrop-blur-md border-white/10 text-white shadow-[-8px_0_24px_rgba(0,0,0,0.3)]"
+                : "bg-[#fafafc]/95 backdrop-blur-md border-black/10 text-zinc-900 shadow-[-8px_0_24px_rgba(0,0,0,0.05)]"
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 shrink-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold tracking-tight">Antrean</h3>
+                {queue.length > 0 && (
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                    isDark ? "bg-white/10 text-zinc-300" : "bg-black/10 text-zinc-700"
+                  }`}>
+                    {queue.length} lagu
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {queue.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQueue([]);
+                      saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
+                    }}
+                    className={`text-xs transition cursor-pointer font-medium ${
+                      isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                    }`}
+                  >
+                    Hapus Semua
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowDesktopQueue(false)}
+                  className={`p-1.5 rounded-full transition cursor-pointer ${
+                    isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/10 text-zinc-600 hover:text-black"
+                  }`}
+                  title="Tutup antrean"
+                  aria-label="Tutup antrean"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* Section 1: Sedang Diputar (Now Playing) */}
+              {currentTrack && (
+                <div className="space-y-2">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Sedang Diputar
+                  </h4>
+                  <div
+                    className={`flex items-center justify-between p-2.5 rounded-2xl border transition ${
+                      isDark
+                        ? "bg-white/5 border-white/10 hover:bg-white/10"
+                        : "bg-black/5 border-black/10 hover:bg-black/10"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {currentTrack.artworkUrl ? (
+                        <img
+                          src={currentTrack.artworkUrl}
+                          alt={currentTrack.title}
+                          className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-sm"
+                        />
+                      ) : (
+                        <div className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center ${
+                          isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate">{currentTrack.title}</p>
+                        <p className="text-[11px] text-zinc-500 truncate">{currentTrack.artistNames.join(", ")}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isPlaying && (
+                        <span className="flex items-end gap-0.5 h-3 px-1 mr-1">
+                          <span className={`w-0.5 h-3 rounded-full animate-pulse ${isDark ? "bg-white" : "bg-black"}`} />
+                          <span className={`w-0.5 h-2 rounded-full animate-pulse delay-75 ${isDark ? "bg-white" : "bg-black"}`} />
+                          <span className={`w-0.5 h-3.5 rounded-full animate-pulse delay-150 ${isDark ? "bg-white" : "bg-black"}`} />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleLike(currentTrack)}
+                        className={`p-1.5 rounded-lg transition cursor-pointer ${
+                          isTrackLiked(currentTrack.id)
+                            ? "text-red-500"
+                            : isDark ? "text-zinc-500 hover:text-white" : "text-zinc-400 hover:text-black"
+                        }`}
+                        title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai"}
+                      >
+                        <svg className={`w-4 h-4 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 2: Berikutnya dalam Antrean (Next in Queue) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Berikutnya Dalam Antrean
+                  </h4>
+                  {queue.length > 0 && (
+                    <span className="text-[10px] text-zinc-500">{queue.length} lagu</span>
+                  )}
+                </div>
+
+                {queue.length === 0 ? (
+                  <div className={`p-4 rounded-2xl border border-dashed text-center space-y-1 ${
+                    isDark ? "border-zinc-800 bg-zinc-900/20" : "border-zinc-200 bg-zinc-50"
+                  }`}>
+                    <p className={`text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Antrean kosong
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Klik tombol '+' pada rekomendasi lagu di bawah untuk menambahkan.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {queue.map((item, idx) => (
+                      <div
+                        key={`dt-queue-${item.id}-${idx}`}
+                        onClick={() => {
+                          setQueueIndex(idx);
+                          playTrack(item);
+                        }}
+                        className={`group flex items-center justify-between p-2 rounded-xl transition cursor-pointer ${
+                          queueIndex === idx
+                            ? isDark
+                              ? "bg-white/15 border border-white/20 font-bold text-white"
+                              : "bg-black/10 border border-black/20 font-bold text-black"
+                            : isDark
+                            ? "hover:bg-white/5 text-zinc-300"
+                            : "hover:bg-black/5 text-zinc-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className="text-xs font-mono text-zinc-500 w-4 text-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          {item.artworkUrl && (
+                            <img
+                              src={item.artworkUrl}
+                              alt={item.title}
+                              className="w-8 h-8 rounded-lg object-cover shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{item.title}</p>
+                            <p className="text-[10px] text-zinc-500 truncate">{item.artistNames.join(", ")}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = queue.filter((_, i) => i !== idx);
+                            setQueue(updated);
+                            saveQueueState({
+                              items: updated,
+                              currentIndex: Math.min(queueIndex, updated.length - 1),
+                              updatedAt: new Date().toISOString(),
+                            });
+                          }}
+                          className="p-1 rounded-lg text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition cursor-pointer shrink-0"
+                          title="Hapus dari antrean"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Rekomendasi Lagu (Spotify Style) */}
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <div>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Rekomendasi Lagu
+                  </h4>
+                  <p className="text-[10px] text-zinc-500">Berdasarkan musik yang sedang diputar</p>
+                </div>
+
+                <div className="space-y-1">
+                  {recommendedTracks.map((rec) => (
+                    <div
+                      key={`dt-rec-${rec.id}`}
+                      className={`group flex items-center justify-between p-2 rounded-xl transition ${
+                        isDark ? "hover:bg-white/5 text-zinc-300" : "hover:bg-black/5 text-zinc-700"
+                      }`}
+                    >
+                      <div
+                        onClick={() => playTrack(rec)}
+                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                      >
+                        {rec.artworkUrl && (
+                          <img
+                            src={rec.artworkUrl}
+                            alt={rec.title}
+                            className="w-8 h-8 rounded-lg object-cover shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium truncate group-hover:underline">{rec.title}</p>
+                          <p className="text-[10px] text-zinc-500 truncate">{rec.artistNames.join(", ")}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => addToQueue(rec)}
+                          className={`p-1.5 rounded-lg transition cursor-pointer active:scale-90 ${
+                            isDark
+                              ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                              : "text-zinc-600 hover:text-black hover:bg-black/10"
+                          }`}
+                          title="Tambahkan ke antrean"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+      </div>
+
       {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Only rendered when a track is active) ─── */}
       {currentTrack && (
         <footer
@@ -3404,15 +3708,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               <button
                 type="button"
-                onClick={() => setShowQueueModal(true)}
-                className={`p-2 transition cursor-pointer relative ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
-                title="Antrean Putar"
+                onClick={() => setShowDesktopQueue((prev) => !prev)}
+                className={`p-2 transition cursor-pointer relative ${
+                  showDesktopQueue
+                    ? isDark
+                      ? "text-white bg-white/15 rounded-xl font-bold"
+                      : "text-black bg-black/10 rounded-xl font-bold"
+                    : isDark
+                    ? "text-zinc-400 hover:text-white"
+                    : "text-zinc-600 hover:text-black"
+                }`}
+                title={showDesktopQueue ? "Tutup Antrean" : "Antrean Putar"}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${
+                    showDesktopQueue ? (isDark ? "bg-black" : "bg-white") : (isDark ? "bg-white" : "bg-black")
+                  }`} />
                 )}
               </button>
 
@@ -3494,9 +3808,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             <button
               type="button"
-              onClick={() => setShowQueueModal(true)}
+              onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
               className={`p-3 -mr-2 rounded-full transition cursor-pointer active:scale-90 relative ${
-                isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                mobilePlayerMode === "queue"
+                  ? isDark
+                    ? "bg-white text-black font-bold shadow-sm"
+                    : "bg-black text-white font-bold shadow-sm"
+                  : isDark
+                  ? "text-zinc-400 hover:text-white"
+                  : "text-zinc-500 hover:text-black"
               }`}
               title="Antrean Putar"
               aria-label="Antrean Putar"
@@ -3507,12 +3827,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <circle cx="19" cy="12" r="2.2" />
               </svg>
               {queue.length > 0 && (
-                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
+                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
+                  mobilePlayerMode === "queue"
+                    ? isDark ? "bg-black" : "bg-white"
+                    : isDark ? "bg-white" : "bg-black"
+                }`} />
               )}
             </button>
           </div>
 
-          {/* Middle Body: Artwork or Synced Lyrics View */}
+          {/* Middle Body: Artwork or Synced Lyrics View or Queue View */}
           <div className="flex-1 min-h-0 flex flex-col px-6 py-2 overflow-hidden justify-center">
             {mobilePlayerMode === "lyrics" ? (
               /* Clean borderless lyrics view directly on mobile player background */
@@ -3567,6 +3891,169 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     </p>
                   </div>
                 )}
+              </div>
+            ) : mobilePlayerMode === "queue" ? (
+              /* Clean Mobile Queue View: Replaces Cover/Lyrics in Middle Area */
+              <div
+                ref={mobileQueueContainerRef}
+                className="flex-1 min-h-0 flex flex-col relative overflow-y-auto py-2 px-1 space-y-4 overscroll-contain select-none touch-pan-y"
+              >
+                {/* Header inside mobile queue */}
+                <div className="flex items-center justify-between pb-2 border-b border-white/5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold">Antrean Pemutaran</h3>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      isDark ? "bg-white/10 text-zinc-300" : "bg-black/10 text-zinc-700"
+                    }`}>
+                      {queue.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {queue.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQueue([]);
+                          saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
+                        }}
+                        className="text-xs text-zinc-400 hover:text-red-400 cursor-pointer transition font-medium"
+                      >
+                        Hapus Semua
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setMobilePlayerMode("track")}
+                      className={`text-xs px-2.5 py-1 rounded-full transition cursor-pointer font-medium ${
+                        isDark ? "bg-white/10 text-zinc-300 hover:text-white" : "bg-black/10 text-zinc-700 hover:text-black"
+                      }`}
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                </div>
+
+                {/* Queue items */}
+                {queue.length === 0 ? (
+                  <div className={`p-4 rounded-2xl border border-dashed text-center space-y-1 ${
+                    isDark ? "border-zinc-800 bg-zinc-900/30" : "border-zinc-200 bg-zinc-50"
+                  }`}>
+                    <p className={`text-xs font-semibold ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Antrean Kosong
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Pilih lagu di bawah untuk menambahkan ke antrean
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {queue.map((item, idx) => (
+                      <div
+                        key={`mob-q-${item.id}-${idx}`}
+                        onClick={() => {
+                          setQueueIndex(idx);
+                          playTrack(item);
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer active:scale-[0.98] ${
+                          queueIndex === idx
+                            ? isDark
+                              ? "bg-white/15 border border-white/20 font-bold text-white"
+                              : "bg-black/10 border border-black/20 font-bold text-black"
+                            : isDark
+                            ? "bg-white/5 hover:bg-white/10 text-zinc-300"
+                            : "bg-black/5 hover:bg-black/10 text-zinc-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className="text-xs font-mono text-zinc-500 w-4 text-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          {item.artworkUrl && (
+                            <img
+                              src={item.artworkUrl}
+                              alt={item.title}
+                              className="w-9 h-9 rounded-xl object-cover shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs truncate">{item.title}</p>
+                            <p className="text-[10px] text-zinc-500 truncate">{item.artistNames.join(", ")}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = queue.filter((_, i) => i !== idx);
+                            setQueue(updated);
+                            saveQueueState({
+                              items: updated,
+                              currentIndex: Math.min(queueIndex, updated.length - 1),
+                              updatedAt: new Date().toISOString(),
+                            });
+                          }}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition cursor-pointer"
+                          title="Hapus dari antrean"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recommendations in mobile queue view (Spotify style) */}
+                <div className="pt-2 space-y-2">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      Rekomendasi Lagu
+                    </h4>
+                    <p className="text-[10px] text-zinc-500">Disarankan untuk Anda</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {recommendedTracks.map((rec) => (
+                      <div
+                        key={`mob-rec-${rec.id}`}
+                        className={`flex items-center justify-between p-2 rounded-2xl transition ${
+                          isDark ? "bg-white/5 text-zinc-300" : "bg-black/5 text-zinc-700"
+                        }`}
+                      >
+                        <div
+                          onClick={() => playTrack(rec)}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                        >
+                          {rec.artworkUrl && (
+                            <img
+                              src={rec.artworkUrl}
+                              alt={rec.title}
+                              className="w-9 h-9 rounded-xl object-cover shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{rec.title}</p>
+                            <p className="text-[10px] text-zinc-500 truncate">{rec.artistNames.join(", ")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => addToQueue(rec)}
+                            className={`p-1.5 rounded-xl transition cursor-pointer active:scale-90 ${
+                              isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/10 text-zinc-600 hover:text-black"
+                            }`}
+                            title="Tambahkan ke antrean"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               /* Artwork View */
@@ -3826,12 +4313,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 )}
               </button>
 
-              {/* Queue Button (Icon Only, Enlarged) */}
+              {/* Queue Button (Icon Only, Enlarged, Toggles Queue in Place of Cover/Lyrics) */}
               <button
                 type="button"
-                onClick={() => setShowQueueModal(true)}
+                onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
                 className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
-                  isDark
+                  mobilePlayerMode === "queue"
+                    ? isDark
+                      ? "bg-white text-black shadow-md font-bold"
+                      : "bg-black text-white shadow-md font-bold"
+                    : isDark
                     ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
                     : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
                 }`}
@@ -3844,7 +4335,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 {queue.length > 0 && (
                   <span
                     className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
-                      isDark ? "bg-white" : "bg-black"
+                      mobilePlayerMode === "queue"
+                        ? isDark ? "bg-black" : "bg-white"
+                        : isDark ? "bg-white" : "bg-black"
                     }`}
                   />
                 )}
@@ -3912,92 +4405,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
       )}
 
-      {/* ─── MODAL 2: QUEUE MODAL ────────────────────────────────────────────── */}
-      {showQueueModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in-0">
-          <div
-            className={`w-full max-w-lg rounded-3xl border p-6 space-y-4 shadow-2xl max-h-[80vh] flex flex-col ${
-              isDark ? "bg-[#18181f] border-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-900"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold">Antrean Pemutaran ({queue.length})</h3>
-                <p className="text-xs text-zinc-500">Daftar lagu yang akan diputar berikutnya</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setQueue([]);
-                    saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
-                  }}
-                  className="text-xs text-red-400 hover:underline cursor-pointer"
-                >
-                  Hapus Semua
-                </button>
-                <button
-                  onClick={() => setShowQueueModal(false)}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-              {queue.length === 0 ? (
-                <div className="py-12 text-center space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-800/60 border border-white/5 mx-auto flex items-center justify-center text-zinc-500">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-semibold text-zinc-300">Antrean Kosong</p>
-                  <p className="text-xs text-zinc-500">Pilih lagu atau tambahkan ke antrean untuk mulai memutar</p>
-                </div>
-              ) : (
-                queue.map((item, idx) => (
-                <div
-                  key={`${item.id}-${idx}`}
-                  onClick={() => {
-                    setQueueIndex(idx);
-                    playTrack(item);
-                  }}
-                  className={`flex items-center justify-between p-2.5 rounded-xl transition cursor-pointer ${
-                    queueIndex === idx
-                      ? "bg-white/10 border border-white/20 text-white font-bold"
-                      : "hover:bg-zinc-800/60 text-zinc-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xs font-mono text-zinc-500 w-4 text-center">{idx + 1}</span>
-                    <div className="min-w-0">
-                      <p className="text-xs truncate">{item.title}</p>
-                      <p className="text-[10px] text-zinc-500 truncate">{item.artistNames.join(", ")}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const updated = queue.filter((_, i) => i !== idx);
-                      setQueue(updated);
-                      saveQueueState({ items: updated, currentIndex: Math.min(queueIndex, updated.length - 1), updatedAt: new Date().toISOString() });
-                    }}
-                    className="p-1 text-zinc-500 hover:text-red-400"
-                    title="Hapus dari antrean"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── MODAL 3: CREATE / ADD TO PLAYLIST MODAL ─────────────────────────── */}
       {(showCreatePlaylistModal || addToPlaylistTrack) && (
