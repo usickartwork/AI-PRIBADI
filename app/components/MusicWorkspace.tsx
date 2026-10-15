@@ -1058,91 +1058,113 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }, animDuration);
   }, []);
 
-  // 1:1 Direct Finger Tracking Slide-Down to Dismiss Controller
-  const handleMobilePlayerTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length > 1) {
-      isTrackingTouchRef.current = false;
-      return;
-    }
+  // Lock body scroll and overscroll when mobile full player is open to prevent background web scrolling
+  useEffect(() => {
+    if (!showMobilePlayer) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevTouchAction = document.body.style.touchAction;
+    const prevOverscroll = document.body.style.overscrollBehavior;
 
-    const target = e.target as HTMLElement | null;
-    if (target?.closest("[data-scrubber='true'], input, textarea")) {
-      isTrackingTouchRef.current = false;
-      return;
-    }
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    document.body.style.overscrollBehavior = "none";
 
-    if (mobilePlayerMode === "lyrics" && mobileLyricsContainerRef.current) {
-      if (mobileLyricsContainerRef.current.scrollTop > 5) {
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.touchAction = prevTouchAction;
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, [showMobilePlayer]);
+
+  // Native non-passive touch controller: prevents mobile Safari/Chrome rubber-banding & background web scrolling
+  useEffect(() => {
+    if (!showMobilePlayer) return;
+    const el = mobilePlayerRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
         isTrackingTouchRef.current = false;
         return;
       }
-    }
 
-    touchStartYRef.current = e.touches[0].clientY;
-    touchStartXRef.current = e.touches[0].clientX;
-    touchStartTimeRef.current = Date.now();
-    isTrackingTouchRef.current = true;
-    isDraggingDownRef.current = false;
-  };
-
-  const handleMobilePlayerTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isTrackingTouchRef.current) return;
-
-    const touch = e.touches[0];
-    const deltaY = touch.clientY - touchStartYRef.current;
-    const deltaX = Math.abs(touch.clientX - touchStartXRef.current);
-
-    if (!isDraggingDownRef.current) {
-      if (deltaY < 0 || deltaX > deltaY) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-scrubber='true'], input, textarea")) {
         isTrackingTouchRef.current = false;
         return;
       }
-      if (deltaY > 8) {
-        isDraggingDownRef.current = true;
-      }
-    }
 
-    if (isDraggingDownRef.current) {
-      const el = mobilePlayerRef.current;
-      if (el) {
+      if (mobilePlayerMode === "lyrics" && mobileLyricsContainerRef.current) {
+        if (mobileLyricsContainerRef.current.scrollTop > 5) {
+          isTrackingTouchRef.current = false;
+          return;
+        }
+      }
+
+      touchStartYRef.current = e.touches[0].clientY;
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartTimeRef.current = Date.now();
+      isTrackingTouchRef.current = true;
+      isDraggingDownRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isTrackingTouchRef.current) return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - touchStartYRef.current;
+      const deltaX = Math.abs(touch.clientX - touchStartXRef.current);
+
+      if (!isDraggingDownRef.current) {
+        if (deltaY < 0 || deltaX > deltaY) {
+          isTrackingTouchRef.current = false;
+          return;
+        }
+        if (deltaY > 6) {
+          isDraggingDownRef.current = true;
+        }
+      }
+
+      if (isDraggingDownRef.current) {
+        // Crucial: non-passive preventDefault stops background browser scrolling & rubber-band bounce
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
         if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
         animFrameIdRef.current = requestAnimationFrame(() => {
           if (!el) return;
           el.style.transition = "none";
           el.style.transform = `translateY(${Math.max(0, deltaY)}px)`;
           const windowH = typeof window !== "undefined" ? window.innerHeight : 800;
-          const opacity = Math.max(0.4, 1 - (deltaY / (windowH * 0.85)));
+          const opacity = Math.max(0.4, 1 - deltaY / (windowH * 0.85));
           el.style.opacity = String(opacity);
         });
       }
-    }
-  };
+    };
 
-  const handleMobilePlayerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isTrackingTouchRef.current || !isDraggingDownRef.current) {
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isTrackingTouchRef.current || !isDraggingDownRef.current) {
+        isTrackingTouchRef.current = false;
+        isDraggingDownRef.current = false;
+        return;
+      }
       isTrackingTouchRef.current = false;
       isDraggingDownRef.current = false;
-      return;
-    }
-    isTrackingTouchRef.current = false;
-    isDraggingDownRef.current = false;
 
-    if (animFrameIdRef.current) {
-      cancelAnimationFrame(animFrameIdRef.current);
-      animFrameIdRef.current = null;
-    }
+      if (animFrameIdRef.current) {
+        cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = null;
+      }
 
-    const touch = e.changedTouches[0];
-    const deltaY = touch.clientY - touchStartYRef.current;
-    const durationMs = Math.max(1, Date.now() - touchStartTimeRef.current);
-    const velocityY = deltaY / durationMs;
+      const touch = e.changedTouches[0];
+      const deltaY = touch.clientY - touchStartYRef.current;
+      const durationMs = Math.max(1, Date.now() - touchStartTimeRef.current);
+      const velocityY = deltaY / durationMs;
 
-    // Threshold: if dragged > 100px or flicked down with velocity > 0.3
-    if (deltaY > 100 || velocityY > 0.3) {
-      closeMobilePlayerAnimated();
-    } else {
-      const el = mobilePlayerRef.current;
-      if (el) {
+      if (deltaY > 100 || velocityY > 0.3) {
+        closeMobilePlayerAnimated();
+      } else {
         const animDuration = 220;
         el.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
         el.style.transform = "translateY(0px)";
@@ -1155,8 +1177,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           }
         }, animDuration + 20);
       }
-    }
-  };
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [showMobilePlayer, mobilePlayerMode, closeMobilePlayerAnimated]);
 
   const handleVolumeChange = (val: number) => {
     setVolume(val);
@@ -2236,7 +2270,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   return (
     <div
-      className={`relative w-full h-full flex flex-col overflow-hidden select-none font-sans bg-transparent ${
+      className={`relative w-full h-full flex flex-col overflow-hidden select-none font-sans bg-transparent overscroll-none touch-pan-y ${
         isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
@@ -2399,7 +2433,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
       <main
-        className={`flex-1 flex flex-col min-h-0 overflow-y-auto bg-transparent ${
+        className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
           searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
             ? "pb-8 sm:pb-10"
             : "pb-0"
@@ -3422,11 +3456,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       {showMobilePlayer && currentTrack && (
         <div
           ref={mobilePlayerRef}
-          onTouchStart={handleMobilePlayerTouchStart}
-          onTouchMove={handleMobilePlayerTouchMove}
-          onTouchEnd={handleMobilePlayerTouchEnd}
-          onTouchCancel={handleMobilePlayerTouchEnd}
-          className={`fixed inset-0 z-50 sm:hidden flex flex-col transition-all duration-300 animate-in slide-in-from-bottom ${
+          className={`fixed inset-0 z-50 sm:hidden flex flex-col transition-all duration-300 animate-in slide-in-from-bottom overflow-hidden overscroll-none touch-none select-none ${
             isDark ? "bg-[#121215] text-white" : "bg-[#fafafc] text-zinc-900"
           }`}
         >
@@ -3478,40 +3508,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           {/* Middle Body: Artwork or Synced Lyrics View */}
           <div className="flex-1 min-h-0 flex flex-col px-6 py-2 overflow-hidden justify-center">
             {mobilePlayerMode === "lyrics" ? (
-              /* Synchronized Lyrics Container inside Mobile Player */
-              <div
-                className={`flex-1 min-h-0 flex flex-col relative rounded-3xl border p-4 overflow-hidden ${
-                  isDark ? "bg-white/[0.04] border-white/10" : "bg-black/[0.03] border-black/10"
-                }`}
-              >
-                <div className={`flex items-center justify-between pb-2 mb-2 border-b shrink-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
-                    Lirik Lagu
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setMobilePlayerMode("track")}
-                    className={`text-xs px-2.5 py-1 rounded-xl font-medium transition cursor-pointer ${
-                      isDark ? "text-zinc-300 bg-white/10 hover:bg-white/15" : "text-zinc-700 bg-black/5 hover:bg-black/10"
-                    }`}
-                  >
-                    Tutup Lirik
-                  </button>
-                </div>
-
+              /* Clean borderless lyrics view directly on mobile player background */
+              <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden py-2 px-1">
                 {isLoadingLyrics ? (
                   <div className="flex-1 flex flex-col items-center justify-center gap-3">
                     <svg className={`w-6 h-6 animate-spin ${isDark ? "text-zinc-400" : "text-zinc-600"}`} viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
-                    <p className={`text-xs ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>Memuat lirik...</p>
+                    <p className={`text-xs font-medium ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>Memuat lirik...</p>
                   </div>
                 ) : lyricsData?.lines && lyricsData.lines.length > 0 ? (
                   <div
                     ref={mobileLyricsContainerRef}
                     onScroll={handleLyricsScroll}
-                    className="flex-1 overflow-y-auto space-y-4 py-8 text-center scroll-smooth pr-1 select-none"
+                    className="flex-1 overflow-y-auto space-y-5 py-8 text-center scroll-smooth pr-1 select-none touch-pan-y overscroll-contain"
                   >
                     {lyricsData.lines.map((line, idx) => {
                       const isActive = lyricsData.synced && idx === activeLyricIndex;
@@ -3524,14 +3535,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                               seekToLyric(line.time);
                             }
                           }}
-                          className={`transition-all duration-200 cursor-pointer text-base leading-relaxed ${
+                          className={`transition-all duration-200 cursor-pointer text-base sm:text-lg leading-relaxed ${
                             isActive
                               ? isDark
-                                ? "font-bold text-white scale-105"
-                                : "font-bold text-black scale-105"
+                                ? "font-extrabold text-white scale-105 drop-shadow-[0_2px_12px_rgba(255,255,255,0.4)]"
+                                : "font-extrabold text-black scale-105 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
                               : isDark
-                              ? "text-zinc-500 hover:text-zinc-300"
-                              : "text-zinc-400 hover:text-zinc-700"
+                              ? "text-zinc-500 hover:text-zinc-300 font-medium opacity-65"
+                              : "text-zinc-400 hover:text-zinc-700 font-medium opacity-65"
                           }`}
                         >
                           {line.text}
