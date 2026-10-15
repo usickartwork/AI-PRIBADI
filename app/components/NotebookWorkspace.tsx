@@ -1137,9 +1137,9 @@ export function NotebookWorkspace({
   // HALAMAN 1: HOME / LANDING COVER VIEW (Persis Desain Cover Referensi Monokrom)
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
-    <div className="flex-1 flex flex-col justify-between h-full w-full px-4 sm:px-6 pt-5 sm:pt-7 relative overflow-hidden animate-in fade-in-0 duration-200">
+    <div className="flex-1 flex flex-col h-full w-full relative overflow-hidden select-none animate-in fade-in-0 duration-200">
       {/* Header Atas: Bersih tanpa badge dan tanpa tombol semua catatan */}
-      <div className="w-full max-w-4xl mx-auto shrink-0 z-20 flex items-center justify-between min-h-[40px]">
+      <div className="w-full max-w-4xl mx-auto shrink-0 z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
         {onTogglePanel ? (
           <button
             type="button"
@@ -1155,9 +1155,9 @@ export function NotebookWorkspace({
         <div />
       </div>
 
-      {/* Konten Hero Tengah */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center my-auto px-2 z-20 max-w-2xl mx-auto">
-        <h1 className="text-3xl sm:text-5xl md:text-[56px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
+      {/* Konten Hero Tengah - Diberi padding-bottom agar seimbang dan tidak tertutup buku */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pb-48 sm:pb-60 md:pb-72 -mt-4 sm:-mt-8">
+        <h1 className="text-3xl sm:text-5xl md:text-[54px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
           One Stop Digital<br />
           Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
         </h1>
@@ -1198,95 +1198,95 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* Ilustrasi Buku Monokromatik Fan di Bawah */}
-      <div className="w-full shrink-0 z-10 pt-2 pointer-events-none select-none">
-        <div className="relative w-full max-w-3xl mx-auto h-[180px] sm:h-[240px] md:h-[280px] flex items-end justify-center overflow-hidden">
-          {/* Buku 1 */}
+      {/* Ilustrasi Buku Monokromatik Fan di Bawah - Menempel Langsung di Dasar Halaman (Bleed to Bottom Tanpa Terpotong) */}
+      <div className="absolute bottom-0 inset-x-0 w-full z-10 pointer-events-none select-none flex items-end justify-center">
+        <div className="relative w-full max-w-4xl mx-auto h-44 sm:h-56 md:h-68 flex items-end justify-center">
+          {/* Buku 1 (Paling Kiri) */}
           <div
-            className={`absolute w-36 sm:w-44 md:w-52 h-52 sm:h-64 md:h-72 rounded-t-2xl p-4 border shadow-2xl transition-transform -rotate-14 -translate-x-32 sm:-translate-x-48 md:-translate-x-60 translate-y-6 sm:translate-y-8 ${
-              isDark ? "bg-zinc-950 border-zinc-800 text-white" : "bg-zinc-900 border-zinc-800 text-white"
+            className={`absolute bottom-0 w-28 sm:w-40 md:w-48 h-40 sm:h-52 md:h-60 rounded-t-2xl sm:rounded-t-3xl p-3 sm:p-4 border shadow-2xl transition-transform -rotate-14 -translate-x-24 sm:-translate-x-44 md:-translate-x-60 translate-y-4 sm:translate-y-6 md:translate-y-8 z-10 ${
+              isDark ? "bg-[#09090b] border-zinc-800 text-white" : "bg-zinc-900 border-zinc-800 text-white"
             }`}
           >
             <div className="flex flex-col justify-between h-full">
               <div>
-                <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center mb-3">
-                  <span className="text-[10px] font-black">UN</span>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white/10 flex items-center justify-center mb-2 sm:mb-3">
+                  <span className="text-[9px] sm:text-[10px] font-black">UN</span>
                 </div>
-                <p className="text-2xl sm:text-3xl font-black tracking-tighter leading-none">USICK</p>
-                <p className="text-[9px] uppercase tracking-widest text-zinc-400 mt-1">Archive Edition</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter leading-none">USICK</p>
+                <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-zinc-400 mt-1">Archive Edition</p>
               </div>
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[8px] text-zinc-500 font-mono">
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[7px] sm:text-[8px] text-zinc-500 font-mono">
                 <span>NO. 01</span>
                 <span>2026</span>
               </div>
             </div>
           </div>
 
-          {/* Buku 2 */}
+          {/* Buku 2 (Kiri) */}
           <div
-            className={`absolute w-36 sm:w-48 md:w-56 h-56 sm:h-68 md:h-80 rounded-t-2xl p-4 border shadow-2xl transition-transform -rotate-7 -translate-x-16 sm:-translate-x-24 md:-translate-x-32 translate-y-3 sm:translate-y-4 ${
-              isDark ? "bg-zinc-900/95 border-zinc-700/80 text-zinc-200" : "bg-zinc-100 border-zinc-300 text-zinc-900"
+            className={`absolute bottom-0 w-32 sm:w-44 md:w-52 h-44 sm:h-56 md:h-64 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-4 border shadow-2xl transition-transform -rotate-7 -translate-x-12 sm:-translate-x-22 md:-translate-x-30 translate-y-2 sm:translate-y-4 md:translate-y-5 z-20 ${
+              isDark ? "bg-zinc-900 border-zinc-700/80 text-zinc-200" : "bg-zinc-100 border-zinc-300 text-zinc-900"
             }`}
           >
             <div className="flex flex-col justify-between h-full">
               <div>
-                <div className="w-10 h-10 rounded-full border border-current opacity-40 flex items-center justify-center mb-2">
-                  <div className="w-4 h-4 rounded-full bg-current opacity-60" />
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-current opacity-40 flex items-center justify-center mb-2">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-current opacity-60" />
                 </div>
                 <p className="text-xs sm:text-sm font-bold leading-tight">The Creative<br />Act</p>
               </div>
-              <span className="text-[9px] opacity-50 font-mono">VOL. II</span>
+              <span className="text-[8px] sm:text-[9px] opacity-50 font-mono">VOL. II</span>
             </div>
           </div>
 
-          {/* Buku 3 */}
+          {/* Buku 3 (Tengah - Desain Utama) */}
           <div
-            className={`absolute w-40 sm:w-52 md:w-60 h-60 sm:h-72 md:h-84 rounded-t-2xl p-4 sm:p-5 border shadow-2xl transition-transform rotate-1 translate-y-1 z-10 ${
+            className={`absolute bottom-0 w-36 sm:w-48 md:w-56 h-48 sm:h-60 md:h-72 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-5 border shadow-2xl transition-transform rotate-1 translate-y-1 sm:translate-y-2 z-30 ${
               isDark ? "bg-zinc-800 border-zinc-600/80 text-white" : "bg-zinc-50 border-zinc-300 text-zinc-900"
             }`}
           >
             <div className="flex flex-col justify-between h-full">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-60">Personal Notebook</span>
-                  <Sparkles className="w-3.5 h-3.5 opacity-60" />
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-60">Personal Notebook</span>
+                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-60" />
                 </div>
-                <p className="text-base sm:text-xl font-extrabold tracking-tight">Designing<br />Ideas</p>
+                <p className="text-sm sm:text-lg md:text-xl font-extrabold tracking-tight leading-snug">Designing<br />Ideas</p>
               </div>
-              <div className="p-2 rounded-lg bg-black/10 dark:bg-white/5 text-[9px] font-mono flex items-center justify-between opacity-70">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-black/10 dark:bg-white/5 text-[8px] sm:text-[9px] font-mono flex items-center justify-between opacity-70">
                 <span>AUTOSYNC</span>
                 <span>SECURE</span>
               </div>
             </div>
           </div>
 
-          {/* Buku 4 */}
+          {/* Buku 4 (Kanan) */}
           <div
-            className={`absolute w-36 sm:w-48 md:w-56 h-56 sm:h-68 md:h-80 rounded-t-2xl p-4 border shadow-2xl transition-transform rotate-7 translate-x-16 sm:translate-x-24 md:translate-x-32 translate-y-3 sm:translate-y-4 ${
+            className={`absolute bottom-0 w-32 sm:w-44 md:w-52 h-44 sm:h-56 md:h-64 rounded-t-2xl sm:rounded-t-3xl p-3.5 sm:p-4 border shadow-2xl transition-transform rotate-7 translate-x-12 sm:translate-x-22 md:translate-x-30 translate-y-2 sm:translate-y-4 md:translate-y-5 z-20 ${
               isDark ? "bg-zinc-900 border-zinc-700/80 text-white" : "bg-white border-zinc-300 text-black"
             }`}
           >
             <div className="flex flex-col justify-between h-full">
               <div>
-                <p className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-none mb-1">how</p>
-                <p className="text-[10px] sm:text-xs font-semibold leading-tight opacity-75">to capture thoughts & ideas.</p>
+                <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter leading-none mb-1">how</p>
+                <p className="text-[9px] sm:text-[11px] font-semibold leading-tight opacity-75">to capture thoughts & ideas.</p>
               </div>
-              <span className="text-[8px] font-mono opacity-50">DRAFT JOURNAL</span>
+              <span className="text-[7px] sm:text-[8px] font-mono opacity-50">DRAFT JOURNAL</span>
             </div>
           </div>
 
-          {/* Buku 5 */}
+          {/* Buku 5 (Paling Kanan) */}
           <div
-            className={`absolute w-36 sm:w-44 md:w-52 h-52 sm:h-64 md:h-72 rounded-t-2xl p-4 border shadow-2xl transition-transform rotate-14 translate-x-32 sm:translate-x-48 md:translate-x-60 translate-y-6 sm:translate-y-8 ${
-              isDark ? "bg-zinc-950 border-zinc-800 text-zinc-300" : "bg-zinc-800 border-zinc-700 text-zinc-200"
+            className={`absolute bottom-0 w-28 sm:w-40 md:w-48 h-40 sm:h-52 md:h-60 rounded-t-2xl sm:rounded-t-3xl p-3 sm:p-4 border shadow-2xl transition-transform rotate-14 translate-x-24 sm:translate-x-40 md:translate-x-60 translate-y-4 sm:translate-y-6 md:translate-y-8 z-10 ${
+              isDark ? "bg-[#09090b] border-zinc-800 text-zinc-300" : "bg-zinc-800 border-zinc-700 text-zinc-200"
             }`}
           >
             <div className="flex flex-col justify-between h-full">
               <div>
                 <p className="text-xs sm:text-sm font-bold uppercase tracking-wider">Works</p>
-                <p className="text-[9px] opacity-60">Creative Notebook</p>
+                <p className="text-[8px] sm:text-[9px] opacity-60">Creative Notebook</p>
               </div>
-              <span className="text-[8px] font-mono opacity-40">INDEX 05</span>
+              <span className="text-[7px] sm:text-[8px] font-mono opacity-40">INDEX 05</span>
             </div>
           </div>
         </div>
