@@ -498,52 +498,6 @@ function LockedFeatureView({
   );
 }
 
-function HeadsetAnimatedIcon({ isDark, isActive }: { isDark: boolean; isActive: boolean }) {
-  return (
-    <div className="relative flex items-center justify-center shrink-0 w-5 h-5 md:w-5 md:h-5">
-      {/* Living animated headset icon (breathing animation matching Usick icon) */}
-      <svg
-        className={`w-5 h-5 shrink-0 transition-transform duration-300 animate-usick-breath ${
-          isActive
-            ? (isDark ? "text-white" : "text-black")
-            : (isDark ? "text-zinc-400 group-hover:text-zinc-200" : "text-zinc-600 group-hover:text-zinc-950")
-        }`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.85}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {/* Headband arch */}
-        <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
-        {/* Right Earpad */}
-        <path
-          d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"
-          fill={isActive ? "currentColor" : "none"}
-          strokeWidth={1.85}
-        />
-        {/* Left Earpad */}
-        <path
-          d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
-          fill={isActive ? "currentColor" : "none"}
-          strokeWidth={1.85}
-        />
-        {/* Subtle living audio wave arc under the headband */}
-        <path d="M9.5 12c.7-.6 1.6-.9 2.5-.9s1.8.3 2.5.9" strokeWidth={1.5} opacity={isActive ? 0.9 : 0.6} />
-      </svg>
-      {/* Subtle aura glow when active (exact Usick living style) */}
-      {isActive && (
-        <span
-          className={`absolute -inset-0.5 rounded-full pointer-events-none opacity-20 blur-xs animate-usick-aura ${
-            isDark ? "bg-white" : "bg-black"
-          }`}
-        />
-      )}
-    </div>
-  );
-}
-
 export default function Home() {
   const { isSignedIn: isClerkSignedIn, user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { signOut: clerkSignOut } = useClerk();
@@ -3536,13 +3490,15 @@ export default function Home() {
                 setActiveView("music");
                 closeSidebarOnMobile();
               }}
-              className={`group flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "music"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <HeadsetAnimatedIcon isDark={isDark} isActive={activeView === "music"} />
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+              </svg>
               <span>Music</span>
             </div>
 

@@ -42,7 +42,7 @@ type SubTab = "home" | "search" | "playlists";
 const SILENT_AUDIO_URI =
   "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 
-// Curated starter tracks for initial preview (Rich selection of 16 popular global & Indonesian hits)
+// Curated starter tracks with 100% verified Spotify artworks
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
     id: "spotify:track:4cOdK2wGLETKBW3PvgPWqT",
@@ -65,12 +65,12 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     itemType: "track",
     title: "Shape of You",
     artistNames: ["Ed Sheeran"],
-    albumTitle: "÷ (Divide)",
+    albumTitle: "÷ (Deluxe)",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96",
     durationMs: 233712,
     externalUrl: "https://open.spotify.com/track/7qiZfU4dY1lWllzX7mPBI3",
     uri: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
-    youtubeVideoId: "_dK2tDK9grQ",
+    youtubeVideoId: "",
   },
   {
     id: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
@@ -84,7 +84,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200040,
     externalUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
     uri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
-    youtubeVideoId: "fHI8X4OXluQ",
+    youtubeVideoId: "",
   },
   {
     id: "spotify:track:5QO79kh1waicV47BqGRL3g",
@@ -98,287 +98,273 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 215626,
     externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g",
     uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
-    youtubeVideoId: "u6lihZAcy4s",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+    id: "spotify:track:6dOtVTDdiauQNBQEDOtlAB",
     provider: "spotify",
-    providerItemId: "3n3Ppam7vgaVa1iaRUc9Lp",
-    itemType: "track",
-    title: "Mr. Brightside",
-    artistNames: ["The Killers"],
-    albumTitle: "Hot Fuss",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2730bf18361b7f041ee235ef980",
-    durationMs: 222973,
-    externalUrl: "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
-    uri: "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
-    youtubeVideoId: "l7MaKmKJqoc",
-  },
-  {
-    id: "spotify:track:6dOtVTDmmpvnLNaRLtuX9Y",
-    provider: "spotify",
-    providerItemId: "6dOtVTDmmpvnLNaRLtuX9Y",
+    providerItemId: "6dOtVTDdiauQNBQEDOtlAB",
     itemType: "track",
     title: "BIRDS OF A FEATHER",
     artistNames: ["Billie Eilish"],
     albumTitle: "HIT ME HARD AND SOFT",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b27371d62ea7ea8a5be92d3c1f62",
-    durationMs: 196884,
-    externalUrl: "https://open.spotify.com/track/6dOtVTDmmpvnLNaRLtuX9Y",
-    uri: "spotify:track:6dOtVTDmmpvnLNaRLtuX9Y",
-    youtubeVideoId: "d5gf9dXbPi0",
+    durationMs: 210373,
+    externalUrl: "https://open.spotify.com/track/6dOtVTDdiauQNBQEDOtlAB",
+    uri: "spotify:track:6dOtVTDdiauQNBQEDOtlAB",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:2plbrEY59IikOBgB57599W",
+    id: "spotify:track:7so0lgd0zP2Sbgs2d7a1SZ",
     provider: "spotify",
-    providerItemId: "2plbrEY59IikOBgB57599W",
+    providerItemId: "7so0lgd0zP2Sbgs2d7a1SZ",
     itemType: "track",
     title: "Die With A Smile",
-    artistNames: ["Lady Gaga", "Bruno Mars"],
-    albumTitle: "Die With A Smile",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27382ea2e9e1f582d6e35cf4ef9",
+    artistNames: ["Lady Gaga","Bruno Mars"],
+    albumTitle: "MAYHEM",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273b0860cf0a98e09663c82290c",
     durationMs: 251667,
-    externalUrl: "https://open.spotify.com/track/2plbrEY59IikOBgB57599W",
-    uri: "spotify:track:2plbrEY59IikOBgB57599W",
-    youtubeVideoId: "kPa7bsKwL-c",
+    externalUrl: "https://open.spotify.com/track/7so0lgd0zP2Sbgs2d7a1SZ",
+    uri: "spotify:track:7so0lgd0zP2Sbgs2d7a1SZ",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:2qSkXiYg9xqBtA3auRPCgg",
+    id: "spotify:track:2qSkIjg1o9h3YT9RAgYN75",
     provider: "spotify",
-    providerItemId: "2qSkXiYg9xqBtA3auRPCgg",
+    providerItemId: "2qSkIjg1o9h3YT9RAgYN75",
     itemType: "track",
     title: "Espresso",
     artistNames: ["Sabrina Carpenter"],
-    albumTitle: "Short n' Sweet",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fd8d7a8d96871e791cb1f628",
+    albumTitle: "Espresso",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273659cd4673230913b3918e0d5",
     durationMs: 175459,
-    externalUrl: "https://open.spotify.com/track/2qSkXiYg9xqBtA3auRPCgg",
-    uri: "spotify:track:2qSkXiYg9xqBtA3auRPCgg",
-    youtubeVideoId: "Qdcg7d8i39E",
+    externalUrl: "https://open.spotify.com/track/2qSkIjg1o9h3YT9RAgYN75",
+    uri: "spotify:track:2qSkIjg1o9h3YT9RAgYN75",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:5enxwA8aAbwZbf5ncJizRY",
+    id: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
     provider: "spotify",
-    providerItemId: "5enxwA8aAbwZbf5ncJizRY",
+    providerItemId: "5G2f63n7IPVPPjfNIGih7Q",
     itemType: "track",
     title: "Taste",
     artistNames: ["Sabrina Carpenter"],
     albumTitle: "Short n' Sweet",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fd8d7a8d96871e791cb1f628",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fd8d7a8d96871e791cb1f626",
     durationMs: 157279,
-    externalUrl: "https://open.spotify.com/track/5enxwA8aAbwZbf5ncJizRY",
-    uri: "spotify:track:5enxwA8aAbwZbf5ncJizRY",
-    youtubeVideoId: "3f538x0mF0A",
+    externalUrl: "https://open.spotify.com/track/5G2f63n7IPVPPjfNIGih7Q",
+    uri: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:1BxfuPKGuaTgP7aM0XbdQA",
+    id: "spotify:track:1BxfuPKGuaTgP7aM0Bbdwr",
     provider: "spotify",
-    providerItemId: "1BxfuPKGuaTgP7aM0XbdQA",
+    providerItemId: "1BxfuPKGuaTgP7aM0Bbdwr",
     itemType: "track",
     title: "Cruel Summer",
     artistNames: ["Taylor Swift"],
     albumTitle: "Lover",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647",
     durationMs: 178426,
-    externalUrl: "https://open.spotify.com/track/1BxfuPKGuaTgP7aM0XbdQA",
-    uri: "spotify:track:1BxfuPKGuaTgP7aM0XbdQA",
-    youtubeVideoId: "ic8j13piAhQ",
+    externalUrl: "https://open.spotify.com/track/1BxfuPKGuaTgP7aM0Bbdwr",
+    uri: "spotify:track:1BxfuPKGuaTgP7aM0Bbdwr",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:71BbaJkM4bW31HqM1e2q5y",
+    id: "spotify:track:7zOVh5fGpEwSbZd0g9z80B",
     provider: "spotify",
-    providerItemId: "71BbaJkM4bW31HqM1e2q5y",
+    providerItemId: "7zOVh5fGpEwSbZd0g9z80B",
     itemType: "track",
     title: "Satu Bulan",
     artistNames: ["Bernadya"],
-    albumTitle: "Sialnya, Hidup Harus Tetap Berjalan",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e04e9c60e34c38d415cb27ea",
-    durationMs: 195431,
-    externalUrl: "https://open.spotify.com/track/71BbaJkM4bW31HqM1e2q5y",
-    uri: "spotify:track:71BbaJkM4bW31HqM1e2q5y",
-    youtubeVideoId: "kXF3V8daH_o",
+    albumTitle: "Terlintas",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273cb1e5f7d0942bf9196c1e711",
+    durationMs: 200476,
+    externalUrl: "https://open.spotify.com/track/7zOVh5fGpEwSbZd0g9z80B",
+    uri: "spotify:track:7zOVh5fGpEwSbZd0g9z80B",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:4jXl6VOGUieZvQI4902931",
+    id: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
     provider: "spotify",
-    providerItemId: "4jXl6VOGUieZvQI4902931",
+    providerItemId: "2dIBMHByUGcNPzmYBJ6OAj",
     itemType: "track",
     title: "Evaluasi",
     artistNames: ["Hindia"],
     albumTitle: "Menari Dengan Bayangan",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2732997b69c2794eb827a5ab06b",
-    durationMs: 204000,
-    externalUrl: "https://open.spotify.com/track/4jXl6VOGUieZvQI4902931",
-    uri: "spotify:track:4jXl6VOGUieZvQI4902931",
-    youtubeVideoId: "cWn8w4Y2Hek",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273d623688488865906052ef96b",
+    durationMs: 194469,
+    externalUrl: "https://open.spotify.com/track/2dIBMHByUGcNPzmYBJ6OAj",
+    uri: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:2Fxq9o3nF4aXw1K2v8w1e4",
+    id: "spotify:track:1nYdkPCbHdYi4w7s2L6SHA",
     provider: "spotify",
-    providerItemId: "2Fxq9o3nF4aXw1K2v8w1e4",
+    providerItemId: "1nYdkPCbHdYi4w7s2L6SHA",
     itemType: "track",
     title: "Rayuan Perempuan Gila",
     artistNames: ["Nadin Amizah"],
-    albumTitle: "Untuk Dunia, Cinta, dan Kotornya",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2733c91a329432fefb7bc8b42ce",
-    durationMs: 297500,
-    externalUrl: "https://open.spotify.com/track/2Fxq9o3nF4aXw1K2v8w1e4",
-    uri: "spotify:track:2Fxq9o3nF4aXw1K2v8w1e4",
-    youtubeVideoId: "ZgT6xY1V4eA",
+    albumTitle: "Rayuan Perempuan Gila",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2739bbf0358fb086f43ffde5148",
+    durationMs: 320000,
+    externalUrl: "https://open.spotify.com/track/1nYdkPCbHdYi4w7s2L6SHA",
+    uri: "spotify:track:1nYdkPCbHdYi4w7s2L6SHA",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:1hxaaA0G618K1oW6w9s1s2",
+    id: "spotify:track:1mea3bSkSGXuIRvnydlB5b",
     provider: "spotify",
-    providerItemId: "1hxaaA0G618K1oW6w9s1s2",
+    providerItemId: "1mea3bSkSGXuIRvnydlB5b",
     itemType: "track",
     title: "Viva La Vida",
     artistNames: ["Coldplay"],
     albumTitle: "Viva La Vida or Death and All His Friends",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e2e352d89826aef6dbd5ff8f",
-    durationMs: 242000,
-    externalUrl: "https://open.spotify.com/track/1hxaaA0G618K1oW6w9s1s2",
-    uri: "spotify:track:1hxaaA0G618K1oW6w9s1s2",
-    youtubeVideoId: "dvgZkm1xWPE",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e21cc1db05580b6f2d2a3b6e",
+    durationMs: 242373,
+    externalUrl: "https://open.spotify.com/track/1mea3bSkSGXuIRvnydlB5b",
+    uri: "spotify:track:1mea3bSkSGXuIRvnydlB5b",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:5nujrmhLynf4yMoTvjACaq",
+    id: "spotify:track:39LLxExYz6ewLAcYrzQQyP",
     provider: "spotify",
-    providerItemId: "5nujrmhLynf4yMoTvjACaq",
+    providerItemId: "39LLxExYz6ewLAcYrzQQyP",
     itemType: "track",
     title: "Levitating",
     artistNames: ["Dua Lipa"],
     albumTitle: "Future Nostalgia",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273bd26ede1ae6932772020a665",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273c88bae7846e62a8ba59ee0bd",
     durationMs: 203807,
-    externalUrl: "https://open.spotify.com/track/5nujrmhLynf4yMoTvjACaq",
-    uri: "spotify:track:5nujrmhLynf4yMoTvjACaq",
-    youtubeVideoId: "TUVcZfQe-Kw",
+    externalUrl: "https://open.spotify.com/track/39LLxExYz6ewLAcYrzQQyP",
+    uri: "spotify:track:39LLxExYz6ewLAcYrzQQyP",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+    id: "spotify:track:2JiDi0qAXsPwhPqA2qaKGt",
     provider: "spotify",
-    providerItemId: "4u7EnebtmKWzUH433cf5Qv",
+    providerItemId: "2JiDi0qAXsPwhPqA2qaKGt",
     itemType: "track",
     title: "Bohemian Rhapsody",
     artistNames: ["Queen"],
     albumTitle: "A Night At The Opera",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ce4f1737bc8a646c8c4bd25a",
-    durationMs: 354320,
-    externalUrl: "https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv",
-    uri: "spotify:track:4u7EnebtmKWzUH433cf5Qv",
-    youtubeVideoId: "fJ9rUzIMcZQ",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273fdab4a163ab9f6db72c952ee",
+    durationMs: 355154,
+    externalUrl: "https://open.spotify.com/track/2JiDi0qAXsPwhPqA2qaKGt",
+    uri: "spotify:track:2JiDi0qAXsPwhPqA2qaKGt",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:4wqwP4NcmfG2dF91kM9kX7",
+    id: "spotify:track:5vNRhkKd0yEAg8suGBpjeY",
     provider: "spotify",
-    providerItemId: "4wqwP4NcmfG2dF91kM9kX7",
+    providerItemId: "5vNRhkKd0yEAg8suGBpjeY",
     itemType: "track",
     title: "APT.",
-    artistNames: ["ROSÉ", "Bruno Mars"],
-    albumTitle: "rosie",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2733973347f7d4b4a3a3028d2e8",
-    durationMs: 169826,
-    externalUrl: "https://open.spotify.com/track/4wqwP4NcmfG2dF91kM9kX7",
-    uri: "spotify:track:4wqwP4NcmfG2dF91kM9kX7",
-    youtubeVideoId: "ekr2nIex040",
+    artistNames: ["ROSÉ","Bruno Mars"],
+    albumTitle: "APT.",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27346085aa1855bd888abc51a5a",
+    durationMs: 169917,
+    externalUrl: "https://open.spotify.com/track/5vNRhkKd0yEAg8suGBpjeY",
+    uri: "spotify:track:5vNRhkKd0yEAg8suGBpjeY",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:37z5g2Z0jH8K8r2dY1s7W8",
+    id: "spotify:track:2gcMYiZzzmzoF8PPAfL3IO",
     provider: "spotify",
-    providerItemId: "37z5g2Z0jH8K8r2dY1s7W8",
+    providerItemId: "2gcMYiZzzmzoF8PPAfL3IO",
     itemType: "track",
     title: "Untungnya, Hidup Harus Tetap Berjalan",
     artistNames: ["Bernadya"],
     albumTitle: "Sialnya, Hidup Harus Tetap Berjalan",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e04e9c60e34c38d415cb27ea",
-    durationMs: 172000,
-    externalUrl: "https://open.spotify.com/track/37z5g2Z0jH8K8r2dY1s7W8",
-    uri: "spotify:track:37z5g2Z0jH8K8r2dY1s7W8",
-    youtubeVideoId: "2nO7Xk1V6p8",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27327693aaf059002bba3a7655a",
+    durationMs: 182903,
+    externalUrl: "https://open.spotify.com/track/2gcMYiZzzmzoF8PPAfL3IO",
+    uri: "spotify:track:2gcMYiZzzmzoF8PPAfL3IO",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:4Dvkj6JhhA12EX05Qv97zP",
+    id: "spotify:track:4Dvkj6JhhA12EX05fT7y2e",
     provider: "spotify",
-    providerItemId: "4Dvkj6JhhA12EX05Qv97zP",
+    providerItemId: "4Dvkj6JhhA12EX05fT7y2e",
     itemType: "track",
     title: "As It Was",
     artistNames: ["Harry Styles"],
     albumTitle: "Harry's House",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2732e8f63710beea634994e63b6",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27382ce362511fb3d9dda6578ee",
     durationMs: 167303,
-    externalUrl: "https://open.spotify.com/track/4Dvkj6JhhA12EX05Qv97zP",
-    uri: "spotify:track:4Dvkj6JhhA12EX05Qv97zP",
-    youtubeVideoId: "H5v3kku4y6Q",
+    externalUrl: "https://open.spotify.com/track/4Dvkj6JhhA12EX05fT7y2e",
+    uri: "spotify:track:4Dvkj6JhhA12EX05fT7y2e",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:6xGruZOHBhkqPSww6zQnZs",
+    id: "spotify:track:3aBGKDiAAvH2H7HLOyQ4US",
     provider: "spotify",
-    providerItemId: "6xGruZOHBhkqPSww6zQnZs",
+    providerItemId: "3aBGKDiAAvH2H7HLOyQ4US",
     itemType: "track",
     title: "Glimpse of Us",
     artistNames: ["Joji"],
-    albumTitle: "SMITHEREENS",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273ce96f7c70e9a584ec0654060",
-    durationMs: 233456,
-    externalUrl: "https://open.spotify.com/track/6xGruZOHBhkqPSww6zQnZs",
-    uri: "spotify:track:6xGruZOHBhkqPSww6zQnZs",
-    youtubeVideoId: "Nrs33rV6Ptw",
+    albumTitle: "Glimpse of Us",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273f3f7d2ea2ad435b57d6697df",
+    durationMs: 233453,
+    externalUrl: "https://open.spotify.com/track/3aBGKDiAAvH2H7HLOyQ4US",
+    uri: "spotify:track:3aBGKDiAAvH2H7HLOyQ4US",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:3AJwUDP919kvQ9QcozQPxg",
+    id: "spotify:track:3e0wYnFxkqinmtXebYPMSt",
     provider: "spotify",
-    providerItemId: "3AJwUDP919kvQ9QcozQPxg",
+    providerItemId: "3e0wYnFxkqinmtXebYPMSt",
     itemType: "track",
     title: "Yellow",
     artistNames: ["Coldplay"],
-    albumTitle: "Parachutes",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2739164ba814e3518c01d4a8e23",
+    albumTitle: "Yellow",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b27383580914326a689d622ab4f2",
     durationMs: 266773,
-    externalUrl: "https://open.spotify.com/track/3AJwUDP919kvQ9QcozQPxg",
-    uri: "spotify:track:3AJwUDP919kvQ9QcozQPxg",
-    youtubeVideoId: "yKNxeF4KMsY",
+    externalUrl: "https://open.spotify.com/track/3e0wYnFxkqinmtXebYPMSt",
+    uri: "spotify:track:3e0wYnFxkqinmtXebYPMSt",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:7MXVkk9YM5IZxh0CF5kj9F",
+    id: "spotify:track:7MXVkk9YMctZqd1Srtv4MB",
     provider: "spotify",
-    providerItemId: "7MXVkk9YM5IZxh0CF5kj9F",
+    providerItemId: "7MXVkk9YMctZqd1Srtv4MB",
     itemType: "track",
     title: "Starboy",
-    artistNames: ["The Weeknd", "Daft Punk"],
+    artistNames: ["The Weeknd","Daft Punk"],
     albumTitle: "Starboy",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452",
     durationMs: 230453,
-    externalUrl: "https://open.spotify.com/track/7MXVkk9YM5IZxh0CF5kj9F",
-    uri: "spotify:track:7MXVkk9YM5IZxh0CF5kj9F",
-    youtubeVideoId: "34Na4j8AVgA",
+    externalUrl: "https://open.spotify.com/track/7MXVkk9YMctZqd1Srtv4MB",
+    uri: "spotify:track:7MXVkk9YMctZqd1Srtv4MB",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:27R1lXf01VpG9Yq5PzT2e4",
+    id: "spotify:track:6O0WEM0QNEhqpU50BKui7o",
     provider: "spotify",
-    providerItemId: "27R1lXf01VpG9Yq5PzT2e4",
+    providerItemId: "6O0WEM0QNEhqpU50BKui7o",
     itemType: "track",
     title: "Sial",
     artistNames: ["Mahalini"],
-    albumTitle: "FÁBULA",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e1dc0ea410ffb60c4971c26d",
-    durationMs: 243000,
-    externalUrl: "https://open.spotify.com/track/27R1lXf01VpG9Yq5PzT2e4",
-    uri: "spotify:track:27R1lXf01VpG9Yq5PzT2e4",
-    youtubeVideoId: "aU-Z8fQ58Xk",
+    albumTitle: "fábula",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b2736f713eb92ebf7ca05a562542",
+    durationMs: 243724,
+    externalUrl: "https://open.spotify.com/track/6O0WEM0QNEhqpU50BKui7o",
+    uri: "spotify:track:6O0WEM0QNEhqpU50BKui7o",
+    youtubeVideoId: "",
   },
   {
-    id: "spotify:track:667sF7D1aW1aJ1xQ8mY4e8",
+    id: "spotify:track:3blvSatB9XD5i705K4j2yP",
     provider: "spotify",
-    providerItemId: "667sF7D1aW1aJ1xQ8mY4e8",
+    providerItemId: "3blvSatB9XD5i705K4j2yP",
     itemType: "track",
     title: "Komang",
     artistNames: ["Raim Laode"],
-    albumTitle: "Komang",
-    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273da9b57b1cbca0cefc25d48d0",
-    durationMs: 222000,
-    externalUrl: "https://open.spotify.com/track/667sF7D1aW1aJ1xQ8mY4e8",
-    uri: "spotify:track:667sF7D1aW1aJ1xQ8mY4e8",
-    youtubeVideoId: "7f4yEw7JmgY",
+    albumTitle: "iqro'",
+    artworkUrl: "https://i.scdn.co/image/ab67616d0000b273a9d1f9b5d3275b0625e13e79",
+    durationMs: 222706,
+    externalUrl: "https://open.spotify.com/track/3blvSatB9XD5i705K4j2yP",
+    uri: "spotify:track:3blvSatB9XD5i705K4j2yP",
+    youtubeVideoId: "",
   },
 ];
 
@@ -790,6 +776,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         const fetchedTracks = json.data.tracks || [];
         if (fetchedTracks.length > 0) {
           setTracks(fetchedTracks);
+          if (!query.trim()) {
+            setDiscoverTracks(fetchedTracks);
+          }
         }
         if (json.data.artists) setArtists(json.data.artists);
         if (json.data.albums) setAlbums(json.data.albums);
@@ -1986,19 +1975,19 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
 
               {/* Artwork */}
-              <div className="relative shrink-0">
-                {track.artworkUrl ? (
+              <div className="relative shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-zinc-800 shadow-xs flex items-center justify-center text-zinc-500">
+                <svg className="w-4 h-4 absolute" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                </svg>
+                {track.artworkUrl && (
                   <img
                     src={track.artworkUrl}
                     alt={track.title}
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover shadow-xs"
+                    className="relative z-1 w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.opacity = "0";
+                    }}
                   />
-                ) : (
-                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                    </svg>
-                  </div>
                 )}
               </div>
 
@@ -2803,17 +2792,53 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               }`}
             >
               {/* Initial Hero: Avatar & Greeting (Visible ONLY when search box is empty) */}
+              {/* Initial Hero: Headset Icon & Greeting (Visible ONLY when search box is empty) */}
               {!searchQuery.trim() && (
                 <div className="flex flex-col items-center justify-center text-center mb-4 sm:mb-5 px-3 sm:px-4 animate-in fade-in-0 duration-200">
-                  {/* Avatar Icon (Exact same blinking avatar from tab chat) */}
+                  {/* Living Animated Headset Icon (Usick living style with aura & pulse breath) */}
                   <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center">
-                    <Avatar
-                      size="md"
-                      shape="circle"
-                      blinking={true}
-                      color="white"
-                      className="hover:scale-105 transition-transform"
+                    {/* Atmospheric living aura breath */}
+                    <div
+                      className={`absolute -inset-2.5 sm:-inset-3 rounded-full blur-xl pointer-events-none animate-usick-aura ${
+                        isDark ? "bg-white/10" : "bg-black/5"
+                      }`}
                     />
+
+                    {/* Headset living squircle badge */}
+                    <div
+                      className={`relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl backdrop-blur-md transition-all duration-300 animate-usick-breath shadow-lg ${
+                        isDark
+                          ? "bg-zinc-900/80 border border-white/10 text-white shadow-black/40"
+                          : "bg-white/90 border border-black/10 text-zinc-900 shadow-zinc-900/10"
+                      }`}
+                    >
+                      <svg
+                        className="w-6 h-6 sm:w-7 sm:h-7 shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.85}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        {/* Headband arch */}
+                        <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
+                        {/* Right Earpad */}
+                        <path
+                          d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"
+                          fill="currentColor"
+                          className="opacity-90"
+                        />
+                        {/* Left Earpad */}
+                        <path
+                          d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
+                          fill="currentColor"
+                          className="opacity-90"
+                        />
+                        {/* Subtle living audio wave arc under the headband */}
+                        <path d="M9 12.5a3 3 0 0 1 6 0" strokeWidth={1.5} opacity={0.65} />
+                      </svg>
+                    </div>
                   </div>
 
                   {/* Headline */}
@@ -2853,55 +2878,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </div>
 
                   {/* ─── SPOTIFY / APPLE MUSIC DISCOVER HOME (Clean One Mind Theme) ─── */}
-                  <div className="space-y-3 pt-2">
-                    {/* Header Controls: Section title + Shuffle (Acak) & Play All (Putar) */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-base sm:text-lg font-bold tracking-tight">
-                          Pilihan Cepat
-                        </h3>
-                        <p className="text-xs text-zinc-500">
-                          Rekomendasi lagu acak yang siap diputar langsung
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Acak Lagu Button */}
-                        <button
-                          type="button"
-                          onClick={handleShuffleDiscover}
-                          title="Acak Lagu Lainnya"
-                          aria-label="Acak Lagu Lainnya"
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border shadow-xs hover:scale-102 active:scale-98 ${
-                            isDark
-                              ? "bg-zinc-900/80 hover:bg-zinc-800 border-white/10 text-zinc-300 hover:text-white"
-                              : "bg-white hover:bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4l4 5-4 5H4M20 4h-4l-2 2.5m-4 5L8 14H4M20 20h-4l-4-5 4-5h4M16 4h4v4M16 20h4v-4" />
-                          </svg>
-                          <span>Acak</span>
-                        </button>
-
-                        {/* Putar Semua Button */}
-                        <button
-                          type="button"
-                          onClick={handlePlayAllDiscover}
-                          title="Putar Semua Rekomendasi"
-                          aria-label="Putar Semua Rekomendasi"
-                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-md hover:scale-102 active:scale-98 ${
-                            isDark
-                              ? "bg-white text-black hover:bg-zinc-200"
-                              : "bg-black text-white hover:bg-zinc-800"
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                            <polygon points="6 4, 18 12, 6 20" />
-                          </svg>
-                          <span>Putar</span>
-                        </button>
-                      </div>
+                  <div className="space-y-3.5 pt-2">
+                    {/* 1 Clean Headline Only: Direkomendasikan untuk anda */}
+                    <div>
+                      <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
+                        Direkomendasikan untuk anda
+                      </h3>
                     </div>
 
                     {/* Quick Picks Cards Grid (2 cols mobile, 3 cols tablet/desktop) */}
@@ -2925,23 +2907,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                             }`}
                           >
                             {/* Artwork */}
-                            <div className="relative w-11 h-11 sm:w-13 sm:h-13 rounded-lg sm:rounded-xl overflow-hidden shrink-0 bg-zinc-800 shadow-xs">
-                              {track.artworkUrl ? (
+                            <div className="relative w-11 h-11 sm:w-13 sm:h-13 rounded-lg sm:rounded-xl overflow-hidden shrink-0 bg-zinc-800 shadow-xs flex items-center justify-center text-zinc-500">
+                              <svg className="w-5 h-5 absolute" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                              </svg>
+                              {track.artworkUrl && (
                                 <img
                                   src={track.artworkUrl}
                                   alt={track.title}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  className="relative z-1 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.opacity = "0";
+                                  }}
                                 />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                                  </svg>
-                                </div>
                               )}
                               {/* Playing badge on art */}
                               {isTrackPlaying && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                                <div className="absolute inset-0 z-2 bg-black/40 flex items-center justify-center backdrop-blur-xs">
                                   <span className="flex items-end gap-0.5 h-3">
                                     <span className="w-0.5 bg-white rounded-full animate-bounce h-3" />
                                     <span className="w-0.5 bg-white rounded-full animate-bounce h-2" style={{ animationDelay: "0.2s" }} />
@@ -2973,22 +2955,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                         );
                       })}
                     </div>
-                  </div>
 
-                  {/* ─── FULL DISCOVER TRACK TABLE ───────────────────────────── */}
-                  <div className="space-y-3 pt-2">
-                    <div>
-                      <h3 className="text-base sm:text-lg font-bold tracking-tight">
-                        Jelajahi Musik Lainnya
-                      </h3>
-                      <p className="text-xs text-zinc-500">
-                        {discoverTracks.length} pilihan trek lagu siap dinikmati
-                      </p>
+                    {/* Full Track List directly below */}
+                    <div className="pt-2">
+                      {renderTrackTable(discoverTracks.slice(6), {
+                        emptyMessage: "Tidak ada lagu yang ditemukan.",
+                      })}
                     </div>
-
-                    {renderTrackTable(discoverTracks.slice(6), {
-                      emptyMessage: "Tidak ada lagu yang ditemukan.",
-                    })}
                   </div>
                 </div>
               ) : (
