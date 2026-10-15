@@ -84,8 +84,30 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       .single();
 
     if (error || !data) {
-      console.error("[notes] PATCH error:", error);
-      throw new NoteError("Gagal memperbarui catatan atau catatan tidak ditemukan.", 404);
+      // Fallback upsert untuk mencegah kegagalan akibat race condition saat pembuatan catatan baru
+      const { data: upsertData, error: upsertError } = await db
+        .from("user_notes")
+        .upsert({
+          id,
+          user_id: userId,
+          title: typeof body.title === "string" ? body.title.trim() : "Catatan Baru",
+          content: typeof body.content === "string" ? body.content : "",
+          is_pinned: typeof body.is_pinned === "boolean" ? body.is_pinned : false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (upsertError || !upsertData) {
+        console.error("[notes] PATCH/upsert error:", upsertError || error);
+        throw new NoteError("Gagal memperbarui catatan.", 500);
+      }
+
+      return NextResponse.json({
+        success: true,
+        note: upsertData as UserNote,
+      });
     }
 
     return NextResponse.json({

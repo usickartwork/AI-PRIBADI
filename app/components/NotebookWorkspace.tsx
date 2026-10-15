@@ -183,10 +183,23 @@ export function NotebookWorkspace({
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.notes)) {
-            setNotes(data.notes);
-            localStorage.setItem(storageKey, JSON.stringify(data.notes));
-            if (!activeNoteIdRef.current && data.notes.length > 0) {
-              setActiveNoteId(data.notes[0].id);
+            // Gabungkan dengan cache lokal agar konten tulisan tidak tertimpa jika server sempat kosong
+            const merged = data.notes.map((serverNote: NoteItem) => {
+              const localMatch = localNotes.find((l) => l.id === serverNote.id);
+              if (
+                localMatch &&
+                (!serverNote.content || serverNote.content === "<p><br></p>") &&
+                localMatch.content &&
+                localMatch.content !== "<p><br></p>"
+              ) {
+                return { ...serverNote, content: localMatch.content };
+              }
+              return serverNote;
+            });
+            setNotes(merged);
+            localStorage.setItem(storageKey, JSON.stringify(merged));
+            if (!activeNoteIdRef.current && merged.length > 0) {
+              setActiveNoteId(merged[0].id);
             }
             setIsLoading(false);
             return;
@@ -220,32 +233,58 @@ export function NotebookWorkspace({
       return;
     }
 
-    // PENTING: Jika ID catatan yang aktif sama dengan yang sedang dimuat di editor,
-    // JANGAN PERNAH menimpa innerHTML karena akan merusak kursor pengetikan dan membuat kursor melompat ke atas!
-    if (loadedNoteIdRef.current === activeNoteId) {
+    const found = notes.find((n) => n.id === activeNoteId);
+    if (!found) return;
+
+    // PENTING: Hanya lewati jika editor sudah berisi HTML dari catatan yang bersangkutan (mencegah kursor melompat saat mengetik)
+    if (
+      loadedNoteIdRef.current === activeNoteId &&
+      editorRef.current &&
+      editorRef.current.innerHTML &&
+      editorRef.current.innerHTML !== "<p><br></p>"
+    ) {
       return;
     }
 
-    const found = notes.find((n) => n.id === activeNoteId);
-    if (found) {
-      loadedNoteIdRef.current = activeNoteId;
-      activeNoteIdRef.current = activeNoteId;
-      currentTitleRef.current = found.title;
-      setCurrentTitle(found.title);
-      const html = ensureHtmlContent(found.content);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = html;
-        // Sinkronisasi status checkbox DOM dengan attribute HTML
-        const boxes = editorRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-        boxes.forEach((cb) => {
-          cb.checked = cb.hasAttribute("checked");
-        });
-      }
-      setIsBodyEmpty(!extractPlainText(found.content).trim());
-      setSaveStatus("saved");
-      setSaveError(null);
+    loadedNoteIdRef.current = activeNoteId;
+    activeNoteIdRef.current = activeNoteId;
+    currentTitleRef.current = found.title;
+    setCurrentTitle(found.title);
+    const html = ensureHtmlContent(found.content);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = html;
+      // Sinkronisasi status checkbox DOM dengan attribute HTML
+      const boxes = editorRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+      boxes.forEach((cb) => {
+        cb.checked = cb.hasAttribute("checked");
+      });
     }
+    setIsBodyEmpty(!extractPlainText(found.content).trim());
+    setSaveStatus("saved");
+    setSaveError(null);
   }, [activeNoteId, notes]);
+
+  // Jaminan isi editor selalu sesuai dengan catatan aktif saat halaman canvas dibuka
+  useEffect(() => {
+    if (pageView === "canvas" && activeNoteId) {
+      const found = notes.find((n) => n.id === activeNoteId);
+      if (found && editorRef.current) {
+        if (
+          loadedNoteIdRef.current !== activeNoteId ||
+          !editorRef.current.innerHTML ||
+          editorRef.current.innerHTML === "<p><br></p>"
+        ) {
+          editorRef.current.innerHTML = ensureHtmlContent(found.content);
+          loadedNoteIdRef.current = activeNoteId;
+          const boxes = editorRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+          boxes.forEach((cb) => {
+            cb.checked = cb.hasAttribute("checked");
+          });
+          setIsBodyEmpty(!extractPlainText(found.content).trim());
+        }
+      }
+    }
+  }, [pageView, activeNoteId, notes]);
 
   // Eksekusi penyimpanan ke backend dan lokal
   const persistNote = useCallback(
@@ -724,6 +763,7 @@ export function NotebookWorkspace({
     if (!trimmedTitle) return;
 
     setShowNewNoteModal(false);
+    flushSave();
 
     const newId = generateUUID();
     const now = new Date().toISOString();
@@ -1648,6 +1688,7 @@ export function NotebookWorkspace({
             contentEditable
             suppressContentEditableWarning
             onInput={handleEditorInput}
+            onBlur={flushSave}
             onClick={(e) => {
               handleEditorClick(e);
               saveSelection();
@@ -1677,10 +1718,16 @@ export function NotebookWorkspace({
         isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#ffffff] text-zinc-900"
       }`}
     >
-      {/* ─── ROUTING 3 HALAMAN RESMI ─── */}
-      {pageView === "home" && renderHomePage()}
-      {pageView === "files" && renderFilesPage()}
-      {pageView === "canvas" && renderCanvasPage()}
+      {/* ─── ROUTING 3 HALAMAN RESMI (Dipertahankan di DOM agar canvas & editorRef tidak unmount) ─── */}
+      <div className={`h-full w-full flex-col flex-1 ${pageView === "home" ? "flex" : "hidden"}`}>
+        {renderHomePage()}
+      </div>
+      <div className={`h-full w-full flex-col flex-1 ${pageView === "files" ? "flex" : "hidden"}`}>
+        {renderFilesPage()}
+      </div>
+      <div className={`h-full w-full flex-col flex-1 ${pageView === "canvas" ? "flex" : "hidden"}`}>
+        {renderCanvasPage()}
+      </div>
 
       {/* ─── MODAL INSERT LINK ─── */}
       {showLinkModal && (

@@ -81,6 +81,19 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
+      if ((error as any).code === "23505") {
+        const { data: existing } = await db
+          .from("user_notes")
+          .select("*")
+          .eq("id", noteId)
+          .single();
+        if (existing) {
+          return NextResponse.json({
+            success: true,
+            note: existing as UserNote,
+          });
+        }
+      }
       console.error("[notes] POST error:", error);
       throw new NoteError("Gagal menyimpan catatan baru.", 500);
     }
