@@ -1157,8 +1157,8 @@ export function NotebookWorkspace({
         <div />
       </div>
 
-      {/* Konten Hero Tengah - Dibuat Pas Tepat di Tengah Layar */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto -mt-6 sm:-mt-10 md:-mt-12 pb-16 sm:pb-24">
+      {/* Konten Hero Tengah - Dibuat Pas Tepat di Tengah Layar (Sedikit Lebih ke Atas di Mobile) */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto -mt-14 sm:-mt-10 md:-mt-12 pb-14 sm:pb-24">
         <h1 className="text-3xl sm:text-5xl md:text-[54px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
           One Stop Digital<br />
           Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
@@ -1779,106 +1779,105 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* ─── TOOLBAR WYSIWYG RESPONSIVE LENGKAP ─── */}
+      {/* ─── TOOLBAR WYSIWYG RESPONSIVE LENGKAP (DIPERBAIKI MOBILE: TANPA PERLU SLIDE) ─── */}
       <div
-        className={`px-3 sm:px-8 py-2 border-b flex items-center gap-1 shrink-0 overflow-x-auto no-scrollbar ${
+        className={`px-2.5 sm:px-8 py-1.5 sm:py-2 border-b flex flex-wrap sm:flex-nowrap items-center gap-y-1.5 gap-x-1 sm:gap-x-1.5 shrink-0 ${
           isDark ? "bg-[#141416] border-zinc-800/80 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
         }`}
       >
         {/* Format Karakter: Bold, Italic, Underline, Strikethrough */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center gap-0.5 pr-1.5 sm:pr-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("bold"); }}
             title="Tebal (Bold) - Ctrl+B"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.bold
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Bold className="w-4 h-4" />
+            <Bold className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("italic"); }}
             title="Miring (Italic) - Ctrl+I"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.italic
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Italic className="w-4 h-4" />
+            <Italic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("underline"); }}
             title="Garis Bawah (Underline) - Ctrl+U"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.underline
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Underline className="w-4 h-4" />
+            <Underline className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("strikeThrough"); }}
             title="Coret (Strikethrough)"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.strikeThrough
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Strikethrough className="w-4 h-4" />
+            <Strikethrough className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Daftar: Bullet, Numbered, Checklist Interaktif */}
-        <div className="flex items-center gap-0.5 px-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center gap-0.5 px-1.5 sm:px-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("insertUnorderedList"); }}
             title="Daftar Poin (Bulleted List)"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.unorderedList
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <List className="w-4 h-4" />
+            <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("insertOrderedList"); }}
             title="Daftar Nomor (Numbered List)"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               activeFormats.orderedList
                 ? isDark ? "bg-zinc-700 text-white font-bold" : "bg-zinc-200 text-black font-bold"
                 : isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <ListOrdered className="w-4 h-4" />
+            <ListOrdered className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); insertChecklist(); }}
             title="Checklist Interaktif"
-            className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
               isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <CheckSquare className="w-4 h-4" />
+            <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-[11px] font-semibold hidden sm:inline">Checklist</span>
           </button>
         </div>
 
         {/* Tautan / Link */}
-        {/* Tautan / Link */}
-        <div className="flex items-center gap-0.5 px-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center gap-0.5 px-1.5 sm:px-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
           <button
             type="button"
             onMouseDown={(e) => {
@@ -1887,17 +1886,17 @@ export function NotebookWorkspace({
             }}
             onClick={openLinkModal}
             title="Sisipkan Tautan (Link)"
-            className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
               isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Link2 className="w-4 h-4" />
+            <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-[11px] font-semibold hidden sm:inline">Link</span>
           </button>
         </div>
 
         {/* Stabilo / Highlight Teks (Koleksi Warna Stabilo Asli & Muted) */}
-        <div ref={stabiloContainerRef} className="relative px-1 shrink-0 flex items-center">
+        <div ref={stabiloContainerRef} className="relative px-0.5 sm:px-1 shrink-0 flex items-center">
           <div className="flex items-center rounded-lg border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-100/60 dark:bg-zinc-800/60">
             {/* Tombol Utama Stabilo: 1-Klik Langsung Highlight Teks yang Diseleksi */}
             <button
@@ -1907,14 +1906,14 @@ export function NotebookWorkspace({
                 handleStabiloClick();
               }}
               title="Stabilo (Highlight) - Terapkan / Hapus Warna Stabilo"
-              className={`p-1.5 rounded-l-lg transition cursor-pointer flex items-center gap-1.5 text-xs ${
+              className={`p-1 sm:p-1.5 rounded-l-lg transition cursor-pointer flex items-center gap-1 sm:gap-1.5 text-xs ${
                 isDark ? "hover:bg-zinc-700 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
               }`}
             >
               <div className="relative flex flex-col items-center">
-                <Highlighter className="w-4 h-4" />
+                <Highlighter className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span
-                  className="w-3.5 h-1 rounded-full mt-0.5"
+                  className="w-3 sm:w-3.5 h-1 rounded-full mt-0.5"
                   style={{
                     backgroundColor:
                       activeStabiloColor && activeStabiloColor !== "transparent"
@@ -1935,7 +1934,7 @@ export function NotebookWorkspace({
               }}
               onClick={() => setShowHighlightDropdown((prev) => !prev)}
               title="Pilihan Warna Stabilo"
-              className={`p-1.5 rounded-r-lg transition cursor-pointer border-l border-zinc-300/80 dark:border-zinc-700/80 ${
+              className={`p-1 sm:p-1.5 rounded-r-lg transition cursor-pointer border-l border-zinc-300/80 dark:border-zinc-700/80 ${
                 isDark ? "hover:bg-zinc-700 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
               }`}
             >
@@ -1945,7 +1944,7 @@ export function NotebookWorkspace({
 
           {showHighlightDropdown && (
             <div
-              className={`absolute top-full mt-2 left-0 p-2.5 rounded-2xl border shadow-2xl z-50 flex items-center gap-2 ${
+              className={`absolute top-full mt-2 left-0 p-2 sm:p-2.5 rounded-2xl border shadow-2xl z-50 flex items-center gap-1.5 sm:gap-2 max-w-[calc(100vw-32px)] overflow-x-auto ${
                 isDark ? "bg-[#18181b] border-zinc-700 text-white" : "bg-white border-zinc-200 text-black"
               }`}
             >
@@ -1968,7 +1967,7 @@ export function NotebookWorkspace({
                       e.preventDefault();
                       applyHighlight(h.color);
                     }}
-                    className={`w-6 h-6 rounded-full border transition transform hover:scale-120 cursor-pointer text-[10px] flex items-center justify-center font-bold ${
+                    className={`w-5 h-5 sm:w-6 sm:h-6 shrink-0 rounded-full border transition transform hover:scale-120 cursor-pointer text-[10px] flex items-center justify-center font-bold ${
                       isSelected
                         ? "ring-2 ring-offset-2 ring-blue-500 scale-110"
                         : "opacity-90 hover:opacity-100"
@@ -1988,26 +1987,26 @@ export function NotebookWorkspace({
         </div>
 
         {/* Undo & Redo */}
-        <div className="flex items-center gap-0.5 pl-2 border-l border-zinc-300 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center gap-0.5 pl-1.5 sm:pl-2 border-l border-zinc-300 dark:border-zinc-800 shrink-0">
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("undo"); }}
             title="Urungkan (Undo) - Ctrl+Z"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <button
             type="button"
             onMouseDown={(e) => { e.preventDefault(); execFormat("redo"); }}
             title="Ulangi (Redo) - Ctrl+Y"
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg transition cursor-pointer ${
               isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
             }`}
           >
-            <Redo2 className="w-4 h-4" />
+            <Redo2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>

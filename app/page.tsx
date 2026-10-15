@@ -3505,13 +3505,13 @@ export default function Home() {
             {/* Siap dimunculkan kembali kapan saja sesuai prompt pengguna */}
           </div>
 
-          {/* ─── SECTION NOTEBOOK (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
+          {/* ─── SECTION CATATAN (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
           <div className="pt-3 pb-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2 space-y-1">
             <div className="px-2 md:px-2.5 py-1 text-xs md:text-[11px] font-bold tracking-wider text-zinc-500 uppercase flex items-center justify-between">
-              <span>Notebook</span>
+              <span>Catatan</span>
             </div>
 
-            {/* + Notebook baru */}
+            {/* Catatan */}
             <div
               onClick={() => {
                 setActiveView("notebook");
@@ -3524,9 +3524,9 @@ export default function Home() {
               }`}
             >
               <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              <span>Notebook baru</span>
+              <span>Catatan</span>
             </div>
           </div>
 
