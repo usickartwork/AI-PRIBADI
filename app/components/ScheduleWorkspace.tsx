@@ -164,9 +164,9 @@ export function ScheduleWorkspace({
         const res = await fetch(`/api/google/calendar/status?userId=${encodeURIComponent(user.id)}`);
         if (res.ok) {
           const json = await res.json();
-          if (isMounted && json.success) {
+          if (isMounted) {
             setIsGoogleConnected(Boolean(json.connected));
-            setGoogleAccountEmail(json.accountEmail || null);
+            setGoogleAccountEmail(json.email || json.accountEmail || null);
           }
         }
       } catch (err) {

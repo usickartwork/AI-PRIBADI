@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
 
     if (!userId || userId === "guest") {
       return NextResponse.json({
+        success: true,
         connected: false,
         isConfigured,
       });
@@ -24,13 +25,16 @@ export async function GET(req: NextRequest) {
     const account = await getValidGoogleAccessToken(userId);
 
     return NextResponse.json({
+      success: true,
       connected: Boolean(account),
       email: account?.googleEmail || "",
+      accountEmail: account?.googleEmail || "",
       isConfigured,
     });
   } catch (err: any) {
     console.error("[google/calendar/status] Error:", err);
     return NextResponse.json({
+      success: false,
       connected: false,
       isConfigured: false,
       error: err?.message || "Gagal memeriksa status Google Calendar.",

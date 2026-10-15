@@ -225,17 +225,17 @@ export async function saveGoogleCalendarTokens(
   if (!isSupabaseConfigured) return;
   const admin = getSupabaseAdmin();
 
-  // Jika refresh_token tidak dikirimkan saat refresh rutin, pertahankan yang lama
+  // Enkripsi token dengan aman sebelum disimpan
   const encryptedAccess = encryptSecret(tokens.accessToken);
   const payload: any = {
     user_id: userId,
-    access_token: encryptedAccess,
-    expiry_date: tokens.expiryDate,
+    encrypted_access_token: encryptedAccess,
+    token_expiry: tokens.expiryDate,
     updated_at: new Date().toISOString(),
   };
 
   if (tokens.refreshToken) {
-    payload.refresh_token = encryptSecret(tokens.refreshToken);
+    payload.encrypted_refresh_token = encryptSecret(tokens.refreshToken);
   }
   if (tokens.googleEmail) {
     payload.google_email = tokens.googleEmail;
@@ -267,9 +267,9 @@ export async function getValidGoogleAccessToken(
     if (error || !data) return null;
 
     const googleEmail = data.google_email || "";
-    const rawAccess = decryptSecret(data.access_token);
-    const rawRefresh = decryptSecret(data.refresh_token);
-    const expiryDate = Number(data.expiry_date) || 0;
+    const rawAccess = decryptSecret(data.encrypted_access_token || data.access_token || "");
+    const rawRefresh = decryptSecret(data.encrypted_refresh_token || data.refresh_token || "");
+    const expiryDate = Number(data.token_expiry || data.expiry_date) || 0;
 
     // Jika access token masih berlaku (buffer 2 menit)
     if (rawAccess && Date.now() < expiryDate - 120_000) {
@@ -306,12 +306,14 @@ export async function disconnectGoogleCalendar(userId: string): Promise<boolean>
     // Ambil token untuk revoke jika memungkinkan
     const { data } = await admin
       .from("google_calendar_tokens")
-      .select("access_token, refresh_token")
+      .select("*")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (data) {
-      const tokenToRevoke = decryptSecret(data.refresh_token) || decryptSecret(data.access_token);
+      const tokenToRevoke =
+        decryptSecret(data.encrypted_refresh_token || data.refresh_token || "") ||
+        decryptSecret(data.encrypted_access_token || data.access_token || "");
       if (tokenToRevoke) {
         try {
           await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tokenToRevoke)}`, {
