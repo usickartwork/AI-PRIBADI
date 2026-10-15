@@ -820,20 +820,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       } catch {}
     }
 
-    // Update queue if track not in queue
+    // Update queue index if track is already in queue, but never auto-add unqueued tracks to queue
     setQueue((prevQueue) => {
       const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
-      let newQueue = prevQueue;
-      let newIdx = 0;
-      if (existingIdx !== -1) {
-        newIdx = existingIdx;
-      } else {
-        newQueue = [track, ...prevQueue];
-        newIdx = 0;
-      }
+      const newIdx = existingIdx !== -1 ? existingIdx : -1;
       setQueueIndex(newIdx);
-      saveQueueState({ items: newQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
-      return newQueue;
+      saveQueueState({ items: prevQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
+      return prevQueue;
     });
 
     if (track.durationMs && track.durationMs > 0) {
@@ -1224,11 +1217,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const currentIndex = queueIndexRef.current;
     if (currentQueue.length === 0) return;
 
-    let nextIdx = currentIndex + 1;
+    let nextIdx = 0;
     if (isShuffleRef.current) {
       nextIdx = Math.floor(Math.random() * currentQueue.length);
-    } else if (nextIdx >= currentQueue.length) {
-      nextIdx = repeatModeRef.current === "all" ? 0 : currentQueue.length - 1;
+    } else if (currentIndex < 0) {
+      nextIdx = 0;
+    } else {
+      nextIdx = currentIndex + 1;
+      if (nextIdx >= currentQueue.length) {
+        if (repeatModeRef.current === "all") {
+          nextIdx = 0;
+        } else {
+          return;
+        }
+      }
     }
     setQueueIndex(nextIdx);
     const nextTrack = currentQueue[nextIdx];
@@ -1244,9 +1246,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const currentIndex = queueIndexRef.current;
     if (currentQueue.length === 0) return;
 
-    let prevIdx = currentIndex - 1;
-    if (prevIdx < 0) {
+    let prevIdx = 0;
+    if (currentIndex <= 0) {
       prevIdx = currentQueue.length - 1;
+    } else {
+      prevIdx = currentIndex - 1;
     }
     setQueueIndex(prevIdx);
     const prevTrack = currentQueue[prevIdx];
@@ -3116,13 +3120,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Right: ONLY Heart (Like) button and Play/Pause button */}
               <div
-                className="flex items-center gap-2 shrink-0"
+                className="flex items-center gap-2.5 shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   type="button"
                   onClick={() => toggleLike(currentTrack)}
-                  className={`p-2.5 rounded-xl transition cursor-pointer active:scale-90 ${
+                  className={`p-3 rounded-2xl transition cursor-pointer active:scale-90 ${
                     isTrackLiked(currentTrack.id)
                       ? "text-red-500"
                       : isDark
@@ -3131,7 +3135,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }`}
                   title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai lagu"}
                 >
-                  <svg className={`w-5 h-5 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-6 h-6 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -3140,22 +3144,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={togglePlayPause}
                   disabled={isResolvingAudio}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition shadow-lg cursor-pointer active:scale-95 ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition shadow-lg cursor-pointer active:scale-95 ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
                   } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
                   title={isResolvingAudio ? "Memuat audio..." : isPlaying ? "Jeda" : "Putar"}
                 >
                   {isResolvingAudio ? (
-                    <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
                   ) : isPlaying ? (
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                       <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 fill-current ml-0.5" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 fill-current ml-0.5" viewBox="0 0 24 24">
                       <polygon points="6 4, 18 12, 6 20" />
                     </svg>
                   )}
@@ -3468,14 +3472,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <button
               type="button"
               onClick={closeMobilePlayerAnimated}
-              className={`p-2 -ml-2 rounded-full transition cursor-pointer active:scale-90 ${
+              className={`p-3 -ml-2 rounded-full transition cursor-pointer active:scale-90 ${
                 isDark ? "text-zinc-300 hover:text-white" : "text-zinc-600 hover:text-black"
               }`}
               title="Tutup pemutar"
               aria-label="Tutup pemutar"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
@@ -3491,17 +3495,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <button
               type="button"
               onClick={() => setShowQueueModal(true)}
-              className={`p-2 -mr-2 rounded-full transition cursor-pointer active:scale-90 ${
+              className={`p-3 -mr-2 rounded-full transition cursor-pointer active:scale-90 relative ${
                 isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
               }`}
               title="Antrean Putar"
               aria-label="Antrean Putar"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="5" cy="12" r="2" />
-                <circle cx="12" cy="12" r="2" />
-                <circle cx="19" cy="12" r="2" />
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2.2" />
+                <circle cx="12" cy="12" r="2.2" />
+                <circle cx="19" cy="12" r="2.2" />
               </svg>
+              {queue.length > 0 && (
+                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
+              )}
             </button>
           </div>
 
@@ -3619,7 +3626,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={() => toggleLike(currentTrack)}
-                className={`p-2 rounded-full transition cursor-pointer shrink-0 ${
+                className={`p-3 rounded-full transition cursor-pointer shrink-0 active:scale-90 ${
                   isTrackLiked(currentTrack.id)
                     ? isDark ? "text-white" : "text-black"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
@@ -3627,7 +3634,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai"}
               >
                 <svg
-                  className={`w-6 h-6 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`}
+                  className={`w-7 h-7 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`}
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   fill="none"
@@ -3666,7 +3673,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       />
                       {/* Draggable Circle (Lingkaran Thumb) */}
                       <div
-                        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4.5 h-4.5 rounded-full shadow-md transition-transform pointer-events-none ${
+                        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-md transition-transform pointer-events-none ${
                           isScrubbing ? "scale-125 ring-2 ring-white/50" : "scale-100 group-hover:scale-110"
                         } ${
                           isDark
@@ -3692,14 +3699,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={() => setIsShuffle((prev) => !prev)}
-                className={`p-2 transition cursor-pointer ${
+                className={`p-3 rounded-full transition cursor-pointer active:scale-90 ${
                   isShuffle
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
                 title="Acak"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H8m0 0l4 4m-4-4l4-4" />
                 </svg>
               </button>
@@ -3708,12 +3715,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playPrevious}
-                className={`p-2 active:scale-90 transition cursor-pointer ${
-                  isDark ? "text-white" : "text-black"
+                className={`p-3 rounded-full active:scale-90 transition cursor-pointer ${
+                  isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
                 }`}
                 title="Sebelumnya"
               >
-                <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24">
+                <svg className="w-9 h-9 fill-current" viewBox="0 0 24 24">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </button>
@@ -3723,7 +3730,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 type="button"
                 onClick={togglePlayPause}
                 disabled={isResolvingAudio}
-                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition cursor-pointer ${
+                className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition cursor-pointer ${
                   isDark
                     ? "bg-white text-black hover:bg-zinc-200"
                     : "bg-black text-white hover:bg-zinc-800"
@@ -3731,16 +3738,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 title={isResolvingAudio ? "Memuat..." : isPlaying ? "Jeda" : "Putar"}
               >
                 {isResolvingAudio ? (
-                  <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <svg className="w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
                 ) : isPlaying ? (
-                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
                     <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                   </svg>
                 ) : (
-                  <svg className="w-6 h-6 fill-current ml-0.5" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 fill-current ml-0.5" viewBox="0 0 24 24">
                     <polygon points="6 4, 18 12, 6 20" />
                   </svg>
                 )}
@@ -3750,12 +3757,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playNext}
-                className={`p-2 active:scale-90 transition cursor-pointer ${
-                  isDark ? "text-white" : "text-black"
+                className={`p-3 rounded-full active:scale-90 transition cursor-pointer ${
+                  isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
                 }`}
                 title="Berikutnya"
               >
-                <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24">
+                <svg className="w-9 h-9 fill-current" viewBox="0 0 24 24">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                 </svg>
               </button>
@@ -3766,40 +3773,41 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 onClick={() =>
                   setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
                 }
-                className={`p-2 transition cursor-pointer relative ${
+                className={`p-3 rounded-full transition cursor-pointer relative active:scale-90 ${
                   repeatMode !== "off"
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
                 title={`Ulang: ${repeatMode}`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 {repeatMode === "one" && (
-                  <span className="absolute -top-1 right-0 text-[9px] font-bold">1</span>
+                  <span className="absolute top-1 right-1 text-[9px] font-bold bg-zinc-800 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>
                 )}
               </button>
             </div>
 
-            {/* Bottom Utility Row (Lyrics Toggle in place of Share, Share removed, Queue preserved) */}
+            {/* Bottom Utility Row: Icon-Only Lyrics & Queue Buttons (Enlarged) */}
             <div className={`flex items-center justify-between pt-1 px-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              {/* Lyrics Toggle Button (Pindah ke posisi tombol Bagikan) */}
+              {/* Lyrics Toggle Button (Icon Only, Enlarged) */}
               <button
                 type="button"
                 onClick={() => setMobilePlayerMode((prev) => (prev === "lyrics" ? "track" : "lyrics"))}
-                className={`flex items-center gap-2 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium ${
+                className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
                   mobilePlayerMode === "lyrics"
                     ? isDark
-                      ? "bg-white text-black font-bold shadow-sm"
-                      : "bg-black text-white font-bold shadow-sm"
+                      ? "bg-white text-black shadow-md font-bold"
+                      : "bg-black text-white shadow-md font-bold"
                     : isDark
-                    ? "hover:text-white hover:bg-white/5 text-zinc-300"
-                    : "hover:text-black hover:bg-black/5 text-zinc-700"
+                    ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
+                    : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
                 }`}
-                title="Lirik Lagu"
+                title={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
+                aria-label={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
               >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -3807,33 +3815,38 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     d="M8 9h8m-8 3.5h5m-2 7.5L6 21v-3.5H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v9.5a2 2 0 01-2 2h-7l-4 3.5z"
                   />
                 </svg>
-                <span>{mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik"}</span>
                 {lyricsData?.synced && (
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                    mobilePlayerMode === "lyrics"
-                      ? isDark ? "bg-black/20 text-black" : "bg-white/20 text-white"
-                      : isDark ? "bg-white/10 text-zinc-400" : "bg-black/10 text-zinc-600"
-                  }`}>
-                    Sync
-                  </span>
+                  <span
+                    className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                      mobilePlayerMode === "lyrics"
+                        ? isDark ? "bg-black" : "bg-white"
+                        : isDark ? "bg-white" : "bg-black"
+                    }`}
+                  />
                 )}
               </button>
 
-              {/* Queue */}
+              {/* Queue Button (Icon Only, Enlarged) */}
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className={`flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl transition cursor-pointer font-medium ${
-                  isDark ? "hover:text-white hover:bg-white/5 text-zinc-300" : "hover:text-black hover:bg-black/5 text-zinc-700"
+                className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
+                  isDark
+                    ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
+                    : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
                 }`}
                 title="Antrean Putar"
+                aria-label="Antrean Putar"
               >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
-                <span>Antrean</span>
                 {queue.length > 0 && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${isDark ? "bg-white" : "bg-black"}`} />
+                  <span
+                    className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                      isDark ? "bg-white" : "bg-black"
+                    }`}
+                  />
                 )}
               </button>
             </div>
