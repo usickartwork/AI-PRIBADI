@@ -253,7 +253,7 @@ export default function FaithHubHomePage() {
   // Initial load: check auth, restore conversations & save scroll position on unmount/tab switch
   useEffect(() => {
     const currentUser = getStoredUser();
-    setUser(currentUser);
+    setUser(currentUser || DEFAULT_USER);
     setIsAuthenticated(true);
     setIsMounted(true);
     const stored = getStoredConversations();

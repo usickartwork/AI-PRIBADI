@@ -374,7 +374,7 @@ export default function NotesPage() {
 
   // Check auth and load user notes on mount
   useEffect(() => {
-    const currentUser = getStoredUser();
+    const currentUser = getStoredUser() || DEFAULT_USER;
     setUser(currentUser);
     setIsAuthenticated(true);
 

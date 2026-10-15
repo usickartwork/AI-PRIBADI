@@ -37,8 +37,8 @@ export interface RegisteredAccount {
   };
 }
 
-export function getStoredUser(): User {
-  if (typeof window === 'undefined') return DEFAULT_USER;
+export function getStoredUser(): User | null {
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(USER_STORAGE_KEY);
     if (raw) {
@@ -55,7 +55,7 @@ export function getStoredUser(): User {
   } catch {
     // fallback
   }
-  return DEFAULT_USER;
+  return null;
 }
 
 export function setStoredUser(user: User) {

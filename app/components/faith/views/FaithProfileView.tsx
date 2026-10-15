@@ -34,7 +34,7 @@ export default function ProfileCGPage() {
     try {
       sessionStorage.setItem('faith_hub_intro_seen', 'true');
     } catch {}
-    const current = getStoredUser();
+    const current = getStoredUser() || DEFAULT_USER;
     setUser(current);
     setNameInput(current.name || '');
     setPhoneInput(current.phone || '');
@@ -61,16 +61,13 @@ export default function ProfileCGPage() {
 
   function handleLogout() {
     setIsLoggingOut(true);
-    setStoredUser(DEFAULT_USER);
-    setUser(DEFAULT_USER);
-    setNameInput(DEFAULT_USER.name || '');
-    setPhoneInput(DEFAULT_USER.phone || '');
-    setEmailInput(DEFAULT_USER.email || '');
+    clearStoredUser();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('faith_hub_auth_changed'));
+    }
     setTimeout(() => {
       setIsLoggingOut(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    }, 400);
+    }, 300);
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FaithNavProvider, FaithTabType } from "@/lib/faith/navigationContext";
 import FaithChatView from "@/app/components/faith/views/FaithChatView";
 import FaithBibleView from "@/app/components/faith/views/FaithBibleView";
@@ -8,6 +8,10 @@ import FaithGamesView from "@/app/components/faith/views/FaithGamesView";
 import FaithNotesView from "@/app/components/faith/views/FaithNotesView";
 import FaithPrayerView from "@/app/components/faith/views/FaithPrayerView";
 import FaithProfileView from "@/app/components/faith/views/FaithProfileView";
+import FaithAuthView from "@/app/components/faith/views/FaithAuthView";
+import EntranceAnimation from "@/app/components/faith/EntranceAnimation";
+import { getStoredUser } from "@/lib/faith/session";
+import { User } from "@/types/database";
 
 interface FaithWorkspaceProps {
   isDark: boolean;
@@ -23,6 +27,54 @@ export function FaithWorkspace({
   subTabsElement,
 }: FaithWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<FaithTabType>("tanya");
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    const current = getStoredUser();
+    setUser(current);
+    setIsAuthLoaded(true);
+
+    if (current) {
+      try {
+        const seen = sessionStorage.getItem("faith_hub_intro_seen");
+        if (!seen) {
+          setShowIntro(true);
+        }
+      } catch {}
+    }
+
+    const handleAuthChange = () => {
+      const u = getStoredUser();
+      setUser(u);
+    };
+
+    window.addEventListener("faith_hub_auth_changed", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener("faith_hub_auth_changed", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
+
+  const handleIntroComplete = useCallback(() => {
+    try {
+      sessionStorage.setItem("faith_hub_intro_seen", "true");
+    } catch {}
+    setShowIntro(false);
+  }, []);
+
+  const handleLoginSuccess = useCallback((loggedInUser: User) => {
+    setUser(loggedInUser);
+    setActiveTab("tanya");
+    try {
+      const seen = sessionStorage.getItem("faith_hub_intro_seen");
+      if (!seen) {
+        setShowIntro(true);
+      }
+    } catch {}
+  }, []);
 
   return (
     <FaithNavProvider
@@ -35,10 +87,13 @@ export function FaithWorkspace({
       }}
     >
       <div
-        className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-300 ${
+        className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-300 relative ${
           isDark ? "bg-[#0B0B0D] text-white" : "bg-[#E5E5E5] text-[#111113]"
         }`}
       >
+        {/* Sacred Cross Entrance Splash Animation */}
+        {showIntro && user && <EntranceAnimation onComplete={handleIntroComplete} />}
+
         {/* ─── WORKSPACE TOP BAR (SubTabs Game / Faith + Close) ──────────── */}
         {subTabsElement && (
           <header className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
@@ -82,37 +137,55 @@ export function FaithWorkspace({
           </header>
         )}
 
-        {/* ─── NATIVE FAITH HUB BODY ───────────────────────────────────────── */}
+        {/* ─── BODY: AUTH GATE OR FAITH HUB TABS ─────────────────────────── */}
         <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:pb-3">
-          {/* Tanya Rohani */}
-          <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            <FaithChatView />
-          </div>
+          {!isAuthLoaded ? (
+            <div className="flex items-center justify-center h-full w-full">
+              <div className="w-8 h-8 rounded-full border-2 border-current border-t-transparent animate-spin opacity-40" />
+            </div>
+          ) : !user ? (
+            /* ============================================================= */
+            /* AUTHENTIC LOGIN & SURVEY ONBOARDING GATE                      */
+            /* ============================================================= */
+            <div className="h-full w-full flex flex-col items-center justify-center overflow-hidden">
+              <FaithAuthView onLoginSuccess={handleLoginSuccess} />
+            </div>
+          ) : (
+            /* ============================================================= */
+            /* AUTHENTICATED FAITH HUB WORKSPACE                             */
+            /* ============================================================= */
+            <>
+              {/* Tanya Rohani */}
+              <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                <FaithChatView />
+              </div>
 
-          {/* Alkitab */}
-          <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            <FaithBibleView />
-          </div>
+              {/* Alkitab */}
+              <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                <FaithBibleView />
+              </div>
 
-          {/* Faith Arcade */}
-          <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            {activeTab === "games" && <FaithGamesView />}
-          </div>
+              {/* Faith Arcade */}
+              <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                {activeTab === "games" && <FaithGamesView />}
+              </div>
 
-          {/* Catatan Khotbah */}
-          <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            {activeTab === "notes" && <FaithNotesView />}
-          </div>
+              {/* Catatan Khotbah */}
+              <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                {activeTab === "notes" && <FaithNotesView />}
+              </div>
 
-          {/* Pokok Doa */}
-          <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            {activeTab === "prayer" && <FaithPrayerView />}
-          </div>
+              {/* Pokok Doa */}
+              <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                {activeTab === "prayer" && <FaithPrayerView />}
+              </div>
 
-          {/* Profil Komunitas CG */}
-          <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-            {activeTab === "profile" && <FaithProfileView />}
-          </div>
+              {/* Profil Komunitas CG */}
+              <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+                {activeTab === "profile" && <FaithProfileView />}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </FaithNavProvider>

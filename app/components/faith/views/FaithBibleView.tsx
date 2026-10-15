@@ -136,7 +136,7 @@ export default function BiblePage() {
     try {
       sessionStorage.setItem('faith_hub_intro_seen', 'true');
     } catch {}
-    const currentUser = getStoredUser();
+    const currentUser = getStoredUser() || DEFAULT_USER;
     setUser(currentUser);
 
     const userKey = currentUser.id || currentUser.token || 'user';

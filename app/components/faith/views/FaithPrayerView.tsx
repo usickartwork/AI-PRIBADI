@@ -90,7 +90,7 @@ export default function PrayerPage() {
 
   useEffect(() => {
     const currentUser = getStoredUser();
-    setUser(currentUser);
+    setUser(currentUser || DEFAULT_USER);
   }, []);
 
   function handleCreatePrayer(e: React.FormEvent) {
