@@ -462,10 +462,23 @@ textarea:focus {
   gap: 0.625rem;
   margin-top: 0.375rem;
   margin-bottom: 0.375rem;
+  width: 100%;
 }
 
 .notebook-canvas-editor .task-item input[type="checkbox"] {
   margin-top: 0.35rem;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.notebook-canvas-editor .task-item span {
+  flex: 1;
+  min-width: 0;
+}
+
+.notebook-canvas-editor mark {
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-weight: 500;
 }
 

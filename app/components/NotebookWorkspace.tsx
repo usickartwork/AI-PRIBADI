@@ -66,12 +66,37 @@ function generateUUID(): string {
   });
 }
 
+// Bersihkan jika ada elemen task-item yang bersarang (nested)
+function sanitizeTaskHtml(html: string): string {
+  if (!html || !html.includes("task-item")) return html;
+  if (typeof DOMParser !== "undefined") {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const taskItems = Array.from(doc.querySelectorAll(".task-item"));
+      taskItems.forEach((item) => {
+        const parentTask = item.parentElement?.closest(".task-item");
+        if (parentTask) {
+          parentTask.parentNode?.insertBefore(item, parentTask.nextSibling);
+        }
+      });
+      return doc.body.innerHTML;
+    } catch {}
+  }
+  return html.replace(/<span[^>]*class="[^"]*flex-1[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, (match, inner) => {
+    if (inner.includes("task-item")) {
+      return inner.replace(/<span[^>]*class="[^"]*flex-1[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+    }
+    return match;
+  });
+}
+
 // Konversi konten lama teks biasa menjadi format HTML terstruktur yang aman
 function ensureHtmlContent(raw: string): string {
   if (!raw) return "<p><br></p>";
   // Jika sudah berupa HTML (memiliki tag)
   if (/<[a-z][\s\S]*>/i.test(raw)) {
-    return raw;
+    return sanitizeTaskHtml(raw);
   }
   // Konversi baris biasa ke paragraf HTML
   return raw
@@ -126,6 +151,8 @@ export function NotebookWorkspace({
 
   // Dropdown Opsi Stabilo (Highlight)
   const [showHighlightDropdown, setShowHighlightDropdown] = useState(false);
+  const [activeStabiloColor, setActiveStabiloColor] = useState("#fde047");
+  const stabiloContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Buffer lokal judul dan konten HTML
   const [currentTitle, setCurrentTitle] = useState("");
@@ -417,6 +444,40 @@ export function NotebookWorkspace({
     }
   };
 
+  // Listener global seleksi teks agar kursor atau blok teks selalu tersimpan akurat
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
+      const anchor = sel.anchorNode;
+      if (anchor && editorRef.current.contains(anchor)) {
+        savedSelectionRangeRef.current = sel.getRangeAt(0).cloneRange();
+        updateActiveFormats();
+      }
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [updateActiveFormats]);
+
+  // Tutup dropdown stabilo otomatis saat klik di luar
+  useEffect(() => {
+    if (!showHighlightDropdown) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        stabiloContainerRef.current &&
+        !stabiloContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowHighlightDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [showHighlightDropdown]);
+
   // Eksekusi pemformatan teks WYSIWYG dasar dengan pemulihan seleksi otomatis
   const execFormat = (command: string, value: string | undefined = undefined) => {
     if (savedSelectionRangeRef.current) {
@@ -430,12 +491,22 @@ export function NotebookWorkspace({
     handleEditorInput();
   };
 
-  // Terapkan highlight teks / Stabilo (Palet Monokromatis Sesuai Tema Web)
+  const activeStabiloColorRef = useRef("#fde047");
+
+  // Terapkan highlight teks / Stabilo (Koleksi Warna Stabilo Asli & Muted)
   const applyHighlight = (color: string) => {
+    if (color !== "transparent") {
+      setActiveStabiloColor(color);
+      activeStabiloColorRef.current = color;
+    }
+
+    // 1. Fokuskan editor kanvas terlebih dahulu agar execCommand tidak diabaikan browser
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    // 2. Pulihkan rentang seleksi teks yang disimpan
     if (savedSelectionRangeRef.current) {
       restoreSelection();
-    } else if (editorRef.current && document.activeElement !== editorRef.current) {
-      editorRef.current.focus();
     }
 
     const sel = window.getSelection();
@@ -450,14 +521,33 @@ export function NotebookWorkspace({
       try {
         document.execCommand("removeFormat", false);
       } catch {}
+      try {
+        document.execCommand("foreColor", false, isDark ? "#e4e4e7" : "#18181b");
+      } catch {}
 
-      // Bersihkan juga tag <mark> atau inline backgroundColor pada elemen induk seleksi
+      // Bersihkan juga tag <mark> atau inline backgroundColor pada elemen di dalam editor
+      if (editorRef.current) {
+        const highlightedElements = editorRef.current.querySelectorAll("mark, [style*='background-color']");
+        highlightedElements.forEach((el) => {
+          if (sel.containsNode(el, true)) {
+            (el as HTMLElement).style.backgroundColor = "";
+            (el as HTMLElement).style.color = "";
+            if (el.tagName === "MARK") {
+              const textContent = el.textContent || "";
+              el.replaceWith(document.createTextNode(textContent));
+            }
+          }
+        });
+      }
+
+      // Bersihkan juga elemen induk seleksi jika berupa <mark> atau inline backgroundColor
       let node: Node | null = sel.anchorNode;
       while (node && node !== editorRef.current) {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           if (el.tagName === "MARK" || el.style.backgroundColor) {
             el.style.backgroundColor = "";
+            el.style.color = "";
             if (el.tagName === "MARK") {
               const textContent = el.innerText || el.textContent || "";
               const textNode = document.createTextNode(textContent);
@@ -469,10 +559,20 @@ export function NotebookWorkspace({
       }
     } else {
       let applied = false;
+      const isDarkNeutral = color === "#3f3f46" && isDark;
+      const textColor = isDarkNeutral ? "#ffffff" : "#09090b";
+
+      try {
+        document.execCommand("styleWithCSS", false, "true");
+      } catch {}
+
       try {
         applied = document.execCommand("hiliteColor", false, color);
         if (!applied) {
           applied = document.execCommand("backColor", false, color);
+        }
+        if (applied) {
+          document.execCommand("foreColor", false, textColor);
         }
       } catch {}
 
@@ -481,9 +581,10 @@ export function NotebookWorkspace({
         try {
           const mark = document.createElement("mark");
           mark.style.backgroundColor = color;
-          mark.style.color = isDark ? "#ffffff" : "#09090b";
+          mark.style.color = textColor;
           mark.style.borderRadius = "3px";
           mark.style.padding = "1px 4px";
+          mark.style.fontWeight = "500";
           mark.appendChild(range.extractContents());
           range.insertNode(mark);
 
@@ -503,10 +604,13 @@ export function NotebookWorkspace({
     handleEditorInput();
   };
 
-  const defaultHighlightColor = isDark ? "#3f3f46" : "#e4e4e7";
-
   const handleStabiloClick = () => {
-    saveSelection();
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    if (savedSelectionRangeRef.current) {
+      restoreSelection();
+    }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
       setShowHighlightDropdown((prev) => !prev);
@@ -514,27 +618,70 @@ export function NotebookWorkspace({
     }
     // Cek apakah seleksi sedang dalam highlight
     const parent = sel.anchorNode?.parentElement;
-    const isHighlighted = parent && (parent.tagName === "MARK" || (parent.style.backgroundColor && parent.style.backgroundColor !== "transparent"));
+    const isHighlighted =
+      parent &&
+      (parent.tagName === "MARK" ||
+        (parent.style.backgroundColor && parent.style.backgroundColor !== "transparent"));
     if (isHighlighted) {
       applyHighlight("transparent");
     } else {
-      applyHighlight(defaultHighlightColor);
+      applyHighlight(activeStabiloColorRef.current || "#fde047");
     }
   };
 
-  // Sisipkan checklist interaktif (menggunakan teks yang sedang diblok jika ada)
+  // Sisipkan / Toggle checklist interaktif (mencegah bug checklist bertingkat / bersarang)
   const insertChecklist = () => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
     if (savedSelectionRangeRef.current) {
       restoreSelection();
-    } else if (editorRef.current) {
-      editorRef.current.focus();
     }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
 
+    const anchor = sel.anchorNode;
+    // Cek apakah kursor sudah berada di dalam checklist item
+    const existingTask = anchor
+      ? ((anchor.nodeType === Node.ELEMENT_NODE
+          ? (anchor as HTMLElement)
+          : anchor.parentElement
+        )?.closest(".task-item") as HTMLElement | null)
+      : null;
+
+    // Jika sudah di dalam checklist -> TOGGLE OFF (kembalikan ke paragraf biasa)
+    if (existingTask) {
+      const span = existingTask.querySelector("span");
+      const text = span ? span.innerText.replace(/[\n\r]/g, "").trim() : "";
+      const p = document.createElement("p");
+      p.innerHTML = text ? text : "<br>";
+      existingTask.parentNode?.replaceChild(p, existingTask);
+
+      const newRange = document.createRange();
+      newRange.selectNodeContents(p);
+      newRange.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      saveSelection();
+      handleEditorInput();
+      updateActiveFormats();
+      return;
+    }
+
+    // Jika belum di checklist -> ubah baris saat ini menjadi checklist baru
     const selectedText = sel.toString().trim();
-    const itemText = selectedText || "Tugas baru";
+    const blockEl = anchor
+      ? ((anchor.nodeType === Node.ELEMENT_NODE
+          ? (anchor as HTMLElement)
+          : anchor.parentElement
+        )?.closest("p, div, li") as HTMLElement | null)
+      : null;
+
+    const lineText =
+      selectedText ||
+      (blockEl && blockEl !== editorRef.current ? blockEl.innerText.replace(/[\n\r]/g, "").trim() : "");
+    const itemText = lineText || "Tugas baru";
 
     const taskWrapper = document.createElement("div");
     taskWrapper.className = "flex items-start gap-2.5 my-1.5 task-item";
@@ -543,13 +690,19 @@ export function NotebookWorkspace({
       <span class="flex-1 focus:outline-none">${itemText}</span>
     `;
 
-    range.deleteContents();
-    range.insertNode(taskWrapper);
+    if (blockEl && blockEl !== editorRef.current && blockEl.parentNode && blockEl.parentNode === editorRef.current) {
+      blockEl.parentNode.replaceChild(taskWrapper, blockEl);
+    } else {
+      range.deleteContents();
+      range.insertNode(taskWrapper);
+    }
 
     const span = taskWrapper.querySelector("span");
     if (span) {
       const newRange = document.createRange();
       newRange.selectNodeContents(span);
+      // PENTING: collapse ke ujung akhir teks agar klik tombol berikutnya tidak menimpa teks
+      newRange.collapse(false);
       sel.removeAllRanges();
       sel.addRange(newRange);
       saveSelection();
@@ -1539,9 +1692,9 @@ export function NotebookWorkspace({
           </button>
         </div>
 
-        {/* Stabilo / Highlight Teks (Palet Tema Web Monokromatik) */}
-        <div className="relative px-1 shrink-0 flex items-center">
-          <div className="flex items-center rounded-lg border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700">
+        {/* Stabilo / Highlight Teks (Koleksi Warna Stabilo Asli & Muted) */}
+        <div ref={stabiloContainerRef} className="relative px-1 shrink-0 flex items-center">
+          <div className="flex items-center rounded-lg border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-100/60 dark:bg-zinc-800/60">
             {/* Tombol Utama Stabilo: 1-Klik Langsung Highlight Teks yang Diseleksi */}
             <button
               type="button"
@@ -1549,16 +1702,27 @@ export function NotebookWorkspace({
                 e.preventDefault();
                 handleStabiloClick();
               }}
-              title="Stabilo (Highlight) - Terapkan / Hapus Highlight"
-              className={`p-1.5 rounded-l-lg transition cursor-pointer flex items-center gap-1 text-xs ${
-                isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              title="Stabilo (Highlight) - Terapkan / Hapus Warna Stabilo"
+              className={`p-1.5 rounded-l-lg transition cursor-pointer flex items-center gap-1.5 text-xs ${
+                isDark ? "hover:bg-zinc-700 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
               }`}
             >
-              <Highlighter className="w-4 h-4" />
+              <div className="relative flex flex-col items-center">
+                <Highlighter className="w-4 h-4" />
+                <span
+                  className="w-3.5 h-1 rounded-full mt-0.5"
+                  style={{
+                    backgroundColor:
+                      activeStabiloColor && activeStabiloColor !== "transparent"
+                        ? activeStabiloColor
+                        : "#fde047",
+                  }}
+                />
+              </div>
               <span className="text-[11px] font-semibold hidden md:inline">Stabilo</span>
             </button>
 
-            {/* Tombol Dropdown Opsi Warna Stabilo & Hapus */}
+            {/* Tombol Dropdown Opsi Pilihan Warna Stabilo */}
             <button
               type="button"
               onMouseDown={(e) => {
@@ -1567,8 +1731,8 @@ export function NotebookWorkspace({
               }}
               onClick={() => setShowHighlightDropdown((prev) => !prev)}
               title="Pilihan Warna Stabilo"
-              className={`p-1.5 rounded-r-lg transition cursor-pointer ${
-                isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              className={`p-1.5 rounded-r-lg transition cursor-pointer border-l border-zinc-300/80 dark:border-zinc-700/80 ${
+                isDark ? "hover:bg-zinc-700 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
               }`}
             >
               <ChevronDown className="w-3 h-3 opacity-60" />
@@ -1577,35 +1741,44 @@ export function NotebookWorkspace({
 
           {showHighlightDropdown && (
             <div
-              className={`absolute top-full mt-1.5 left-0 p-2 rounded-xl border shadow-xl z-50 flex items-center gap-2 ${
+              className={`absolute top-full mt-2 left-0 p-2.5 rounded-2xl border shadow-2xl z-50 flex items-center gap-2 ${
                 isDark ? "bg-[#18181b] border-zinc-700 text-white" : "bg-white border-zinc-200 text-black"
               }`}
             >
               {[
-                { label: "Hapus Stabilo", color: "transparent" },
-                { label: isDark ? "Zinc Gelap" : "Zinc Terang", color: isDark ? "#3f3f46" : "#e4e4e7" },
-                { label: "Zinc Sedang", color: isDark ? "#52525b" : "#d4d4d8" },
-                { label: isDark ? "Zinc Terang" : "Zinc Gelap", color: isDark ? "#71717a" : "#a1a1aa" },
-              ].map((h) => (
-                <button
-                  key={h.label}
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    applyHighlight(h.color);
-                  }}
-                  className={`w-6 h-6 rounded-md border transition hover:scale-110 cursor-pointer text-[10px] flex items-center justify-center font-bold ${
-                    isDark ? "border-zinc-600" : "border-zinc-300"
-                  }`}
-                  style={{
-                    backgroundColor: h.color === "transparent" ? undefined : h.color,
-                    color: isDark ? "#ffffff" : "#09090b"
-                  }}
-                  title={h.label}
-                >
-                  {h.color === "transparent" ? "✕" : ""}
-                </button>
-              ))}
+                { label: "Hapus Stabilo", color: "transparent", bg: isDark ? "#27272a" : "#f4f4f5", text: isDark ? "#ffffff" : "#09090b" },
+                { label: "Kuning Stabilo", color: "#fde047", bg: "#fde047", text: "#09090b" },
+                { label: "Hijau Stabilo", color: "#86efac", bg: "#86efac", text: "#09090b" },
+                { label: "Biru Stabilo", color: "#7dd3fc", bg: "#7dd3fc", text: "#09090b" },
+                { label: "Pink Stabilo", color: "#f472b6", bg: "#f472b6", text: "#09090b" },
+                { label: "Oranye Stabilo", color: "#fb923c", bg: "#fb923c", text: "#09090b" },
+                { label: "Ungu Stabilo", color: "#c084fc", bg: "#c084fc", text: "#09090b" },
+                { label: isDark ? "Netral Gelap" : "Netral Terang", color: isDark ? "#3f3f46" : "#e4e4e7", bg: isDark ? "#3f3f46" : "#e4e4e7", text: isDark ? "#ffffff" : "#09090b" },
+              ].map((h) => {
+                const isSelected = activeStabiloColor === h.color;
+                return (
+                  <button
+                    key={h.label}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyHighlight(h.color);
+                    }}
+                    className={`w-6 h-6 rounded-full border transition transform hover:scale-120 cursor-pointer text-[10px] flex items-center justify-center font-bold ${
+                      isSelected
+                        ? "ring-2 ring-offset-2 ring-blue-500 scale-110"
+                        : "opacity-90 hover:opacity-100"
+                    } ${isDark ? "border-zinc-600 ring-offset-[#18181b]" : "border-zinc-300 ring-offset-white"}`}
+                    style={{
+                      backgroundColor: h.bg,
+                      color: h.text,
+                    }}
+                    title={h.label}
+                  >
+                    {h.color === "transparent" ? "✕" : isSelected ? "✓" : ""}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
