@@ -2324,171 +2324,145 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         <div id="youtube-music-player" />
       </div>
 
-      {/* ─── TOP HEADER BAR (Clean, Transparent, Minimalist) ─── */}
-      <header
-        className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-8 py-2.5 sm:py-3.5 bg-transparent border-none transition"
-      >
-        {/* Left: Hamburger & Brand Title */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          {onTogglePanel && (
-            <button
-              onClick={onTogglePanel}
-              title="Menu Panel"
-              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black"
-              }`}
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          )}
-
-          <span className="font-extrabold text-sm sm:text-base tracking-tight truncate">Music One</span>
-        </div>
-
-        {/* Right: Bespoke Liquid-Glass Playlist / Musik / Lyrics Toggle Icon Button */}
-        <div className="flex items-center gap-2 shrink-0">
-          {showLyrics ? (
-            <button
-              type="button"
-              onClick={() => setShowLyrics(false)}
-              title="Tutup Lirik"
-              aria-label="Tutup Lirik"
-              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-              }`}
-            >
-              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          ) : selectedAlbum ? (
-            <button
-              type="button"
-              onClick={closeAlbumDetail}
-              title="Kembali"
-              aria-label="Kembali"
-              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-              }`}
-            >
-              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          ) : selectedArtist ? (
-            <button
-              type="button"
-              onClick={closeArtistProfile}
-              title="Kembali"
-              aria-label="Kembali"
-              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-              }`}
-            >
-              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          ) : subTab === "home" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSubTab("playlists");
-                setSelectedLocalPlaylist(null);
-                setIsViewingLiked(false);
-              }}
-              title="Playlist & Koleksi"
-              aria-label="Buka Playlist"
-              className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-              }`}
-            >
-              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-              {likedSongs.length > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
-                  isDark ? "bg-white text-black" : "bg-black text-white"
-                }`}>
-                  {likedSongs.length}
-                </span>
+      {/* ─── TOP WORKSPACE CONTAINER: MAIN LEFT COLUMN + DESKTOP QUEUE SIDEBAR ─ */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Left Column: Header + Main Content View (Width auto-adjusts when queue panel opens) */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden min-w-0">
+          {/* ─── TOP HEADER BAR (Clean, Transparent, Minimalist) ─── */}
+          <header
+            className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-8 py-2.5 sm:py-3.5 bg-transparent border-none transition"
+          >
+            {/* Left: Hamburger & Brand Title */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              {onTogglePanel && (
+                <button
+                  onClick={onTogglePanel}
+                  title="Menu Panel"
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black"
+                  }`}
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
               )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setSubTab("home");
-                setSelectedArtist(null);
-                setSelectedAlbum(null);
-              }}
-              title="Kembali ke Musik"
-              aria-label="Kembali ke Musik"
-              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
-                  ? "bg-white text-black hover:bg-zinc-200 shadow-white/10"
-                  : "bg-black text-white hover:bg-zinc-800 shadow-black/10"
-              }`}
-            >
-              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-              </svg>
-            </button>
-          )}
 
-          {/* Desktop Queue Toggle Button in Header */}
-          <button
-            type="button"
-            onClick={() => setShowDesktopQueue((prev) => !prev)}
-            title={showDesktopQueue ? "Tutup Antrean" : "Antrean Putar"}
-            aria-label="Antrean Putar"
-            className={`hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 relative ${
-              showDesktopQueue
-                ? isDark
-                  ? "bg-white text-black shadow-white/10 font-bold"
-                  : "bg-black text-white shadow-black/10 font-bold"
-                : isDark
-                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+              <span className="font-extrabold text-sm sm:text-base tracking-tight truncate">Music One</span>
+            </div>
+
+            {/* Right: Bespoke Liquid-Glass Playlist / Musik / Lyrics Toggle Icon Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              {showLyrics ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLyrics(false)}
+                  title="Tutup Lirik"
+                  aria-label="Tutup Lirik"
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              ) : selectedAlbum ? (
+                <button
+                  type="button"
+                  onClick={closeAlbumDetail}
+                  title="Kembali"
+                  aria-label="Kembali"
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              ) : selectedArtist ? (
+                <button
+                  type="button"
+                  onClick={closeArtistProfile}
+                  title="Kembali"
+                  aria-label="Kembali"
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              ) : subTab === "home" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubTab("playlists");
+                    setSelectedLocalPlaylist(null);
+                    setIsViewingLiked(false);
+                  }}
+                  title="Playlist & Koleksi"
+                  aria-label="Buka Playlist"
+                  className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                  }`}
+                >
+                  {/* Clean Double Musical Notes / Playlist Icon (Replacing old 3-lines icon) */}
+                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                  </svg>
+                  {likedSongs.length > 0 && (
+                    <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
+                      isDark ? "bg-white text-black" : "bg-black text-white"
+                    }`}>
+                      {likedSongs.length}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubTab("home");
+                    setSelectedArtist(null);
+                    setSelectedAlbum(null);
+                  }}
+                  title="Kembali ke Musik"
+                  aria-label="Kembali ke Musik"
+                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-white text-black hover:bg-zinc-200 shadow-white/10"
+                      : "bg-black text-white hover:bg-zinc-800 shadow-black/10"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* ─── MAIN FULL-WIDTH CONTENT AREA ─────────────────────────────────── */}
+          <main
+            className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
+              searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
+                ? "pb-8 sm:pb-10"
+                : "pb-0"
             }`}
           >
-            <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
-            {queue.length > 0 && (
-              <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
-                showDesktopQueue
-                  ? isDark ? "bg-black text-white" : "bg-white text-black"
-                  : isDark ? "bg-white text-black" : "bg-black text-white"
-              }`}>
-                {queue.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </header>
-
-      {/* ─── MAIN WORKSPACE + DESKTOP QUEUE SIDEBAR CONTAINER ─────────────────── */}
-      <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        <main
-          className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
-            searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
-              ? "pb-8 sm:pb-10"
-              : "pb-0"
-          }`}
-        >
         {showLyrics ? (
           <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col px-4 sm:px-8 py-3 sm:py-6 h-full min-h-0 relative animate-in fade-in-0 duration-200">
             {/* Top Bar inside Lyrics: Clean Track Meta */}
@@ -3101,6 +3075,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         </div>
         )}
       </main>
+        </div>
 
         {/* ─── DESKTOP SPOTIFY-STYLE QUEUE SIDE PANEL ───────────────────────────── */}
         {showDesktopQueue && (
@@ -3112,7 +3087,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             }`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 shrink-0">
+            <div className={`flex items-center justify-between px-5 min-h-[57px] sm:min-h-[61px] border-b shrink-0 ${
+              isDark ? "border-white/10" : "border-black/10"
+            }`}>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold tracking-tight">Antrean</h3>
                 {queue.length > 0 && (
