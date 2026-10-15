@@ -38,19 +38,25 @@ export async function GET(req: NextRequest) {
     let effectiveQuery = query;
     if (!effectiveQuery) {
       if (category === "indonesia") {
-        effectiveQuery = "top hits indonesia OR lagu pop indonesia";
+        effectiveQuery = "Bernadya OR Hindia OR Nadin Amizah OR Sal Priadi OR Juicy Luicy OR Mahalini OR Tulus";
       } else if (category === "global") {
-        effectiveQuery = "top global hits 2025 OR today top hits";
+        effectiveQuery = "Bruno Mars OR Billie Eilish OR Lady Gaga OR Sabrina Carpenter OR Taylor Swift OR Coldplay";
       } else if (category === "viral") {
-        effectiveQuery = "viral hits 2025 OR viral tiktok";
+        effectiveQuery = "Die With A Smile OR APT. OR Birds of a feather OR Espresso OR Satu Bulan";
       } else if (category === "chill") {
-        effectiveQuery = "chill vibes acoustic lofi relax";
+        effectiveQuery = "Hindia OR Nadin Amizah OR Billie Eilish OR Coldplay acoustic";
       } else if (category === "workout") {
-        effectiveQuery = "workout energy motivation pop dance";
+        effectiveQuery = "workout energy motivation pop dance Dua Lipa The Weeknd";
       } else if (category === "rock") {
-        effectiveQuery = "rock hits classic alternative";
+        effectiveQuery = "Queen OR Coldplay OR Arctic Monkeys rock alternative";
       } else {
-        effectiveQuery = "top hits 2025 OR year:2024-2026";
+        const TRENDING_POOLS = [
+          "Bernadya OR Hindia OR Bruno Mars OR Billie Eilish OR Lady Gaga",
+          "Sabrina Carpenter OR Taylor Swift OR Coldplay OR The Weeknd OR Dua Lipa",
+          "Nadin Amizah OR Sal Priadi OR Juicy Luicy OR Mahalini OR Tiara Andini",
+          "Die With A Smile OR APT. OR Birds of a feather OR Satu Bulan OR Espresso",
+        ];
+        effectiveQuery = TRENDING_POOLS[Math.floor(Math.random() * TRENDING_POOLS.length)];
       }
     }
 
@@ -101,7 +107,7 @@ export async function GET(req: NextRequest) {
       if (json.playlists?.items) rawPlaylists.push(...json.playlists.items.filter(Boolean));
     }
 
-    // Deduplicate tracks by id
+    // Deduplicate tracks by id and prioritize top popularity so trending hits come first
     const seenTracks = new Set<string>();
     const tracks = rawTracks
       .filter((t) => {
@@ -109,6 +115,7 @@ export async function GET(req: NextRequest) {
         seenTracks.add(t.id);
         return true;
       })
+      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
       .slice(0, requestedLimit)
       .map(mapSpotifyTrack);
 
