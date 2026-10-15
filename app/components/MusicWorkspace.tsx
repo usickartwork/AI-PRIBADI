@@ -1668,7 +1668,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (lyricsContainerRef.current && activeLineRef.current) {
         const container = lyricsContainerRef.current;
         const activeEl = activeLineRef.current;
-        const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+        const targetScrollTop = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2;
         container.scrollTo({
           top: Math.max(0, targetScrollTop),
           behavior: prefersReduced ? "auto" : "smooth",
@@ -1679,7 +1679,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (mobileLyricsContainerRef.current && mobileActiveLineRef.current) {
         const container = mobileLyricsContainerRef.current;
         const activeEl = mobileActiveLineRef.current;
-        const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+        const targetScrollTop = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2;
         container.scrollTo({
           top: Math.max(0, targetScrollTop),
           behavior: prefersReduced ? "auto" : "smooth",
@@ -1710,7 +1710,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (lyricsContainerRef.current && activeLineRef.current) {
       const container = lyricsContainerRef.current;
       const activeEl = activeLineRef.current;
-      const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+      const targetScrollTop = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2;
       container.scrollTo({
         top: Math.max(0, targetScrollTop),
         behavior: prefersReduced ? "auto" : "smooth",
@@ -1720,7 +1720,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (mobileLyricsContainerRef.current && mobileActiveLineRef.current) {
       const container = mobileLyricsContainerRef.current;
       const activeEl = mobileActiveLineRef.current;
-      const targetScrollTop = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+      const targetScrollTop = activeEl.offsetTop - container.clientHeight * 0.38 + activeEl.clientHeight / 2;
       container.scrollTo({
         top: Math.max(0, targetScrollTop),
         behavior: prefersReduced ? "auto" : "smooth",
@@ -2636,11 +2636,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Lyrics Content Body */}
+            {/* Lyrics Content Body (Spotify format: left-aligned with focal autoscroll) */}
             <div
               ref={lyricsContainerRef}
               onScroll={handleLyricsScroll}
-              className="flex-1 overflow-y-auto min-h-0 py-10 sm:py-16 space-y-5 sm:space-y-7 text-center scroll-smooth relative select-none"
+              className="flex-1 overflow-y-auto min-h-0 py-24 sm:py-36 px-4 sm:px-12 space-y-3 sm:space-y-4 text-left scroll-smooth relative select-none"
             >
               {/* State 1: Loading */}
               {isLoadingLyrics && (
@@ -2706,7 +2706,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
 
-              {/* State 4: Synchronized Lyrics */}
+              {/* State 4: Synchronized Lyrics (Spotify Format: Left-aligned, bold, punchy, smooth fade) */}
               {!isLoadingLyrics && lyricsData?.synced && lyricsData.lines && lyricsData.lines.length > 0 && (
                 lyricsData.lines.map((line, idx) => {
                   const isActive = activeLyricIndex === idx;
@@ -2716,18 +2716,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       key={`${line.time}-${idx}`}
                       ref={isActive ? activeLineRef : null}
                       onClick={() => seekToLyric(line.time)}
-                      className={`cursor-pointer transition-[opacity,color,filter] duration-300 px-4 py-2.5 sm:py-3 rounded-2xl mx-auto max-w-2xl text-lg sm:text-2xl font-bold leading-relaxed text-center ${
+                      className={`cursor-pointer transition-all duration-300 py-2 sm:py-3 px-2 sm:px-3 rounded-xl select-none text-left max-w-3xl mx-auto origin-left ${
                         isActive
                           ? isDark
-                            ? "text-white opacity-100 font-extrabold drop-shadow-[0_2px_14px_rgba(255,255,255,0.35)]"
-                            : "text-zinc-950 opacity-100 font-extrabold drop-shadow-[0_2px_10px_rgba(0,0,0,0.12)]"
+                            ? "text-white opacity-100 font-extrabold text-2xl sm:text-3xl lg:text-[34px] leading-snug drop-shadow-[0_2px_14px_rgba(255,255,255,0.25)] scale-[1.01]"
+                            : "text-zinc-950 opacity-100 font-extrabold text-2xl sm:text-3xl lg:text-[34px] leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.1)] scale-[1.01]"
                           : isPast
                           ? isDark
-                            ? "text-zinc-400 opacity-30 hover:opacity-70 font-semibold"
-                            : "text-zinc-500 opacity-35 hover:opacity-75 font-semibold"
+                            ? "text-zinc-500 opacity-40 hover:opacity-80 hover:text-zinc-300 font-bold text-xl sm:text-2xl lg:text-[28px] leading-snug"
+                            : "text-zinc-400 opacity-45 hover:opacity-85 hover:text-zinc-700 font-bold text-xl sm:text-2xl lg:text-[28px] leading-snug"
                           : isDark
-                          ? "text-zinc-300 opacity-50 hover:opacity-85 font-semibold"
-                          : "text-zinc-600 opacity-55 hover:opacity-85 font-semibold"
+                          ? "text-zinc-400 opacity-45 hover:opacity-85 hover:text-zinc-200 font-bold text-xl sm:text-2xl lg:text-[28px] leading-snug"
+                          : "text-zinc-500 opacity-50 hover:opacity-90 hover:text-zinc-800 font-bold text-xl sm:text-2xl lg:text-[28px] leading-snug"
                       }`}
                       title={`Lompat ke ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, "0")}`}
                     >
@@ -2739,7 +2739,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* State 5: Plain / Unsynced Lyrics */}
               {!isLoadingLyrics && !lyricsData?.synced && lyricsData?.plainText && (
-                <div className="py-6 max-w-2xl mx-auto text-center space-y-4">
+                <div className="py-6 max-w-3xl mx-auto text-left space-y-4">
                   <div
                     className={`p-3 rounded-2xl text-xs inline-block mb-4 ${
                       isDark ? "bg-zinc-800/60 text-zinc-300" : "bg-zinc-100 text-zinc-600"
@@ -2750,7 +2750,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {lyricsData.plainText.split("\n").map((line: string, i: number) => (
                     <p
                       key={i}
-                      className={`text-base sm:text-lg font-medium ${
+                      className={`text-lg sm:text-2xl font-bold tracking-tight leading-relaxed ${
                         line.trim() === "" ? "h-4" : isDark ? "text-zinc-300" : "text-zinc-700"
                       }`}
                     >
@@ -2795,50 +2795,36 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Initial Hero: Headset Icon & Greeting (Visible ONLY when search box is empty) */}
               {!searchQuery.trim() && (
                 <div className="flex flex-col items-center justify-center text-center mb-4 sm:mb-5 px-3 sm:px-4 animate-in fade-in-0 duration-200">
-                  {/* Living Animated Headset Icon (Usick living style with aura & pulse breath) */}
+                  {/* Clean Living Headset Icon (Pure icon without background box or glow) */}
                   <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center">
-                    {/* Atmospheric living aura breath */}
-                    <div
-                      className={`absolute -inset-2.5 sm:-inset-3 rounded-full blur-xl pointer-events-none animate-usick-aura ${
-                        isDark ? "bg-white/10" : "bg-black/5"
+                    <svg
+                      className={`w-9 h-9 sm:w-10 sm:h-10 transition-transform duration-300 animate-usick-breath hover:scale-105 ${
+                        isDark ? "text-white" : "text-zinc-900"
                       }`}
-                    />
-
-                    {/* Headset living squircle badge */}
-                    <div
-                      className={`relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl backdrop-blur-md transition-all duration-300 animate-usick-breath shadow-lg ${
-                        isDark
-                          ? "bg-zinc-900/80 border border-white/10 text-white shadow-black/40"
-                          : "bg-white/90 border border-black/10 text-zinc-900 shadow-zinc-900/10"
-                      }`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.85}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      <svg
-                        className="w-6 h-6 sm:w-7 sm:h-7 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.85}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        {/* Headband arch */}
-                        <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
-                        {/* Right Earpad */}
-                        <path
-                          d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"
-                          fill="currentColor"
-                          className="opacity-90"
-                        />
-                        {/* Left Earpad */}
-                        <path
-                          d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
-                          fill="currentColor"
-                          className="opacity-90"
-                        />
-                        {/* Subtle living audio wave arc under the headband */}
-                        <path d="M9 12.5a3 3 0 0 1 6 0" strokeWidth={1.5} opacity={0.65} />
-                      </svg>
-                    </div>
+                      {/* Headband arch */}
+                      <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
+                      {/* Right Earpad */}
+                      <path
+                        d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"
+                        fill="currentColor"
+                        className="opacity-90"
+                      />
+                      {/* Left Earpad */}
+                      <path
+                        d="M3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"
+                        fill="currentColor"
+                        className="opacity-90"
+                      />
+                      {/* Subtle living audio wave arc under the headband */}
+                      <path d="M9 12.5a3 3 0 0 1 6 0" strokeWidth={1.5} opacity={0.65} />
+                    </svg>
                   </div>
 
                   {/* Headline */}
@@ -4074,10 +4060,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <div
                     ref={mobileLyricsContainerRef}
                     onScroll={handleLyricsScroll}
-                    className="flex-1 overflow-y-auto space-y-5 py-8 text-center scroll-smooth pr-1 select-none touch-pan-y overscroll-contain"
+                    className="flex-1 overflow-y-auto space-y-3.5 sm:space-y-4 py-20 px-2 text-left scroll-smooth select-none touch-pan-y overscroll-contain"
                   >
                     {lyricsData.lines.map((line, idx) => {
                       const isActive = lyricsData.synced && idx === activeLyricIndex;
+                      const isPast = lyricsData.synced && idx < activeLyricIndex;
                       return (
                         <p
                           key={`${line.time}-${idx}`}
@@ -4087,20 +4074,47 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                               seekToLyric(line.time);
                             }
                           }}
-                          className={`transition-all duration-200 cursor-pointer text-base sm:text-lg leading-relaxed ${
+                          className={`cursor-pointer transition-all duration-300 py-1.5 px-2 rounded-lg origin-left select-none text-left ${
                             isActive
                               ? isDark
-                                ? "font-extrabold text-white scale-105 drop-shadow-[0_2px_12px_rgba(255,255,255,0.4)]"
-                                : "font-extrabold text-black scale-105 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+                                ? "text-white opacity-100 font-extrabold text-xl sm:text-2xl leading-snug drop-shadow-[0_2px_12px_rgba(255,255,255,0.25)] scale-[1.01]"
+                                : "text-zinc-950 opacity-100 font-extrabold text-xl sm:text-2xl leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.1)] scale-[1.01]"
+                              : isPast
+                              ? isDark
+                                ? "text-zinc-500 opacity-40 font-bold text-lg sm:text-xl leading-snug"
+                                : "text-zinc-400 opacity-45 font-bold text-lg sm:text-xl leading-snug"
                               : isDark
-                              ? "text-zinc-500 hover:text-zinc-300 font-medium opacity-65"
-                              : "text-zinc-400 hover:text-zinc-700 font-medium opacity-65"
+                              ? "text-zinc-400 opacity-45 font-bold text-lg sm:text-xl leading-snug"
+                              : "text-zinc-500 opacity-50 font-bold text-lg sm:text-xl leading-snug"
                           }`}
                         >
                           {line.text}
                         </p>
                       );
                     })}
+                  </div>
+                ) : lyricsData?.plainText ? (
+                  <div
+                    ref={mobileLyricsContainerRef}
+                    className="flex-1 overflow-y-auto space-y-3 py-16 px-2 text-left scroll-smooth select-none touch-pan-y overscroll-contain"
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl text-[11px] font-medium inline-block mb-2 ${
+                        isDark ? "bg-white/5 text-zinc-400" : "bg-black/5 text-zinc-600"
+                      }`}
+                    >
+                      Lirik belum memiliki sinkronisasi waktu.
+                    </div>
+                    {lyricsData.plainText.split("\n").map((line: string, i: number) => (
+                      <p
+                        key={i}
+                        className={`text-lg sm:text-xl font-bold tracking-tight leading-snug ${
+                          line.trim() === "" ? "h-3" : isDark ? "text-zinc-300" : "text-zinc-700"
+                        }`}
+                      >
+                        {line}
+                      </p>
+                    ))}
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
