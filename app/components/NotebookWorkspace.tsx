@@ -100,6 +100,12 @@ export function NotebookWorkspace({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
 
+  // Modal Input Judul Catatan Baru Sebelum Masuk Canvas
+  const [showNewNoteModal, setShowNewNoteModal] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const [isBodyEmpty, setIsBodyEmpty] = useState(true);
+
   // Modal Insert Link
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
@@ -168,6 +174,7 @@ export function NotebookWorkspace({
   useEffect(() => {
     if (!activeNoteId) {
       setCurrentTitle("");
+      setIsBodyEmpty(true);
       if (editorRef.current) editorRef.current.innerHTML = "<p><br></p>";
       return;
     }
@@ -177,7 +184,13 @@ export function NotebookWorkspace({
       const html = ensureHtmlContent(found.content);
       if (editorRef.current) {
         editorRef.current.innerHTML = html;
+        // Sinkronisasi status checkbox DOM dengan attribute HTML
+        const boxes = editorRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+        boxes.forEach((cb) => {
+          cb.checked = cb.hasAttribute("checked");
+        });
       }
+      setIsBodyEmpty(!extractPlainText(found.content).trim());
       setSaveStatus("saved");
       setSaveError(null);
     }
@@ -254,6 +267,10 @@ export function NotebookWorkspace({
   // Penanganan perubahan konten WYSIWYG
   const handleEditorInput = () => {
     setSaveStatus("unsaved");
+    if (editorRef.current) {
+      const plain = extractPlainText(editorRef.current.innerHTML);
+      setIsBodyEmpty(!plain.trim());
+    }
     if (!activeNoteId) return;
 
     if (debounceTimerRef.current) {
@@ -368,15 +385,123 @@ export function NotebookWorkspace({
     handleEditorInput();
   };
 
-  // Buat catatan baru dan langsung buka Halaman 2 (Canvas)
-  const handleCreateNote = async () => {
+  // Fokus kursor ke awal teks editor
+  const focusEditorAtStart = () => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  };
+
+  // Fokus kursor ke akhir teks editor (saat klik area kosong canvas)
+  const focusEditorAtEnd = () => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  };
+
+  // Keyboard shortcut & penanganan tombol seperti notepad standar
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Tombol Tab untuk indentasi teks tanpa berpindah fokus keluar
+    if (e.key === "Tab") {
+      e.preventDefault();
+      document.execCommand("insertHTML", false, "&nbsp;&nbsp;&nbsp;&nbsp;");
+      handleEditorInput();
+      return;
+    }
+
+    // Tombol Enter pada checklist interaktif
+    if (e.key === "Enter") {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const anchorNode = sel.anchorNode;
+        const taskItem = anchorNode
+          ? ((anchorNode.nodeType === Node.ELEMENT_NODE
+              ? (anchorNode as HTMLElement)
+              : anchorNode.parentElement
+            )?.closest(".task-item") as HTMLElement | null)
+          : null;
+
+        if (taskItem) {
+          const span = taskItem.querySelector("span");
+          const itemText = span ? span.innerText.trim() : "";
+
+          // Jika checklist kosong dan ditekan enter -> keluar dari checklist ke paragraf biasa
+          if (!itemText) {
+            e.preventDefault();
+            const p = document.createElement("p");
+            p.innerHTML = "<br>";
+            taskItem.parentNode?.insertBefore(p, taskItem.nextSibling);
+            taskItem.remove();
+            const range = document.createRange();
+            range.setStart(p, 0);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            handleEditorInput();
+            return;
+          }
+
+          // Jika checklist ada isinya -> buat baris checklist baru secara otomatis
+          e.preventDefault();
+          const newTask = document.createElement("div");
+          newTask.className = "flex items-start gap-2.5 my-1.5 task-item";
+          newTask.innerHTML = `
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
+            <span class="flex-1 focus:outline-none" contenteditable="true"><br></span>
+          `;
+          taskItem.parentNode?.insertBefore(newTask, taskItem.nextSibling);
+
+          const newSpan = newTask.querySelector("span");
+          if (newSpan) {
+            const range = document.createRange();
+            range.setStart(newSpan, 0);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+          handleEditorInput();
+        }
+      }
+    }
+  };
+
+  // Buka modal input judul catatan baru sebelum masuk ke halaman canvas
+  const openNewNoteModal = () => {
+    setNewNoteTitle("");
+    setShowNewNoteModal(true);
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 60);
+  };
+
+  // Konfirmasi pembuatan catatan baru dengan judul yang dimasukkan pengguna
+  const handleConfirmNewNote = async () => {
+    const trimmedTitle = newNoteTitle.trim();
+    if (!trimmedTitle) return;
+
+    setShowNewNoteModal(false);
+
     const tempId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     const now = new Date().toISOString();
 
     const newNote: NoteItem = {
       id: tempId,
       user_id: user?.id || "guest",
-      title: "Catatan Baru",
+      title: trimmedTitle,
       content: "<p><br></p>",
       is_pinned: false,
       created_at: now,
@@ -385,12 +510,20 @@ export function NotebookWorkspace({
 
     setNotes((prev) => [newNote, ...prev]);
     setActiveNoteId(tempId);
-    setCurrentTitle(newNote.title);
-    if (editorRef.current) editorRef.current.innerHTML = "<p><br></p>";
+    setCurrentTitle(trimmedTitle);
+    setIsBodyEmpty(true);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "<p><br></p>";
+    }
 
     // Pindah ke Halaman 2 (Canvas Editor)
     setPageView("canvas");
     setSaveStatus("saved");
+
+    // Langsung arahkan kursor ke canvas penulisan
+    setTimeout(() => {
+      focusEditorAtStart();
+    }, 120);
 
     try {
       localStorage.setItem(storageKey, JSON.stringify([newNote, ...notes]));
@@ -554,48 +687,21 @@ export function NotebookWorkspace({
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
     <div className="flex-1 flex flex-col justify-between h-full w-full px-4 sm:px-6 pt-5 sm:pt-7 relative overflow-hidden animate-in fade-in-0 duration-200">
-      {/* Header Atas */}
-      <div className="flex items-center justify-between w-full max-w-4xl mx-auto shrink-0 z-20">
-        <div className="flex items-center gap-2">
-          {onTogglePanel && (
-            <button
-              type="button"
-              onClick={onTogglePanel}
-              title="Menu Navigasi"
-              className={`p-2 rounded-xl transition md:hidden ${
-                isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-
-        {/* Badge Tengah Atas: Powered by Usick One */}
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 tracking-wide">
-          <div className="w-3.5 h-3.5 rounded-xs bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center">
-            <span className="text-[8px] text-white dark:text-black font-bold">U</span>
-          </div>
-          <span>Powered by Usick One</span>
-        </div>
-
-        {/* Tombol Pintas ke Halaman 3 (File Catatan) */}
-        <div>
-          {notes.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setPageView("files")}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-full transition cursor-pointer flex items-center gap-1.5 ${
-                isDark
-                  ? "hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                  : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Semua Catatan ({notes.length})</span>
-            </button>
-          )}
-        </div>
+      {/* Header Atas: Bersih tanpa badge dan tanpa tombol semua catatan */}
+      <div className="w-full max-w-4xl mx-auto shrink-0 z-20 flex items-center justify-between min-h-[40px]">
+        {onTogglePanel ? (
+          <button
+            type="button"
+            onClick={onTogglePanel}
+            title="Menu Navigasi"
+            className={`p-2 rounded-xl transition md:hidden ${
+              isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
+            }`}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        ) : <div />}
+        <div />
       </div>
 
       {/* Konten Hero Tengah */}
@@ -611,10 +717,10 @@ export function NotebookWorkspace({
 
         {/* 2 Tombol Aksi Sesuai Permintaan */}
         <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
-          {/* Tombol 1: Create New -> Langsung membuka Halaman 2 (Canvas Catatan) */}
+          {/* Tombol 1: Create New -> Menampilkan modal input judul terlebih dahulu */}
           <button
             type="button"
-            onClick={handleCreateNote}
+            onClick={openNewNoteModal}
             className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer ${
               isDark
                 ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
@@ -789,7 +895,7 @@ export function NotebookWorkspace({
 
           <button
             type="button"
-            onClick={handleCreateNote}
+            onClick={openNewNoteModal}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer shadow-xs ${
               isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
             }`}
@@ -820,7 +926,7 @@ export function NotebookWorkspace({
             </p>
             <button
               type="button"
-              onClick={handleCreateNote}
+              onClick={openNewNoteModal}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
               }`}
@@ -1235,13 +1341,26 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* ─── AREA KANVAS KONTEN (JUDUL & CONTENTEDITABLE WYSIWYG) ─── */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-12 md:px-20 py-8 max-w-4xl w-full mx-auto flex flex-col overscroll-contain">
-        {/* Input Judul Catatan */}
+      {/* ─── AREA KANVAS KONTEN (JUDUL & CONTENTEDITABLE WYSIWYG SEPERTI NOTEPAD) ─── */}
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            focusEditorAtEnd();
+          }
+        }}
+        className="flex-1 overflow-y-auto px-4 sm:px-12 md:px-20 py-8 max-w-4xl w-full mx-auto flex flex-col overscroll-contain cursor-text"
+      >
+        {/* Input Judul Catatan: Tekan Enter otomatis melompat ke badan tulisan */}
         <input
           type="text"
           value={currentTitle}
           onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              focusEditorAtStart();
+            }
+          }}
           placeholder="Judul catatan..."
           className={`w-full text-2xl sm:text-4xl font-extrabold bg-transparent border-0 focus:outline-none mb-6 tracking-tight ${
             isDark ? "text-white placeholder:text-zinc-600" : "text-black placeholder:text-zinc-400"
@@ -1250,16 +1369,35 @@ export function NotebookWorkspace({
 
         {/* Canvas Pengetikan WYSIWYG ContentEditable */}
         <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={handleEditorInput}
-          onClick={handleEditorClick}
-          className={`flex-1 w-full focus:outline-none text-base sm:text-lg leading-relaxed min-h-[300px] prose dark:prose-invert max-w-none ${
-            isDark ? "text-zinc-200" : "text-zinc-800"
-          }`}
-          style={{ whiteSpace: "pre-wrap" }}
-        />
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              focusEditorAtEnd();
+            }
+          }}
+          className="relative flex-1 flex flex-col min-h-[400px] pb-24 cursor-text"
+        >
+          {isBodyEmpty && (
+            <div
+              onClick={focusEditorAtStart}
+              className="absolute top-0 left-0 pointer-events-none select-none text-zinc-400 dark:text-zinc-600 text-base sm:text-lg leading-relaxed"
+            >
+              Mulai ketik catatan di sini...
+            </div>
+          )}
+
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleEditorInput}
+            onClick={handleEditorClick}
+            onKeyDown={handleEditorKeyDown}
+            className={`notebook-canvas-editor flex-1 w-full focus:outline-none text-base sm:text-lg leading-relaxed min-h-[400px] ${
+              isDark ? "text-zinc-200" : "text-zinc-800"
+            }`}
+            style={{ whiteSpace: "pre-wrap" }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1386,6 +1524,86 @@ export function NotebookWorkspace({
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition shadow-xs cursor-pointer"
               >
                 Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL INPUT JUDUL CATATAN BARU SEBELUM MASUK CANVAS ─── */}
+      {showNewNoteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in-0 duration-150">
+          <div
+            className={`w-full max-w-sm rounded-2xl p-5 border shadow-2xl ${
+              isDark ? "bg-[#18181b] border-zinc-700/80 text-white" : "bg-white border-zinc-200 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-zinc-400" />
+                <span>Buat Catatan Baru</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowNewNoteModal(false)}
+                className="text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400 mb-3 leading-relaxed">
+              Masukkan judul catatan barumu untuk melanjutkan ke halaman penulisan.
+            </p>
+
+            <div className="mb-5">
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={newNoteTitle}
+                onChange={(e) => setNewNoteTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newNoteTitle.trim()) {
+                    e.preventDefault();
+                    handleConfirmNewNote();
+                  } else if (e.key === "Escape") {
+                    setShowNewNoteModal(false);
+                  }
+                }}
+                placeholder="Judul catatan..."
+                className={`w-full text-sm px-3.5 py-2.5 rounded-xl border bg-transparent focus:outline-none transition ${
+                  isDark
+                    ? "border-zinc-700 focus:border-white text-white placeholder:text-zinc-600"
+                    : "border-zinc-300 focus:border-black text-black placeholder:text-zinc-400"
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNewNoteModal(false)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmNewNote}
+                disabled={!newNoteTitle.trim()}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs ${
+                  newNoteTitle.trim()
+                    ? isDark
+                      ? "bg-white text-black hover:bg-zinc-200"
+                      : "bg-black text-white hover:bg-zinc-800"
+                    : isDark
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                    : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                }`}
+              >
+                Lanjutkan
               </button>
             </div>
           </div>

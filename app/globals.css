@@ -393,4 +393,45 @@ textarea:focus {
   animation: lambPaceAcross 7s ease-in-out infinite;
 }
 
+/* ─── Notebook WYSIWYG Notepad Styles ─── */
+.notebook-canvas-editor {
+  outline: none;
+}
 
+.notebook-canvas-editor p {
+  margin-bottom: 0.5rem;
+  line-height: 1.65;
+}
+
+.notebook-canvas-editor ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.notebook-canvas-editor ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.notebook-canvas-editor li {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.notebook-canvas-editor a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.notebook-canvas-editor blockquote {
+  border-left: 3px solid currentColor;
+  padding-left: 1rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.85;
+}
