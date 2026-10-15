@@ -25,7 +25,6 @@ import {
   CheckSquare,
   Link2,
   Highlighter,
-  Palette,
   Undo2,
   Redo2,
   ChevronDown,
@@ -52,6 +51,20 @@ interface NotebookWorkspaceProps {
 }
 
 type SaveStatus = "saved" | "saving" | "unsaved" | "error";
+
+// Generator UUID v4 yang kompatibel dengan tipe Supabase uuid
+function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID();
+    } catch {}
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 // Konversi konten lama teks biasa menjadi format HTML terstruktur yang aman
 function ensureHtmlContent(raw: string): string {
@@ -111,12 +124,13 @@ export function NotebookWorkspace({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
 
-  // Dropdown Palet Warna & Highlight
-  const [showColorDropdown, setShowColorDropdown] = useState(false);
+  // Dropdown Opsi Stabilo (Highlight)
   const [showHighlightDropdown, setShowHighlightDropdown] = useState(false);
 
   // Buffer lokal judul dan konten HTML
   const [currentTitle, setCurrentTitle] = useState("");
+  const currentTitleRef = useRef("");
+  currentTitleRef.current = currentTitle;
   const editorRef = useRef<HTMLDivElement | null>(null);
   const savedSelectionRangeRef = useRef<Range | null>(null);
   const loadedNoteIdRef = useRef<string | null>(null);
@@ -198,6 +212,8 @@ export function NotebookWorkspace({
   useEffect(() => {
     if (!activeNoteId) {
       loadedNoteIdRef.current = null;
+      activeNoteIdRef.current = null;
+      currentTitleRef.current = "";
       setCurrentTitle("");
       setIsBodyEmpty(true);
       if (editorRef.current) editorRef.current.innerHTML = "<p><br></p>";
@@ -213,6 +229,8 @@ export function NotebookWorkspace({
     const found = notes.find((n) => n.id === activeNoteId);
     if (found) {
       loadedNoteIdRef.current = activeNoteId;
+      activeNoteIdRef.current = activeNoteId;
+      currentTitleRef.current = found.title;
       setCurrentTitle(found.title);
       const html = ensureHtmlContent(found.content);
       if (editorRef.current) {
@@ -282,10 +300,12 @@ export function NotebookWorkspace({
 
   // Penanganan perubahan judul dengan autosave debounce
   const handleTitleChange = (newTitle: string) => {
+    currentTitleRef.current = newTitle;
     setCurrentTitle(newTitle);
     setSaveStatus("unsaved");
 
-    if (!activeNoteId) return;
+    const noteId = activeNoteIdRef.current;
+    if (!noteId) return;
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -293,8 +313,8 @@ export function NotebookWorkspace({
 
     debounceTimerRef.current = setTimeout(() => {
       const currentHtml = editorRef.current ? editorRef.current.innerHTML : "";
-      persistNote(activeNoteId, newTitle, currentHtml);
-    }, 600);
+      persistNote(noteId, newTitle, currentHtml);
+    }, 400);
   };
 
   // Penanganan perubahan konten WYSIWYG
@@ -304,7 +324,8 @@ export function NotebookWorkspace({
       const plain = extractPlainText(editorRef.current.innerHTML);
       setIsBodyEmpty(!plain.trim());
     }
-    if (!activeNoteId) return;
+    const noteId = activeNoteIdRef.current;
+    if (!noteId) return;
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -312,9 +333,34 @@ export function NotebookWorkspace({
 
     debounceTimerRef.current = setTimeout(() => {
       const currentHtml = editorRef.current ? editorRef.current.innerHTML : "";
-      persistNote(activeNoteId, currentTitle, currentHtml);
-    }, 600);
+      persistNote(noteId, currentTitleRef.current || currentTitle, currentHtml);
+    }, 400);
   };
+
+  // Langsung simpan buffer tertunda saat berpindah halaman atau menutup browser
+  const flushSave = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const noteId = activeNoteIdRef.current;
+    if (!noteId || !editorRef.current) return;
+    const currentHtml = editorRef.current.innerHTML;
+    const titleToSave = currentTitleRef.current || currentTitle;
+    persistNote(noteId, titleToSave, currentHtml);
+  }, [persistNote, currentTitle]);
+
+  // Listener simpan otomatis saat jendela browser ditutup atau direfresh
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      flushSave();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      flushSave();
+    };
+  }, [flushSave]);
 
   // Simpan snapshot seleksi kursor (menggunakan cloneRange agar tidak terdistorsi perubahan DOM)
   const saveSelection = () => {
@@ -345,31 +391,96 @@ export function NotebookWorkspace({
     handleEditorInput();
   };
 
-  // Terapkan warna teks (Palet Monokromatis)
-  const applyTextColor = (color: string) => {
-    restoreSelection();
-    document.execCommand("foreColor", false, color);
-    saveSelection();
-    updateActiveFormats();
-    setShowColorDropdown(false);
-    handleEditorInput();
-  };
-
-  // Terapkan highlight teks (Palet Monokromatis)
+  // Terapkan highlight teks / Stabilo (Palet Monokromatis Sesuai Tema Web)
   const applyHighlight = (color: string) => {
-    restoreSelection();
+    if (savedSelectionRangeRef.current) {
+      restoreSelection();
+    } else if (editorRef.current && document.activeElement !== editorRef.current) {
+      editorRef.current.focus();
+    }
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      setShowHighlightDropdown(false);
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+
     if (color === "transparent") {
-      document.execCommand("removeFormat", false);
+      try {
+        document.execCommand("removeFormat", false);
+      } catch {}
+
+      // Bersihkan juga tag <mark> atau inline backgroundColor pada elemen induk seleksi
+      let node: Node | null = sel.anchorNode;
+      while (node && node !== editorRef.current) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          if (el.tagName === "MARK" || el.style.backgroundColor) {
+            el.style.backgroundColor = "";
+            if (el.tagName === "MARK") {
+              const textContent = el.innerText || el.textContent || "";
+              const textNode = document.createTextNode(textContent);
+              el.parentNode?.replaceChild(textNode, el);
+            }
+          }
+        }
+        node = node.parentNode;
+      }
     } else {
-      const success = document.execCommand("hiliteColor", false, color);
-      if (!success) {
-        document.execCommand("backColor", false, color);
+      let applied = false;
+      try {
+        applied = document.execCommand("hiliteColor", false, color);
+        if (!applied) {
+          applied = document.execCommand("backColor", false, color);
+        }
+      } catch {}
+
+      // Fallback menggunakan elemen <mark> jika browser menolak execCommand
+      if (!applied && !range.collapsed) {
+        try {
+          const mark = document.createElement("mark");
+          mark.style.backgroundColor = color;
+          mark.style.color = isDark ? "#ffffff" : "#09090b";
+          mark.style.borderRadius = "3px";
+          mark.style.padding = "1px 4px";
+          mark.appendChild(range.extractContents());
+          range.insertNode(mark);
+
+          const newRange = document.createRange();
+          newRange.selectNodeContents(mark);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        } catch (err) {
+          console.warn("Fallback highlight error:", err);
+        }
       }
     }
+
     saveSelection();
     updateActiveFormats();
     setShowHighlightDropdown(false);
     handleEditorInput();
+  };
+
+  const defaultHighlightColor = isDark ? "#3f3f46" : "#e4e4e7";
+
+  const handleStabiloClick = () => {
+    saveSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      setShowHighlightDropdown((prev) => !prev);
+      return;
+    }
+    // Cek apakah seleksi sedang dalam highlight
+    const parent = sel.anchorNode?.parentElement;
+    const isHighlighted = parent && (parent.tagName === "MARK" || (parent.style.backgroundColor && parent.style.backgroundColor !== "transparent"));
+    if (isHighlighted) {
+      applyHighlight("transparent");
+    } else {
+      applyHighlight(defaultHighlightColor);
+    }
   };
 
   // Sisipkan checklist interaktif (menggunakan teks yang sedang diblok jika ada)
@@ -614,11 +725,11 @@ export function NotebookWorkspace({
 
     setShowNewNoteModal(false);
 
-    const tempId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+    const newId = generateUUID();
     const now = new Date().toISOString();
 
     const newNote: NoteItem = {
-      id: tempId,
+      id: newId,
       user_id: user?.id || "guest",
       title: trimmedTitle,
       content: "<p><br></p>",
@@ -627,9 +738,12 @@ export function NotebookWorkspace({
       updated_at: now,
     };
 
-    loadedNoteIdRef.current = tempId;
+    loadedNoteIdRef.current = newId;
+    activeNoteIdRef.current = newId;
+    currentTitleRef.current = trimmedTitle;
+
     setNotes((prev) => [newNote, ...prev]);
-    setActiveNoteId(tempId);
+    setActiveNoteId(newId);
     setCurrentTitle(trimmedTitle);
     setIsBodyEmpty(true);
     if (editorRef.current) {
@@ -656,6 +770,7 @@ export function NotebookWorkspace({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: newId,
             title: newNote.title,
             content: newNote.content,
           }),
@@ -663,15 +778,20 @@ export function NotebookWorkspace({
         if (res.ok) {
           const data = await res.json();
           if (data.note?.id) {
-            const realId = data.note.id;
-            if (loadedNoteIdRef.current === tempId) {
-              loadedNoteIdRef.current = realId;
-            }
-            if (activeNoteIdRef.current === tempId) {
-              activeNoteIdRef.current = realId;
-            }
-            setNotes((prev) => prev.map((n) => (n.id === tempId ? { ...data.note } : n)));
-            setActiveNoteId(realId);
+            const serverNote = data.note;
+            setNotes((prev) =>
+              prev.map((n) => {
+                if (n.id === newId) {
+                  const latestContent = editorRef.current ? editorRef.current.innerHTML : n.content;
+                  return {
+                    ...serverNote,
+                    title: currentTitleRef.current || serverNote.title,
+                    content: latestContent && latestContent !== "<p><br></p>" ? latestContent : serverNote.content,
+                  };
+                }
+                return n;
+              })
+            );
           }
         }
       } catch (err) {
@@ -682,7 +802,10 @@ export function NotebookWorkspace({
 
   // Buka catatan tertentu dari Halaman 3 (Semua File) ke Halaman 2 (Canvas)
   const handleSelectNoteFromGrid = (note: NoteItem) => {
+    flushSave();
     loadedNoteIdRef.current = note.id;
+    activeNoteIdRef.current = note.id;
+    currentTitleRef.current = note.title;
     setActiveNoteId(note.id);
     setCurrentTitle(note.title);
     if (editorRef.current) {
@@ -1158,7 +1281,10 @@ export function NotebookWorkspace({
           {/* Tombol Kembali ke Halaman 3 (File Catatan) */}
           <button
             type="button"
-            onClick={() => setPageView("files")}
+            onClick={() => {
+              flushSave();
+              setPageView("files");
+            }}
             className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
               isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
             }`}
@@ -1170,7 +1296,10 @@ export function NotebookWorkspace({
           {/* Tombol Home */}
           <button
             type="button"
-            onClick={() => setPageView("home")}
+            onClick={() => {
+              flushSave();
+              setPageView("home");
+            }}
             title="Kembali ke Cover Home"
             className={`hidden sm:flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg transition cursor-pointer ${
               isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
@@ -1370,87 +1499,53 @@ export function NotebookWorkspace({
           </button>
         </div>
 
-        {/* Warna Teks (Palet Tema Web Monokromatik) */}
-        <div className="relative px-1 shrink-0">
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              saveSelection();
-            }}
-            onClick={() => {
-              setShowColorDropdown((prev) => !prev);
-              setShowHighlightDropdown(false);
-            }}
-            title="Warna Teks Monokrom"
-            className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
-            }`}
-          >
-            <Palette className="w-4 h-4" />
-            <ChevronDown className="w-3 h-3 opacity-60" />
-          </button>
-
-          {showColorDropdown && (
-            <div
-              className={`absolute top-full mt-1.5 left-0 p-2 rounded-xl border shadow-xl z-50 flex items-center gap-1.5 ${
-                isDark ? "bg-[#18181b] border-zinc-700 text-white" : "bg-white border-zinc-200 text-black"
+        {/* Stabilo / Highlight Teks (Palet Tema Web Monokromatik) */}
+        <div className="relative px-1 shrink-0 flex items-center">
+          <div className="flex items-center rounded-lg border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700">
+            {/* Tombol Utama Stabilo: 1-Klik Langsung Highlight Teks yang Diseleksi */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleStabiloClick();
+              }}
+              title="Stabilo (Highlight) - Terapkan / Hapus Highlight"
+              className={`p-1.5 rounded-l-lg transition cursor-pointer flex items-center gap-1 text-xs ${
+                isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
               }`}
             >
-              {[
-                { label: "Default", color: isDark ? "#ffffff" : "#09090b" },
-                { label: "Muted", color: "#a1a1aa" },
-                { label: "Zinc Dark", color: "#52525b" },
-                { label: "Soft White", color: "#e4e4e7" },
-              ].map((c) => (
-                <button
-                  key={c.label}
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    applyTextColor(c.color);
-                  }}
-                  className="w-5 h-5 rounded-full border border-black/20 dark:border-white/20 transition hover:scale-110 cursor-pointer"
-                  style={{ backgroundColor: c.color }}
-                  title={c.label}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+              <Highlighter className="w-4 h-4" />
+              <span className="text-[11px] font-semibold hidden md:inline">Stabilo</span>
+            </button>
 
-        {/* Highlight Teks (Palet Tema Web Monokromatik) */}
-        <div className="relative px-1 shrink-0">
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              saveSelection();
-            }}
-            onClick={() => {
-              setShowHighlightDropdown((prev) => !prev);
-              setShowColorDropdown(false);
-            }}
-            title="Highlight Teks"
-            className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs ${
-              isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
-            }`}
-          >
-            <Highlighter className="w-4 h-4" />
-            <ChevronDown className="w-3 h-3 opacity-60" />
-          </button>
+            {/* Tombol Dropdown Opsi Warna Stabilo & Hapus */}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => setShowHighlightDropdown((prev) => !prev)}
+              title="Pilihan Warna Stabilo"
+              className={`p-1.5 rounded-r-lg transition cursor-pointer ${
+                isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-200 hover:text-black"
+              }`}
+            >
+              <ChevronDown className="w-3 h-3 opacity-60" />
+            </button>
+          </div>
 
           {showHighlightDropdown && (
             <div
-              className={`absolute top-full mt-1.5 left-0 p-2 rounded-xl border shadow-xl z-50 flex items-center gap-1.5 ${
+              className={`absolute top-full mt-1.5 left-0 p-2 rounded-xl border shadow-xl z-50 flex items-center gap-2 ${
                 isDark ? "bg-[#18181b] border-zinc-700 text-white" : "bg-white border-zinc-200 text-black"
               }`}
             >
               {[
-                { label: "Hapus", color: "transparent" },
-                { label: "Subtle Dark", color: "rgba(255, 255, 255, 0.15)" },
-                { label: "Subtle Gray", color: "rgba(161, 161, 170, 0.25)" },
-                { label: "Subtle Light", color: "rgba(0, 0, 0, 0.10)" },
+                { label: "Hapus Stabilo", color: "transparent" },
+                { label: isDark ? "Zinc Gelap" : "Zinc Terang", color: isDark ? "#3f3f46" : "#e4e4e7" },
+                { label: "Zinc Sedang", color: isDark ? "#52525b" : "#d4d4d8" },
+                { label: isDark ? "Zinc Terang" : "Zinc Gelap", color: isDark ? "#71717a" : "#a1a1aa" },
               ].map((h) => (
                 <button
                   key={h.label}
@@ -1459,11 +1554,16 @@ export function NotebookWorkspace({
                     e.preventDefault();
                     applyHighlight(h.color);
                   }}
-                  className="w-5 h-5 rounded-md border border-zinc-400 dark:border-zinc-600 transition hover:scale-110 cursor-pointer text-[9px] flex items-center justify-center"
-                  style={{ backgroundColor: h.color }}
+                  className={`w-6 h-6 rounded-md border transition hover:scale-110 cursor-pointer text-[10px] flex items-center justify-center font-bold ${
+                    isDark ? "border-zinc-600" : "border-zinc-300"
+                  }`}
+                  style={{
+                    backgroundColor: h.color === "transparent" ? undefined : h.color,
+                    color: isDark ? "#ffffff" : "#09090b"
+                  }}
                   title={h.label}
                 >
-                  {h.color === "transparent" && "✕"}
+                  {h.color === "transparent" ? "✕" : ""}
                 </button>
               ))}
             </div>

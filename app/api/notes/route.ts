@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const isPinned = Boolean(body.isPinned);
 
     const now = new Date().toISOString();
-    const noteId = crypto.randomUUID();
+    const noteId = typeof body.id === "string" && body.id.trim() ? body.id.trim() : crypto.randomUUID();
 
     const newNote: UserNote = {
       id: noteId,
