@@ -2,7 +2,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSpotifyToken } from "@/lib/spotifyServer";
+import {
+  getSpotifyTokenWithMetadata,
+  markSpotifyKeyRateLimited,
+} from "@/lib/spotifyServer";
 import {
   mapSpotifyTrack,
   mapSpotifyArtist,
@@ -10,32 +13,43 @@ import {
   mapSpotifyPlaylist,
 } from "@/lib/music";
 
+// ─── Server-Side Search Cache ────────────────────────────────────────────────
+// Mencegah pemborosan kuota API Spotify untuk pencarian berulang dan lagu trending.
+interface CacheEntry {
+  data: {
+    tracks: any[];
+    artists: any[];
+    albums: any[];
+    playlists: any[];
+  };
+  expiresAt: number;
+}
+
+const searchCache = new Map<string, CacheEntry>();
+
+function cleanExpiredCache() {
+  const now = Date.now();
+  for (const [key, entry] of searchCache.entries()) {
+    if (entry.expiresAt <= now) {
+      searchCache.delete(key);
+    }
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
+    cleanExpiredCache();
+
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
     const type = searchParams.get("type") || "track,artist,album,playlist";
     const category = searchParams.get("category")?.trim() || "";
     const requestedLimit = Math.min(Math.max(Number(searchParams.get("limit")) || 30, 5), 50);
 
-    const token = await getSpotifyToken();
-
-    if (!token) {
-      return NextResponse.json({
-        success: false,
-        configured: false,
-        error: "Spotify API belum dikonfigurasi. Tambahkan SPOTIFY_CLIENT_ID dan SPOTIFY_CLIENT_SECRET di file .env.local",
-        data: {
-          tracks: [],
-          artists: [],
-          albums: [],
-          playlists: [],
-        },
-      });
-    }
-
-    // Default search query if empty, or map based on category
+    // Tentukan query yang efektif
     let effectiveQuery = query;
+    let isDefaultPool = false;
+
     if (!effectiveQuery) {
       if (category === "indonesia") {
         effectiveQuery = "Bernadya OR Hindia OR Nadin Amizah OR Sal Priadi OR Juicy Luicy OR Mahalini OR Tulus";
@@ -50,49 +64,107 @@ export async function GET(req: NextRequest) {
       } else if (category === "rock") {
         effectiveQuery = "Queen OR Coldplay OR Arctic Monkeys rock alternative";
       } else {
-        const TRENDING_POOLS = [
-          "Bernadya OR Hindia OR Bruno Mars OR Billie Eilish OR Lady Gaga",
-          "Sabrina Carpenter OR Taylor Swift OR Coldplay OR The Weeknd OR Dua Lipa",
-          "Nadin Amizah OR Sal Priadi OR Juicy Luicy OR Mahalini OR Tiara Andini",
-          "Die With A Smile OR APT. OR Birds of a feather OR Satu Bulan OR Espresso",
-        ];
-        effectiveQuery = TRENDING_POOLS[Math.floor(Math.random() * TRENDING_POOLS.length)];
+        effectiveQuery = "Bernadya OR Bruno Mars OR Billie Eilish OR Lady Gaga OR Sabrina Carpenter OR Coldplay";
+        isDefaultPool = true;
       }
     }
 
-    // Spotify developer tier strictly caps single request limit to maximum 10.
-    // To satisfy requestedLimit (e.g. 30, 40, or 50), fetch pages of 10 concurrently.
-    const PAGE_SIZE = 10;
-    const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 5); // Max 50 items
+    const cacheKey = `${effectiveQuery.toLowerCase()}_${type}_${requestedLimit}_${category}`;
 
-    const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
-      const offset = pageIdx * PAGE_SIZE;
-      const spotifyUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-        effectiveQuery
-      )}&type=${encodeURIComponent(type)}&limit=${PAGE_SIZE}&offset=${offset}&market=ID`;
+    // Cek in-memory cache
+    const cachedResult = searchCache.get(cacheKey);
+    if (cachedResult && Date.now() < cachedResult.expiresAt && cachedResult.data.tracks.length > 0) {
+      return NextResponse.json({
+        success: true,
+        configured: true,
+        cached: true,
+        query: effectiveQuery,
+        data: cachedResult.data,
+      });
+    }
 
-      try {
-        const res = await fetch(spotifyUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          next: { revalidate: 3600 },
+    // Ambil token Spotify (otomatis memilih key yang tidak terkena rate-limit)
+    let meta = await getSpotifyTokenWithMetadata();
+
+    if (!meta) {
+      // Jika token tidak ada sama sekali atau semua key terkena rate-limit tapi ada cache lama, gunakan cache lama
+      if (cachedResult && cachedResult.data.tracks.length > 0) {
+        return NextResponse.json({
+          success: true,
+          configured: true,
+          cached: true,
+          rateLimited: true,
+          query: effectiveQuery,
+          data: cachedResult.data,
         });
+      }
 
-        if (!res.ok) {
-          const errBody = await res.text();
-          console.warn(`[music/search] Spotify page ${pageIdx} returned ${res.status}:`, errBody);
+      return NextResponse.json({
+        success: false,
+        configured: false,
+        error: "Spotify API belum dikonfigurasi atau seluruh API Key sedang mencapai batas kuota (Rate Limit). Tambahkan SPOTIFY_CLIENT_ID_BACKUP di .env.local",
+        data: { tracks: [], artists: [], albums: [], playlists: [] },
+      });
+    }
+
+    // Fungsi pembantu untuk melakukan request pencarian dengan token tertentu
+    async function executeSearch(token: string, clientId: string) {
+      const PAGE_SIZE = 10;
+      const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 3); // Cukup 3 halaman (30 item) untuk hemat kuota
+
+      const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
+        const offset = pageIdx * PAGE_SIZE;
+        const spotifyUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+          effectiveQuery
+        )}&type=${encodeURIComponent(type)}&limit=${PAGE_SIZE}&offset=${offset}&market=ID`;
+
+        try {
+          const res = await fetch(spotifyUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+            next: { revalidate: 3600 },
+          });
+
+          if (!res.ok) {
+            const errBody = await res.text();
+            let retryAfter = Number(res.headers.get("retry-after")) || 3600;
+
+            if (res.status === 429) {
+              console.warn(`[music/search] Spotify 429 (QUOTA_EXCEEDED) pada key ${clientId.slice(0, 6)}...:`, errBody);
+              markSpotifyKeyRateLimited(clientId, retryAfter);
+              return { status: 429, retryAfter };
+            }
+
+            console.warn(`[music/search] Spotify page ${pageIdx} returned ${res.status}:`, errBody);
+            return null;
+          }
+
+          return await res.json();
+        } catch (err) {
+          console.error(`[music/search] Page ${pageIdx} fetch failed:`, err);
           return null;
         }
+      });
 
-        return await res.json();
-      } catch (err) {
-        console.error(`[music/search] Page ${pageIdx} fetch failed:`, err);
-        return null;
+      return await Promise.all(pagePromises);
+    }
+
+    // Eksekusi pencarian
+    let pageResults = await executeSearch(meta.token, meta.clientId);
+
+    // Jika terjadi 429 (Rate Limit), coba otomatis switch ke Key Cadangan
+    const has429 = pageResults.some((r: any) => r && r.status === 429);
+    if (has429) {
+      console.log(`[music/search] Mencoba auto-fallback ke API Key berikutnya...`);
+      const backupMeta = await getSpotifyTokenWithMetadata(meta.clientId);
+
+      if (backupMeta && backupMeta.clientId !== meta.clientId) {
+        console.log(`[music/search] Berhasil switch ke ${backupMeta.keyName} (${backupMeta.clientId.slice(0, 6)}...)`);
+        meta = backupMeta;
+        pageResults = await executeSearch(backupMeta.token, backupMeta.clientId);
+      } else {
+        console.warn(`[music/search] Tidak ada key cadangan aktif yang tersedia.`);
       }
-    });
-
-    const pageResults = await Promise.all(pagePromises);
+    }
 
     const rawTracks: any[] = [];
     const rawArtists: any[] = [];
@@ -100,14 +172,14 @@ export async function GET(req: NextRequest) {
     const rawPlaylists: any[] = [];
 
     for (const json of pageResults) {
-      if (!json) continue;
+      if (!json || json.status === 429) continue;
       if (json.tracks?.items) rawTracks.push(...json.tracks.items);
       if (json.artists?.items) rawArtists.push(...json.artists.items);
       if (json.albums?.items) rawAlbums.push(...json.albums.items);
       if (json.playlists?.items) rawPlaylists.push(...json.playlists.items.filter(Boolean));
     }
 
-    // Deduplicate tracks by id and prioritize top popularity so trending hits come first
+    // Deduplicate tracks
     const seenTracks = new Set<string>();
     const tracks = rawTracks
       .filter((t) => {
@@ -119,7 +191,7 @@ export async function GET(req: NextRequest) {
       .slice(0, requestedLimit)
       .map(mapSpotifyTrack);
 
-    // Deduplicate artists by id
+    // Deduplicate artists
     const seenArtists = new Set<string>();
     const artists = rawArtists
       .filter((a) => {
@@ -130,7 +202,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 15)
       .map(mapSpotifyArtist);
 
-    // Deduplicate albums by id
+    // Deduplicate albums
     const seenAlbums = new Set<string>();
     const albums = rawAlbums
       .filter((al) => {
@@ -141,7 +213,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 15)
       .map(mapSpotifyAlbum);
 
-    // Deduplicate playlists by id
+    // Deduplicate playlists
     const seenPlaylists = new Set<string>();
     const playlists = rawPlaylists
       .filter((p) => {
@@ -152,16 +224,25 @@ export async function GET(req: NextRequest) {
       .slice(0, 15)
       .map(mapSpotifyPlaylist);
 
+    const resultData = { tracks, artists, albums, playlists };
+
+    // Simpan ke cache jika menghasilkan lagu
+    if (tracks.length > 0) {
+      // Kategori trending disimpan selama 1 jam, pencarian spesifik disimpan 30 menit
+      const ttlMs = isDefaultPool || category ? 60 * 60 * 1000 : 30 * 60 * 1000;
+      searchCache.set(cacheKey, {
+        data: resultData,
+        expiresAt: Date.now() + ttlMs,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       configured: true,
+      cached: false,
       query: effectiveQuery,
-      data: {
-        tracks,
-        artists,
-        albums,
-        playlists,
-      },
+      activeKey: meta.keyName,
+      data: resultData,
     });
   } catch (err: any) {
     console.error("[music/search] Exception:", err);
