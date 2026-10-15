@@ -1,0 +1,48 @@
+import { ReadingPlan } from '@/types/database';
+
+export const READING_PLANS: ReadingPlan[] = [
+  {
+    id: 'gospel-starter',
+    title: 'Gospel Starter — 7 Days',
+    description: 'Mengenal kehidupan, ajaran, dan karya Yesus Kristus melalui bacaan terpilih dari Injil Matius.',
+    totalDays: 7,
+    days: [
+      { day: 1, passage: 'Matius 1–2', description: 'Kelahiran Sang Juruselamat dan penggenapan nubuat nabi-nabi.' },
+      { day: 2, passage: 'Matius 3–4', description: 'Baptisan Yesus dan kemenangan-Nya dalam menghadapi pencobaan.' },
+      { day: 3, passage: 'Matius 5–6', description: 'Khotbah di Bukit: Berbahagialah orang yang miskin di hadapan Allah.' },
+      { day: 4, passage: 'Matius 7–8', description: 'Membangun di atas batu karang & mukjizat kesembuhan ilahi.' },
+      { day: 5, passage: 'Matius 9–10', description: 'Belas kasihan Yesus terhadap orang yang lelah dan terlantar.' },
+      { day: 6, passage: 'Matius 11–12', description: 'Kelegaan bagi orang yang letih lesu dan berbeban berat.' },
+      { day: 7, passage: 'Matius 13–14', description: 'Perumpamaan tentang Kerajaan Sorga & Yesus berjalan di atas air.' },
+    ],
+  },
+  {
+    id: 'john-21',
+    title: 'Injil Yohanes — 21 Days',
+    description: 'Perjalanan 21 hari mendalami kasih karunia dan jati diri Yesus sebagai Anak Allah yang memberi hidup sejati.',
+    totalDays: 21,
+    days: [
+      { day: 1, passage: 'Yohanes 1', description: 'Pada mulanya adalah Firman; Firman itu bersama-sama dengan Allah.' },
+      { day: 2, passage: 'Yohanes 2', description: 'Mukjizat pertama di Kana dan pembersihan Bait Suci.' },
+      { day: 3, passage: 'Yohanes 3', description: 'Kelahiran kembali & Karena begitu besar kasih Allah akan dunia ini.' },
+      { day: 4, passage: 'Yohanes 4', description: 'Perjumpaan di sumur Yakub dengan perempuan Samaria: Air Hidup.' },
+      { day: 5, passage: 'Yohanes 5', description: 'Penyembuhan di kolam Betesda & Kesaksian tentang Anak Allah.' },
+      { day: 6, passage: 'Yohanes 6', description: 'Roti Hidup yang turun dari sorga.' },
+      { day: 7, passage: 'Yohanes 7', description: 'Aliran-aliran air hidup dari dalam hati orang percaya.' },
+      { day: 8, passage: 'Yohanes 8', description: 'Terang Dunia & Kebenaran yang memerdekakan kamu.' },
+      { day: 9, passage: 'Yohanes 9', description: 'Yesus menyembuhkan orang yang buta sejak lahir.' },
+      { day: 10, passage: 'Yohanes 10', description: 'Gembala yang baik yang memberikan nyawanya bagi domba-dombanya.' },
+      { day: 11, passage: 'Yohanes 11', description: 'Kebangkitan Lazarus: Akulah kebangkitan dan hidup.' },
+      { day: 12, passage: 'Yohanes 12', description: 'Minyak wangi Maria dan Yesus dieluk-elukan di Yerusalem.' },
+      { day: 13, passage: 'Yohanes 13', description: 'Yesus membasuh kaki para murid & perintah baru saling mengasihi.' },
+      { day: 14, passage: 'Yohanes 14', description: 'Akulah jalan dan kebenaran dan hidup; Janji Roh Kudus.' },
+      { day: 15, passage: 'Yohanes 15', description: 'Pokok Anggur yang benar: Tinggallah di dalam Aku.' },
+      { day: 16, passage: 'Yohanes 16', description: 'Pekerjaan Roh Kudus dan dukacita yang berubah menjadi sukacita.' },
+      { day: 17, passage: 'Yohanes 17', description: 'Doa Yesus bagi semua orang percaya agar menjadi satu.' },
+      { day: 18, passage: 'Yohanes 18', description: 'Yesus ditangkap dan diadili di hadapan Pilatus.' },
+      { day: 19, passage: 'Yohanes 19', description: 'Penyaliban dan pengorbanan Yesus di Golgota: Sudah selesai.' },
+      { day: 20, passage: 'Yohanes 20', description: 'Kubur yang kosong dan penampakan kepada Maria & Tomas.' },
+      { day: 21, passage: 'Yohanes 21', description: 'Sarapan di pantai Tiberias: Gembalakanlah domba-domba-Ku.' },
+    ],
+  },
+];
