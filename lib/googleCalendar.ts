@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./supabase";
-import { parseScheduleDateTime, ScheduleItem, ScheduleRecurrence } from "./schedules";
+import { getTimezoneOffset, parseScheduleDateTime, ScheduleItem, ScheduleRecurrence } from "./schedules";
 
 // ─── Kredensial & Konfigurasi Google OAuth ───────────────────────────────────
 export function getGoogleConfig() {
@@ -333,6 +333,27 @@ export async function disconnectGoogleCalendar(userId: string): Promise<boolean>
 }
 
 // ─── Format Tanggal & Waktu ISO untuk Google Calendar ────────────────────────
+function formatDateTimeInTimezone(date: Date, timezone: string, offset: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(date).map((p) => [p.type, p.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`;
+  } catch {
+    return date.toISOString();
+  }
+}
+
 export function buildGoogleEventDateTime(
   dateStr: string,
   timeStr: string,
@@ -341,45 +362,10 @@ export function buildGoogleEventDateTime(
 ) {
   const start = parseScheduleDateTime(dateStr, timeStr, timezone);
   const end = new Date(start.getTime() + (durationMinutes || 60) * 60 * 1000);
+  const offset = getTimezoneOffset(timezone);
 
-  // Ambil offset yang tepat
-  let offset = "+07:00";
-  if (timezone === "Asia/Makassar" || timezone === "Asia/Ujung_Pandang") {
-    offset = "+08:00";
-  } else if (timezone === "Asia/Jayapura") {
-    offset = "+09:00";
-  } else {
-    try {
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        timeZoneName: "longOffset",
-      });
-      const parts = formatter.formatToParts(new Date());
-      const tzPart = parts.find((p) => p.type === "timeZoneName");
-      if (tzPart && tzPart.value.startsWith("GMT")) {
-        let raw = tzPart.value.replace("GMT", "");
-        if (raw === "") raw = "+00:00";
-        const m = raw.match(/([+-])(\d{1,2})(?::(\d{2}))?/);
-        if (m) {
-          offset = `${m[1]}${m[2].padStart(2, "0")}:${m[3] ? m[3].padStart(2, "0") : "00"}`;
-        }
-      }
-    } catch {
-      offset = "+07:00";
-    }
-  }
-
-  const [sh, sm] = (timeStr || "09:00").split(":");
-  const pad = (n: number | string) => String(n).padStart(2, "0");
-  const startIso = `${dateStr}T${pad(sh)}:${pad(sm)}:00${offset}`;
-
-  // Hitung tanggal selesai (bisa berganti hari jika durasi melewati tengah malam)
-  const ey = end.getFullYear();
-  const em = pad(end.getMonth() + 1);
-  const ed = pad(end.getDate());
-  const eh = pad(end.getHours());
-  const emin = pad(end.getMinutes());
-  const endIso = `${ey}-${em}-${ed}T${eh}:${emin}:00${offset}`;
+  const startIso = formatDateTimeInTimezone(start, timezone, offset);
+  const endIso = formatDateTimeInTimezone(end, timezone, offset);
 
   return { startIso, endIso };
 }

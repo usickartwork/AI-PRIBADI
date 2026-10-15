@@ -122,6 +122,40 @@ export function formatReminderText(minutes: number): string {
 }
 
 /**
+ * Ambil offset timezone (e.g. "+07:00", "+08:00", "+09:00")
+ */
+export function getTimezoneOffset(timezone: string = "Asia/Jakarta"): string {
+  if (timezone === "Asia/Makassar" || timezone === "Asia/Ujung_Pandang") {
+    return "+08:00";
+  }
+  if (timezone === "Asia/Jayapura") {
+    return "+09:00";
+  }
+  if (timezone === "Asia/Jakarta") {
+    return "+07:00";
+  }
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "longOffset",
+    });
+    const parts = formatter.formatToParts(new Date());
+    const tzPart = parts.find((p) => p.type === "timeZoneName");
+    if (tzPart && tzPart.value.startsWith("GMT")) {
+      let raw = tzPart.value.replace("GMT", "");
+      if (raw === "") return "+00:00";
+      const m = raw.match(/([+-])(\d{1,2})(?::(\d{2}))?/);
+      if (m) {
+        return `${m[1]}${m[2].padStart(2, "0")}:${m[3] ? m[3].padStart(2, "0") : "00"}`;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return "+07:00";
+}
+
+/**
  * Konversi tanggal (YYYY-MM-DD) dan jam (HH:mm) dengan timezone (e.g. Asia/Jakarta)
  * menjadi Date object UTC yang presisi, bebas dari perbedaan timezone runtime server.
  */
@@ -130,32 +164,7 @@ export function parseScheduleDateTime(
   timeStr: string,
   timezone: string = "Asia/Jakarta"
 ): Date {
-  let offset = "+07:00";
-  if (timezone === "Asia/Makassar" || timezone === "Asia/Ujung_Pandang") {
-    offset = "+08:00";
-  } else if (timezone === "Asia/Jayapura") {
-    offset = "+09:00";
-  } else {
-    try {
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        timeZoneName: "longOffset",
-      });
-      const parts = formatter.formatToParts(new Date());
-      const tzPart = parts.find((p) => p.type === "timeZoneName");
-      if (tzPart && tzPart.value.startsWith("GMT")) {
-        let raw = tzPart.value.replace("GMT", "");
-        if (raw === "") raw = "+00:00";
-        const m = raw.match(/([+-])(\d{1,2})(?::(\d{2}))?/);
-        if (m) {
-          offset = `${m[1]}${m[2].padStart(2, "0")}:${m[3] ? m[3].padStart(2, "0") : "00"}`;
-        }
-      }
-    } catch {
-      offset = "+07:00";
-    }
-  }
-
+  const offset = getTimezoneOffset(timezone);
   const [h, m] = (timeStr || "09:00").split(":");
   const paddedTime = `${(h || "09").padStart(2, "0")}:${(m || "00").padStart(2, "0")}:00`;
   const isoWithTz = `${dateStr}T${paddedTime}${offset}`;
