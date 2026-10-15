@@ -325,6 +325,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
 
+  // Interactive Continuous Scrubber State
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const scrubTimeRef = useRef<number | null>(null);
+  const isScrubbingRef = useRef(false);
+
+  // Mobile Full Player Swipe Gestures & Ref
+  const mobilePlayerRef = useRef<HTMLDivElement>(null);
+  const isClosingMobilePlayerRef = useRef(false);
+  const touchStartYRef = useRef(0);
+  const touchStartXRef = useRef(0);
+  const touchStartTimeRef = useRef(0);
+  const isTrackingTouchRef = useRef(false);
+  const isDraggingDownRef = useRef(false);
+  const animFrameIdRef = useRef<number | null>(null);
+
   // YouTube Full Song Streaming Refs
   const ytPlayerRef = useRef<any>(null);
   const isYtReadyRef = useRef<boolean>(false);
@@ -955,6 +971,190 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       try {
         ytPlayerRef.current.seekTo(newTime, true);
       } catch {}
+    }
+  };
+
+  // Continuous Pointer Dragging Logic for Scrubber with Zero Latency & Visible Circle Handle
+  const calcScrubTime = useCallback(
+    (clientX: number, rect: DOMRect) => {
+      const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const targetTime = pct * Math.max(duration, 1);
+      return { pct, targetTime };
+    },
+    [duration]
+  );
+
+  const handleScrubberPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { targetTime } = calcScrubTime(e.clientX, rect);
+    isScrubbingRef.current = true;
+    scrubTimeRef.current = targetTime;
+    setIsScrubbing(true);
+    setScrubTime(targetTime);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleScrubberPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { targetTime } = calcScrubTime(e.clientX, rect);
+    scrubTimeRef.current = targetTime;
+    setScrubTime(targetTime);
+  };
+
+  const handleScrubberPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const finalTime = scrubTimeRef.current ?? currentTime;
+    isScrubbingRef.current = false;
+    scrubTimeRef.current = null;
+    setIsScrubbing(false);
+    setScrubTime(null);
+    handleSeek(finalTime);
+  };
+
+  const handleScrubberPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbingRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    isScrubbingRef.current = false;
+    scrubTimeRef.current = null;
+    setIsScrubbing(false);
+    setScrubTime(null);
+  };
+
+  // Smooth Mobile Full-Screen Player Dismissal (Animated Slide Down)
+  const closeMobilePlayerAnimated = useCallback(() => {
+    if (isClosingMobilePlayerRef.current) return;
+    const el = mobilePlayerRef.current;
+    if (!el) {
+      setShowMobilePlayer(false);
+      return;
+    }
+    isClosingMobilePlayerRef.current = true;
+    const animDuration = 240;
+    el.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
+    el.style.transform = "translateY(100%)";
+    el.style.opacity = "0";
+    setTimeout(() => {
+      setShowMobilePlayer(false);
+      isClosingMobilePlayerRef.current = false;
+      if (el) {
+        el.style.transition = "";
+        el.style.transform = "";
+        el.style.opacity = "";
+      }
+    }, animDuration);
+  }, []);
+
+  // 1:1 Direct Finger Tracking Slide-Down to Dismiss Controller
+  const handleMobilePlayerTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 1) {
+      isTrackingTouchRef.current = false;
+      return;
+    }
+
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("[data-scrubber='true'], input, textarea")) {
+      isTrackingTouchRef.current = false;
+      return;
+    }
+
+    if (mobilePlayerMode === "lyrics" && mobileLyricsContainerRef.current) {
+      if (mobileLyricsContainerRef.current.scrollTop > 5) {
+        isTrackingTouchRef.current = false;
+        return;
+      }
+    }
+
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartTimeRef.current = Date.now();
+    isTrackingTouchRef.current = true;
+    isDraggingDownRef.current = false;
+  };
+
+  const handleMobilePlayerTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isTrackingTouchRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - touchStartYRef.current;
+    const deltaX = Math.abs(touch.clientX - touchStartXRef.current);
+
+    if (!isDraggingDownRef.current) {
+      if (deltaY < 0 || deltaX > deltaY) {
+        isTrackingTouchRef.current = false;
+        return;
+      }
+      if (deltaY > 8) {
+        isDraggingDownRef.current = true;
+      }
+    }
+
+    if (isDraggingDownRef.current) {
+      const el = mobilePlayerRef.current;
+      if (el) {
+        if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = requestAnimationFrame(() => {
+          if (!el) return;
+          el.style.transition = "none";
+          el.style.transform = `translateY(${Math.max(0, deltaY)}px)`;
+          const windowH = typeof window !== "undefined" ? window.innerHeight : 800;
+          const opacity = Math.max(0.4, 1 - (deltaY / (windowH * 0.85)));
+          el.style.opacity = String(opacity);
+        });
+      }
+    }
+  };
+
+  const handleMobilePlayerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isTrackingTouchRef.current || !isDraggingDownRef.current) {
+      isTrackingTouchRef.current = false;
+      isDraggingDownRef.current = false;
+      return;
+    }
+    isTrackingTouchRef.current = false;
+    isDraggingDownRef.current = false;
+
+    if (animFrameIdRef.current) {
+      cancelAnimationFrame(animFrameIdRef.current);
+      animFrameIdRef.current = null;
+    }
+
+    const touch = e.changedTouches[0];
+    const deltaY = touch.clientY - touchStartYRef.current;
+    const durationMs = Math.max(1, Date.now() - touchStartTimeRef.current);
+    const velocityY = deltaY / durationMs;
+
+    // Threshold: if dragged > 100px or flicked down with velocity > 0.3
+    if (deltaY > 100 || velocityY > 0.3) {
+      closeMobilePlayerAnimated();
+    } else {
+      const el = mobilePlayerRef.current;
+      if (el) {
+        const animDuration = 220;
+        el.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
+        el.style.transform = "translateY(0px)";
+        el.style.opacity = "1";
+        setTimeout(() => {
+          if (el) {
+            el.style.transition = "";
+            el.style.transform = "";
+            el.style.opacity = "";
+          }
+        }, animDuration + 20);
+      }
     }
   };
 
@@ -2200,7 +2400,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
       <main
         className={`flex-1 flex flex-col min-h-0 overflow-y-auto bg-transparent ${
-          currentTrack ? "pb-28 sm:pb-24" : "pb-4"
+          searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
+            ? "pb-8 sm:pb-10"
+            : "pb-0"
         }`}
       >
         {showLyrics ? (
@@ -2409,7 +2611,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div
               className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
                 !searchQuery.trim()
-                  ? "justify-center items-center my-auto min-h-0 -translate-y-1 sm:-translate-y-2"
+                  ? "justify-center items-center my-auto min-h-0"
                   : "pt-2"
               }`}
             >
@@ -2816,14 +3018,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         )}
       </main>
 
-      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Premium Translucent Glass Finish) ─────── */}
       {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Only rendered when a track is active) ─── */}
       {currentTrack && (
         <footer
-          className={`shrink-0 z-30 transition-all relative backdrop-blur-2xl border-t ${
+          className={`shrink-0 z-30 transition-all relative border-t ${
             isDark
-              ? "bg-[#121215]/65 border-white/[0.08] text-white shadow-[0_-12px_36px_rgba(0,0,0,0.45)]"
-              : "bg-[#fafafc]/75 border-black/[0.06] text-zinc-900 shadow-[0_-12px_36px_rgba(0,0,0,0.04)]"
+              ? "bg-[#121215] border-white/10 text-white"
+              : "bg-[#fafafc] border-black/10 text-zinc-900"
           } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
         >
           {/* ─── MOBILE VIEW (< sm): Sleek, Larger Bar (Click to expand, Heart + Play on right) ─ */}
@@ -3220,15 +3421,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       {/* ─── SPOTIFY-STYLE MOBILE FULL-SCREEN MUSIC PLAYER ───────────────────── */}
       {showMobilePlayer && currentTrack && (
         <div
+          ref={mobilePlayerRef}
+          onTouchStart={handleMobilePlayerTouchStart}
+          onTouchMove={handleMobilePlayerTouchMove}
+          onTouchEnd={handleMobilePlayerTouchEnd}
+          onTouchCancel={handleMobilePlayerTouchEnd}
           className={`fixed inset-0 z-50 sm:hidden flex flex-col transition-all duration-300 animate-in slide-in-from-bottom ${
-            isDark ? "bg-[#0c0c0e] text-white" : "bg-[#f8f8fa] text-zinc-900"
+            isDark ? "bg-[#121215] text-white" : "bg-[#fafafc] text-zinc-900"
           }`}
         >
+          {/* Pull-down indicator bar handle for intuitive swipe dismissal */}
+          <div className="w-10 h-1 rounded-full bg-zinc-500/30 mx-auto mt-2 -mb-0.5 shrink-0 select-none" />
+
           {/* Top Bar: Close Chevron, Title/Context, Options */}
-          <div className="flex items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 shrink-0">
+          <div className="flex items-center justify-between px-5 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 shrink-0">
             <button
               type="button"
-              onClick={() => setShowMobilePlayer(false)}
+              onClick={closeMobilePlayerAnimated}
               className={`p-2 -ml-2 rounded-full transition cursor-pointer active:scale-90 ${
                 isDark ? "text-zinc-300 hover:text-white" : "text-zinc-600 hover:text-black"
               }`}
@@ -3272,7 +3481,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               /* Synchronized Lyrics Container inside Mobile Player */
               <div
                 className={`flex-1 min-h-0 flex flex-col relative rounded-3xl border p-4 overflow-hidden ${
-                  isDark ? "bg-zinc-900/60 border-white/5" : "bg-white/80 border-black/5"
+                  isDark ? "bg-white/[0.04] border-white/10" : "bg-black/[0.03] border-black/10"
                 }`}
               >
                 <div className={`flex items-center justify-between pb-2 mb-2 border-b shrink-0 ${isDark ? "border-white/10" : "border-black/10"}`}>
@@ -3345,10 +3554,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               /* Artwork View */
               <div className="w-full flex items-center justify-center py-2">
                 <div
-                  className={`w-full max-w-[320px] aspect-square rounded-3xl overflow-hidden relative mx-auto border shadow-2xl ${
+                  className={`w-full max-w-[320px] aspect-square rounded-3xl overflow-hidden relative mx-auto border shadow-xl ${
                     isDark
-                      ? "bg-zinc-900 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
-                      : "bg-zinc-200 border-black/10 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
+                      ? "bg-zinc-900 border-white/10 shadow-black/40"
+                      : "bg-zinc-100 border-black/10 shadow-zinc-900/10"
                   }`}
                 >
                   {currentTrack.artworkUrl ? (
@@ -3417,29 +3626,54 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Progress Scrubber */}
-            <div className="space-y-1.5 pt-1">
-              <div
-                className={`w-full h-1.5 rounded-full cursor-pointer relative overflow-hidden ${
-                  isDark ? "bg-white/20" : "bg-black/15"
-                }`}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                  handleSeek(pct * duration);
-                }}
-              >
-                <div
-                  className={`h-full rounded-full transition-all ${isDark ? "bg-white" : "bg-black"}`}
-                  style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
-                />
-              </div>
+            {/* Progress Scrubber with Circle Handle and Continuous Touch Drag */}
+            {(() => {
+              const displayPlaybackTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
+              const displayProgressPct = Math.max(0, Math.min(1, displayPlaybackTime / Math.max(duration, 1)));
+              return (
+                <div className="space-y-1.5 pt-1 select-none">
+                  <div
+                    data-scrubber="true"
+                    onPointerDown={handleScrubberPointerDown}
+                    onPointerMove={handleScrubberPointerMove}
+                    onPointerUp={handleScrubberPointerUp}
+                    onPointerCancel={handleScrubberPointerCancel}
+                    className="w-full py-2.5 cursor-pointer relative flex items-center select-none touch-none group"
+                  >
+                    {/* Background Track Bar */}
+                    <div
+                      className={`w-full h-1.5 sm:h-2 rounded-full relative overflow-visible ${
+                        isDark ? "bg-white/20" : "bg-black/15"
+                      }`}
+                    >
+                      {/* Active Progress Fill */}
+                      <div
+                        className={`h-full rounded-full transition-[width] ${isScrubbing ? "duration-0" : "duration-75"} ${
+                          isDark ? "bg-white" : "bg-zinc-950"
+                        }`}
+                        style={{ width: `${displayProgressPct * 100}%` }}
+                      />
+                      {/* Draggable Circle (Lingkaran Thumb) */}
+                      <div
+                        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4.5 h-4.5 rounded-full shadow-md transition-transform pointer-events-none ${
+                          isScrubbing ? "scale-125 ring-2 ring-white/50" : "scale-100 group-hover:scale-110"
+                        } ${
+                          isDark
+                            ? "bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.45)]"
+                            : "bg-zinc-900 text-white shadow-[0_0_10px_rgba(0,0,0,0.35)]"
+                        }`}
+                        style={{ left: `${displayProgressPct * 100}%` }}
+                      />
+                    </div>
+                  </div>
 
-              <div className={`flex items-center justify-between text-[11px] font-mono ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                <span>{formatPlaybackTime(currentTime)}</span>
-                <span>{formatRemainingPlaybackTime(currentTime, duration)}</span>
-              </div>
-            </div>
+                  <div className={`flex items-center justify-between text-[11px] font-mono ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                    <span>{formatPlaybackTime(displayPlaybackTime)}</span>
+                    <span>{formatRemainingPlaybackTime(displayPlaybackTime, duration)}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Main Playback Control Row */}
             <div className="flex items-center justify-between pt-1">
@@ -3537,88 +3771,53 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Dedicated Bottom Lyrics Button / Section (Khusus Mobile) */}
-            <div className="pt-1">
+            {/* Bottom Utility Row (Lyrics Toggle in place of Share, Share removed, Queue preserved) */}
+            <div className={`flex items-center justify-between pt-1 px-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              {/* Lyrics Toggle Button (Pindah ke posisi tombol Bagikan) */}
               <button
                 type="button"
                 onClick={() => setMobilePlayerMode((prev) => (prev === "lyrics" ? "track" : "lyrics"))}
-                className={`w-full py-3 px-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between shadow-md active:scale-98 ${
+                className={`flex items-center gap-2 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium ${
                   mobilePlayerMode === "lyrics"
                     ? isDark
-                      ? "bg-white text-black border-white"
-                      : "bg-black text-white border-black"
+                      ? "bg-white text-black font-bold shadow-sm"
+                      : "bg-black text-white font-bold shadow-sm"
                     : isDark
-                    ? "bg-zinc-900/90 hover:bg-zinc-800 border-white/10 text-zinc-200"
-                    : "bg-white/90 hover:bg-zinc-100 border-black/10 text-zinc-800"
+                    ? "hover:text-white hover:bg-white/5 text-zinc-300"
+                    : "hover:text-black hover:bg-black/5 text-zinc-700"
                 }`}
+                title="Lirik Lagu"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M8 9h8m-8 3.5h5m-2 7.5L6 21v-3.5H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v9.5a2 2 0 01-2 2h-7l-4 3.5z"
-                    />
-                  </svg>
-                  <span className="text-xs sm:text-sm font-bold tracking-wider uppercase truncate">
-                    {mobilePlayerMode === "lyrics" ? "Tutup Lirik (Lihat Sampul)" : "Lirik Lagu"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {lyricsData?.synced && (
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      mobilePlayerMode === "lyrics"
-                        ? isDark ? "bg-black text-white" : "bg-white text-black"
-                        : isDark ? "bg-white/10 text-zinc-300" : "bg-black/10 text-zinc-700"
-                    }`}>
-                      Tersinkron
-                    </span>
-                  )}
-                  <svg
-                    className={`w-4 h-4 transition-transform ${mobilePlayerMode === "lyrics" ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                </div>
-              </button>
-            </div>
-
-            {/* Bottom Utility Row (Share & Queue) */}
-            <div className={`flex items-center justify-between pt-0.5 px-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              {/* Share / Copy Info */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
-                    navigator.clipboard.writeText(`${currentTrack.title} - ${currentTrack.artistNames.join(", ")}`);
-                  }
-                }}
-                className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-xl transition cursor-pointer ${
-                  isDark ? "hover:text-white hover:bg-white/5" : "hover:text-black hover:bg-black/5"
-                }`}
-                title="Salin Info Lagu"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M8 9h8m-8 3.5h5m-2 7.5L6 21v-3.5H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v9.5a2 2 0 01-2 2h-7l-4 3.5z"
+                  />
                 </svg>
-                <span>Bagikan</span>
+                <span>{mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik"}</span>
+                {lyricsData?.synced && (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                    mobilePlayerMode === "lyrics"
+                      ? isDark ? "bg-black/20 text-black" : "bg-white/20 text-white"
+                      : isDark ? "bg-white/10 text-zinc-400" : "bg-black/10 text-zinc-600"
+                  }`}>
+                    Sync
+                  </span>
+                )}
               </button>
 
               {/* Queue */}
               <button
                 type="button"
                 onClick={() => setShowQueueModal(true)}
-                className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-xl transition cursor-pointer relative ${
-                  isDark ? "hover:text-white hover:bg-white/5" : "hover:text-black hover:bg-black/5"
+                className={`flex items-center gap-1.5 text-xs py-2 px-3 rounded-xl transition cursor-pointer font-medium ${
+                  isDark ? "hover:text-white hover:bg-white/5 text-zinc-300" : "hover:text-black hover:bg-black/5 text-zinc-700"
                 }`}
                 title="Antrean Putar"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 <span>Antrean</span>
