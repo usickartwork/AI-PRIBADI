@@ -396,11 +396,31 @@ textarea:focus {
 /* ─── Notebook WYSIWYG Notepad Styles ─── */
 .notebook-canvas-editor {
   outline: none;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Seleksi teks kontras tinggi (High-Contrast Selection) agar terlihat sangat jelas saat diblok */
+.notebook-canvas-editor ::selection,
+.notebook-canvas-editor::selection,
+.notebook-title-input::selection {
+  background-color: #52525b !important; /* Zinc 600 terang pada Dark Mode */
+  color: #ffffff !important;
+}
+
+:root:not(.dark) .notebook-canvas-editor ::selection,
+:root:not(.dark) .notebook-canvas-editor::selection,
+:root:not(.dark) .notebook-title-input::selection {
+  background-color: #d4d4d8 !important; /* Zinc 300 kontras pada Light Mode */
+  color: #09090b !important;
 }
 
 .notebook-canvas-editor p {
   margin-bottom: 0.5rem;
   line-height: 1.65;
+  min-height: 1.5em;
 }
 
 .notebook-canvas-editor ul {
@@ -435,3 +455,17 @@ textarea:focus {
   margin-bottom: 0.75rem;
   opacity: 0.85;
 }
+
+.notebook-canvas-editor .task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+.notebook-canvas-editor .task-item input[type="checkbox"] {
+  margin-top: 0.35rem;
+  cursor: pointer;
+}
+

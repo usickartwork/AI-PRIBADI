@@ -283,11 +283,11 @@ export function NotebookWorkspace({
     }, 600);
   };
 
-  // Simpan seleksi kursor saat membuka modal link atau dropdown
+  // Simpan snapshot seleksi kursor (menggunakan cloneRange agar tidak terdistorsi perubahan DOM)
   const saveSelection = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
-      savedSelectionRangeRef.current = sel.getRangeAt(0);
+      savedSelectionRangeRef.current = sel.getRangeAt(0).cloneRange();
     }
   };
 
@@ -299,29 +299,62 @@ export function NotebookWorkspace({
     }
   };
 
-  // Eksekusi pemformatan teks WYSIWYG dasar
+  // Eksekusi pemformatan teks WYSIWYG dasar dengan pemulihan seleksi otomatis
   const execFormat = (command: string, value: string | undefined = undefined) => {
-    if (editorRef.current) {
+    if (savedSelectionRangeRef.current) {
+      restoreSelection();
+    } else if (editorRef.current && document.activeElement !== editorRef.current) {
       editorRef.current.focus();
     }
     document.execCommand(command, false, value);
+    saveSelection();
     handleEditorInput();
   };
 
-  // Sisipkan checklist interaktif
+  // Terapkan warna teks (Palet Monokromatis)
+  const applyTextColor = (color: string) => {
+    restoreSelection();
+    document.execCommand("foreColor", false, color);
+    saveSelection();
+    setShowColorDropdown(false);
+    handleEditorInput();
+  };
+
+  // Terapkan highlight teks (Palet Monokromatis)
+  const applyHighlight = (color: string) => {
+    restoreSelection();
+    if (color === "transparent") {
+      document.execCommand("removeFormat", false);
+    } else {
+      const success = document.execCommand("hiliteColor", false, color);
+      if (!success) {
+        document.execCommand("backColor", false, color);
+      }
+    }
+    saveSelection();
+    setShowHighlightDropdown(false);
+    handleEditorInput();
+  };
+
+  // Sisipkan checklist interaktif (menggunakan teks yang sedang diblok jika ada)
   const insertChecklist = () => {
-    if (editorRef.current) {
+    if (savedSelectionRangeRef.current) {
+      restoreSelection();
+    } else if (editorRef.current) {
       editorRef.current.focus();
     }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
 
+    const selectedText = sel.toString().trim();
+    const itemText = selectedText || "Tugas baru";
+
     const taskWrapper = document.createElement("div");
     taskWrapper.className = "flex items-start gap-2.5 my-1.5 task-item";
     taskWrapper.innerHTML = `
       <input type="checkbox" class="mt-1 w-4 h-4 rounded-xs cursor-pointer accent-zinc-500 shrink-0" />
-      <span class="flex-1 focus:outline-none" contenteditable="true">Tugas baru</span>
+      <span class="flex-1 focus:outline-none" contenteditable="true">${itemText}</span>
     `;
 
     range.deleteContents();
@@ -333,6 +366,7 @@ export function NotebookWorkspace({
       newRange.selectNodeContents(span);
       sel.removeAllRanges();
       sel.addRange(newRange);
+      saveSelection();
     }
 
     handleEditorInput();
@@ -360,7 +394,7 @@ export function NotebookWorkspace({
   const openLinkModal = () => {
     saveSelection();
     const sel = window.getSelection();
-    const selected = sel ? sel.toString() : "";
+    const selected = sel ? sel.toString().trim() : "";
     setLinkText(selected);
     setLinkUrl("");
     setShowLinkModal(true);
@@ -382,11 +416,16 @@ export function NotebookWorkspace({
     }
 
     setShowLinkModal(false);
+    saveSelection();
     handleEditorInput();
   };
 
-  // Fokus kursor ke awal teks editor
+  // Fokus kursor ke awal teks editor (jika tidak sedang memblok teks)
   const focusEditorAtStart = () => {
+    const activeSel = window.getSelection();
+    if (activeSel && !activeSel.isCollapsed && activeSel.toString().length > 0) {
+      return;
+    }
     if (!editorRef.current) return;
     editorRef.current.focus();
     const sel = window.getSelection();
@@ -399,8 +438,12 @@ export function NotebookWorkspace({
     }
   };
 
-  // Fokus kursor ke akhir teks editor (saat klik area kosong canvas)
+  // Fokus kursor ke akhir teks editor (saat klik area kosong canvas, tanpa merusak blok teks aktif)
   const focusEditorAtEnd = () => {
+    const activeSel = window.getSelection();
+    if (activeSel && !activeSel.isCollapsed && activeSel.toString().length > 0) {
+      return;
+    }
     if (!editorRef.current) return;
     editorRef.current.focus();
     const sel = window.getSelection();
@@ -1204,9 +1247,14 @@ export function NotebookWorkspace({
         </div>
 
         {/* Tautan / Link */}
+        {/* Tautan / Link */}
         <div className="flex items-center gap-0.5 px-2 border-r border-zinc-300 dark:border-zinc-800 shrink-0">
           <button
             type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              saveSelection();
+            }}
             onClick={openLinkModal}
             title="Sisipkan Tautan (Link)"
             className={`p-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
@@ -1222,8 +1270,11 @@ export function NotebookWorkspace({
         <div className="relative px-1 shrink-0">
           <button
             type="button"
-            onClick={() => {
+            onMouseDown={(e) => {
+              e.preventDefault();
               saveSelection();
+            }}
+            onClick={() => {
               setShowColorDropdown((prev) => !prev);
               setShowHighlightDropdown(false);
             }}
@@ -1253,9 +1304,7 @@ export function NotebookWorkspace({
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    restoreSelection();
-                    execFormat("foreColor", c.color);
-                    setShowColorDropdown(false);
+                    applyTextColor(c.color);
                   }}
                   className="w-5 h-5 rounded-full border border-black/20 dark:border-white/20 transition hover:scale-110 cursor-pointer"
                   style={{ backgroundColor: c.color }}
@@ -1270,8 +1319,11 @@ export function NotebookWorkspace({
         <div className="relative px-1 shrink-0">
           <button
             type="button"
-            onClick={() => {
+            onMouseDown={(e) => {
+              e.preventDefault();
               saveSelection();
+            }}
+            onClick={() => {
               setShowHighlightDropdown((prev) => !prev);
               setShowColorDropdown(false);
             }}
@@ -1301,9 +1353,7 @@ export function NotebookWorkspace({
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    restoreSelection();
-                    execFormat("hiliteColor", h.color);
-                    setShowHighlightDropdown(false);
+                    applyHighlight(h.color);
                   }}
                   className="w-5 h-5 rounded-md border border-zinc-400 dark:border-zinc-600 transition hover:scale-110 cursor-pointer text-[9px] flex items-center justify-center"
                   style={{ backgroundColor: h.color }}
@@ -1344,11 +1394,13 @@ export function NotebookWorkspace({
       {/* ─── AREA KANVAS KONTEN (JUDUL & CONTENTEDITABLE WYSIWYG SEPERTI NOTEPAD) ─── */}
       <div
         onClick={(e) => {
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
           if (e.target === e.currentTarget) {
             focusEditorAtEnd();
           }
         }}
-        className="flex-1 overflow-y-auto px-4 sm:px-12 md:px-20 py-8 max-w-4xl w-full mx-auto flex flex-col overscroll-contain cursor-text"
+        className="flex-1 overflow-y-auto px-4 sm:px-12 md:px-20 py-8 max-w-4xl w-full mx-auto flex flex-col overscroll-contain cursor-text selection:bg-zinc-600 selection:text-white dark:selection:bg-zinc-600 dark:selection:text-white"
       >
         {/* Input Judul Catatan: Tekan Enter otomatis melompat ke badan tulisan */}
         <input
@@ -1362,7 +1414,7 @@ export function NotebookWorkspace({
             }
           }}
           placeholder="Judul catatan..."
-          className={`w-full text-2xl sm:text-4xl font-extrabold bg-transparent border-0 focus:outline-none mb-6 tracking-tight ${
+          className={`notebook-title-input w-full text-2xl sm:text-4xl font-extrabold bg-transparent border-0 focus:outline-none mb-6 tracking-tight ${
             isDark ? "text-white placeholder:text-zinc-600" : "text-black placeholder:text-zinc-400"
           }`}
         />
@@ -1370,6 +1422,8 @@ export function NotebookWorkspace({
         {/* Canvas Pengetikan WYSIWYG ContentEditable */}
         <div
           onClick={(e) => {
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed && sel.toString().length > 0) return;
             if (e.target === e.currentTarget) {
               focusEditorAtEnd();
             }
@@ -1392,10 +1446,11 @@ export function NotebookWorkspace({
             onInput={handleEditorInput}
             onClick={handleEditorClick}
             onKeyDown={handleEditorKeyDown}
-            className={`notebook-canvas-editor flex-1 w-full focus:outline-none text-base sm:text-lg leading-relaxed min-h-[400px] ${
+            onMouseUp={saveSelection}
+            onKeyUp={saveSelection}
+            className={`notebook-canvas-editor flex-1 w-full focus:outline-none text-base sm:text-lg leading-relaxed min-h-[400px] select-text ${
               isDark ? "text-zinc-200" : "text-zinc-800"
             }`}
-            style={{ whiteSpace: "pre-wrap" }}
           />
         </div>
       </div>
