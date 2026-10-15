@@ -36,6 +36,10 @@ interface MusicWorkspaceProps {
 
 type SubTab = "home" | "search" | "playlists";
 
+// Valid 0.1s 8kHz 8-bit mono PCM silent WAV loop for holding mobile background audio session
+const SILENT_AUDIO_URI =
+  "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
 // Curated starter tracks for initial preview (Rich selection of 16 popular global & Indonesian hits)
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
@@ -457,14 +461,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 if (typeof document !== "undefined" && document.hidden && !userRequestedPauseRef.current) {
                   try {
                     event.target.playVideo();
-                    return;
                   } catch {}
+                  return;
                 }
-                playbackClockRef.current.isPlaying = false;
-                try {
-                  playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
-                } catch {}
-                setIsPlaying(false);
+                // Only mark as paused if user intentionally paused or page is visible in foreground
+                if (userRequestedPauseRef.current || (typeof document !== "undefined" && !document.hidden)) {
+                  playbackClockRef.current.isPlaying = false;
+                  try {
+                    playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
+                  } catch {}
+                  setIsPlaying(false);
+                }
               } else if (event.data === 0) {
                 playbackClockRef.current.isPlaying = false;
                 setIsPlaying(false);
@@ -483,26 +490,49 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
 
     const handleVisibilityChange = () => {
-      if (typeof document !== "undefined" && document.hidden && isPlayingRef.current && !userRequestedPauseRef.current) {
-        if (audioRef.current) {
-          try {
-            audioRef.current.play().catch(() => {});
-          } catch {}
+      if (typeof document === "undefined") return;
+
+      if (!document.hidden) {
+        // User returned to the app! If playback was active and not paused by user, resume immediately!
+        if (isPlayingRef.current && !userRequestedPauseRef.current) {
+          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+            try {
+              ytPlayerRef.current.playVideo();
+            } catch {}
+          }
+          if (audioRef.current) {
+            try {
+              audioRef.current.play().catch(() => {});
+            } catch {}
+          }
+          playbackClockRef.current.snapshotPerfTime = performance.now();
+          playbackClockRef.current.isPlaying = true;
         }
-        if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
-          setTimeout(() => {
-            if (!userRequestedPauseRef.current && ytPlayerRef.current) {
-              try {
-                ytPlayerRef.current.playVideo();
-              } catch {}
-            }
-          }, 150);
+      } else {
+        // App minimized or user switched away to another app (e.g. WhatsApp)
+        if (isPlayingRef.current && !userRequestedPauseRef.current) {
+          if (audioRef.current) {
+            try {
+              audioRef.current.play().catch(() => {});
+            } catch {}
+          }
+          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+            try {
+              ytPlayerRef.current.playVideo();
+            } catch {}
+          }
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
         }
       }
     };
 
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleVisibilityChange);
     }
 
     if (typeof window !== "undefined") {
@@ -530,6 +560,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       isMounted = false;
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleVisibilityChange);
       }
     };
   }, []);
@@ -664,7 +697,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (audioRef.current) {
       try {
         if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
-          audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+          audioRef.current.src = SILENT_AUDIO_URI;
           audioRef.current.loop = true;
         }
         audioRef.current.play().catch(() => {});
@@ -779,7 +812,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           if (audioRef.current) {
             try {
               if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
-                audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+                audioRef.current.src = SILENT_AUDIO_URI;
                 audioRef.current.loop = true;
               }
               audioRef.current.play().catch(() => {});
@@ -923,7 +956,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (audioRef.current) {
         try {
           if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
-            audioRef.current.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+            audioRef.current.src = SILENT_AUDIO_URI;
             audioRef.current.loop = true;
           }
           audioRef.current.play().catch(() => {});
@@ -1157,10 +1190,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     if (userScrollTimeoutRef.current) {
       clearTimeout(userScrollTimeoutRef.current);
     }
-    // Auto-resume after 4 seconds of idle scrolling
+    // Auto-resume after 2.5 seconds of idle scrolling (user stopped scrolling)
     userScrollTimeoutRef.current = setTimeout(() => {
-      setIsUserScrolling(false);
-    }, 4000);
+      resumeAutoScroll();
+    }, 2500);
   };
 
   const resumeAutoScroll = () => {
@@ -1538,10 +1571,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         }}
       />
 
-      {/* Background YouTube Audio Container (Placed in viewport to prevent mobile browser suspension) */}
+      {/* Background YouTube Audio Container (Placed offscreen with non-zero dimensions to prevent mobile browser suspension) */}
       <div
         id="youtube-music-player-container"
-        className="fixed bottom-0 right-0 w-1 h-1 pointer-events-none opacity-[0.001] z-[-1] overflow-hidden"
+        className="fixed -left-[9999px] top-0 w-[300px] h-[200px] pointer-events-none opacity-0 z-[-1] overflow-hidden"
         aria-hidden="true"
       >
         <div id="youtube-music-player" />
@@ -1756,20 +1789,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       key={`${line.time}-${idx}`}
                       ref={isActive ? activeLineRef : null}
                       onClick={() => seekToLyric(line.time)}
-                      className={`cursor-pointer transition-all duration-300 px-4 py-2 sm:py-2.5 rounded-2xl mx-auto max-w-2xl ${
+                      className={`cursor-pointer transition-[opacity,color,filter] duration-300 px-4 py-2.5 sm:py-3 rounded-2xl mx-auto max-w-2xl text-lg sm:text-2xl font-bold leading-relaxed text-center ${
                         isActive
-                          ? `text-xl sm:text-3xl font-black scale-105 sm:scale-108 tracking-tight ${
-                              isDark
-                                ? "text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.45)]"
-                                : "text-black drop-shadow-[0_0_16px_rgba(0,0,0,0.12)]"
-                            }`
+                          ? isDark
+                            ? "text-white opacity-100 font-extrabold drop-shadow-[0_2px_14px_rgba(255,255,255,0.35)]"
+                            : "text-zinc-950 opacity-100 font-extrabold drop-shadow-[0_2px_10px_rgba(0,0,0,0.12)]"
                           : isPast
-                          ? `text-sm sm:text-base font-semibold opacity-35 hover:opacity-75 ${
-                              isDark ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-800"
-                            }`
-                          : `text-base sm:text-xl font-medium opacity-50 hover:opacity-85 ${
-                              isDark ? "text-zinc-300 hover:text-white" : "text-zinc-600 hover:text-black"
-                            }`
+                          ? isDark
+                            ? "text-zinc-400 opacity-30 hover:opacity-70 font-semibold"
+                            : "text-zinc-500 opacity-35 hover:opacity-75 font-semibold"
+                          : isDark
+                          ? "text-zinc-300 opacity-50 hover:opacity-85 font-semibold"
+                          : "text-zinc-600 opacity-55 hover:opacity-85 font-semibold"
                       }`}
                       title={`Lompat ke ${Math.floor(line.time / 60)}:${String(Math.floor(line.time % 60)).padStart(2, "0")}`}
                     >
@@ -1802,28 +1833,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
             </div>
-
-
-
-            {/* Floating Action Button: "Kembali ke lirik aktif" */}
-            {isUserScrolling && activeLyricIndex >= 0 && lyricsData?.synced && (
-              <div className="absolute bottom-6 inset-x-0 flex justify-center z-30 pointer-events-none animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <button
-                  type="button"
-                  onClick={resumeAutoScroll}
-                  className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/95 text-white border border-white/10 hover:bg-zinc-700"
-                      : "bg-white/95 text-black border border-black/10 hover:bg-zinc-100 shadow-zinc-900/10"
-                  }`}
-                >
-                  <svg className="w-4 h-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                  </svg>
-                  <span>Kembali ke lirik aktif</span>
-                </button>
-              </div>
-            )}
           </div>
         ) : (
           <div
