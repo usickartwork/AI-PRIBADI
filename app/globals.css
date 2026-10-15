@@ -273,3 +273,124 @@ textarea:focus {
   }
 }
 
+/* ─── Faith Hub Native Utilities & Animations ────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes slideFromRight {
+  0% {
+    opacity: 0.2;
+    transform: translate3d(32px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideFromLeft {
+  0% {
+    opacity: 0.2;
+    transform: translate3d(-32px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-slide-right {
+  animation: slideFromRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-slide-left {
+  animation: slideFromLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes lambWaddle {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-2.5deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(2.5deg);
+  }
+}
+
+@keyframes lambWalkLegL {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-14deg);
+  }
+}
+
+@keyframes lambWalkLegR {
+  0%, 100% {
+    transform: translateY(-4px) rotate(-14deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes lambPaceAcross {
+  0%, 100% {
+    transform: translate3d(-24px, 0, 0) scaleX(1);
+  }
+  48% {
+    transform: translate3d(24px, 0, 0) scaleX(1);
+  }
+  50% {
+    transform: translate3d(24px, 0, 0) scaleX(-1);
+  }
+  98% {
+    transform: translate3d(-24px, 0, 0) scaleX(-1);
+  }
+}
+
+.animate-lamb-waddle {
+  animation: lambWaddle 0.65s ease-in-out infinite;
+}
+
+.animate-lamb-leg-l {
+  animation: lambWalkLegL 0.65s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.animate-lamb-leg-r {
+  animation: lambWalkLegR 0.65s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.animate-lamb-pace {
+  animation: lambPaceAcross 7s ease-in-out infinite;
+}
+
+

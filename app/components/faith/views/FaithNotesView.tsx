@@ -1408,10 +1408,10 @@ export default function NotesPage() {
 
   return (
     <div
-      className="h-full max-h-full w-full bg-transparent flex flex-col items-center justify-center sm:p-2 sm:pb-3 overflow-hidden"
+      className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Precision Shell matching Faith Hub & Apple iOS Notes */}
-      <div className="w-full max-w-4xl h-full bg-[#F2F2F7] dark:bg-[#121214] rounded-none sm:rounded-[32px] sm:border border-[#EAEAEB] dark:border-white/10 sm:shadow-lg flex flex-col overflow-hidden relative">
+      <div className="w-full max-w-4xl h-full bg-[#F2F2F7] dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative">
 
         {/* ================================================================= */}
         {/* VIEW A: NOTES LIST VIEW (FOLDER VIEW)                             */}
@@ -1419,13 +1419,13 @@ export default function NotesPage() {
         {!activeNote ? (
           <>
             {/* Top iOS Header Bar */}
-            <div className="flex-none bg-[#F2F2F7]/95 backdrop-blur-md px-4 sm:px-6 pt-3.5 pb-2.5 z-20 flex items-center justify-between border-b border-[#E5E5EA]">
+            <div className="flex-none bg-[#F2F2F7]/95 dark:bg-[#121215]/95 backdrop-blur-md px-4 sm:px-6 pt-3.5 pb-2.5 z-20 flex items-center justify-between border-b border-[#E5E5EA] dark:border-[#222226]">
               <button
                 type="button"
                 onClick={() => setActiveTab('tanya')}
-                className="inline-flex items-center gap-1 text-sm font-medium text-[#111113] hover:opacity-75 transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[#111113] dark:text-white hover:opacity-75 transition active:scale-95 cursor-pointer"
               >
-                <ChevronLeft size={18} strokeWidth={2.5} className="text-[#111113]" />
+                <ChevronLeft size={18} strokeWidth={2.5} className="text-[#111113] dark:text-white" />
                 <span>Tanya Rohani</span>
               </button>
 
@@ -1433,7 +1433,7 @@ export default function NotesPage() {
               <button
                 type="button"
                 onClick={handleCreateNewNote}
-                className="w-8 h-8 rounded-full bg-white hover:bg-neutral-100 text-[#111113] flex items-center justify-center border border-[#E5E5EA] transition cursor-pointer shadow-2xs active:scale-95"
+                className="w-8 h-8 rounded-full bg-white dark:bg-[#1C1C20] hover:bg-neutral-100 dark:hover:bg-[#25252A] text-[#111113] dark:text-white flex items-center justify-center border border-[#E5E5EA] dark:border-[#2C2C32] transition cursor-pointer shadow-2xs active:scale-95"
                 title="Tulis Catatan Baru"
               >
                 <SquarePen size={15} strokeWidth={2.2} />
@@ -1444,28 +1444,28 @@ export default function NotesPage() {
             <main className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {/* Large iOS Header Title */}
               <div className="pt-1">
-                <h1 className="text-3xl font-extrabold text-[#111113] tracking-tight">
+                <h1 className="text-3xl font-extrabold text-[#111113] dark:text-white tracking-tight">
                   Catatan
                 </h1>
-                <p className="text-xs text-[#8E8E93] font-medium mt-0.5">
+                <p className="text-xs text-[#8E8E93] dark:text-[#A1A1AA] font-medium mt-0.5">
                   Ruang Catatan Renungan &amp; Pokok Doa Pribadi
                 </p>
               </div>
 
               {/* iOS Search Bar */}
               <div className="relative">
-                <Search size={15} className="absolute left-3.5 top-2.5 text-[#8E8E93]" />
+                <Search size={15} className="absolute left-3.5 top-2.5 text-[#8E8E93] dark:text-[#A1A1AA]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari catatan renungan..."
-                  className="w-full bg-[#E5E5EA]/80 hover:bg-[#E5E5EA] focus:bg-white text-xs sm:text-sm pl-9 pr-8 py-2 rounded-xl border border-transparent focus:border-[#D1D1D6] focus:outline-none text-[#111113] placeholder-[#8E8E93] transition-all"
+                  className="w-full bg-[#E5E5EA]/80 dark:bg-[#1C1C20] hover:bg-[#E5E5EA] dark:hover:bg-[#222228] focus:bg-white dark:focus:bg-[#222228] text-xs sm:text-sm pl-9 pr-8 py-2 rounded-xl border border-transparent focus:border-[#D1D1D6] dark:focus:border-white/30 focus:outline-none text-[#111113] dark:text-white placeholder-[#8E8E93] dark:placeholder-[#66666E] transition-all"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-2.5 text-[#8E8E93] hover:text-[#111113]"
+                    className="absolute right-2.5 top-2.5 text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white"
                   >
                     <X size={14} />
                   </button>
@@ -1474,21 +1474,21 @@ export default function NotesPage() {
 
               {/* Loading State */}
               {isLoading ? (
-                <div className="py-16 text-center text-xs text-[#8E8E93] space-y-2">
-                  <div className="w-5 h-5 border-2 border-[#111113] border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="py-16 text-center text-xs text-[#8E8E93] dark:text-[#A1A1AA] space-y-2">
+                  <div className="w-5 h-5 border-2 border-[#111113] dark:border-white border-t-transparent rounded-full animate-spin mx-auto" />
                   <p>Memuat catatan pribadi...</p>
                 </div>
               ) : filteredNotes.length === 0 ? (
                 /* Empty State */
                 <div className="py-16 text-center max-w-sm mx-auto space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-white border border-[#E5E5EA] text-[#8E8E93] flex items-center justify-center mx-auto shadow-2xs">
+                  <div className="w-14 h-14 rounded-2xl bg-white dark:bg-[#18181D] border border-[#E5E5EA] dark:border-[#26262B] text-[#8E8E93] dark:text-[#A1A1AA] flex items-center justify-center mx-auto shadow-2xs">
                     <SquarePen size={24} />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-[#111113]">
+                    <h3 className="text-sm font-bold text-[#111113] dark:text-white">
                       {searchQuery ? 'Catatan Tidak Ditemukan' : 'Belum Ada Catatan'}
                     </h3>
-                    <p className="text-xs text-[#8E8E93] leading-relaxed">
+                    <p className="text-xs text-[#8E8E93] dark:text-[#A1A1AA] leading-relaxed">
                       {searchQuery
                         ? 'Tidak ada catatan yang cocok dengan kata kunci pencarian.'
                         : 'Simpan renungan firman, isi khotbah, atau pokok doa pribadimu di sini.'}
@@ -1497,7 +1497,7 @@ export default function NotesPage() {
                   {!searchQuery && (
                     <button
                       onClick={handleCreateNewNote}
-                      className="px-4 py-2 rounded-full bg-[#111113] hover:bg-black text-white text-xs font-semibold shadow-xs transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
+                      className="px-4 py-2 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black text-xs font-semibold shadow-xs transition active:scale-95 cursor-pointer inline-flex items-center gap-1.5"
                     >
                       <SquarePen size={13} />
                       <span>Buat Catatan Baru</span>
@@ -1510,12 +1510,12 @@ export default function NotesPage() {
                   {/* PINNED SECTION */}
                   {pinnedNotes.length > 0 && (
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 px-1 text-[11px] font-bold text-[#8E8E93] uppercase tracking-wider">
-                        <Pin size={11} className="fill-[#8E8E93]" />
+                      <div className="flex items-center gap-1.5 px-1 text-[11px] font-bold text-[#8E8E93] dark:text-[#A1A1AA] uppercase tracking-wider">
+                        <Pin size={11} className="fill-[#8E8E93] dark:fill-[#A1A1AA]" />
                         <span>Dipatkan</span>
                       </div>
 
-                      <div className="bg-white rounded-2xl border border-[#E5E5EA] shadow-2xs divide-y divide-[#E5E5EA] relative">
+                      <div className="bg-white dark:bg-[#18181D] rounded-2xl border border-[#E5E5EA] dark:border-[#26262B] shadow-2xs divide-y divide-[#E5E5EA] dark:divide-[#26262B] relative">
                         {pinnedNotes.map((note) => renderNoteRow(note))}
                       </div>
                     </div>
@@ -1525,11 +1525,11 @@ export default function NotesPage() {
                   {unpinnedNotes.length > 0 && (
                     <div className="space-y-1.5">
                       {pinnedNotes.length > 0 && (
-                        <div className="px-1 text-[11px] font-bold text-[#8E8E93] uppercase tracking-wider">
+                        <div className="px-1 text-[11px] font-bold text-[#8E8E93] dark:text-[#A1A1AA] uppercase tracking-wider">
                           Catatan
                         </div>
                       )}
-                      <div className="bg-white rounded-2xl border border-[#E5E5EA] shadow-2xs divide-y divide-[#E5E5EA] relative">
+                      <div className="bg-white dark:bg-[#18181D] rounded-2xl border border-[#E5E5EA] dark:border-[#26262B] shadow-2xs divide-y divide-[#E5E5EA] dark:divide-[#26262B] relative">
                         {unpinnedNotes.map((note) => renderNoteRow(note))}
                       </div>
                     </div>
@@ -1539,10 +1539,10 @@ export default function NotesPage() {
             </main>
 
             {/* Bottom iOS Toolbar (Note count & Compose button) */}
-            <div className="flex-none bg-[#F2F2F7]/95 backdrop-blur-md border-t border-[#E5E5EA] px-4 py-2.5 z-30">
+            <div className="flex-none bg-[#F2F2F7]/95 dark:bg-[#121215]/95 backdrop-blur-md border-t border-[#E5E5EA] dark:border-[#222226] px-4 py-2.5 z-30">
               <div className="flex items-center justify-between max-w-md mx-auto">
                 <div className="w-8" />
-                <span className="text-xs font-medium text-[#8E8E93]">
+                <span className="text-xs font-medium text-[#8E8E93] dark:text-[#A1A1AA]">
                   {notes.length === 0
                     ? 'Tidak ada catatan'
                     : `${notes.length} Catatan`}
@@ -1550,7 +1550,7 @@ export default function NotesPage() {
                 <button
                   type="button"
                   onClick={handleCreateNewNote}
-                  className="w-9 h-9 rounded-full bg-[#111113] hover:bg-black text-white flex items-center justify-center transition shadow-xs active:scale-95 cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black flex items-center justify-center transition shadow-xs active:scale-95 cursor-pointer"
                   title="Tulis Catatan Baru"
                 >
                   <SquarePen size={16} strokeWidth={2.2} />
@@ -1565,23 +1565,23 @@ export default function NotesPage() {
           /* ================================================================= */
           /* VIEW B: NOTE EDITOR VIEW (APPLE NOTES CANVAS WITH RICH FORMATTING)*/
           /* ================================================================= */
-          <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-200 relative">
+          <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#121215] animate-in fade-in duration-200 relative">
             {/* Top Editor Toolbar */}
-            <div className="flex-none bg-white/95 backdrop-blur-md border-b border-[#EAEAEB] px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20">
+            <div className="flex-none bg-white/95 dark:bg-[#121215]/95 backdrop-blur-md border-b border-[#EAEAEB] dark:border-[#222226] px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20">
               {/* Back to Notes List */}
               <button
                 type="button"
                 onClick={handleBackToList}
-                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#111113] hover:opacity-75 transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-[#111113] dark:text-white hover:opacity-75 transition active:scale-95 cursor-pointer"
               >
-                <ChevronLeft size={18} strokeWidth={2.5} className="text-[#111113]" />
+                <ChevronLeft size={18} strokeWidth={2.5} className="text-[#111113] dark:text-white" />
                 <span>Catatan</span>
               </button>
 
               {/* Action Toolbar: Pin, Share, Delete, Done */}
               <div className="flex items-center gap-1 sm:gap-2">
                 {/* Save status badge */}
-                <span className="text-[11px] text-[#8E8E93] mr-1 hidden sm:inline-block">
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] mr-1 hidden sm:inline-block">
                   {saveStatus === 'saving' ? 'Menyimpan...' : 'Tersimpan'}
                 </span>
 
@@ -1592,8 +1592,8 @@ export default function NotesPage() {
                   disabled={!canUndo}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer ${
                     canUndo
-                      ? 'hover:bg-[#F2F2F4] text-[#111113]'
-                      : 'text-[#C7C7CC] opacity-40 cursor-not-allowed'
+                      ? 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white'
+                      : 'text-[#C7C7CC] dark:text-[#444448] opacity-40 cursor-not-allowed'
                   }`}
                   title="Urungkan (Undo)"
                 >
@@ -1607,8 +1607,8 @@ export default function NotesPage() {
                   disabled={!canRedo}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer ${
                     canRedo
-                      ? 'hover:bg-[#F2F2F4] text-[#111113]'
-                      : 'text-[#C7C7CC] opacity-40 cursor-not-allowed'
+                      ? 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white'
+                      : 'text-[#C7C7CC] dark:text-[#444448] opacity-40 cursor-not-allowed'
                   }`}
                   title="Ulangi (Redo)"
                 >
@@ -1621,29 +1621,29 @@ export default function NotesPage() {
                   onClick={handleTogglePinInEditor}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer ${
                     isPinned
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'hover:bg-[#F2F2F4] text-[#8E8E93] hover:text-[#111113]'
+                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                      : 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white'
                   }`}
                   title={isPinned ? 'Lepas Sematan' : 'Sematkan Catatan'}
                 >
-                  <Pin size={14} className={isPinned ? 'fill-amber-600' : ''} />
+                  <Pin size={14} className={isPinned ? 'fill-amber-600 dark:fill-amber-400' : ''} />
                 </button>
 
                 {/* Share / Copy Button */}
                 <button
                   type="button"
                   onClick={handleShareNote}
-                  className="w-8 h-8 rounded-full hover:bg-[#F2F2F4] text-[#8E8E93] hover:text-[#111113] flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  className="w-8 h-8 rounded-full hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
                   title="Bagikan atau Salin Catatan"
                 >
-                  {copied ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
+                  {copied ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Share2 size={14} />}
                 </button>
 
                 {/* Delete Button */}
                 <button
                   type="button"
                   onClick={() => setDeleteConfirmId(activeNote.id)}
-                  className="w-8 h-8 rounded-full hover:bg-rose-50 text-[#8E8E93] hover:text-rose-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
+                  className="w-8 h-8 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/50 text-[#8E8E93] dark:text-[#A1A1AA] hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition active:scale-95 cursor-pointer"
                   title="Hapus Catatan"
                 >
                   <Trash2 size={14} />
@@ -1653,7 +1653,7 @@ export default function NotesPage() {
                 <button
                   type="button"
                   onClick={handleBackToList}
-                  className="px-3 py-1 rounded-full bg-[#111113] hover:bg-black text-white text-xs font-semibold transition active:scale-95 cursor-pointer ml-1 shadow-2xs"
+                  className="px-3 py-1 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black text-xs font-semibold transition active:scale-95 cursor-pointer ml-1 shadow-2xs"
                 >
                   Selesai
                 </button>
@@ -1664,7 +1664,7 @@ export default function NotesPage() {
             <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-10 py-4 space-y-3 pb-36">
               {/* Full iOS Date Header */}
               <div className="text-center">
-                <span className="text-[11px] text-[#8E8E93] font-mono tracking-tight select-none">
+                <span className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] font-mono tracking-tight select-none">
                   {formatFullNoteDate(activeNote.updated_at || activeNote.created_at)}
                 </span>
               </div>
@@ -1677,7 +1677,7 @@ export default function NotesPage() {
                   value={titleInput}
                   onChange={handleTitleChange}
                   placeholder="Judul Catatan"
-                  className="w-full text-xl sm:text-2xl font-bold text-[#111113] placeholder-[#A1A1A6] focus:outline-none bg-transparent tracking-tight leading-snug"
+                  className="w-full text-xl sm:text-2xl font-bold text-[#111113] dark:text-white placeholder-[#A1A1A6] dark:placeholder-[#55555A] focus:outline-none bg-transparent tracking-tight leading-snug"
                 />
               </div>
 
@@ -1696,13 +1696,13 @@ export default function NotesPage() {
                   onMouseUp={updateActiveFormats}
                   onTouchEnd={updateActiveFormats}
                   data-placeholder="Tulis renungan firman, catatan khotbah, atau pokok doa pribadimu di sini..."
-                  className={`w-full text-sm sm:text-base leading-relaxed text-[#1C1C1E] focus:outline-none bg-transparent min-h-[360px] pb-12 selection:bg-amber-200/80 [&_h2]:text-xl sm:[&_h2]:text-2xl [&_h2]:font-extrabold [&_h2]:text-[#111113] [&_h2]:tracking-tight [&_h2]:mt-4 [&_h2]:mb-1.5 [&_h2]:leading-snug [&_b]:font-bold [&_strong]:font-bold ${
+                  className={`w-full text-sm sm:text-base leading-relaxed text-[#1C1C1E] dark:text-[#ECECED] focus:outline-none bg-transparent min-h-[360px] pb-12 selection:bg-amber-200/80 dark:selection:bg-amber-800/60 [&_h2]:text-xl sm:[&_h2]:text-2xl [&_h2]:font-extrabold [&_h2]:text-[#111113] dark:[&_h2]:text-white [&_h2]:tracking-tight [&_h2]:mt-4 [&_h2]:mb-1.5 [&_h2]:leading-snug [&_b]:font-bold [&_strong]:font-bold ${
                     fontFamily === 'serif'
                       ? 'font-serif'
                       : fontFamily === 'mono'
                       ? 'font-mono text-[13.5px]'
                       : 'font-sans'
-                  } empty:before:content-[attr(data-placeholder)] empty:before:text-[#A1A1A6] empty:before:pointer-events-none`}
+                  } empty:before:content-[attr(data-placeholder)] empty:before:text-[#A1A1A6] dark:empty:before:text-[#55555A] empty:before:pointer-events-none`}
                 />
               </div>
             </div>
@@ -1711,7 +1711,7 @@ export default function NotesPage() {
             {/* iOS KEYBOARD ACCESSORY TOOLBAR (Docks directly above keyboard) */}
             {/* ============================================================= */}
             <div
-              className={`flex-none bg-[#F9F9FA]/98 backdrop-blur-xl border-t border-[#EAEAEB] px-3.5 sm:px-6 py-2 flex items-center justify-between text-xs z-30 relative shadow-[0_-4px_12px_rgba(0,0,0,0.04)] ${
+              className={`flex-none bg-[#F9F9FA]/98 dark:bg-[#16161A]/98 backdrop-blur-xl border-t border-[#EAEAEB] dark:border-[#26262B] px-3.5 sm:px-6 py-2 flex items-center justify-between text-xs z-30 relative shadow-[0_-4px_12px_rgba(0,0,0,0.04)] ${
                 isKeyboardOpen ? 'pb-2' : 'pb-[max(8px,env(safe-area-inset-bottom))]'
               }`}
             >
@@ -1725,8 +1725,8 @@ export default function NotesPage() {
                 onTouchStart={triggerCmd(() => handleToggleInlineFormat('bold', ['B', 'STRONG']))}
                 className={`p-2 rounded-xl transition active:scale-95 shrink-0 cursor-pointer ${
                   activeFormats.bold
-                    ? 'bg-[#111113] text-white shadow-xs'
-                    : 'hover:bg-[#F2F2F4] text-[#111113]'
+                    ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs'
+                    : 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white'
                 }`}
                 title="Tebal (Bold)"
               >
@@ -1740,8 +1740,8 @@ export default function NotesPage() {
                 onTouchStart={triggerCmd(() => handleToggleInlineFormat('italic', ['I', 'EM']))}
                 className={`p-2 rounded-xl transition active:scale-95 shrink-0 cursor-pointer ${
                   activeFormats.italic
-                    ? 'bg-[#111113] text-white shadow-xs'
-                    : 'hover:bg-[#F2F2F4] text-[#111113]'
+                    ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs'
+                    : 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white'
                 }`}
                 title="Miring (Italic)"
               >
@@ -1755,8 +1755,8 @@ export default function NotesPage() {
                 onTouchStart={triggerCmd(() => handleToggleInlineFormat('underline', ['U']))}
                 className={`p-2 rounded-xl transition active:scale-95 shrink-0 cursor-pointer ${
                   activeFormats.underline
-                    ? 'bg-[#111113] text-white shadow-xs'
-                    : 'hover:bg-[#F2F2F4] text-[#111113]'
+                    ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs'
+                    : 'hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white'
                 }`}
                 title="Garis Bawah (Underline)"
               >
@@ -1768,7 +1768,7 @@ export default function NotesPage() {
                 type="button"
                 onMouseDown={triggerCmd(handleInsertChecklist)}
                 onTouchStart={triggerCmd(handleInsertChecklist)}
-                className="p-2 rounded-xl hover:bg-[#F2F2F4] text-[#111113] transition active:scale-95 shrink-0 cursor-pointer"
+                className="p-2 rounded-xl hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white transition active:scale-95 shrink-0 cursor-pointer"
                 title="Daftar Centang (Checklist)"
               >
                 <CheckSquare size={15} />
@@ -1779,7 +1779,7 @@ export default function NotesPage() {
                 type="button"
                 onMouseDown={triggerCmd(() => execCmd('insertUnorderedList'))}
                 onTouchStart={triggerCmd(() => execCmd('insertUnorderedList'))}
-                className="p-2 rounded-xl hover:bg-[#F2F2F4] text-[#111113] transition active:scale-95 shrink-0 cursor-pointer"
+                className="p-2 rounded-xl hover:bg-[#F2F2F4] dark:hover:bg-[#202026] text-[#111113] dark:text-white transition active:scale-95 shrink-0 cursor-pointer"
                 title="Daftar Poin"
               >
                 <List size={15} />
@@ -1793,7 +1793,7 @@ export default function NotesPage() {
                 className={`p-2 rounded-xl transition active:scale-95 shrink-0 cursor-pointer ${
                   activeFormats.highlight
                     ? 'bg-amber-300 text-amber-950 font-bold shadow-xs ring-1 ring-amber-400'
-                    : 'hover:bg-amber-100 text-amber-800'
+                    : 'hover:bg-amber-100 dark:hover:bg-amber-950/50 text-amber-800 dark:text-amber-300'
                 }`}
                 title="Sorotan Stabilo Kuning"
               >
@@ -1802,7 +1802,7 @@ export default function NotesPage() {
             </div>
 
             {/* Right: Word count & Dismiss keyboard / New note */}
-            <div className="flex items-center gap-2 text-[11px] text-[#8E8E93] shrink-0 ml-2">
+            <div className="flex items-center gap-2 text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] shrink-0 ml-2">
               <span className="hidden sm:inline">
                 {wordCount} kata
               </span>
@@ -1815,7 +1815,7 @@ export default function NotesPage() {
                       (document.activeElement as HTMLElement)?.blur();
                     }
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[#E5E5EA] hover:bg-[#DCDCE0] text-[#111113] font-semibold text-xs transition active:scale-95 cursor-pointer shadow-2xs"
+                  className="px-3 py-1.5 rounded-xl bg-[#E5E5EA] dark:bg-[#202026] hover:bg-[#DCDCE0] dark:hover:bg-[#282830] text-[#111113] dark:text-white font-semibold text-xs transition active:scale-95 cursor-pointer shadow-2xs"
                   title="Tutup Keyboard"
                 >
                   Selesai
@@ -1824,7 +1824,7 @@ export default function NotesPage() {
                 <button
                   type="button"
                   onClick={handleCreateNewNote}
-                  className="inline-flex items-center gap-1 font-semibold text-[#111113] hover:opacity-75 transition active:scale-95 cursor-pointer px-2 py-1"
+                  className="inline-flex items-center gap-1 font-semibold text-[#111113] dark:text-white hover:opacity-75 transition active:scale-95 cursor-pointer px-2 py-1"
                   title="Buat Catatan Baru"
                 >
                   <SquarePen size={14} />
@@ -1838,14 +1838,14 @@ export default function NotesPage() {
 
         {/* Delete Confirmation Modal */}
         {deleteConfirmId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl max-w-xs w-full p-5 text-center space-y-4 shadow-xl border border-[#E5E5EA]">
-              <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#18181D] rounded-2xl max-w-xs w-full p-5 text-center space-y-4 shadow-xl border border-[#E5E5EA] dark:border-[#26262B]">
+              <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
                 <Trash2 size={18} />
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-[#111113]">Hapus Catatan Ini?</h4>
-                <p className="text-xs text-[#8E8E93] leading-relaxed">
+                <h4 className="text-sm font-bold text-[#111113] dark:text-white">Hapus Catatan Ini?</h4>
+                <p className="text-xs text-[#8E8E93] dark:text-[#A1A1AA] leading-relaxed">
                   Catatan ini akan dihapus secara permanen dari akun pribadimu.
                 </p>
               </div>
@@ -1853,7 +1853,7 @@ export default function NotesPage() {
                 <button
                   type="button"
                   onClick={() => setDeleteConfirmId(null)}
-                  className="py-2 px-3 rounded-xl border border-[#DCDCE0] text-xs font-semibold text-[#111113] hover:bg-[#F2F2F3] transition cursor-pointer"
+                  className="py-2 px-3 rounded-xl border border-[#DCDCE0] dark:border-[#2C2C32] text-xs font-semibold text-[#111113] dark:text-white hover:bg-[#F2F2F3] dark:hover:bg-[#202026] transition cursor-pointer"
                 >
                   Batal
                 </button>
@@ -1890,19 +1890,19 @@ export default function NotesPage() {
       <div
         key={note.id}
         onClick={() => handleOpenNote(note)}
-        className="group relative first:rounded-t-2xl last:rounded-b-2xl px-4 py-3 hover:bg-[#F9F9FB] cursor-pointer transition flex items-center justify-between gap-3 text-left"
+        className="group relative first:rounded-t-2xl last:rounded-b-2xl px-4 py-3 hover:bg-[#F9F9FB] dark:hover:bg-[#1A1A20] cursor-pointer transition flex items-center justify-between gap-3 text-left"
       >
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-1.5">
             {note.pinned && (
-              <Pin size={11} className="fill-[#111113] text-[#111113] shrink-0" />
+              <Pin size={11} className="fill-[#111113] dark:fill-white text-[#111113] dark:text-white shrink-0" />
             )}
-            <h4 className="text-sm font-semibold text-[#111113] truncate tracking-tight">
+            <h4 className="text-sm font-semibold text-[#111113] dark:text-white truncate tracking-tight">
               {note.title.trim() || 'Catatan Baru'}
             </h4>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[#8E8E93]">
-            <span className="shrink-0 font-medium text-[#111113]/70">
+          <div className="flex items-center gap-2 text-xs text-[#8E8E93] dark:text-[#A1A1AA]">
+            <span className="shrink-0 font-medium text-[#111113]/70 dark:text-white/70">
               {formatNoteDate(note.updated_at || note.created_at)}
             </span>
             <span className="truncate">{firstLinePreview}</span>
@@ -1919,8 +1919,8 @@ export default function NotesPage() {
             }}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer ${
               isMenuOpen
-                ? 'bg-[#EAEAEB] text-[#111113]'
-                : 'text-[#8E8E93] hover:text-[#111113] hover:bg-[#EAEAEB]/70'
+                ? 'bg-[#EAEAEB] dark:bg-[#25252E] text-[#111113] dark:text-white'
+                : 'text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white hover:bg-[#EAEAEB]/70 dark:hover:bg-[#25252E]'
             }`}
             title="Pilihan Catatan"
           >
@@ -1940,7 +1940,7 @@ export default function NotesPage() {
               />
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-9 z-50 min-w-[160px] bg-white/98 backdrop-blur-xl border border-[#E5E5EA] rounded-2xl shadow-xl py-1.5 text-xs text-[#111113] animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
+                className="absolute right-0 top-9 z-50 min-w-[160px] bg-white/98 dark:bg-[#18181D]/98 backdrop-blur-xl border border-[#E5E5EA] dark:border-[#26262B] rounded-2xl shadow-xl py-1.5 text-xs text-[#111113] dark:text-white animate-in fade-in zoom-in-95 duration-150 space-y-0.5"
               >
                 {/* Salin */}
                 <button
@@ -1950,12 +1950,12 @@ export default function NotesPage() {
                     handleCopyNoteFromList(note);
                     setMenuOpenNoteId(null);
                   }}
-                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] text-left transition cursor-pointer font-medium"
+                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] dark:hover:bg-[#222228] text-left transition cursor-pointer font-medium"
                 >
                   {copiedNoteId === note.id ? (
-                    <Check size={14} className="text-emerald-600" />
+                    <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
                   ) : (
-                    <Copy size={14} className="text-[#8E8E93]" />
+                    <Copy size={14} className="text-[#8E8E93] dark:text-[#A1A1AA]" />
                   )}
                   <span>{copiedNoteId === note.id ? 'Tersalin' : 'Salin'}</span>
                 </button>
@@ -1968,9 +1968,9 @@ export default function NotesPage() {
                     handleShareNoteFromList(note);
                     setMenuOpenNoteId(null);
                   }}
-                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] text-left transition cursor-pointer font-medium"
+                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] dark:hover:bg-[#222228] text-left transition cursor-pointer font-medium"
                 >
-                  <Share2 size={14} className="text-[#8E8E93]" />
+                  <Share2 size={14} className="text-[#8E8E93] dark:text-[#A1A1AA]" />
                   <span>Share</span>
                 </button>
 
@@ -1982,13 +1982,13 @@ export default function NotesPage() {
                     handleTogglePinFromList(e, note);
                     setMenuOpenNoteId(null);
                   }}
-                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] text-left transition cursor-pointer font-medium"
+                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-[#F2F2F4] dark:hover:bg-[#222228] text-left transition cursor-pointer font-medium"
                 >
-                  <Pin size={14} className={note.pinned ? 'fill-amber-600 text-amber-600' : 'text-[#8E8E93]'} />
+                  <Pin size={14} className={note.pinned ? 'fill-amber-600 text-amber-600 dark:fill-amber-400 dark:text-amber-400' : 'text-[#8E8E93] dark:text-[#A1A1AA]'} />
                   <span>{note.pinned ? 'Lepas Sematan' : 'Sematkan'}</span>
                 </button>
 
-                <div className="h-[1px] bg-[#E5E5EA] my-1" />
+                <div className="h-[1px] bg-[#E5E5EA] dark:bg-[#26262B] my-1" />
 
                 {/* Hapus */}
                 <button
@@ -1998,9 +1998,9 @@ export default function NotesPage() {
                     setDeleteConfirmId(note.id);
                     setMenuOpenNoteId(null);
                   }}
-                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-rose-50 text-rose-600 text-left transition cursor-pointer font-medium"
+                  className="w-full px-3.5 py-2 flex items-center gap-2.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-left transition cursor-pointer font-medium"
                 >
-                  <Trash2 size={14} className="text-rose-600" />
+                  <Trash2 size={14} className="text-rose-600 dark:text-rose-400" />
                   <span>Hapus</span>
                 </button>
               </div>

@@ -674,23 +674,23 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
   const isNight = gameState.timeOfDay === 'night' || gameState.timeOfDay === 'evening';
 
   return (
-    <div className="flex-1 flex flex-col justify-between max-w-md mx-auto w-full select-none animate-page-enter bg-[#F4F4F6] text-[#111113]">
+    <div className="flex-1 flex flex-col justify-between max-w-md mx-auto w-full select-none animate-page-enter bg-[#F4F4F6] dark:bg-[#121215] text-[#111113] dark:text-white">
       {/* 1. TOP HEADER STATUS BAR */}
-      <div className="p-3 bg-white border-b border-[#EAEAEB] shadow-xs flex flex-col gap-2">
+      <div className="p-3 bg-white dark:bg-[#18181D] border-b border-[#EAEAEB] dark:border-[#26262B] shadow-xs flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={onBack}
-              className="p-1 text-[#71717A] hover:text-[#111113] active:scale-95 transition-all"
+              className="p-1 text-[#71717A] hover:text-[#111113] dark:text-[#A1A1AA] dark:hover:text-white active:scale-95 transition-all cursor-pointer"
               aria-label="Kembali"
             >
               <ArrowLeft size={18} />
             </button>
             <div>
-              <h2 className="text-xs font-black tracking-tight text-[#111113] leading-none">
+              <h2 className="text-xs font-black tracking-tight text-[#111113] dark:text-white leading-none">
                 {gameState.communityName}
               </h2>
-              <span className="text-[10px] text-[#71717A] font-semibold block mt-0.5">
+              <span className="text-[10px] text-[#71717A] dark:text-[#A1A1AA] font-semibold block mt-0.5">
                 Lv {gameState.communityLevel} • {COMMUNITY_LEVEL_TITLES[gameState.communityLevel]}
               </span>
             </div>
@@ -703,7 +703,7 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
                 sfx.click();
                 setShowGuideModal(true);
               }}
-              className="px-2 py-1 rounded-lg bg-[#111113] text-white hover:bg-[#27272A] active:scale-95 transition-all flex items-center gap-1 text-[11px] font-bold shadow-xs"
+              className="px-2 py-1 rounded-lg bg-[#111113] dark:bg-white text-white dark:text-black hover:bg-[#27272A] dark:hover:bg-neutral-200 active:scale-95 transition-all flex items-center gap-1 text-[11px] font-bold shadow-xs cursor-pointer"
               title="Panduan Cara Bermain"
             >
               <HelpCircle size={13} className="text-amber-400" />
@@ -711,22 +711,22 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
             </button>
             <button
               onClick={handleToggleWeather}
-              className="p-1.5 rounded-lg bg-[#FAFAFA] border border-[#EAEAEB] hover:bg-[#F4F4F6] text-[#71717A] hover:text-[#111113] transition-all"
+              className="p-1.5 rounded-lg bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] hover:bg-[#F4F4F6] dark:hover:bg-[#282830] text-[#71717A] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white transition-all cursor-pointer"
               title="Ganti Cuaca (Cerah/Hujan)"
             >
               {gameState.weather === 'sunny' ? <Sun size={14} className="text-amber-500" /> : <CloudRain size={14} className="text-blue-500" />}
             </button>
             <button
               onClick={handleCycleTime}
-              className="px-2 py-1 rounded-lg bg-[#FAFAFA] border border-[#EAEAEB] hover:bg-[#F4F4F6] text-[11px] font-bold text-[#111113] flex items-center gap-1 capitalize transition-all"
+              className="px-2 py-1 rounded-lg bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] hover:bg-[#F4F4F6] dark:hover:bg-[#282830] text-[11px] font-bold text-[#111113] dark:text-white flex items-center gap-1 capitalize transition-all cursor-pointer"
               title="Ganti Waktu (Pagi/Siang/Sore/Malam)"
             >
-              {isNight ? <Moon size={12} className="text-indigo-500" /> : <Sun size={12} className="text-amber-500" />}
+              {isNight ? <Moon size={12} className="text-indigo-400" /> : <Sun size={12} className="text-amber-500" />}
               <span>{gameState.timeOfDay}</span>
             </button>
             <button
               onClick={handleToggleSpeed}
-              className="px-2 py-1 rounded-lg bg-[#FAFAFA] border border-[#EAEAEB] text-[#111113] text-[11px] font-black hover:bg-[#F4F4F6] active:scale-95 transition-all"
+              className="px-2 py-1 rounded-lg bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] text-[#111113] dark:text-white text-[11px] font-black hover:bg-[#F4F4F6] dark:hover:bg-[#282830] active:scale-95 transition-all cursor-pointer"
               title="Percepat Waktu"
             >
               {gameState.timeSpeed}x
@@ -737,38 +737,38 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
         {/* 4 Custom Resource Badges (100% SVG - ZERO EMOJIS) */}
         <div className="grid grid-cols-4 gap-1.5 pt-1">
           {/* Coins */}
-          <div className="bg-[#FAFAFA] border border-[#EAEAEB] rounded-xl px-2 py-1 flex items-center gap-1.5">
+          <div className="bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] rounded-xl px-2 py-1 flex items-center gap-1.5">
             <BuilderCoinIcon className="w-3.5 h-3.5 shrink-0" />
             <div className="min-w-0">
-              <span className="text-[9px] text-[#71717A] block font-semibold leading-none">Koin</span>
-              <span className="text-xs font-black text-[#111113] truncate block mt-0.5">{gameState.coins}</span>
+              <span className="text-[9px] text-[#71717A] dark:text-[#A1A1AA] block font-semibold leading-none">Koin</span>
+              <span className="text-xs font-black text-[#111113] dark:text-white truncate block mt-0.5">{gameState.coins}</span>
             </div>
           </div>
 
           {/* Materials */}
-          <div className="bg-[#FAFAFA] border border-[#EAEAEB] rounded-xl px-2 py-1 flex items-center gap-1.5">
+          <div className="bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] rounded-xl px-2 py-1 flex items-center gap-1.5">
             <BuilderWoodIcon className="w-3.5 h-3.5 shrink-0" />
             <div className="min-w-0">
-              <span className="text-[9px] text-[#71717A] block font-semibold leading-none">Material</span>
-              <span className="text-xs font-black text-[#111113] truncate block mt-0.5">{gameState.materials}</span>
+              <span className="text-[9px] text-[#71717A] dark:text-[#A1A1AA] block font-semibold leading-none">Material</span>
+              <span className="text-xs font-black text-[#111113] dark:text-white truncate block mt-0.5">{gameState.materials}</span>
             </div>
           </div>
 
           {/* Faith Points */}
-          <div className="bg-[#FAFAFA] border border-[#EAEAEB] rounded-xl px-2 py-1 flex items-center gap-1.5">
+          <div className="bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] rounded-xl px-2 py-1 flex items-center gap-1.5">
             <BuilderFaithStarIcon className="w-3.5 h-3.5 shrink-0" />
             <div className="min-w-0">
-              <span className="text-[9px] text-[#71717A] block font-semibold leading-none">Faith</span>
-              <span className="text-xs font-black text-[#111113] truncate block mt-0.5">{gameState.faithPoints}</span>
+              <span className="text-[9px] text-[#71717A] dark:text-[#A1A1AA] block font-semibold leading-none">Faith</span>
+              <span className="text-xs font-black text-[#111113] dark:text-white truncate block mt-0.5">{gameState.faithPoints}</span>
             </div>
           </div>
 
           {/* Community / Capacity */}
-          <div className="bg-[#FAFAFA] border border-[#EAEAEB] rounded-xl px-2 py-1 flex items-center gap-1.5">
+          <div className="bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] rounded-xl px-2 py-1 flex items-center gap-1.5">
             <BuilderCommunityIcon className="w-3.5 h-3.5 shrink-0" />
             <div className="min-w-0">
-              <span className="text-[9px] text-[#71717A] block font-semibold leading-none">Warga</span>
-              <span className="text-xs font-black text-[#111113] truncate block mt-0.5">
+              <span className="text-[9px] text-[#71717A] dark:text-[#A1A1AA] block font-semibold leading-none">Warga</span>
+              <span className="text-xs font-black text-[#111113] dark:text-white truncate block mt-0.5">
                 {gameState.currentVisitors}/{totalCapacity}
               </span>
             </div>
@@ -776,7 +776,7 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
         </div>
 
         {/* GUIDED ACTIVE GOAL / NEXT STEP BANNER */}
-        <div className="bg-[#FAFAFA] border border-[#EAEAEB] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs shadow-xs mt-0.5">
+        <div className="bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs shadow-xs mt-0.5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
             <span className="text-[11px] font-bold text-[#111113] truncate">
@@ -1005,7 +1005,7 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
       </div>
 
       {/* 3. BOTTOM CONTROL DOCK */}
-      <div className="p-3 bg-white border-t border-[#EAEAEB] shadow-xs flex items-center justify-between gap-2">
+      <div className="p-3 bg-white dark:bg-[#18181D] border-t border-[#EAEAEB] dark:border-[#26262B] shadow-xs flex items-center justify-between gap-2">
         {/* BUILD CATALOGUE BUTTON */}
         <button
           onClick={() => {
@@ -1013,7 +1013,7 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
             setShowBuildModal(true);
             setActiveMode('build');
           }}
-          className="flex-1 bg-[#111113] text-white font-bold text-xs py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 hover:bg-[#27272A] active:scale-95 transition-all shadow-xs"
+          className="flex-1 bg-[#111113] dark:bg-white text-white dark:text-black font-bold text-xs py-2.5 px-3 rounded-2xl flex items-center justify-center gap-1.5 hover:bg-[#27272A] dark:hover:bg-neutral-200 active:scale-95 transition-all shadow-xs cursor-pointer"
         >
           <Hammer size={15} />
           <span>BANGUN</span>
@@ -1025,10 +1025,10 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
             sfx.click();
             setActiveMode(activeMode === 'path' ? 'inspect' : 'path');
           }}
-          className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 border transition-all active:scale-95 ${
+          className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 border transition-all active:scale-95 cursor-pointer ${
             activeMode === 'path'
               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-              : 'bg-[#FAFAFA] text-[#111113] border-[#EAEAEB] hover:bg-[#F4F4F6]'
+              : 'bg-[#FAFAFA] dark:bg-[#202026] text-[#111113] dark:text-white border-[#EAEAEB] dark:border-[#2C2C32] hover:bg-[#F4F4F6] dark:hover:bg-[#282830]'
           }`}
           title="Mode Jalan"
         >
@@ -1042,10 +1042,10 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
             sfx.click();
             setActiveMode(activeMode === 'expand' ? 'inspect' : 'expand');
           }}
-          className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 border transition-all active:scale-95 ${
+          className={`py-2.5 px-3 rounded-2xl font-bold text-xs flex items-center gap-1.5 border transition-all active:scale-95 cursor-pointer ${
             activeMode === 'expand'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-              : 'bg-[#FAFAFA] text-[#111113] border-[#EAEAEB] hover:bg-[#F4F4F6]'
+              : 'bg-[#FAFAFA] dark:bg-[#202026] text-[#111113] dark:text-white border-[#EAEAEB] dark:border-[#2C2C32] hover:bg-[#F4F4F6] dark:hover:bg-[#282830]'
           }`}
           title="Buka Lahan Baru"
         >
@@ -1059,7 +1059,7 @@ export default function ChurchBuilder({ onBack }: ChurchBuilderProps) {
             sfx.slide();
             setShowMissionsModal(true);
           }}
-          className="p-2.5 bg-[#FAFAFA] border border-[#EAEAEB] hover:bg-[#F4F4F6] text-[#111113] rounded-2xl active:scale-95 transition-all relative"
+          className="p-2.5 bg-[#FAFAFA] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#2C2C32] hover:bg-[#F4F4F6] dark:hover:bg-[#282830] text-[#111113] dark:text-white rounded-2xl active:scale-95 transition-all relative cursor-pointer"
           title="Daftar Misi Harian"
         >
           <ListTodo size={17} />

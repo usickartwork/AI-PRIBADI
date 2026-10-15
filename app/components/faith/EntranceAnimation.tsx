@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useFaithNav } from '@/lib/faith/navigationContext';
 
 interface EntranceAnimationProps {
   onComplete?: () => void;
 }
 
 export default function EntranceAnimation({ onComplete }: EntranceAnimationProps) {
+  const { isDark } = useFaithNav();
   // Stages: 'initial' -> 'active' (breathing & ripples) -> 'revealing' (smooth dissolve) -> 'done'
   const [stage, setStage] = useState<'initial' | 'active' | 'revealing' | 'done'>('initial');
 
@@ -92,23 +94,29 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
           : 'opacity-100 scale-100 blur-0'
       }`}
       style={{
-        backgroundColor: '#F7F7F8',
+        backgroundColor: isDark ? '#0B0B0D' : '#F7F7F8',
       }}
     >
       {/* Organic Concentric Ripples in pure monochrome / silver (No Box) */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <div
-          className={`absolute rounded-full border border-[#111113]/[0.07] transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`absolute rounded-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isDark ? 'border border-white/10' : 'border border-[#111113]/[0.07]'
+          } ${
             isActive ? 'w-[180px] h-[180px] scale-100 opacity-100' : 'w-[80px] h-[80px] scale-75 opacity-0'
           }`}
         />
         <div
-          className={`absolute rounded-full border border-[#111113]/[0.05] transition-all duration-1200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`absolute rounded-full transition-all duration-1200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isDark ? 'border border-white/[0.07]' : 'border border-[#111113]/[0.05]'
+          } ${
             isActive ? 'w-[320px] h-[320px] scale-100 opacity-80' : 'w-[140px] h-[140px] scale-80 opacity-0'
           }`}
         />
         <div
-          className={`absolute rounded-full border border-[#111113]/[0.03] transition-all duration-1400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`absolute rounded-full transition-all duration-1400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isDark ? 'border border-white/[0.04]' : 'border border-[#111113]/[0.03]'
+          } ${
             isActive ? 'w-[480px] h-[480px] scale-100 opacity-60' : 'w-[200px] h-[200px] scale-85 opacity-0'
           }`}
         />
@@ -126,7 +134,9 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
         <div className="mb-4 relative flex items-center justify-center">
           {/* Subtle soft circular shadow */}
           <div
-            className={`absolute w-16 h-16 rounded-full bg-black/[0.04] blur-md transition-all duration-700 ${
+            className={`absolute w-16 h-16 rounded-full blur-md transition-all duration-700 ${
+              isDark ? 'bg-white/[0.04]' : 'bg-black/[0.04]'
+            } ${
               isActive ? 'scale-125 opacity-100' : 'scale-90 opacity-0'
             }`}
           />
@@ -136,7 +146,7 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
             height="42"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#111113"
+            stroke={isDark ? '#FFFFFF' : '#111113'}
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -149,29 +159,39 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
         </div>
 
         {/* Brand Title: Pure Typography (#111113, refined tracking) */}
-        <h1 className="text-base sm:text-lg font-bold text-[#111113] tracking-[0.24em] uppercase mb-1.5">
+        <h1 className={`text-base sm:text-lg font-bold tracking-[0.24em] uppercase mb-1.5 ${
+          isDark ? 'text-white' : 'text-[#111113]'
+        }`}>
           Faith Hub
         </h1>
 
         {/* Monochromatic Tagline: (#66666E / #8E8E93) */}
-        <p className="text-xs sm:text-[13px] text-[#66666E] font-normal italic max-w-[260px] leading-relaxed">
+        <p className={`text-xs sm:text-[13px] font-normal italic max-w-[260px] leading-relaxed ${
+          isDark ? 'text-[#8E8E93]' : 'text-[#66666E]'
+        }`}>
           Ruang Teduh &amp; Firman untuk Jiwamu
         </p>
 
         {/* Minimal Breathing Indicator (3 subtle organic dots, no box) */}
         <div className="mt-5 flex items-center gap-1.5">
           <span
-            className={`w-1.5 h-1.5 rounded-full bg-[#111113] transition-all duration-700 delay-100 ${
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-700 delay-100 ${
+              isDark ? 'bg-white' : 'bg-[#111113]'
+            } ${
               isActive ? 'opacity-80 scale-100' : 'opacity-20 scale-75'
             }`}
           />
           <span
-            className={`w-1.5 h-1.5 rounded-full bg-[#111113] transition-all duration-700 delay-200 ${
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-700 delay-200 ${
+              isDark ? 'bg-white' : 'bg-[#111113]'
+            } ${
               isActive ? 'opacity-50 scale-100' : 'opacity-20 scale-75'
             }`}
           />
           <span
-            className={`w-1.5 h-1.5 rounded-full bg-[#111113] transition-all duration-700 delay-300 ${
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-700 delay-300 ${
+              isDark ? 'bg-white' : 'bg-[#111113]'
+            } ${
               isActive ? 'opacity-30 scale-100' : 'opacity-20 scale-75'
             }`}
           />
@@ -180,7 +200,9 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
 
       {/* Subtle Bottom Tap Hint */}
       <div
-        className={`absolute bottom-6 text-[10px] text-[#8E8E93] tracking-widest uppercase transition-opacity duration-700 ${
+        className={`absolute bottom-6 text-[10px] tracking-widest uppercase transition-opacity duration-700 ${
+          isDark ? 'text-zinc-500' : 'text-[#8E8E93]'
+        } ${
           isActive ? 'opacity-50' : 'opacity-0'
         }`}
       >

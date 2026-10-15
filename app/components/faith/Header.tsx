@@ -25,7 +25,7 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
     <header
       className={`flex-none px-3.5 sm:px-4 py-3 z-30 border-b transition-colors duration-200 ${
         isDark
-          ? 'bg-[#121214]/95 backdrop-blur-md border-white/10 text-white'
+          ? 'bg-[#121215]/95 backdrop-blur-md border-[#222226] text-white'
           : 'bg-white/95 backdrop-blur-md border-[#EAEAEB] text-[#111113]'
       }`}
     >
@@ -38,11 +38,11 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
               onClick={handleMenuClick}
               className={`w-8 h-8 rounded-xl flex items-center justify-center border transition cursor-pointer active:scale-95 ${
                 isDark
-                  ? 'bg-zinc-800/80 hover:bg-zinc-700 border-white/10 text-zinc-100'
+                  ? 'bg-[#1C1C20] hover:bg-[#25252A] border-[#2C2C32] text-white'
                   : 'bg-[#F2F2F3] hover:bg-[#EAEAEB] border-[#DCDCE0] text-[#111113]'
               }`}
-              title="Menu / Riwayat"
-              aria-label="Menu atau Riwayat"
+              title="Riwayat Saat Teduh (Buka menu garis 3)"
+              aria-label="Buka riwayat percakapan"
             >
               <Menu size={18} strokeWidth={2.2} />
             </button>
@@ -60,11 +60,7 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
             >
               Faith Hub
             </span>
-            <span
-              className={`text-[10px] font-medium leading-none ${
-                isDark ? 'text-zinc-400' : 'text-[#8E8E93]'
-              }`}
-            >
+            <span className="text-[10px] text-[#8E8E93] font-medium leading-none">
               Ruang Hening Pribadi
             </span>
           </button>
@@ -78,7 +74,7 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
               onClick={onNewChat}
               className={`w-8 h-8 rounded-full flex items-center justify-center border transition cursor-pointer shadow-2xs active:scale-95 ${
                 isDark
-                  ? 'bg-zinc-800/80 hover:bg-zinc-700 border-white/10 text-zinc-100'
+                  ? 'bg-[#1C1C20] hover:bg-[#25252A] border-[#2C2C32] text-white'
                   : 'bg-[#F2F2F3] hover:bg-[#EAEAEB] border-[#DCDCE0] text-[#111113]'
               }`}
               title="Percakapan Baru"
@@ -93,7 +89,7 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
             onClick={() => setActiveTab('notes')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-2xs transition cursor-pointer active:scale-95 ${
               isDark
-                ? 'bg-white hover:bg-zinc-200 text-black'
+                ? 'bg-white hover:bg-neutral-200 text-black'
                 : 'bg-[#111113] hover:bg-black text-white'
             }`}
           >

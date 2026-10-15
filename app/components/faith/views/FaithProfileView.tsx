@@ -74,24 +74,24 @@ export default function ProfileCGPage() {
   }
 
   return (
-    <div className="h-full max-h-full w-full bg-transparent flex flex-col items-center justify-center sm:p-2 sm:pb-3 overflow-hidden">
-      <div className="w-full max-w-4xl h-full bg-white dark:bg-[#121214] rounded-none sm:rounded-[32px] sm:border border-[#EAEAEB] dark:border-white/10 sm:shadow-lg flex flex-col overflow-hidden relative">
+    <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden">
+      <div className="w-full max-w-4xl h-full bg-white dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative">
         <Header user={user} />
 
         <main className="flex-1 min-h-0 overflow-y-auto px-3.5 sm:px-6 py-4 space-y-4">
           {/* Header Title & Status */}
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-[#111113] text-white flex items-center justify-center font-bold shadow-xs">
+              <div className="w-8 h-8 rounded-xl bg-[#111113] dark:bg-white text-white dark:text-black flex items-center justify-center font-bold shadow-xs">
                 <UserIcon size={14} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-[#111113] tracking-tight">Profil Komunitas CG</h2>
-                <p className="text-[10px] text-[#8E8E93] font-medium">Informasi Anggota &amp; Komunitas</p>
+                <h2 className="text-sm font-bold text-[#111113] dark:text-white tracking-tight">Profil Komunitas CG</h2>
+                <p className="text-[10px] text-[#8E8E93] dark:text-[#A1A1AA] font-medium">Informasi Anggota &amp; Komunitas</p>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-[#F2F2F4] text-[#111113] border border-[#DCDCE0]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#111113]" />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-[#F2F2F4] dark:bg-[#1C1C20] text-[#111113] dark:text-white border border-[#DCDCE0] dark:border-[#2C2C32]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#111113] dark:bg-white" />
               Terverifikasi
             </span>
           </div>
@@ -217,48 +217,48 @@ export default function ProfileCGPage() {
           </section>
 
           {/* Section: Informasi Komunitas (CG / Connect Group) */}
-          <section className="bg-white rounded-[26px] p-5 shadow-2xs border border-[#EAEAEB] space-y-3.5">
-            <h4 className="text-xs font-bold text-[#111113] uppercase tracking-wider pb-1 border-b border-[#F2F2F3]">
+          <section className="bg-white dark:bg-[#18181D] rounded-[26px] p-5 shadow-2xs border border-[#EAEAEB] dark:border-[#26262B] space-y-3.5">
+            <h4 className="text-xs font-bold text-[#111113] dark:text-white uppercase tracking-wider pb-1 border-b border-[#F2F2F3] dark:border-[#26262B]">
               Informasi Komunitas (CG)
             </h4>
 
-            <div className="divide-y divide-[#F2F2F3] text-xs">
+            <div className="divide-y divide-[#F2F2F3] dark:divide-[#26262B] text-xs">
               <div className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#66666E]">
+                <div className="flex items-center gap-2 text-[#66666E] dark:text-[#A1A1AA]">
                   <Users size={13} />
                   <span>Kelompok Sel</span>
                 </div>
-                <span className="font-semibold text-[#111113]">
+                <span className="font-semibold text-[#111113] dark:text-white">
                   {user.community_group?.name || 'CG Central Youth 30'}
                 </span>
               </div>
 
               <div className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#66666E]">
+                <div className="flex items-center gap-2 text-[#66666E] dark:text-[#A1A1AA]">
                   <UserIcon size={13} />
                   <span>Pemimpin</span>
                 </div>
-                <span className="font-semibold text-[#111113]">
+                <span className="font-semibold text-[#111113] dark:text-white">
                   {user.community_group?.leader || 'Daniel Kristianto'}
                 </span>
               </div>
 
               <div className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#66666E]">
+                <div className="flex items-center gap-2 text-[#66666E] dark:text-[#A1A1AA]">
                   <Clock size={13} />
                   <span>Jadwal Pertemuan</span>
                 </div>
-                <span className="font-semibold text-[#111113]">
+                <span className="font-semibold text-[#111113] dark:text-white">
                   {user.community_group?.schedule || 'Jumat, 19.00'}
                 </span>
               </div>
 
               <div className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#66666E]">
+                <div className="flex items-center gap-2 text-[#66666E] dark:text-[#A1A1AA]">
                   <MapPin size={13} />
                   <span>Lokasi</span>
                 </div>
-                <span className="font-semibold text-[#111113] text-right max-w-[200px]">
+                <span className="font-semibold text-[#111113] dark:text-white text-right max-w-[200px]">
                   {user.community_group?.location || 'Jl. Kartini no 118, Surabaya'}
                 </span>
               </div>
@@ -270,9 +270,9 @@ export default function ProfileCGPage() {
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full py-3 px-4 rounded-2xl border border-[#DCDCE0] bg-white hover:bg-[#F2F2F4] active:scale-[0.99] text-[#111113] font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-2xl border border-[#DCDCE0] dark:border-[#2C2C32] bg-white dark:bg-[#18181D] hover:bg-[#F2F2F4] dark:hover:bg-[#222228] active:scale-[0.99] text-[#111113] dark:text-white font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs disabled:opacity-50"
             >
-              <LogOut size={14} className="text-[#66666E]" />
+              <LogOut size={14} className="text-[#66666E] dark:text-[#A1A1AA]" />
               <span>{isLoggingOut ? 'Mengakhiri sesi...' : 'Keluar dari Akun (Logout)'}</span>
             </button>
           </section>

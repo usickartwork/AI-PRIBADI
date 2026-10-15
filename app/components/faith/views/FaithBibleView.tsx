@@ -611,14 +611,14 @@ export default function BiblePage() {
   });
 
   return (
-    <div className="h-full max-h-full w-full bg-transparent flex flex-col items-center justify-center sm:p-2 sm:pb-3 overflow-hidden select-none sm:select-auto">
-      <div className="w-full max-w-4xl h-full bg-white dark:bg-[#121214] rounded-none sm:rounded-[32px] sm:border border-[#EAEAEB] dark:border-white/10 sm:shadow-lg flex flex-col overflow-hidden relative">
+    <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden select-none sm:select-auto">
+      <div className="w-full max-w-4xl h-full bg-white dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative">
         <Header user={user} />
 
         {/* ========================================================================= */}
         {/* NATIVE APP STYLE TOP BAR: [Roma 8 ▾] [TB] + Tools                        */}
         {/* ========================================================================= */}
-        <div className="flex-none bg-white border-b border-[#EAEAEB] px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20">
+        <div className="flex-none bg-white dark:bg-[#121215] border-b border-[#EAEAEB] dark:border-[#222226] px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20 transition-colors">
           {/* Main Book & Chapter Pill Trigger (Like YouVersion) */}
           <div className="flex items-center gap-2">
             <button
@@ -628,17 +628,17 @@ export default function BiblePage() {
                 setPickerSearch('');
                 setIsPickerOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F4] hover:bg-[#EAEAEB] active:scale-95 border border-[#DCDCE0] rounded-full transition cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F2F2F4] dark:bg-[#1C1C20] hover:bg-[#EAEAEB] dark:hover:bg-[#25252A] active:scale-95 border border-[#DCDCE0] dark:border-[#2C2C32] rounded-full transition cursor-pointer shadow-2xs"
               title="Pilih Kitab & Pasal"
             >
-              <span className="text-[13.5px] font-bold text-[#111113] tracking-tight">
+              <span className="text-[13.5px] font-bold text-[#111113] dark:text-white tracking-tight">
                 {selectedBook.name} {selectedChapter}
               </span>
-              <ChevronDown size={14} className="text-[#66666E]" />
+              <ChevronDown size={14} className="text-[#66666E] dark:text-[#A1A1AA]" />
             </button>
 
             {/* Translation Badge */}
-            <span className="text-[10px] font-bold tracking-wider text-[#66666E] bg-[#F2F2F4] border border-[#E5E5E8] px-2 py-1 rounded-full uppercase">
+            <span className="text-[10px] font-bold tracking-wider text-[#66666E] dark:text-[#A1A1AA] bg-[#F2F2F4] dark:bg-[#1C1C20] border border-[#E5E5E8] dark:border-[#2C2C32] px-2 py-1 rounded-full uppercase">
               TB
             </span>
           </div>
@@ -646,7 +646,7 @@ export default function BiblePage() {
           {/* Quick Reader Tools */}
           <div className="flex items-center gap-1.5">
             {/* Font Size Selector */}
-            <div className="flex items-center bg-[#F2F2F4] border border-[#DCDCE0] rounded-full p-0.5">
+            <div className="flex items-center bg-[#F2F2F4] dark:bg-[#1C1C20] border border-[#DCDCE0] dark:border-[#2C2C32] rounded-full p-0.5">
               <button
                 onClick={() => setFontSize(fontSize === 'lg' ? 'md' : fontSize === 'md' ? 'sm' : 'sm')}
                 disabled={fontSize === 'sm'}
@@ -706,12 +706,12 @@ export default function BiblePage() {
           className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-5 relative"
         >
           {/* Chapter Heading Banner */}
-          <div className="mb-6 pb-3 border-b border-[#EAEAEB] flex items-center justify-between">
+          <div className="mb-6 pb-3 border-b border-[#EAEAEB] dark:border-[#222226] flex items-center justify-between">
             <div>
               <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
                 {selectedBook.testament === 'PL' ? 'Perjanjian Lama' : 'Perjanjian Baru'}
               </span>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#111113] tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#111113] dark:text-white tracking-tight">
                 {selectedBook.name} {selectedChapter}
               </h1>
             </div>
@@ -721,13 +721,13 @@ export default function BiblePage() {
               <button
                 type="button"
                 onClick={() => setIsHighlightsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 text-xs text-[#111113] bg-[#F2F2F4] hover:bg-[#EAEAEB] active:scale-95 px-3 py-1.5 rounded-full border border-[#DCDCE0] transition cursor-pointer shadow-2xs font-semibold"
+                className="inline-flex items-center gap-1.5 text-xs text-[#111113] dark:text-white bg-[#F2F2F4] dark:bg-[#1C1C20] hover:bg-[#EAEAEB] dark:hover:bg-[#25252A] active:scale-95 px-3 py-1.5 rounded-full border border-[#DCDCE0] dark:border-[#2C2C32] transition cursor-pointer shadow-2xs font-semibold"
                 title="Buka Daftar Ayat Tersimpan"
               >
-                <Bookmark size={13} className="text-[#111113]" />
+                <Bookmark size={13} className="text-[#111113] dark:text-white" />
                 <span>Ayat Tersimpan</span>
                 {highlightList.length > 0 && (
-                  <span className="bg-[#111113] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  <span className="bg-[#111113] dark:bg-white text-white dark:text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                     {highlightList.length}
                   </span>
                 )}
@@ -788,7 +788,7 @@ export default function BiblePage() {
                     {/* Pericope Title (Judul Perikop Alkitab TB) */}
                     {v.title && (
                       <div className="pt-4 pb-2">
-                        <h2 className="text-[13px] sm:text-[14px] font-bold text-[#111113] tracking-tight border-b border-[#EAEAEB] pb-1 inline-block">
+                        <h2 className="text-[13px] sm:text-[14px] font-bold text-[#111113] dark:text-white tracking-tight border-b border-[#EAEAEB] dark:border-[#26262B] pb-1 inline-block">
                           {v.title}
                         </h2>
                       </div>
@@ -801,34 +801,34 @@ export default function BiblePage() {
                       className={`relative px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-150 flex items-baseline gap-2.5 ${
                         isSelected
                           ? highlightConfig
-                            ? `${highlightConfig.bgClass} ring-2 ring-[#111113] shadow-xs`
-                            : 'bg-[#F2F2F4] ring-2 ring-[#111113]/30 shadow-2xs'
+                            ? `${highlightConfig.bgClass} ring-2 ring-[#111113] dark:ring-white shadow-xs`
+                            : 'bg-[#F2F2F4] dark:bg-[#1C1C22] ring-2 ring-[#111113]/30 dark:ring-white/30 shadow-2xs'
                           : highlightConfig
                           ? `${highlightConfig.bgClass} shadow-2xs`
-                          : 'hover:bg-[#F8F8F9]'
+                          : 'hover:bg-[#F8F8F9] dark:hover:bg-[#18181D]'
                       }`}
                     >
                       {/* Verse Number (Superscript Style) */}
                       <span
                         className={`text-[11px] font-mono font-bold select-none shrink-0 ${
                           highlightConfig
-                            ? 'text-black/70'
+                            ? 'text-black/70 dark:text-black/80'
                             : isSelected
-                            ? 'text-[#111113]'
-                            : 'text-[#8E8E93]'
+                            ? 'text-[#111113] dark:text-white'
+                            : 'text-[#8E8E93] dark:text-[#A1A1AA]'
                         }`}
                       >
                         {v.verse}
                       </span>
 
                       {/* Verse Text (Clean Bible Typography) */}
-                      <p className="flex-1 font-serif text-[#111113]">
+                      <p className="flex-1 font-serif text-[#111113] dark:text-[#ECECED]">
                         {v.text}
                       </p>
 
                       {/* Small Active Indicator Dot if tapped */}
                       {isSelected && (
-                        <span className="w-2 h-2 rounded-full bg-[#111113] shrink-0 self-center animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-[#111113] dark:bg-white shrink-0 self-center animate-pulse" />
                       )}
                     </div>
                   </div>
@@ -844,7 +844,7 @@ export default function BiblePage() {
             <button
               onClick={handlePrevChapter}
               disabled={currentBookIndex === 0 && selectedChapter === 1}
-              className="pointer-events-auto bg-[#111113]/90 hover:bg-[#111113] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-xs border border-white/10"
+              className="pointer-events-auto bg-[#111113]/90 hover:bg-[#111113] dark:bg-[#202026]/95 dark:hover:bg-[#2A2A32] dark:border-white/15 disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-xs border border-white/10"
             >
               <ChevronLeft size={14} />
               <span>Sebelumnya</span>
@@ -853,7 +853,7 @@ export default function BiblePage() {
             <button
               onClick={handleNextChapter}
               disabled={currentBookIndex === BIBLE_BOOKS.length - 1 && selectedChapter === selectedBook.chapters}
-              className="pointer-events-auto bg-[#111113]/90 hover:bg-[#111113] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-xs border border-white/10"
+              className="pointer-events-auto bg-[#111113]/90 hover:bg-[#111113] dark:bg-[#202026]/95 dark:hover:bg-[#2A2A32] dark:border-white/15 disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer backdrop-blur-xs border border-white/10"
             >
               <span>Selanjutnya</span>
               <ChevronRight size={14} />
@@ -865,20 +865,20 @@ export default function BiblePage() {
         {/* FLOATING ACTION DOCK: When Verses are Selected (Multi-Verse Support)      */}
         {/* ========================================================================= */}
         {selectedVerses.length > 0 && (
-          <div className="absolute bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-20 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 bg-white/98 backdrop-blur-md border border-[#DCDCE0] rounded-[24px] p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.18)] z-50 animate-in slide-in-from-bottom-3 duration-200">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#EAEAEB]">
+          <div className="absolute bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-20 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 bg-white/98 dark:bg-[#16161A]/98 backdrop-blur-md border border-[#DCDCE0] dark:border-[#2C2C32] rounded-[24px] p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.45)] z-50 animate-in slide-in-from-bottom-3 duration-200">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#EAEAEB] dark:border-[#26262B]">
               <div className="flex items-center gap-2 min-w-0">
-                <Bookmark size={13} className="text-[#111113] shrink-0" />
-                <span className="text-xs font-bold text-[#111113] truncate">
+                <Bookmark size={13} className="text-[#111113] dark:text-white shrink-0" />
+                <span className="text-xs font-bold text-[#111113] dark:text-white truncate">
                   {formatVerseReference(selectedBook.name, selectedChapter, selectedVerses)}
                 </span>
-                <span className="text-[10px] font-semibold text-[#8E8E93] bg-[#F2F2F4] px-1.5 py-0.5 rounded-full shrink-0">
+                <span className="text-[10px] font-semibold text-[#8E8E93] dark:text-[#A1A1AA] bg-[#F2F2F4] dark:bg-[#222228] px-1.5 py-0.5 rounded-full shrink-0">
                   {selectedVerses.length} ayat
                 </span>
               </div>
               <button
                 onClick={() => setSelectedVerses([])}
-                className="w-6 h-6 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#66666E] flex items-center justify-center transition cursor-pointer shrink-0 ml-1"
+                className="w-6 h-6 rounded-full bg-[#F2F2F4] dark:bg-[#222228] hover:bg-[#EAEAEB] dark:hover:bg-[#2C2C32] text-[#66666E] dark:text-[#A1A1AA] flex items-center justify-center transition cursor-pointer shrink-0 ml-1"
                 title="Batalkan Pilihan"
               >
                 <X size={12} />
@@ -887,7 +887,7 @@ export default function BiblePage() {
 
             {/* Highlight Color Palette */}
             <div className="flex items-center justify-between gap-1.5 py-1">
-              <span className="text-[11px] text-[#8E8E93] font-medium mr-1">Warna:</span>
+              <span className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] font-medium mr-1">Warna:</span>
               <div className="flex items-center gap-2">
                 {HIGHLIGHT_COLORS.map((c) => {
                   const isCurrentColor = selectedVerses.every((v) => {
@@ -900,7 +900,7 @@ export default function BiblePage() {
                       key={c.id}
                       onClick={() => handleApplyHighlight(c.id)}
                       className={`w-7 h-7 rounded-full ${c.dotClass} border-2 flex items-center justify-center transition-transform active:scale-90 cursor-pointer ${
-                        isCurrentColor ? 'scale-110 ring-2 ring-[#111113]' : 'hover:scale-105'
+                        isCurrentColor ? 'scale-110 ring-2 ring-[#111113] dark:ring-white' : 'hover:scale-105'
                       }`}
                       title={`Sorot ${c.label}`}
                     >
@@ -912,7 +912,7 @@ export default function BiblePage() {
                 {/* Clear Highlight Button */}
                 <button
                   onClick={handleRemoveHighlight}
-                  className="w-7 h-7 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] border border-[#DCDCE0] flex items-center justify-center text-[#8E8E93] hover:text-red-500 transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[#F2F2F4] dark:bg-[#222228] hover:bg-[#EAEAEB] dark:hover:bg-[#2C2C32] border border-[#DCDCE0] dark:border-[#2C2C32] flex items-center justify-center text-[#8E8E93] dark:text-[#A1A1AA] hover:text-red-500 transition cursor-pointer"
                   title="Hapus Sorotan Ayat Terpilih"
                 >
                   <Trash2 size={12} />
@@ -921,15 +921,15 @@ export default function BiblePage() {
             </div>
 
             {/* Quick Action Buttons (Copy, AI Reflect) */}
-            <div className="pt-2 mt-2 border-t border-[#EAEAEB] flex items-center justify-between gap-2 text-xs">
+            <div className="pt-2 mt-2 border-t border-[#EAEAEB] dark:border-[#26262B] flex items-center justify-between gap-2 text-xs">
               <button
                 onClick={handleCopySelectedVerses}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#111113] font-medium flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#F2F2F4] dark:bg-[#222228] hover:bg-[#EAEAEB] dark:hover:bg-[#2C2C32] text-[#111113] dark:text-white font-medium flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 {copiedKey === formatVerseReference(selectedBook.name, selectedChapter, selectedVerses) ? (
                   <>
-                    <CheckCheck size={12} className="text-emerald-600" />
-                    <span className="text-emerald-600 font-semibold">Disalin!</span>
+                    <CheckCheck size={12} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Disalin!</span>
                   </>
                 ) : (
                   <>
@@ -941,7 +941,7 @@ export default function BiblePage() {
 
               <button
                 onClick={handleReflectSelectedVerses}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#111113] hover:bg-black text-white font-medium flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
               >
                 <Sparkles size={12} />
                 <span>Renungkan</span>
@@ -954,22 +954,22 @@ export default function BiblePage() {
         {/* NATIVE APP STYLE MODAL: Book & Chapter Picker (YouVersion Style)          */}
         {/* ========================================================================= */}
         {isPickerOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-5 shadow-2xl max-h-[88vh] flex flex-col border border-[#EAEAEB] overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#141418] w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-5 shadow-2xl max-h-[88vh] flex flex-col border border-[#EAEAEB] dark:border-[#26262B] overflow-hidden">
               {/* Modal Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEB]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEB] dark:border-[#26262B]">
                 {tempBookForChapterPick ? (
                   <button
                     onClick={() => setTempBookForChapterPick(null)}
-                    className="flex items-center gap-1 text-xs font-semibold text-[#111113] hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-xs font-semibold text-[#111113] dark:text-white hover:underline cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                     <span>Kembali ke Daftar Kitab</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <BookOpen size={16} className="text-[#111113]" />
-                    <h3 className="text-sm font-bold text-[#111113]">Pilih Kitab &amp; Pasal</h3>
+                    <BookOpen size={16} className="text-[#111113] dark:text-white" />
+                    <h3 className="text-sm font-bold text-[#111113] dark:text-white">Pilih Kitab &amp; Pasal</h3>
                   </div>
                 )}
                 <button
@@ -977,7 +977,7 @@ export default function BiblePage() {
                     setIsPickerOpen(false);
                     setTempBookForChapterPick(null);
                   }}
-                  className="w-7 h-7 rounded-full bg-[#F2F2F4] text-[#66666E] flex items-center justify-center hover:bg-[#EAEAEB] transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[#F2F2F4] dark:bg-[#222228] text-[#66666E] dark:text-[#A1A1AA] flex items-center justify-center hover:bg-[#EAEAEB] dark:hover:bg-[#2C2C32] transition cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -987,13 +987,13 @@ export default function BiblePage() {
               {tempBookForChapterPick ? (
                 <div className="flex-1 overflow-y-auto py-4">
                   <div className="mb-3">
-                    <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
+                    <span className="text-[11px] font-semibold text-[#8E8E93] dark:text-[#A1A1AA] uppercase tracking-wider block">
                       {tempBookForChapterPick.testament === 'PL' ? 'Perjanjian Lama' : 'Perjanjian Baru'}
                     </span>
-                    <h4 className="text-lg font-bold text-[#111113]">
+                    <h4 className="text-lg font-bold text-[#111113] dark:text-white">
                       {tempBookForChapterPick.name}
                     </h4>
-                    <p className="text-xs text-[#66666E]">
+                    <p className="text-xs text-[#66666E] dark:text-[#A1A1AA]">
                       Pilih nomor pasal (1 - {tempBookForChapterPick.chapters}):
                     </p>
                   </div>
@@ -1020,8 +1020,8 @@ export default function BiblePage() {
                           }}
                           className={`h-11 rounded-2xl text-sm font-bold flex items-center justify-center transition cursor-pointer active:scale-95 ${
                             isCurrent
-                              ? 'bg-[#111113] text-white shadow-md'
-                              : 'bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#111113] border border-[#DCDCE0]'
+                              ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-md'
+                              : 'bg-[#F2F2F4] dark:bg-[#1E1E24] hover:bg-[#EAEAEB] dark:hover:bg-[#26262E] text-[#111113] dark:text-white border border-[#DCDCE0] dark:border-[#2C2C34]'
                           }`}
                         >
                           {ch}
@@ -1035,24 +1035,24 @@ export default function BiblePage() {
                 <div className="flex-1 overflow-hidden flex flex-col pt-3">
                   {/* Search Bar */}
                   <div className="relative mb-3">
-                    <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3 top-2.5" />
+                    <Search className="w-3.5 h-3.5 text-[#8E8E93] dark:text-[#A1A1AA] absolute left-3 top-2.5" />
                     <input
                       type="text"
                       placeholder="Cari kitab (misal: Mazmur, Roma, Yohanes)..."
                       value={pickerSearch}
                       onChange={(e) => setPickerSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F2F2F4] border border-[#DCDCE0] rounded-xl focus:outline-none focus:border-black text-[#111113] placeholder:text-[#8E8E93]"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F2F2F4] dark:bg-[#1E1E24] border border-[#DCDCE0] dark:border-[#2C2C34] rounded-xl focus:outline-none focus:border-black dark:focus:border-white text-[#111113] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#66666E]"
                     />
                   </div>
 
                   {/* Testament Tabs: PL vs PB */}
-                  <div className="flex rounded-full bg-[#F2F2F4] p-1 text-xs font-semibold border border-[#DCDCE0] mb-3">
+                  <div className="flex rounded-full bg-[#F2F2F4] dark:bg-[#1E1E24] p-1 text-xs font-semibold border border-[#DCDCE0] dark:border-[#2C2C34] mb-3">
                     <button
                       onClick={() => setPickerTab('PL')}
                       className={`flex-1 py-1.5 rounded-full transition text-[11px] cursor-pointer ${
                         pickerTab === 'PL'
-                          ? 'bg-[#111113] text-white shadow-xs font-bold'
-                          : 'text-[#66666E] hover:text-[#111113]'
+                          ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs font-bold'
+                          : 'text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white'
                       }`}
                     >
                       Perjanjian Lama (39)
@@ -1061,8 +1061,8 @@ export default function BiblePage() {
                       onClick={() => setPickerTab('PB')}
                       className={`flex-1 py-1.5 rounded-full transition text-[11px] cursor-pointer ${
                         pickerTab === 'PB'
-                          ? 'bg-[#111113] text-white shadow-xs font-bold'
-                          : 'text-[#66666E] hover:text-[#111113]'
+                          ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs font-bold'
+                          : 'text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white'
                       }`}
                     >
                       Perjanjian Baru (27)
@@ -1084,14 +1084,14 @@ export default function BiblePage() {
                           onMouseEnter={() => preloadBook(b.id)}
                           className={`p-2.5 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between active:scale-95 ${
                             isSelected
-                              ? 'bg-[#111113] text-white border-black shadow-xs'
-                              : 'bg-white hover:bg-[#F9F9FA] text-[#111113] border-[#EAEAEB]'
+                              ? 'bg-[#111113] dark:bg-white text-white dark:text-black border-black dark:border-white shadow-xs'
+                              : 'bg-white dark:bg-[#1A1A20] hover:bg-[#F9F9FA] dark:hover:bg-[#222228] text-[#111113] dark:text-white border-[#EAEAEB] dark:border-[#26262B]'
                           }`}
                         >
                           <span className="text-xs font-bold truncate block">{b.name}</span>
                           <span
                             className={`text-[10px] ${
-                              isSelected ? 'text-white/70' : 'text-[#8E8E93]'
+                              isSelected ? 'text-white/70 dark:text-black/70' : 'text-[#8E8E93] dark:text-[#A1A1AA]'
                             }`}
                           >
                             {b.chapters} Pasal
@@ -1110,24 +1110,24 @@ export default function BiblePage() {
         {/* AI REFLECTION MODAL (Questionnaire -> Targeted Devotion -> Notes Integration) */}
         {/* ========================================================================= */}
         {isAiModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col border border-[#EAEAEB] overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#141418] w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col border border-[#EAEAEB] dark:border-[#26262B] overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-[#EAEAEB] shrink-0">
+              <div className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-[#EAEAEB] dark:border-[#26262B] shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#F2F2F4] border border-[#DCDCE0] text-[#111113] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#F2F2F4] dark:bg-[#202026] border border-[#DCDCE0] dark:border-[#2C2C34] text-[#111113] dark:text-white flex items-center justify-center shrink-0">
                     <BookOpen size={14} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="text-[13.5px] font-bold text-[#111113] tracking-tight">Refleksi Firman</h4>
+                      <h4 className="text-[13.5px] font-bold text-[#111113] dark:text-white tracking-tight">Refleksi Firman</h4>
                       {aiTargetVerseRef && (
-                        <span className="text-[10.5px] font-semibold text-[#111113] bg-[#F2F2F4] border border-[#DCDCE0] px-2 py-0.5 rounded-full">
+                        <span className="text-[10.5px] font-semibold text-[#111113] dark:text-white bg-[#F2F2F4] dark:bg-[#202026] border border-[#DCDCE0] dark:border-[#2C2C34] px-2 py-0.5 rounded-full">
                           {aiTargetVerseRef}
                         </span>
                       )}
                     </div>
-                    <p className="text-[10.5px] text-[#8E8E93]">
+                    <p className="text-[10.5px] text-[#8E8E93] dark:text-[#A1A1AA]">
                       {aiStep === 'questionnaire' ? 'Panduan Saat Teduh Pribadi' : 'Renungan Firman & Doa'}
                     </p>
                   </div>
@@ -1135,7 +1135,7 @@ export default function BiblePage() {
                 <button
                   type="button"
                   onClick={() => setIsAiModalOpen(false)}
-                  className="w-7 h-7 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#66666E] flex items-center justify-center transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[#F2F2F4] dark:bg-[#202026] hover:bg-[#EAEAEB] dark:hover:bg-[#282830] text-[#66666E] dark:text-[#A1A1AA] flex items-center justify-center transition cursor-pointer"
                   title="Tutup"
                 >
                   <X size={14} />
@@ -1146,12 +1146,12 @@ export default function BiblePage() {
               {aiStep === 'questionnaire' && (
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                   {/* Scripture Reading Vignette */}
-                  <div className="p-4 bg-[#F9F9FA] rounded-2xl border border-[#EAEAEB] space-y-1.5">
-                    <div className="flex items-center justify-between text-[10.5px] text-[#8E8E93]">
+                  <div className="p-4 bg-[#F9F9FA] dark:bg-[#1A1A20] rounded-2xl border border-[#EAEAEB] dark:border-[#26262B] space-y-1.5">
+                    <div className="flex items-center justify-between text-[10.5px] text-[#8E8E93] dark:text-[#A1A1AA]">
                       <span className="font-semibold uppercase tracking-wider">Ayat Firman</span>
                       <span>Terjemahan Baru</span>
                     </div>
-                    <p className="text-[13px] font-serif italic text-[#111113] leading-relaxed">
+                    <p className="text-[13px] font-serif italic text-[#111113] dark:text-[#ECECED] leading-relaxed">
                       &ldquo;{aiTargetVerseText || aiTargetVerseRef}&rdquo;
                     </p>
                   </div>
@@ -1159,10 +1159,10 @@ export default function BiblePage() {
                   {/* Pertanyaan 1: Pergumulan / Situasi */}
                   <div className="space-y-2">
                     <div className="space-y-0.5">
-                      <label className="text-[12.5px] font-bold text-[#111113] block">
+                      <label className="text-[12.5px] font-bold text-[#111113] dark:text-white block">
                         Apa yang sedang kamu hadapi atau gumulkan saat ini?
                       </label>
-                      <p className="text-[11px] text-[#8E8E93] leading-relaxed">
+                      <p className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] leading-relaxed">
                         Ceritakan situasi batinmu agar perenungan ayat ini relevan dan menguatkan.
                       </p>
                     </div>
@@ -1196,8 +1196,8 @@ export default function BiblePage() {
                             }}
                             className={`px-3 py-1.5 text-[11px] font-medium rounded-full border transition active:scale-95 cursor-pointer ${
                               isSelected
-                                ? 'bg-[#111113] text-white border-[#111113]'
-                                : 'bg-[#F2F2F4] text-[#444448] hover:text-[#111113] hover:bg-[#EAEAEB] border-[#DCDCE0]'
+                                ? 'bg-[#111113] dark:bg-white text-white dark:text-black border-[#111113] dark:border-white font-bold'
+                                : 'bg-[#F2F2F4] dark:bg-[#1E1E24] text-[#444448] dark:text-[#D4D4D8] hover:text-[#111113] dark:hover:text-white hover:bg-[#EAEAEB] dark:hover:bg-[#26262E] border-[#DCDCE0] dark:border-[#2C2C34]'
                             }`}
                           >
                             {chip}
@@ -1211,17 +1211,17 @@ export default function BiblePage() {
                       onChange={(e) => setAiStruggle(e.target.value)}
                       placeholder="Tuliskan isi hatimu di sini (contoh: sedang merasa cemas menghadapi tantangan baru)..."
                       rows={3}
-                      className="w-full px-3.5 py-2.5 text-xs bg-[#F9F9FA] border border-[#DCDCE0] rounded-2xl focus:outline-none focus:border-[#111113] text-[#111113] placeholder:text-[#8E8E93] resize-none leading-relaxed transition"
+                      className="w-full px-3.5 py-2.5 text-xs bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#DCDCE0] dark:border-[#2C2C34] rounded-2xl focus:outline-none focus:border-[#111113] dark:focus:border-white text-[#111113] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#66666E] resize-none leading-relaxed transition"
                     />
                   </div>
 
                   {/* Pertanyaan 2: Harapan / Kebutuhan Batin */}
                   <div className="space-y-2">
                     <div className="space-y-0.5">
-                      <label className="text-[12.5px] font-bold text-[#111113] block">
+                      <label className="text-[12.5px] font-bold text-[#111113] dark:text-white block">
                         Apa fokus atau harapanmu melalui ayat ini?
                       </label>
-                      <p className="text-[11px] text-[#8E8E93]">
+                      <p className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA]">
                         Hal yang paling ingin kamu peroleh dari firman ini hari ini.
                       </p>
                     </div>
@@ -1254,8 +1254,8 @@ export default function BiblePage() {
                             }}
                             className={`px-3 py-1.5 text-[11px] font-medium rounded-full border transition active:scale-95 cursor-pointer ${
                               isSelected
-                                ? 'bg-[#111113] text-white border-[#111113]'
-                                : 'bg-[#F2F2F4] text-[#444448] hover:text-[#111113] hover:bg-[#EAEAEB] border-[#DCDCE0]'
+                                ? 'bg-[#111113] dark:bg-white text-white dark:text-black border-[#111113] dark:border-white font-bold'
+                                : 'bg-[#F2F2F4] dark:bg-[#1E1E24] text-[#444448] dark:text-[#D4D4D8] hover:text-[#111113] dark:hover:text-white hover:bg-[#EAEAEB] dark:hover:bg-[#26262E] border-[#DCDCE0] dark:border-[#2C2C34]'
                             }`}
                           >
                             {chip}
@@ -1269,7 +1269,7 @@ export default function BiblePage() {
                       value={aiDesire}
                       onChange={(e) => setAiDesire(e.target.value)}
                       placeholder="Contoh: Ketenangan batin dan hikmat dalam melangkah..."
-                      className="w-full px-3.5 py-2.5 text-xs bg-[#F9F9FA] border border-[#DCDCE0] rounded-2xl focus:outline-none focus:border-[#111113] text-[#111113] placeholder:text-[#8E8E93] transition"
+                      className="w-full px-3.5 py-2.5 text-xs bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#DCDCE0] dark:border-[#2C2C34] rounded-2xl focus:outline-none focus:border-[#111113] dark:focus:border-white text-[#111113] dark:text-white placeholder:text-[#8E8E93] dark:placeholder:text-[#66666E] transition"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleGenerateReflection();
                       }}
@@ -1281,12 +1281,12 @@ export default function BiblePage() {
                     <button
                       type="button"
                       onClick={handleGenerateReflection}
-                      className="w-full py-3 px-4 bg-[#111113] hover:bg-black text-white font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-2xs"
+                      className="w-full py-3 px-4 bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-2xs"
                     >
                       <Sparkles size={14} />
                       <span>Renungkan Firman</span>
                     </button>
-                    <p className="text-[10px] text-[#8E8E93] text-center mt-2">
+                    <p className="text-[10px] text-[#8E8E93] dark:text-[#A1A1AA] text-center mt-2">
                       AI akan menelaah responmu dan mengaitkannya dengan hikmat firman.
                     </p>
                   </div>
@@ -1298,23 +1298,23 @@ export default function BiblePage() {
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                   {aiLoading ? (
                     <div className="py-20 flex flex-col items-center justify-center gap-3 text-center">
-                      <div className="w-10 h-10 rounded-full bg-[#F2F2F4] border border-[#EAEAEB] flex items-center justify-center shadow-2xs">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#111113]" />
+                      <div className="w-10 h-10 rounded-full bg-[#F2F2F4] dark:bg-[#202026] border border-[#EAEAEB] dark:border-[#26262B] flex items-center justify-center shadow-2xs">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#111113] dark:text-white" />
                       </div>
                       <div className="space-y-1 max-w-xs">
-                        <h4 className="text-xs font-bold text-[#111113]">Merenungkan Firman...</h4>
-                        <p className="text-[11px] text-[#8E8E93] leading-relaxed">
+                        <h4 className="text-xs font-bold text-[#111113] dark:text-white">Merenungkan Firman...</h4>
+                        <p className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] leading-relaxed">
                           Menghubungkan pesan {aiTargetVerseRef} dengan isi hatimu.
                         </p>
                       </div>
                     </div>
                   ) : aiResponse?.error ? (
-                    <div className="p-4 bg-[#F9F9FA] border border-[#EAEAEB] rounded-2xl space-y-2 text-center">
-                      <p className="text-xs text-rose-600 font-semibold">{aiResponse.error}</p>
+                    <div className="p-4 bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#EAEAEB] dark:border-[#26262B] rounded-2xl space-y-2 text-center">
+                      <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">{aiResponse.error}</p>
                       <button
                         type="button"
                         onClick={handleGenerateReflection}
-                        className="px-3.5 py-1.5 bg-[#111113] text-white rounded-xl text-xs font-semibold cursor-pointer"
+                        className="px-3.5 py-1.5 bg-[#111113] dark:bg-white text-white dark:text-black rounded-xl text-xs font-semibold cursor-pointer"
                       >
                         Coba Lagi
                       </button>
@@ -1323,14 +1323,14 @@ export default function BiblePage() {
                     <>
                       {/* Note Saved Confirmation Banner */}
                       {noteSaveSuccess && (
-                        <div className="bg-[#F2F2F4] border border-[#DCDCE0] rounded-2xl p-3 flex items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
-                          <div className="flex items-center gap-2 text-[#111113] min-w-0">
-                            <CheckCircle2 size={16} className="text-[#111113] shrink-0" />
+                        <div className="bg-[#F2F2F4] dark:bg-[#1E1E24] border border-[#DCDCE0] dark:border-[#2C2C34] rounded-2xl p-3 flex items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+                          <div className="flex items-center gap-2 text-[#111113] dark:text-white min-w-0">
+                            <CheckCircle2 size={16} className="text-[#111113] dark:text-white shrink-0" />
                             <div className="min-w-0">
                               <span className="font-bold block truncate">
                                 {noteSaveSuccess.isNew ? 'Catatan baru dibuat' : 'Ditambahkan ke catatan'}
                               </span>
-                              <p className="text-[10.5px] text-[#66666E] truncate">
+                              <p className="text-[10.5px] text-[#66666E] dark:text-[#A1A1AA] truncate">
                                 &ldquo;{noteSaveSuccess.noteTitle}&rdquo;
                               </p>
                             </div>
@@ -1338,7 +1338,7 @@ export default function BiblePage() {
                           <button
                             type="button"
                             onClick={() => setActiveTab('notes')}
-                            className="px-3 py-1.5 bg-[#111113] hover:bg-black text-white font-semibold rounded-xl text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow-2xs"
+                            className="px-3 py-1.5 bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold rounded-xl text-[11px] flex items-center gap-1 transition shrink-0 cursor-pointer shadow-2xs"
                           >
                             <span>Buka Catatan</span>
                             <ArrowRight size={11} />
@@ -1348,8 +1348,8 @@ export default function BiblePage() {
 
                       {/* User's Context Pill */}
                       {(aiStruggle || aiDesire) && (
-                        <div className="px-3.5 py-2 rounded-xl bg-[#F9F9FA] border border-[#EAEAEB] text-[11px] text-[#66666E] flex items-baseline gap-2">
-                          <span className="font-semibold text-[#111113] shrink-0">Fokus Refleksi:</span>
+                        <div className="px-3.5 py-2 rounded-xl bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#EAEAEB] dark:border-[#26262B] text-[11px] text-[#66666E] dark:text-[#A1A1AA] flex items-baseline gap-2">
+                          <span className="font-semibold text-[#111113] dark:text-white shrink-0">Fokus Refleksi:</span>
                           <span className="italic truncate">
                             {[aiStruggle, aiDesire].filter(Boolean).join(' • ')}
                           </span>
@@ -1359,10 +1359,10 @@ export default function BiblePage() {
                       {/* Devotional Prose: Refleksi & Hikmat */}
                       {aiResponse.thought && (
                         <div className="space-y-1.5 pt-1">
-                          <span className="text-[11px] font-bold text-[#111113] uppercase tracking-wider block">
+                          <span className="text-[11px] font-bold text-[#111113] dark:text-white uppercase tracking-wider block">
                             Refleksi &amp; Hikmat Firman
                           </span>
-                          <p className="text-[13px] text-[#222225] font-sans leading-[1.7] whitespace-pre-wrap">
+                          <p className="text-[13px] text-[#222225] dark:text-[#D4D4D8] font-sans leading-[1.7] whitespace-pre-wrap">
                             {aiResponse.thought}
                           </p>
                         </div>
@@ -1370,11 +1370,11 @@ export default function BiblePage() {
 
                       {/* Doa Peneguhan (Liturgical Style Callout) */}
                       {aiResponse.prayer && (
-                        <div className="p-4 rounded-2xl bg-[#F9F9FA] border-l-2 border-[#111113] border-y border-r border-[#EAEAEB] space-y-1">
-                          <span className="text-[11px] font-bold text-[#111113] block">
+                        <div className="p-4 rounded-2xl bg-[#F9F9FA] dark:bg-[#1A1A20] border-l-2 border-[#111113] dark:border-white border-y border-r border-[#EAEAEB] dark:border-[#26262B] space-y-1">
+                          <span className="text-[11px] font-bold text-[#111113] dark:text-white block">
                             Doa Peneguhan
                           </span>
-                          <p className="text-[12.5px] font-serif italic text-[#333336] leading-relaxed">
+                          <p className="text-[12.5px] font-serif italic text-[#333336] dark:text-[#ECECED] leading-relaxed">
                             &ldquo;{aiResponse.prayer}&rdquo;
                           </p>
                         </div>
@@ -1382,11 +1382,11 @@ export default function BiblePage() {
 
                       {/* Pertanyaan Refleksi Pribadi */}
                       {aiResponse.reflectionQuestion && (
-                        <div className="p-3.5 rounded-2xl bg-[#F9F9FA] border border-[#EAEAEB] space-y-1">
-                          <span className="text-[11px] font-bold text-[#111113] block">
+                        <div className="p-3.5 rounded-2xl bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#EAEAEB] dark:border-[#26262B] space-y-1">
+                          <span className="text-[11px] font-bold text-[#111113] dark:text-white block">
                             Refleksi Hari Ini
                           </span>
-                          <p className="text-[12.5px] text-[#222225] leading-relaxed">
+                          <p className="text-[12.5px] text-[#222225] dark:text-[#D4D4D8] leading-relaxed">
                             {aiResponse.reflectionQuestion}
                           </p>
                         </div>
@@ -1395,17 +1395,17 @@ export default function BiblePage() {
                       {/* Ayat Alkitab Terkait */}
                       {aiResponse.suggestedVerses && aiResponse.suggestedVerses.length > 0 && (
                         <div className="space-y-2 pt-1">
-                          <span className="text-[11px] font-bold text-[#111113] block">
+                          <span className="text-[11px] font-bold text-[#111113] dark:text-white block">
                             Ayat Terkait
                           </span>
                           <div className="space-y-1.5">
                             {aiResponse.suggestedVerses.map((item, idx) => (
                               <div
                                 key={idx}
-                                className="p-3 rounded-xl bg-[#F9F9FA] border border-[#EAEAEB] text-xs flex flex-col gap-0.5"
+                                className="p-3 rounded-xl bg-[#F9F9FA] dark:bg-[#1A1A20] border border-[#EAEAEB] dark:border-[#26262B] text-xs flex flex-col gap-0.5"
                               >
-                                <span className="font-bold text-[#111113]">{item.reference}</span>
-                                <span className="text-[#66666E] text-[11px] leading-relaxed">{item.note}</span>
+                                <span className="font-bold text-[#111113] dark:text-white">{item.reference}</span>
+                                <span className="text-[#66666E] dark:text-[#A1A1AA] text-[11px] leading-relaxed">{item.note}</span>
                               </div>
                             ))}
                           </div>
@@ -1413,11 +1413,11 @@ export default function BiblePage() {
                       )}
 
                       {/* Action Buttons: Note Integration & Edit Questions */}
-                      <div className="pt-2 flex items-center gap-2 border-t border-[#EAEAEB] mt-2">
+                      <div className="pt-2 flex items-center gap-2 border-t border-[#EAEAEB] dark:border-[#26262B] mt-2">
                         <button
                           type="button"
                           onClick={() => setAiStep('questionnaire')}
-                          className="px-3.5 py-2.5 rounded-xl bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#111113] text-xs font-semibold transition active:scale-95 cursor-pointer shrink-0 border border-[#DCDCE0]"
+                          className="px-3.5 py-2.5 rounded-xl bg-[#F2F2F4] dark:bg-[#1E1E24] hover:bg-[#EAEAEB] dark:hover:bg-[#26262E] text-[#111113] dark:text-white text-xs font-semibold transition active:scale-95 cursor-pointer shrink-0 border border-[#DCDCE0] dark:border-[#2C2C34]"
                           title="Ubah jawaban kuesioner"
                         >
                           Jawab Ulang
@@ -1426,7 +1426,7 @@ export default function BiblePage() {
                         <button
                           type="button"
                           onClick={handleOpenNotePicker}
-                          className="flex-1 py-2.5 px-4 bg-[#111113] hover:bg-black text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-98 cursor-pointer shadow-2xs"
+                          className="flex-1 py-2.5 px-4 bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-98 cursor-pointer shadow-2xs"
                         >
                           <FileText size={14} />
                           <span>Masukkan ke Catatan</span>
@@ -1444,23 +1444,23 @@ export default function BiblePage() {
         {/* NOTE PICKER MODAL (Integrasi Renungan -> Catatan)                          */}
         {/* ========================================================================= */}
         {isNotePickerOpen && (
-          <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[85vh] flex flex-col border border-[#EAEAEB] overflow-hidden">
+          <div className="fixed inset-0 z-60 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#141418] w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[85vh] flex flex-col border border-[#EAEAEB] dark:border-[#26262B] overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-[#EAEAEB] shrink-0">
+              <div className="flex items-center justify-between px-5 pt-5 pb-3.5 border-b border-[#EAEAEB] dark:border-[#26262B] shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#F2F2F4] border border-[#DCDCE0] text-[#111113] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#F2F2F4] dark:bg-[#202026] border border-[#DCDCE0] dark:border-[#2C2C34] text-[#111113] dark:text-white flex items-center justify-center shrink-0">
                     <FileText size={14} />
                   </div>
                   <div>
-                    <h4 className="text-[13.5px] font-bold text-[#111113] tracking-tight">Masukkan ke Catatan</h4>
-                    <p className="text-[10.5px] text-[#8E8E93]">Pilih catatan tujuan atau buat catatan baru</p>
+                    <h4 className="text-[13.5px] font-bold text-[#111113] dark:text-white tracking-tight">Masukkan ke Catatan</h4>
+                    <p className="text-[10.5px] text-[#8E8E93] dark:text-[#A1A1AA]">Pilih catatan tujuan atau buat catatan baru</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsNotePickerOpen(false)}
-                  className="w-7 h-7 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#66666E] flex items-center justify-center transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[#F2F2F4] dark:bg-[#202026] hover:bg-[#EAEAEB] dark:hover:bg-[#282830] text-[#66666E] dark:text-[#A1A1AA] flex items-center justify-center transition cursor-pointer"
                   title="Tutup"
                 >
                   <X size={14} />
@@ -1474,39 +1474,39 @@ export default function BiblePage() {
                   type="button"
                   onClick={handleSaveToNewNote}
                   disabled={isSavingToNote}
-                  className="w-full p-3.5 rounded-2xl bg-[#F9F9FA] hover:bg-[#F2F2F4] border border-[#DCDCE0] text-left transition active:scale-98 cursor-pointer flex items-center justify-between gap-3 shadow-2xs group"
+                  className="w-full p-3.5 rounded-2xl bg-[#F9F9FA] dark:bg-[#1A1A20] hover:bg-[#F2F2F4] dark:hover:bg-[#222228] border border-[#DCDCE0] dark:border-[#2C2C34] text-left transition active:scale-98 cursor-pointer flex items-center justify-between gap-3 shadow-2xs group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#111113] text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition">
+                    <div className="w-9 h-9 rounded-xl bg-[#111113] dark:bg-white text-white dark:text-black flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition">
                       <Plus size={16} />
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-[#111113]">Buat Catatan Baru</h5>
-                      <p className="text-[11px] text-[#66666E] line-clamp-1">
+                      <h5 className="text-xs font-bold text-[#111113] dark:text-white">Buat Catatan Baru</h5>
+                      <p className="text-[11px] text-[#66666E] dark:text-[#A1A1AA] line-clamp-1">
                         Judul: Renungan: {aiTargetVerseRef}
                       </p>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-[#66666E] shrink-0" />
+                  <ArrowRight size={14} className="text-[#66666E] dark:text-[#A1A1AA] shrink-0" />
                 </button>
 
                 {/* Divider */}
                 <div className="flex items-center gap-2 pt-1 pb-1">
-                  <div className="flex-1 h-px bg-[#EAEAEB]" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  <div className="flex-1 h-px bg-[#EAEAEB] dark:bg-[#26262B]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] dark:text-[#A1A1AA]">
                     Atau Masukkan ke Catatan yang Ada
                   </span>
-                  <div className="flex-1 h-px bg-[#EAEAEB]" />
+                  <div className="flex-1 h-px bg-[#EAEAEB] dark:bg-[#26262B]" />
                 </div>
 
                 {/* OPTION 2: List of Existing Notes */}
                 {isLoadingNotes ? (
-                  <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-[#8E8E93]">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#111113]" />
+                  <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-[#8E8E93] dark:text-[#A1A1AA]">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#111113] dark:text-white" />
                     <span>Memuat daftar catatan...</span>
                   </div>
                 ) : userNotes.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-[#8E8E93] bg-[#F9F9FA] rounded-2xl border border-[#EAEAEB] p-4">
+                  <div className="py-6 text-center text-xs text-[#8E8E93] dark:text-[#A1A1AA] bg-[#F9F9FA] dark:bg-[#1A1A20] rounded-2xl border border-[#EAEAEB] dark:border-[#26262B] p-4">
                     Belum ada catatan yang tersimpan. Silakan pilih opsi <strong>&quot;Buat Catatan Baru&quot;</strong> di atas.
                   </div>
                 ) : (
@@ -1519,22 +1519,22 @@ export default function BiblePage() {
                           type="button"
                           onClick={() => handleAppendToExistingNote(note)}
                           disabled={isSavingToNote}
-                          className="w-full p-3 rounded-2xl bg-[#F9F9FA] hover:bg-[#F2F2F4] border border-[#EAEAEB] text-left transition active:scale-98 cursor-pointer flex items-center justify-between gap-3 group"
+                          className="w-full p-3 rounded-2xl bg-[#F9F9FA] dark:bg-[#1A1A20] hover:bg-[#F2F2F4] dark:hover:bg-[#222228] border border-[#EAEAEB] dark:border-[#26262B] text-left transition active:scale-98 cursor-pointer flex items-center justify-between gap-3 group"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <h5 className="text-xs font-bold text-[#111113] truncate">
+                              <h5 className="text-xs font-bold text-[#111113] dark:text-white truncate">
                                 {note.title || '(Tanpa Judul)'}
                               </h5>
-                              <span className="text-[10px] text-[#8E8E93] shrink-0 font-medium">
+                              <span className="text-[10px] text-[#8E8E93] dark:text-[#A1A1AA] shrink-0 font-medium">
                                 • {formatNoteDate(note.updated_at)}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#66666E] truncate">
+                            <p className="text-[11px] text-[#66666E] dark:text-[#A1A1AA] truncate">
                               {snippet || 'Catatan kosong'}
                             </p>
                           </div>
-                          <span className="px-2.5 py-1 rounded-xl bg-white border border-[#DCDCE0] text-[10px] font-bold text-[#111113] group-hover:bg-[#111113] group-hover:text-white transition shrink-0">
+                          <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#222228] border border-[#DCDCE0] dark:border-[#2C2C34] text-[10px] font-bold text-[#111113] dark:text-white group-hover:bg-[#111113] dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition shrink-0">
                             + Masukkan
                           </span>
                         </button>
@@ -1546,8 +1546,8 @@ export default function BiblePage() {
 
               {/* Modal Footer */}
               {isSavingToNote && (
-                <div className="p-3 border-t border-[#EAEAEB] flex items-center justify-center gap-1.5 text-xs text-[#8E8E93]">
-                  <Loader2 size={13} className="animate-spin text-[#111113]" />
+                <div className="p-3 border-t border-[#EAEAEB] dark:border-[#26262B] flex items-center justify-center gap-1.5 text-xs text-[#8E8E93] dark:text-[#A1A1AA]">
+                  <Loader2 size={13} className="animate-spin text-[#111113] dark:text-white" />
                   <span>Menyimpan renungan ke catatan...</span>
                 </div>
               )}
@@ -1559,17 +1559,17 @@ export default function BiblePage() {
         {/* HALAMAN KHUSUS: AYAT SOROTAN TERSIMPAN (SAVED HIGHLIGHTS MODAL)           */}
         {/* ========================================================================= */}
         {isHighlightsModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-5 shadow-2xl max-h-[90vh] flex flex-col border border-[#EAEAEB] overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#141418] w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] p-5 shadow-2xl max-h-[90vh] flex flex-col border border-[#EAEAEB] dark:border-[#26262B] overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEB]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEB] dark:border-[#26262B]">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shadow-2xs">
-                    <Bookmark size={15} className="fill-amber-600 text-amber-600" />
+                  <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shadow-2xs">
+                    <Bookmark size={15} className="fill-amber-600 dark:fill-amber-400 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[#111113]">Ayat Tersimpan</h3>
-                    <p className="text-[11px] text-[#8E8E93]">
+                    <h3 className="text-base font-bold text-[#111113] dark:text-white">Ayat Tersimpan</h3>
+                    <p className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA]">
                       {highlightList.length} ayat tersimpan di akunmu
                     </p>
                   </div>
@@ -1577,7 +1577,7 @@ export default function BiblePage() {
                 <button
                   type="button"
                   onClick={() => setIsHighlightsModalOpen(false)}
-                  className="w-7 h-7 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] text-[#66666E] flex items-center justify-center transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[#F2F2F4] dark:bg-[#202026] hover:bg-[#EAEAEB] dark:hover:bg-[#282830] text-[#66666E] dark:text-[#A1A1AA] flex items-center justify-center transition cursor-pointer"
                   title="Tutup"
                 >
                   <X size={14} />
@@ -1585,21 +1585,21 @@ export default function BiblePage() {
               </div>
 
               {/* Search & Filter Bar */}
-              <div className="py-3 space-y-2.5 border-b border-[#EAEAEB]">
+              <div className="py-3 space-y-2.5 border-b border-[#EAEAEB] dark:border-[#26262B]">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-2.5 text-[#8E8E93]" />
+                  <Search size={14} className="absolute left-3 top-2.5 text-[#8E8E93] dark:text-[#A1A1AA]" />
                   <input
                     type="text"
                     value={highlightsSearch}
                     onChange={(e) => setHighlightsSearch(e.target.value)}
                     placeholder="Cari ayat tersimpan atau kata kunci..."
-                    className="w-full bg-[#F2F2F4] text-xs pl-8 pr-7 py-2 rounded-xl border border-[#DCDCE0] focus:outline-none focus:border-[#111113] text-[#111113] placeholder-[#8E8E93]"
+                    className="w-full bg-[#F2F2F4] dark:bg-[#1E1E24] text-xs pl-8 pr-7 py-2 rounded-xl border border-[#DCDCE0] dark:border-[#2C2C34] focus:outline-none focus:border-[#111113] dark:focus:border-white text-[#111113] dark:text-white placeholder-[#8E8E93] dark:placeholder-[#66666E]"
                   />
                   {highlightsSearch && (
                     <button
                       type="button"
                       onClick={() => setHighlightsSearch('')}
-                      className="absolute right-2.5 top-2.5 text-[#8E8E93] hover:text-[#111113]"
+                      className="absolute right-2.5 top-2.5 text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white"
                     >
                       <X size={12} />
                     </button>
@@ -1613,8 +1613,8 @@ export default function BiblePage() {
                     onClick={() => setHighlightsColorFilter('all')}
                     className={`px-2.5 py-1 rounded-full font-medium transition cursor-pointer shrink-0 ${
                       highlightsColorFilter === 'all'
-                        ? 'bg-[#111113] text-white shadow-xs'
-                        : 'bg-[#F2F2F4] text-[#66666E] hover:bg-[#EAEAEB]'
+                        ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs font-bold'
+                        : 'bg-[#F2F2F4] dark:bg-[#1E1E24] text-[#66666E] dark:text-[#A1A1AA] hover:bg-[#EAEAEB] dark:hover:bg-[#26262E]'
                     }`}
                   >
                     Semua ({highlightList.length})
@@ -1629,8 +1629,8 @@ export default function BiblePage() {
                         onClick={() => setHighlightsColorFilter(c.id)}
                         className={`px-2.5 py-1 rounded-full font-medium transition cursor-pointer shrink-0 flex items-center gap-1 ${
                           highlightsColorFilter === c.id
-                            ? 'bg-[#111113] text-white shadow-xs'
-                            : 'bg-[#F2F2F4] text-[#66666E] hover:bg-[#EAEAEB]'
+                            ? 'bg-[#111113] dark:bg-white text-white dark:text-black shadow-xs font-bold'
+                            : 'bg-[#F2F2F4] dark:bg-[#1E1E24] text-[#66666E] dark:text-[#A1A1AA] hover:bg-[#EAEAEB] dark:hover:bg-[#26262E]'
                         }`}
                       >
                         <span className={`w-2 h-2 rounded-full ${c.dotClass}`} />
@@ -1645,16 +1645,16 @@ export default function BiblePage() {
               <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-0.5">
                 {filteredHighlightList.length === 0 ? (
                   <div className="py-12 text-center max-w-xs mx-auto space-y-2.5">
-                    <div className="w-12 h-12 rounded-2xl bg-[#F2F2F4] text-[#8E8E93] flex items-center justify-center mx-auto shadow-2xs">
+                    <div className="w-12 h-12 rounded-2xl bg-[#F2F2F4] dark:bg-[#1E1E24] text-[#8E8E93] dark:text-[#A1A1AA] flex items-center justify-center mx-auto shadow-2xs">
                       <Bookmark size={22} />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-[#111113]">
+                      <h4 className="text-xs font-bold text-[#111113] dark:text-white">
                         {highlightsSearch || highlightsColorFilter !== 'all'
                           ? 'Tidak Ada Ayat yang Cocok'
                           : 'Belum Ada Ayat yang Disorot'}
                       </h4>
-                      <p className="text-[11px] text-[#8E8E93] leading-relaxed">
+                      <p className="text-[11px] text-[#8E8E93] dark:text-[#A1A1AA] leading-relaxed">
                         {highlightsSearch || highlightsColorFilter !== 'all'
                           ? 'Coba gunakan kata kunci atau filter warna yang berbeda.'
                           : 'Pilih ayat di Alkitab dan beri warna sorotan. Semua ayat pentingmu akan terkumpul di sini.'}
@@ -1667,12 +1667,12 @@ export default function BiblePage() {
                     return (
                       <div
                         key={hl.reference}
-                        className="bg-[#F9F9FA] hover:bg-[#F2F2F4] border border-[#EAEAEB] rounded-2xl p-3.5 space-y-2 transition shadow-2xs text-left"
+                        className="bg-[#F9F9FA] dark:bg-[#1A1A20] hover:bg-[#F2F2F4] dark:hover:bg-[#222228] border border-[#EAEAEB] dark:border-[#26262B] rounded-2xl p-3.5 space-y-2 transition shadow-2xs text-left"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5">
                             <span className={`w-2.5 h-2.5 rounded-full ${colorConfig?.dotClass || 'bg-amber-300'}`} />
-                            <span className="text-xs font-bold text-[#111113]">
+                            <span className="text-xs font-bold text-[#111113] dark:text-white">
                               {hl.reference} (TB)
                             </span>
                           </div>
@@ -1688,11 +1688,11 @@ export default function BiblePage() {
                                   setTimeout(() => setCopiedKey(null), 2000);
                                 }
                               }}
-                              className="p-1 rounded-lg hover:bg-white text-[#8E8E93] hover:text-[#111113] transition cursor-pointer"
+                              className="p-1 rounded-lg hover:bg-white dark:hover:bg-[#282830] text-[#8E8E93] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white transition cursor-pointer"
                               title="Salin Ayat"
                             >
                               {copiedKey === hl.reference ? (
-                                <Check size={12} className="text-emerald-600" />
+                                <Check size={12} className="text-emerald-600 dark:text-emerald-400" />
                               ) : (
                                 <Copy size={12} />
                               )}
@@ -1705,7 +1705,7 @@ export default function BiblePage() {
                                 delete updated[hl.reference];
                                 saveHighlights(updated);
                               }}
-                              className="p-1 rounded-lg hover:bg-rose-50 text-[#8E8E93] hover:text-rose-600 transition cursor-pointer"
+                              className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-[#8E8E93] dark:text-[#A1A1AA] hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
                               title="Hapus Sorotan"
                             >
                               <Trash2 size={12} />
@@ -1720,7 +1720,7 @@ export default function BiblePage() {
 
                         {/* Action buttons footer */}
                         <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
-                          <span className="text-[10px] text-[#8E8E93]">
+                          <span className="text-[10px] text-[#8E8E93] dark:text-[#A1A1AA]">
                             {new Date(hl.updatedAt).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'short',
@@ -1733,7 +1733,7 @@ export default function BiblePage() {
                             <button
                               type="button"
                               onClick={() => handleJumpToHighlight(hl)}
-                              className="px-2.5 py-1 rounded-lg bg-white border border-[#DCDCE0] hover:bg-[#F2F2F4] text-[#111113] font-semibold transition active:scale-95 cursor-pointer flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#222228] border border-[#DCDCE0] dark:border-[#2C2C34] hover:bg-[#F2F2F4] dark:hover:bg-[#2A2A32] text-[#111113] dark:text-white font-semibold transition active:scale-95 cursor-pointer flex items-center gap-1"
                             >
                               <ExternalLink size={11} />
                               <span>Buka Ayat</span>
@@ -1746,7 +1746,7 @@ export default function BiblePage() {
                                 openAiModalWithVerse(hl.reference, hl.text);
                                 setIsHighlightsModalOpen(false);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-[#111113] text-white font-semibold hover:bg-black transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-2xs"
+                              className="px-2.5 py-1 rounded-lg bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black font-semibold transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-2xs"
                             >
                               <Sparkles size={11} />
                               <span>Renungkan</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { MessageSquare, BookOpen, Gamepad2, SquarePen, HeartHandshake, User } from 'lucide-react';
+import { MessageSquare, BookOpen, Gamepad2, User } from 'lucide-react';
 import { useFaithNav, FaithTabType } from '@/lib/faith/navigationContext';
 
 interface PillStyle {
@@ -22,12 +22,10 @@ export interface NavItemConfig {
 }
 
 export const NAV_ITEMS: NavItemConfig[] = [
-  { id: 'tanya', label: 'Tanya', fullLabel: 'Tanya Rohani AI', icon: MessageSquare },
-  { id: 'bible', label: 'Alkitab', fullLabel: 'Baca Alkitab Offline', icon: BookOpen },
-  { id: 'games', label: 'Games', fullLabel: 'Faith Arcade & Builder', icon: Gamepad2 },
-  { id: 'notes', label: 'Catatan', fullLabel: 'Catatan Khotbah', icon: SquarePen },
-  { id: 'prayer', label: 'Doa', fullLabel: 'Pokok Doa & Syukur', icon: HeartHandshake },
-  { id: 'profile', label: 'Profil', fullLabel: 'Profil CG Komunitas', icon: User },
+  { id: 'tanya', label: 'Tanya', fullLabel: 'Tanya Rohani', icon: MessageSquare },
+  { id: 'bible', label: 'Alkitab', fullLabel: 'Alkitab', icon: BookOpen },
+  { id: 'games', label: 'Games', fullLabel: 'Faith Arcade', icon: Gamepad2 },
+  { id: 'profile', label: 'Profil', fullLabel: 'Profil CG', icon: User },
 ];
 
 function getTabIndex(tabId: string): number {
@@ -117,7 +115,7 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
       faithNav.setActiveTab(itemId);
     }
 
-    // Optimistically update pill position on click
+    // Optimistically update pill position on click for immediate morph slide
     if (tabRefs.current[targetIdx] && containerRef.current) {
       const tabEl = tabRefs.current[targetIdx]!;
       const containerEl = containerRef.current;
@@ -139,15 +137,15 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
 
   return (
     <nav
-      className={`flex-none px-2 sm:px-3 pt-2.5 pb-[max(1rem,calc(env(safe-area-inset-bottom)+8px))] z-40 select-none border-t transition-colors duration-200 ${
+      className={`flex-none border-t px-3 pt-3 pb-[max(1.75rem,calc(env(safe-area-inset-bottom)+12px))] z-40 select-none transition-colors duration-200 ${
         isDark
-          ? 'bg-[#121214] border-white/10'
+          ? 'bg-[#121215] border-[#222226]'
           : 'bg-white border-[#EAEAEB]'
       }`}
     >
       <div
         ref={containerRef}
-        className="relative flex items-center justify-between sm:justify-around max-w-lg mx-auto"
+        className="relative flex items-center justify-around max-w-sm mx-auto"
       >
         {/* Sliding Morph Pill Indicator */}
         <div
@@ -181,32 +179,32 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
               className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
                 isActive
                   ? isDark
-                    ? 'bg-transparent text-black px-3 sm:px-3.5 py-1.5'
-                    : 'bg-transparent text-white px-3 sm:px-3.5 py-1.5'
+                    ? 'bg-transparent text-black px-4 py-2'
+                    : 'bg-transparent text-white px-4 py-2'
                   : isDark
-                  ? 'text-zinc-400 hover:text-white p-2 hover:bg-white/5'
-                  : 'text-[#66666E] hover:text-[#111113] p-2 hover:bg-[#F2F2F4]/50'
+                  ? 'text-[#8E8E93] hover:text-white p-2 hover:bg-white/5'
+                  : 'text-[#66666E] hover:text-[#111113] p-2 hover:bg-[#F2F2F4]/40'
               }`}
               title={item.fullLabel}
               aria-label={item.fullLabel}
             >
               <Icon
-                size={isActive ? 17 : 19}
-                strokeWidth={isActive ? 2.3 : 1.9}
+                size={isActive ? 19 : 22}
+                strokeWidth={isActive ? 2.2 : 1.9}
                 className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
                   isActive
                     ? isDark
                       ? 'text-black scale-105'
                       : 'text-white scale-105'
                     : isDark
-                    ? 'text-zinc-400 hover:text-white scale-100'
+                    ? 'text-[#8E8E93] hover:text-white scale-100'
                     : 'text-[#55555A] hover:text-[#111113] scale-100'
                 }`}
               />
               <span
-                className={`text-[11.5px] sm:text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                   isActive
-                    ? 'max-w-[70px] sm:max-w-[85px] opacity-100 ml-1.5'
+                    ? 'max-w-[85px] opacity-100 ml-1.5'
                     : 'max-w-0 opacity-0 ml-0 pointer-events-none'
                 }`}
               >

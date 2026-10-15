@@ -35,70 +35,42 @@ export function FaithWorkspace({
       }}
     >
       <div
-        className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-200 ${
-          isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
+        className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-300 ${
+          isDark ? "bg-[#0B0B0D] text-white" : "bg-[#E5E5E5] text-[#111113]"
         }`}
       >
-        {/* ─── WORKSPACE TOP BAR (Floating Liquid Glass matching GameWorkspace & ChatWorkspace) ─── */}
-        <header
-          className={`shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2 pt-[max(0.6rem,env(safe-area-inset-top))] bg-transparent ${
-            isDark ? "text-white" : "text-zinc-900"
-          }`}
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Hamburger toggle button */}
-            {onTogglePanel && (
-              <button
-                type="button"
-                onClick={onTogglePanel}
-                className={`flex h-9 sm:h-10 w-9 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                  isDark
-                    ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                    : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-                }`}
-                title="Menu Panel"
-                aria-label="Menu Panel"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            )}
-
-            {/* Sub Tabs Switcher: Game & Faith (passed from page.tsx) */}
-            {subTabsElement || (
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${
-                  isDark
-                    ? "bg-zinc-900/60 border-white/10 text-zinc-200 shadow-black/30"
-                    : "bg-white/70 border-black/10 text-zinc-800 shadow-zinc-900/5"
-                }`}
-              >
-                <div
-                  className={`flex h-5 w-5 items-center justify-center rounded-full shadow-xs shrink-0 ${
-                    isDark ? "bg-white text-black" : "bg-black text-white"
+        {/* ─── WORKSPACE TOP BAR (SubTabs Game / Faith + Close) ──────────── */}
+        {subTabsElement && (
+          <header className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {onTogglePanel && (
+                <button
+                  type="button"
+                  onClick={onTogglePanel}
+                  className={`flex h-9 sm:h-10 w-9 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                    isDark
+                      ? "bg-zinc-900/70 hover:bg-zinc-800 border border-white/10 text-zinc-200 hover:text-white"
+                      : "bg-white/80 hover:bg-white border border-black/10 text-zinc-800 hover:text-black"
                   }`}
+                  title="Menu Panel"
+                  aria-label="Menu Panel"
                 >
-                  <svg className="w-3 h-3 fill-none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3v18M7 8h10" />
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
-                </div>
-                <span className="text-xs sm:text-sm font-semibold tracking-tight">Faith Hub</span>
-              </div>
-            )}
-          </div>
+                </button>
+              )}
+              {subTabsElement}
+            </div>
 
-          {/* Action Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Close / Return to chats */}
             {onClose && (
               <button
                 type="button"
                 onClick={onClose}
                 className={`flex h-9 sm:h-10 w-9 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                   isDark
-                    ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-300 hover:text-white shadow-black/40"
-                    : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-700 hover:text-black shadow-zinc-900/10"
+                    ? "bg-zinc-900/70 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white"
+                    : "bg-white/80 hover:bg-white border border-black/10 text-zinc-700 hover:text-black"
                 }`}
                 title="Kembali ke Chats"
               >
@@ -107,38 +79,38 @@ export function FaithWorkspace({
                 </svg>
               </button>
             )}
-          </div>
-        </header>
+          </header>
+        )}
 
         {/* ─── NATIVE FAITH HUB BODY ───────────────────────────────────────── */}
-        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col">
-          {/* Tanya Rohani (kept mounted to preserve chat streaming & message drafts) */}
-          <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:pb-3">
+          {/* Tanya Rohani */}
+          <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             <FaithChatView />
           </div>
 
-          {/* Alkitab (kept mounted to preserve chapter reading position and verse selection) */}
-          <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+          {/* Alkitab */}
+          <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             <FaithBibleView />
           </div>
 
-          {/* Faith Arcade (FaithQuiz, FaithPet, Church Builder) */}
-          <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+          {/* Faith Arcade */}
+          <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             {activeTab === "games" && <FaithGamesView />}
           </div>
 
-          {/* Catatan Khotbah & Renungan */}
-          <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+          {/* Catatan Khotbah */}
+          <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             {activeTab === "notes" && <FaithNotesView />}
           </div>
 
-          {/* Pokok Doa & Syukur */}
-          <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+          {/* Pokok Doa */}
+          <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             {activeTab === "prayer" && <FaithPrayerView />}
           </div>
 
           {/* Profil Komunitas CG */}
-          <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
+          <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             {activeTab === "profile" && <FaithProfileView />}
           </div>
         </div>

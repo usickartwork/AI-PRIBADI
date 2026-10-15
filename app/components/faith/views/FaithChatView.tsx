@@ -868,11 +868,11 @@ export default function FaithHubHomePage() {
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="h-full max-h-full w-full bg-transparent flex flex-col items-center justify-center sm:p-2 sm:pb-3 overflow-hidden"
+      className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Precision Studio Shell: Full screen on mobile, bright light container matching Alkitab */}
       <div
-        className={`w-full max-w-4xl h-full bg-white dark:bg-[#121214] rounded-none sm:rounded-[32px] sm:border border-[#EAEAEB] dark:border-white/10 sm:shadow-lg flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`w-full max-w-4xl h-full bg-white dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           showIntro ? 'scale-[0.985] opacity-90 translate-y-1' : 'scale-100 opacity-100 translate-y-0'
         }`}
       >
@@ -892,18 +892,18 @@ export default function FaithHubHomePage() {
           {/* EMPTY STATE: Clean, Bright, Welcoming ChatGPT Style */}
           {!isMounted || messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 max-w-2xl mx-auto w-full text-center my-auto">
-              {/* Standalone Sacred Cross (No box, pure black, larger presence) */}
+              {/* Standalone Sacred Cross (No box, pure black in light / pure white in dark) */}
               <div className="mb-5 sm:mb-6 flex items-center justify-center">
                 <svg
                   width="40"
                   height="40"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#111113"
+                  stroke="currentColor"
                   strokeWidth="2.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="transition-transform hover:scale-105"
+                  className="text-[#111113] dark:text-white transition-transform hover:scale-105"
                   aria-hidden="true"
                 >
                   <path d="M12 2v20M5 8h14" />
@@ -912,9 +912,9 @@ export default function FaithHubHomePage() {
 
               {/* Welcome Greeting with Account Name */}
               <div className="space-y-2 mb-7 sm:mb-8">
-                <h1 className="text-2xl sm:text-3xl font-semibold text-[#111113] tracking-tight leading-snug">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-[#111113] dark:text-white tracking-tight leading-snug">
                   Apa yang sedang ada di dalam hatimu hari ini,{' '}
-                  <span className="font-bold text-[#111113]">{user.name}</span>?
+                  <span className="font-bold text-[#111113] dark:text-white">{user.name}</span>?
                 </h1>
                 <p className="text-xs sm:text-sm text-[#8E8E93] max-w-md mx-auto leading-relaxed mt-2">
                   Tuliskan pertanyaan rohani, perikop firman, atau curahan isi hatimu dengan tenang.
@@ -927,12 +927,12 @@ export default function FaithHubHomePage() {
                   e.preventDefault();
                   handleSend();
                 }}
-                className="w-full bg-[#F2F2F4] hover:bg-[#ECECED] focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 border border-[#DCDCE0] focus-within:border-[#111113] rounded-full p-2 pl-3 sm:pl-3.5 pr-2.5 flex items-center gap-2 sm:gap-2.5 shadow-xs transition-all"
+                className="w-full bg-[#F2F2F4] dark:bg-[#1A1A1E] hover:bg-[#ECECED] dark:hover:bg-[#202026] focus-within:bg-white dark:focus-within:bg-[#222228] focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-white/50 rounded-full p-2 pl-3 sm:pl-3.5 pr-2.5 flex items-center gap-2 sm:gap-2.5 shadow-xs transition-all"
               >
                 <button
                   type="button"
                   onClick={() => cameraInputRef.current?.click()}
-                  className="w-8 h-8 rounded-full text-[#8E8E93] hover:text-[#111113] hover:bg-black/5 flex items-center justify-center transition flex-shrink-0 cursor-pointer active:scale-95"
+                  className="w-8 h-8 rounded-full text-[#8E8E93] hover:text-[#111113] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition flex-shrink-0 cursor-pointer active:scale-95"
                   title="Ambil foto instan (kamera langsung)"
                   aria-label="Ambil foto instan"
                 >
@@ -944,13 +944,13 @@ export default function FaithHubHomePage() {
                   value={inputPrompt}
                   onChange={(e) => setInputPrompt(e.target.value)}
                   placeholder="Tanyakan hal rohani, atau foto catatan/firman..."
-                  className="flex-1 bg-transparent text-sm sm:text-base text-[#111113] placeholder-[#8E8E93] focus:outline-none min-w-0 font-normal"
+                  className="flex-1 bg-transparent text-sm sm:text-base text-[#111113] dark:text-white placeholder-[#8E8E93] focus:outline-none min-w-0 font-normal"
                 />
 
                 <button
                   type="submit"
                   disabled={!inputPrompt.trim()}
-                  className="w-9 h-9 rounded-full bg-[#111113] hover:bg-black text-white flex items-center justify-center shadow-xs transition disabled:opacity-20 flex-shrink-0 cursor-pointer active:scale-95"
+                  className="w-9 h-9 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black flex items-center justify-center shadow-xs transition disabled:opacity-20 flex-shrink-0 cursor-pointer active:scale-95"
                   title="Kirim pesan"
                 >
                   <ArrowUp size={16} strokeWidth={2.5} />
@@ -963,7 +963,7 @@ export default function FaithHubHomePage() {
                   <button
                     key={idx}
                     onClick={() => handleSend(s.prompt)}
-                    className="px-4 py-2 rounded-full bg-white hover:bg-neutral-50 text-xs font-medium text-[#111113] border border-[#DCDCE0] hover:border-[#111113] transition shadow-2xs cursor-pointer"
+                    className="px-4 py-2 rounded-full bg-white dark:bg-[#1A1A1E] hover:bg-neutral-50 dark:hover:bg-[#232328] text-xs font-medium text-[#111113] dark:text-white border border-[#DCDCE0] dark:border-[#2C2C32] hover:border-[#111113] dark:hover:border-white/40 transition shadow-2xs cursor-pointer"
                   >
                     {s.title}
                   </button>
@@ -991,11 +991,11 @@ export default function FaithHubHomePage() {
                     {/* Message Header */}
                     <div className="flex items-center gap-1.5 px-2 mb-1 text-[11px] text-[#8E8E93]">
                       {!isUser ? (
-                        <div className="w-4 h-4 rounded-full bg-[#111113] text-white flex items-center justify-center">
+                        <div className="w-4 h-4 rounded-full bg-[#111113] dark:bg-white text-white dark:text-black flex items-center justify-center">
                           <Sparkles size={10} />
                         </div>
                       ) : null}
-                      <span className="font-semibold text-[#111113]">
+                      <span className="font-semibold text-[#111113] dark:text-white">
                         {isUser ? user.name : 'Faith Companion'}
                       </span>
                       {msg.createdAt && (
@@ -1007,7 +1007,7 @@ export default function FaithHubHomePage() {
 
                     {/* User Bubble */}
                     {isUser ? (
-                      <div className="bg-[#111113] text-white rounded-[22px] rounded-tr-xs px-4.5 py-3 text-[13.5px] leading-relaxed max-w-[85%] sm:max-w-[75%] shadow-xs">
+                      <div className="bg-[#111113] dark:bg-white text-white dark:text-black rounded-[22px] rounded-tr-xs px-4.5 py-3 text-[13.5px] leading-relaxed max-w-[85%] sm:max-w-[75%] shadow-xs">
                         {msg.imageUrl && (
                           <div className="mb-2.5 overflow-hidden rounded-xl border border-white/15 max-w-xs shadow-xs">
                             <img
@@ -1024,13 +1024,13 @@ export default function FaithHubHomePage() {
                       <div className="flex flex-col space-y-2 w-full">
                         {/* Thinking State */}
                         {msg.status === 'streaming' && !msg.content ? (
-                          <div className="bg-[#ECECED] border border-[#DCDCE0] rounded-[20px] rounded-tl-xs px-4 py-3 shadow-2xs inline-flex items-center gap-2.5 max-w-fit">
+                          <div className="bg-[#ECECED] dark:bg-[#1C1C20] border border-[#DCDCE0] dark:border-[#2C2C32] rounded-[20px] rounded-tl-xs px-4 py-3 shadow-2xs inline-flex items-center gap-2.5 max-w-fit">
                             <div className="flex space-x-1.5 items-center">
-                              <div className="w-1.5 h-1.5 bg-[#111113] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                              <div className="w-1.5 h-1.5 bg-[#111113] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                              <div className="w-1.5 h-1.5 bg-[#111113] rounded-full animate-bounce" />
+                              <div className="w-1.5 h-1.5 bg-[#111113] dark:bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+                              <div className="w-1.5 h-1.5 bg-[#111113] dark:bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+                              <div className="w-1.5 h-1.5 bg-[#111113] dark:bg-white rounded-full animate-bounce" />
                             </div>
-                            <span className="text-xs text-[#66666E] font-medium">
+                            <span className="text-xs text-[#66666E] dark:text-[#A1A1AA] font-medium">
                               Mendengarkan &amp; merenungkan...
                             </span>
                           </div>
@@ -1043,7 +1043,7 @@ export default function FaithHubHomePage() {
                               return (
                                 <div
                                   key={bIdx}
-                                  className="bg-[#F2F2F4] text-[#111113] border border-[#DCDCE0] rounded-[22px] rounded-tl-xs px-4.5 py-3.5 shadow-2xs max-w-[94%] sm:max-w-[88%] text-[13.5px] leading-relaxed transition-all"
+                                  className="bg-[#F2F2F4] dark:bg-[#1C1C20] text-[#111113] dark:text-[#F4F4F6] border border-[#DCDCE0] dark:border-[#2C2C32] rounded-[22px] rounded-tl-xs px-4.5 py-3.5 shadow-2xs max-w-[94%] sm:max-w-[88%] text-[13.5px] leading-relaxed transition-all"
                                 >
                                   <MarkdownRenderer
                                     content={bubbleText}
@@ -1057,20 +1057,20 @@ export default function FaithHubHomePage() {
                             {msg.status !== 'streaming' && msg.content && (
                               <div className="px-2 pt-0.5 flex items-center justify-between text-xs text-[#8E8E93] max-w-[94%] sm:max-w-[88%]">
                                 <span className="text-[10px] text-[#8E8E93] flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#111113]" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#111113] dark:bg-white" />
                                   Refleksi pribadi
                                 </span>
 
                                 <div className="flex items-center gap-3">
                                   <button
                                     onClick={() => handleCopy(msg.id, msg.content)}
-                                    className="flex items-center gap-1 text-[#66666E] hover:text-[#111113] transition cursor-pointer text-[11px]"
+                                    className="flex items-center gap-1 text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white transition cursor-pointer text-[11px]"
                                     title="Salin renungan"
                                   >
                                     {copiedMsgId === msg.id ? (
                                       <>
-                                        <Check size={12} className="text-[#111113]" />
-                                        <span className="text-[#111113] font-semibold">Tersalin</span>
+                                        <Check size={12} className="text-[#111113] dark:text-white" />
+                                        <span className="text-[#111113] dark:text-white font-semibold">Tersalin</span>
                                       </>
                                     ) : (
                                       <>
@@ -1083,7 +1083,7 @@ export default function FaithHubHomePage() {
                                   {isLastAssistant && (
                                     <button
                                       onClick={handleRegenerate}
-                                      className="flex items-center gap-1 text-[#66666E] hover:text-[#111113] transition cursor-pointer text-[11px]"
+                                      className="flex items-center gap-1 text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white transition cursor-pointer text-[11px]"
                                       title="Ulangi tanggapan"
                                     >
                                       <RotateCcw size={12} />
@@ -1121,7 +1121,7 @@ export default function FaithHubHomePage() {
         )}
 
         {/* BOTTOM DOCK: Chat Input (when chat active) + Navigation */}
-        <div className="flex-none bg-white border-t border-[#EAEAEB] px-3 sm:px-6 py-2 pb-0 z-30">
+        <div className="flex-none bg-white dark:bg-[#121215] border-t border-[#EAEAEB] dark:border-[#222226] px-3 sm:px-6 py-2 pb-0 z-30 transition-colors">
           {/* Only render bottom input bar when conversation has messages */}
           {messages.length > 0 && (
             <form
@@ -1129,12 +1129,12 @@ export default function FaithHubHomePage() {
                 e.preventDefault();
                 handleSend();
               }}
-              className="bg-[#F2F2F4] border border-[#DCDCE0] focus-within:border-[#111113] rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-colors shadow-2xs"
+              className="bg-[#F2F2F4] dark:bg-[#1A1A1E] border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-white/50 rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-colors shadow-2xs"
             >
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
-                className="w-8 h-8 rounded-full text-[#8E8E93] hover:text-[#111113] hover:bg-black/5 flex items-center justify-center transition flex-shrink-0 cursor-pointer active:scale-95 mb-0.5"
+                className="w-8 h-8 rounded-full text-[#8E8E93] hover:text-[#111113] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition flex-shrink-0 cursor-pointer active:scale-95 mb-0.5"
                 title="Ambil foto instan (kamera langsung)"
                 aria-label="Ambil foto instan"
               >
@@ -1153,7 +1153,7 @@ export default function FaithHubHomePage() {
                   }
                 }}
                 placeholder="Tanyakan hal rohani, atau foto catatan/firman..."
-                className="flex-1 bg-transparent px-1 py-1.5 text-xs sm:text-sm text-[#111113] placeholder-[#8E8E93] focus:outline-none resize-none max-h-[120px] leading-relaxed"
+                className="flex-1 bg-transparent px-1 py-1.5 text-xs sm:text-sm text-[#111113] dark:text-white placeholder-[#8E8E93] focus:outline-none resize-none max-h-[120px] leading-relaxed"
               />
 
               {/* Action Button: Send or Stop */}
@@ -1172,7 +1172,7 @@ export default function FaithHubHomePage() {
                   type="submit"
                   disabled={!inputPrompt.trim()}
                   aria-label="Send message"
-                  className="w-8 h-8 rounded-full bg-[#111113] hover:bg-black text-white flex items-center justify-center transition disabled:opacity-30 flex-shrink-0 cursor-pointer shadow-xs mb-0.5"
+                  className="w-8 h-8 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black flex items-center justify-center transition disabled:opacity-30 flex-shrink-0 cursor-pointer shadow-xs mb-0.5"
                   title="Kirim pesan"
                 >
                   <ArrowUp size={15} strokeWidth={2.5} />
@@ -1185,31 +1185,31 @@ export default function FaithHubHomePage() {
           <Navigation />
         </div>
 
-        {/* History Drawer Modal (Light Studio Theme) */}
+        {/* History Drawer Modal (Light & Dark Studio Theme) */}
         {isHistoryOpen && (
-          <div className="fixed inset-0 z-50 flex bg-black/40 backdrop-blur-xs">
-            <div className="bg-white w-full max-w-xs h-full shadow-2xl flex flex-col border-r border-[#EAEAEB] text-[#111113]">
+          <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-xs">
+            <div className="bg-white dark:bg-[#121215] w-full max-w-xs h-full shadow-2xl flex flex-col border-r border-[#EAEAEB] dark:border-[#222226] text-[#111113] dark:text-white">
               {/* Drawer Header */}
-              <div className="p-4 border-b border-[#EAEAEB] flex items-center justify-between">
+              <div className="p-4 border-b border-[#EAEAEB] dark:border-[#222226] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <History size={16} className="text-[#111113]" />
-                  <h3 className="font-bold text-sm text-[#111113]">
+                  <History size={16} className="text-[#111113] dark:text-white" />
+                  <h3 className="font-bold text-sm text-[#111113] dark:text-white">
                     Riwayat Percakapan
                   </h3>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
-                  className="p-1 text-[#8E8E93] hover:text-[#111113] rounded-lg transition"
+                  className="p-1 text-[#8E8E93] hover:text-[#111113] dark:hover:text-white rounded-lg transition"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* New Chat Button */}
-              <div className="p-3 border-b border-[#EAEAEB]">
+              <div className="p-3 border-b border-[#EAEAEB] dark:border-[#222226]">
                 <button
                   onClick={handleStartNewChat}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-full bg-[#111113] hover:bg-black text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black text-xs font-semibold shadow-xs transition cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Mulai Percakapan Baru</span>
@@ -1217,7 +1217,7 @@ export default function FaithHubHomePage() {
               </div>
 
               {/* Search filter */}
-              <div className="p-3 border-b border-[#EAEAEB]">
+              <div className="p-3 border-b border-[#EAEAEB] dark:border-[#222226]">
                 <div className="relative">
                   <Search size={13} className="text-[#8E8E93] absolute left-3 top-2.5" />
                   <input
@@ -1225,7 +1225,7 @@ export default function FaithHubHomePage() {
                     placeholder="Cari percakapan..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F2F2F3] border border-[#DCDCE0] rounded-xl focus:outline-none text-[#111113] placeholder-[#8E8E93]"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F2F2F3] dark:bg-[#1A1A1E] border border-[#DCDCE0] dark:border-[#2C2C32] rounded-xl focus:outline-none text-[#111113] dark:text-white placeholder-[#8E8E93]"
                   />
                 </div>
               </div>
@@ -1245,8 +1245,8 @@ export default function FaithHubHomePage() {
                         onClick={() => handleSelectConversation(conv)}
                         className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition ${
                           isActive
-                            ? 'bg-[#F2F2F3] text-[#111113] font-semibold border border-[#DCDCE0]'
-                            : 'hover:bg-[#F9F9FA] text-[#66666E]'
+                            ? 'bg-[#F2F2F3] dark:bg-[#1C1C20] text-[#111113] dark:text-white font-semibold border border-[#DCDCE0] dark:border-[#2C2C32]'
+                            : 'hover:bg-[#F9F9FA] dark:hover:bg-[#1A1A1E] text-[#66666E] dark:text-[#A1A1AA]'
                         }`}
                       >
                         <div className="min-w-0 flex-1 pr-2">
