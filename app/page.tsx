@@ -11,6 +11,7 @@ import { ImageWorkspace } from "./components/ImageWorkspace";
 import MessagesWorkspace from "./components/MessagesWorkspace";
 import { GameWorkspace } from "./components/GameWorkspace";
 import { MusicWorkspace } from "./components/MusicWorkspace";
+import { NotebookWorkspace } from "./components/NotebookWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
@@ -670,7 +671,7 @@ export default function Home() {
   });
 
   // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game" (sementara dinonaktifkan), alihkan ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music">(() => {
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook">(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("usick-active-view");
@@ -678,7 +679,7 @@ export default function Home() {
           localStorage.removeItem("usick-active-view");
           return "chats";
         }
-        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music") return saved;
+        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook") return saved;
       } catch {}
     }
     return "chats";
@@ -717,6 +718,8 @@ export default function Home() {
       if (isHalamanActive) {
         localStorage.setItem("usick-active-view", "halaman");
         localStorage.setItem("usick-halaman-subtab", halamanSubTab);
+      } else if (activeView === "notebook") {
+        localStorage.setItem("usick-active-view", "notebook");
       } else {
         localStorage.removeItem("usick-active-view");
       }
@@ -3502,6 +3505,31 @@ export default function Home() {
             {/* Siap dimunculkan kembali kapan saja sesuai prompt pengguna */}
           </div>
 
+          {/* ─── SECTION NOTEBOOK (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
+          <div className="pt-3 pb-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2 space-y-1">
+            <div className="px-2 md:px-2.5 py-1 text-xs md:text-[11px] font-bold tracking-wider text-zinc-500 uppercase flex items-center justify-between">
+              <span>Notebook</span>
+            </div>
+
+            {/* + Notebook baru */}
+            <div
+              onClick={() => {
+                setActiveView("notebook");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "notebook"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Notebook baru</span>
+            </div>
+          </div>
+
             {/* History / Recent Threads */}
             <div className="mt-4 md:mt-3">
               <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2.5 md:mb-2 text-xs md:text-[11px] font-bold tracking-wider uppercase ${
@@ -3775,6 +3803,18 @@ export default function Home() {
           />
         </div>
 
+        {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang */}
+        <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
+          <NotebookWorkspace
+            key={user?.id || "guest-notebook"}
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            user={user}
+            setShowAuthModal={setShowAuthModal}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        </div>
+
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
           {(subscription?.plan || "free") === "free" ? (
@@ -3882,7 +3922,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             />
           )
-        ) : activeView === "code" || activeView === "messages" || activeView === "music" || isHalamanActive ? null : (
+        ) : activeView === "code" || activeView === "messages" || activeView === "music" || activeView === "notebook" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${

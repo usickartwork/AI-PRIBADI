@@ -1011,3 +1011,4 @@ export default function FaithAuthView({ onLoginSuccess, initialStep = 'welcome' 
     </div>
   );
 }
+
