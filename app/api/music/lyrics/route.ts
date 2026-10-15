@@ -105,23 +105,35 @@ export async function GET(request: Request) {
       );
     }
 
+    function isSubstantialLyrics(item: any): boolean {
+      if (!item) return false;
+      if (item.instrumental) return true;
+      if (item.syncedLyrics && typeof item.syncedLyrics === "string") {
+        const lines = item.syncedLyrics.trim().split(/\r?\n/).filter(Boolean);
+        if (lines.length >= 4 && item.syncedLyrics.length >= 50) return true;
+      }
+      if (item.plainLyrics && typeof item.plainLyrics === "string" && item.plainLyrics.trim().length >= 40) {
+        return true;
+      }
+      return false;
+    }
+
     if (getRes.ok) {
       const data = await getRes.json();
-      if (data && (data.syncedLyrics || data.plainLyrics || data.instrumental)) {
+      if (isSubstantialLyrics(data)) {
         rawResult = data;
       }
     }
 
     // ─── Step 2: Fallback to Search via GET /api/search ────────────────────
     if (!rawResult) {
-      const searchParamsObj = new URLSearchParams();
-      searchParamsObj.set("track_name", normalizeLyricQuery(rawTitle));
-      if (rawArtist) searchParamsObj.set("artist_name", normalizeLyricQuery(rawArtist));
-
-      const searchRes = await fetch(`https://lrclib.net/api/search?${searchParamsObj.toString()}`, {
-        headers,
-        next: { revalidate: 86400 },
-      });
+      const searchRes = await fetch(
+        `https://lrclib.net/api/search?q=${encodeURIComponent(`${rawTitle} ${rawArtist}`.trim())}`,
+        {
+          headers,
+          next: { revalidate: 86400 },
+        }
+      );
 
       if (searchRes.status === 429) {
         const retryAfter = searchRes.headers.get("Retry-After") || "5";
@@ -139,10 +151,12 @@ export async function GET(request: Request) {
         const results = await searchRes.json();
         if (Array.isArray(results) && results.length > 0) {
           const targetDuration = rawDuration ? Number(rawDuration) : null;
+          const validCandidates = results.filter(isSubstantialLyrics);
+          const pool = validCandidates.length > 0 ? validCandidates : results;
 
           // Rank results: prefer syncedLyrics > plainLyrics, and closest duration
-          const sorted = [...results].sort((a, b) => {
-            // Priority 1: Has synced lyrics
+          const sorted = [...pool].sort((a, b) => {
+            // Priority 1: Has valid synced lyrics
             const aHasSynced = a.syncedLyrics ? 1 : 0;
             const bHasSynced = b.syncedLyrics ? 1 : 0;
             if (aHasSynced !== bHasSynced) return bHasSynced - aHasSynced;

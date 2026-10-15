@@ -330,6 +330,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const activeLineRef = useRef<HTMLDivElement | null>(null);
+  const [lyricOffset, setLyricOffset] = useState<number>(0);
 
   // Synchronized state refs for callbacks (prevent stale closures)
   const queueRef = useRef<MusicItem[]>(queue);
@@ -993,15 +994,39 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   }, [currentTrack?.id, fetchLyricsForTrack]);
 
+  // Load saved custom lyric offset for the current track
+  useEffect(() => {
+    if (typeof window !== "undefined" && currentTrack) {
+      try {
+        const saved = localStorage.getItem(`usick_lyric_offset_${currentTrack.id}`);
+        setLyricOffset(saved !== null ? parseFloat(saved) : 0);
+      } catch {}
+    }
+  }, [currentTrack?.id]);
+
+  const handleAdjustOffset = (delta: number, isReset: boolean = false) => {
+    const newOffset = isReset ? 0 : Math.round((lyricOffset + delta) * 100) / 100;
+    setLyricOffset(newOffset);
+    if (typeof window !== "undefined" && currentTrack) {
+      try {
+        if (newOffset === 0) {
+          localStorage.removeItem(`usick_lyric_offset_${currentTrack.id}`);
+        } else {
+          localStorage.setItem(`usick_lyric_offset_${currentTrack.id}`, String(newOffset));
+        }
+      } catch {}
+    }
+  };
+
   // Compute active lyric index based on playback currentTime using O(log n) binary search
-  // Calibrated with a 0.65s offset to perfectly synchronize studio LRC timestamps with audio stream decoding
+  // Incorporates base audio latency + real-time user calibration offset
   const activeLyricIndex = useMemo(() => {
     if (!lyricsData || !lyricsData.synced || !lyricsData.lines || lyricsData.lines.length === 0) {
       return -1;
     }
-    const LYRICS_PLAYBACK_OFFSET = 0.65;
-    return findActiveLyricIndex(lyricsData.lines, currentTime, LYRICS_PLAYBACK_OFFSET);
-  }, [lyricsData, currentTime]);
+    const totalOffset = 0.35 + lyricOffset;
+    return findActiveLyricIndex(lyricsData.lines, currentTime, totalOffset);
+  }, [lyricsData, currentTime, lyricOffset]);
 
   // Auto-scroll to active lyric line (if user is not manually scrolling)
   useEffect(() => {
@@ -1660,6 +1685,49 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
             </div>
+
+            {/* Minimalist Calibration Control Bar */}
+            {lyricsData?.synced && lyricsData.lines && lyricsData.lines.length > 0 && (
+              <div className="shrink-0 flex items-center justify-center gap-2 pt-2.5 pb-1 text-xs opacity-60 hover:opacity-100 transition-opacity select-none border-t border-white/5 dark:border-white/5">
+                <span className="text-[11px] text-zinc-400 font-medium">Sinkronisasi:</span>
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(-0.25)}
+                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-mono transition active:scale-95 cursor-pointer ${
+                    isDark
+                      ? "bg-zinc-800/80 border-white/10 text-zinc-300 hover:text-white"
+                      : "bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
+                  }`}
+                  title="Percepat lirik 0.25 detik (-0.25s)"
+                >
+                  -0.25s
+                </button>
+                <span className="font-mono text-[11px] min-w-[42px] text-center font-bold">
+                  {lyricOffset > 0 ? `+${lyricOffset.toFixed(2)}s` : `${lyricOffset.toFixed(2)}s`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleAdjustOffset(0.25)}
+                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-mono transition active:scale-95 cursor-pointer ${
+                    isDark
+                      ? "bg-zinc-800/80 border-white/10 text-zinc-300 hover:text-white"
+                      : "bg-zinc-100 border-black/10 text-zinc-700 hover:text-black"
+                  }`}
+                  title="Perlambat lirik 0.25 detik (+0.25s)"
+                >
+                  +0.25s
+                </button>
+                {lyricOffset !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustOffset(0, true)}
+                    className="text-[10px] text-zinc-400 hover:text-white underline ml-1 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Floating Action Button: "Kembali ke lirik aktif" */}
             {isUserScrolling && activeLyricIndex >= 0 && lyricsData?.synced && (
