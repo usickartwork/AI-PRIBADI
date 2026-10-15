@@ -1,6 +1,6 @@
 // ─── Shared Multi-Key Spotify Server Token Utility with Auto-Fallback ────────
 // Mendukung multi API key Spotify (Key Utama + Key Cadangan / Backup)
-// Secara otomatis mendeteksi status 429 (QUOTA_EXCEEDED) dan beralih ke key cadangan.
+// Secara otomatis mendeteksi status 429 (QUOTA_EXCEEDED) dan beralih ke key cadangan / refresh token.
 
 interface SpotifyKeyConfig {
   id: string;
@@ -63,6 +63,7 @@ export function markSpotifyKeyRateLimited(clientId: string, retryAfterSeconds: n
 /**
  * Mengambil token Spotify beserta info Client ID yang sedang aktif.
  * Mengabaikan key yang sedang terkena rate limit, dan otomatis mengambil key berikutnya.
+ * Jika seluruh client_credentials limit, mencoba memakai SPOTIFY_REFRESH_TOKEN.
  */
 export async function getSpotifyTokenWithMetadata(excludeClientId?: string): Promise<{
   token: string;
@@ -118,6 +119,44 @@ export async function getSpotifyTokenWithMetadata(excludeClientId?: string): Pro
       };
     } catch (err) {
       console.error(`[spotifyServer] Error fetching token untuk ${key.name}:`, err);
+    }
+  }
+
+  // Jika client credentials gagal, coba fallback ke SPOTIFY_REFRESH_TOKEN (User Auth Token)
+  const refreshTokens = [
+    process.env.SPOTIFY_REFRESH_TOKEN_BACKUP?.trim(),
+    process.env.SPOTIFY_REFRESH_TOKEN?.trim(),
+  ].filter(Boolean) as string[];
+
+  for (const rt of refreshTokens) {
+    for (const key of keyPairs) {
+      try {
+        const creds = Buffer.from(`${key.id}:${key.secret}`).toString("base64");
+        const res = await fetch("https://accounts.spotify.com/api/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${creds}`,
+          },
+          body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: rt,
+          }),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.access_token) {
+            return {
+              token: json.access_token,
+              clientId: key.id,
+              keyName: `${key.name} (User Token)`,
+            };
+          }
+        }
+      } catch (err) {
+        console.error(`[spotifyServer] User token fallback error:`, err);
+      }
     }
   }
 

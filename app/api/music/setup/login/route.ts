@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { origin } = new URL(request.url);
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const { origin, searchParams } = new URL(request.url);
+  const keyParam = searchParams.get("key") || searchParams.get("app");
+
+  let clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
+  let state = "primary";
+
+  // Jika diminta key=backup atau SPOTIFY_CLIENT_ID belum ada tapi BACKUP ada
+  if (
+    keyParam === "backup" ||
+    (!clientId && (process.env.SPOTIFY_CLIENT_ID_BACKUP || process.env.SPOTIFY_CLIENT_ID_2))
+  ) {
+    clientId = (process.env.SPOTIFY_CLIENT_ID_BACKUP || process.env.SPOTIFY_CLIENT_ID_2)?.trim();
+    state = "backup";
+  }
 
   if (!clientId) {
     return NextResponse.json(
-      { error: "SPOTIFY_CLIENT_ID belum dikonfigurasi di server." },
+      { error: "SPOTIFY_CLIENT_ID atau SPOTIFY_CLIENT_ID_BACKUP belum dikonfigurasi di server." },
       { status: 400 }
     );
   }
@@ -22,8 +34,7 @@ export async function GET(request: Request) {
 
   const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&scope=${scopes}&show_dialog=true`;
+  )}&scope=${scopes}&state=${state}&show_dialog=true`;
 
   return NextResponse.redirect(authUrl);
 }
-

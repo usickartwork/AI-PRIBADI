@@ -5,11 +5,23 @@ let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
 
 export async function GET() {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  const primaryPair = {
+    id: process.env.SPOTIFY_CLIENT_ID?.trim(),
+    secret: process.env.SPOTIFY_CLIENT_SECRET?.trim(),
+    refresh: process.env.SPOTIFY_REFRESH_TOKEN?.trim(),
+  };
 
-  if (!clientId || !clientSecret || !refreshToken) {
+  const backupPair = {
+    id: (process.env.SPOTIFY_CLIENT_ID_BACKUP || process.env.SPOTIFY_CLIENT_ID_2)?.trim(),
+    secret: (process.env.SPOTIFY_CLIENT_SECRET_BACKUP || process.env.SPOTIFY_CLIENT_SECRET_2)?.trim(),
+    refresh: (process.env.SPOTIFY_REFRESH_TOKEN_BACKUP || process.env.SPOTIFY_REFRESH_TOKEN)?.trim(),
+  };
+
+  const pairs = [primaryPair, backupPair].filter(
+    (p): p is { id: string; secret: string; refresh: string } => !!p.id && !!p.secret && !!p.refresh
+  );
+
+  if (pairs.length === 0) {
     return NextResponse.json({
       configured: false,
       token: null,
@@ -26,46 +38,45 @@ export async function GET() {
     });
   }
 
-  try {
-    const creds = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    const res = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${creds}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-      }),
-      cache: "no-store",
-    });
+  let lastError = "Gagal merefresh token Spotify.";
 
-    const data = await res.json();
-    if (data.access_token) {
-      cachedToken = data.access_token;
-      tokenExpiresAt = now + (data.expires_in || 3600) * 1000;
-      return NextResponse.json({
-        configured: true,
-        token: cachedToken,
+  for (const pair of pairs) {
+    try {
+      const creds = Buffer.from(`${pair.id}:${pair.secret}`).toString("base64");
+      const res = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${creds}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: pair.refresh,
+        }),
+        cache: "no-store",
       });
+
+      const data = await res.json();
+      if (data.access_token) {
+        cachedToken = data.access_token;
+        tokenExpiresAt = now + (data.expires_in || 3600) * 1000;
+        return NextResponse.json({
+          configured: true,
+          token: cachedToken,
+        });
+      }
+
+      lastError = data.error_description || data.error || lastError;
+    } catch (err: any) {
+      lastError = err?.message || lastError;
     }
-
-    return NextResponse.json(
-      {
-        configured: false,
-        error: data.error_description || "Gagal merefresh token Spotify.",
-      },
-      { status: 400 }
-    );
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        configured: false,
-        error: err?.message || "Server error saat merefresh Spotify token.",
-      },
-      { status: 500 }
-    );
   }
-}
 
+  return NextResponse.json(
+    {
+      configured: false,
+      error: lastError,
+    },
+    { status: 400 }
+  );
+}
