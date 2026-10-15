@@ -447,6 +447,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
+  const [activeMenuTrackId, setActiveMenuTrackId] = useState<string | null>(null);
 
   // Floating Queue Toast State
   const [queueToast, setQueueToast] = useState<string | null>(null);
@@ -1970,6 +1971,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               key={`${track.id}-${idx}`}
               onClick={() => playTrack(track)}
               className={`flex items-center gap-2.5 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl transition cursor-pointer group select-none ${
+                activeMenuTrackId === track.id ? "relative z-30" : ""
+              } ${
                 isCurrent
                   ? isDark
                     ? "bg-zinc-800/90 border border-zinc-700/90 shadow-md"
@@ -2054,65 +2057,132 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 {track.durationMs ? formatDurationMs(track.durationMs) : "3:30"}
               </div>
 
-              {/* Action buttons (Like & Playlist) */}
-              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+              {/* Single 3-Dots Action Button & Dropdown Menu */}
+              <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
-                  onClick={() => toggleLike(track)}
-                  className={`p-2 rounded-xl transition cursor-pointer ${
-                    isLiked ? "text-red-500 hover:scale-110" : "text-zinc-500 hover:text-white hover:bg-white/10"
+                  onClick={() => setActiveMenuTrackId(activeMenuTrackId === track.id ? null : track.id)}
+                  className={`p-2 rounded-xl transition cursor-pointer active:scale-90 ${
+                    activeMenuTrackId === track.id
+                      ? isDark
+                        ? "bg-white/15 text-white"
+                        : "bg-black/10 text-black"
+                      : isDark
+                      ? "text-zinc-500 hover:text-white hover:bg-white/10"
+                      : "text-zinc-400 hover:text-black hover:bg-black/5"
                   }`}
-                  title={isLiked ? "Hapus dari disukai" : "Sukai"}
+                  title="Opsi lagu"
+                  aria-label="Opsi lagu"
                 >
-                  <svg className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="5" r="1.75" />
+                    <circle cx="12" cy="12" r="1.75" />
+                    <circle cx="12" cy="19" r="1.75" />
                   </svg>
                 </button>
 
-                {/* Tambahkan ke Antrean */}
-                <button
-                  type="button"
-                  onClick={() => addToQueue(track)}
-                  className={`p-2 rounded-xl transition cursor-pointer active:scale-90 ${
-                    queue.some((q) => q.id === track.id)
-                      ? "text-emerald-400 bg-emerald-500/10"
-                      : "text-zinc-500 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={queue.some((q) => q.id === track.id) ? "Sudah dalam antrean" : "Tambahkan ke Antrean"}
-                >
-                  {queue.some((q) => q.id === track.id) ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h10M4 14h10M18 12v6m3-3h-6" />
-                    </svg>
-                  )}
-                </button>
+                {activeMenuTrackId === track.id && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 cursor-default"
+                      onClick={() => setActiveMenuTrackId(null)}
+                    />
+                    <div
+                      className={`absolute right-0 top-full mt-1.5 w-48 sm:w-52 rounded-2xl border shadow-xl py-1.5 z-50 text-left animate-in fade-in-0 zoom-in-95 duration-150 backdrop-blur-md ${
+                        isDark
+                          ? "bg-[#18181b]/95 border-white/15 text-zinc-200 shadow-2xl shadow-black/80"
+                          : "bg-white/95 border-black/10 text-zinc-800 shadow-xl shadow-black/10"
+                      }`}
+                    >
+                      {/* 1. Suka / Hapus Disukai */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleLike(track);
+                          setActiveMenuTrackId(null);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                          isDark
+                            ? "hover:bg-white/10 text-zinc-300 hover:text-white"
+                            : "hover:bg-black/5 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        <svg
+                          className={`w-4 h-4 shrink-0 ${isLiked ? (isDark ? "fill-white text-white" : "fill-black text-black") : ""}`}
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          fill="none"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        <span>{isLiked ? "Hapus dari Disukai" : "Sukai Lagu"}</span>
+                      </button>
 
-                {options?.showRemoveFromPlaylist && options.onRemoveFromPlaylist ? (
-                  <button
-                    type="button"
-                    onClick={() => options.onRemoveFromPlaylist!(track.id)}
-                    className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
-                    title="Hapus dari Playlist"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAddToPlaylistTrack(track)}
-                    className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                    title="Tambahkan ke Playlist"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
+                      {/* 2. Tambahkan ke Antrean */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addToQueue(track);
+                          setActiveMenuTrackId(null);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                          isDark
+                            ? "hover:bg-white/10 text-zinc-300 hover:text-white"
+                            : "hover:bg-black/5 text-zinc-700 hover:text-black"
+                        }`}
+                      >
+                        {queue.some((q) => q.id === track.id) ? (
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h10M4 14h10M18 12v6m3-3h-6" />
+                          </svg>
+                        )}
+                        <span>{queue.some((q) => q.id === track.id) ? "Sudah dalam Antrean" : "Tambahkan ke Antrean"}</span>
+                      </button>
+
+                      {/* 3. Playlist Action */}
+                      {options?.showRemoveFromPlaylist && options.onRemoveFromPlaylist ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            options.onRemoveFromPlaylist!(track.id);
+                            setActiveMenuTrackId(null);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3.5 py-2 text-xs font-semibold transition cursor-pointer border-t ${
+                            isDark
+                              ? "border-white/10 hover:bg-white/10 text-zinc-400 hover:text-white"
+                              : "border-black/5 hover:bg-black/5 text-zinc-600 hover:text-black"
+                          }`}
+                        >
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>Hapus dari Playlist</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddToPlaylistTrack(track);
+                            setActiveMenuTrackId(null);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                            isDark
+                              ? "hover:bg-white/10 text-zinc-300 hover:text-white"
+                              : "hover:bg-black/5 text-zinc-700 hover:text-black"
+                          }`}
+                        >
+                          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span>Tambahkan ke Playlist</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -2882,26 +2952,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <div className="space-y-6 sm:space-y-8 w-full mt-1 sm:mt-2 animate-in fade-in-0 duration-200">
                   {/* ─── SPOTIFY / APPLE MUSIC DISCOVER HOME (Clean One Mind Theme) ─── */}
                   <div className="space-y-3.5 pt-1">
-                    {/* Clean Headline with Acak Lagu (Shuffle) button: Direkomendasikan untuk anda */}
-                    <div className="flex items-center justify-between">
+                    {/* Clean Headline: Direkomendasikan untuk anda */}
+                    <div>
                       <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
                         Direkomendasikan untuk anda
                       </h3>
-                      <button
-                        type="button"
-                        onClick={handleShuffleDiscover}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
-                          isDark
-                            ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                            : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-600 hover:text-black"
-                        }`}
-                        title="Acak rekomendasi lagu trending"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>Acak Lagu</span>
-                      </button>
                     </div>
 
                     {/* Quick Picks Cards Grid (2 cols mobile, 3 cols tablet/desktop) */}
@@ -2971,7 +3026,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                                 onClick={() => addToQueue(track)}
                                 className={`p-1.5 rounded-lg transition cursor-pointer active:scale-90 ${
                                   isQueued
-                                    ? "text-emerald-400 bg-emerald-500/10"
+                                    ? isDark
+                                      ? "text-white bg-white/15"
+                                      : "text-black bg-black/10"
                                     : isDark
                                     ? "text-zinc-400 hover:text-white hover:bg-white/10"
                                     : "text-zinc-500 hover:text-black hover:bg-black/10"
@@ -3053,7 +3110,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
                   {/* Error Notice */}
                   {searchError && (
-                    <div className="py-3 px-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
+                    <div
+                      className={`py-3 px-4 rounded-2xl border text-xs text-center ${
+                        isDark ? "bg-zinc-900 border-zinc-800 text-zinc-300" : "bg-zinc-100 border-zinc-200 text-zinc-700"
+                      }`}
+                    >
                       {searchError}
                     </div>
                   )}
@@ -3142,7 +3203,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
                       </button>
-                      <div className="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
+                      <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+                        isDark ? "bg-white/10 border-white/20 text-white" : "bg-black/5 border-black/15 text-zinc-900"
+                      }`}>
                         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
@@ -3214,7 +3277,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
                       <button
                         onClick={() => deletePlaylist(selectedLocalPlaylist.id)}
-                        className="p-2 rounded-xl border border-zinc-800 hover:border-red-500/50 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition cursor-pointer"
+                        className={`p-2 rounded-xl border transition cursor-pointer ${
+                          isDark
+                            ? "border-zinc-800 hover:border-zinc-700 hover:bg-white/10 text-zinc-400 hover:text-white"
+                            : "border-zinc-200 hover:border-zinc-300 hover:bg-black/5 text-zinc-600 hover:text-black"
+                        }`}
                         title="Hapus Playlist"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3279,7 +3346,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 shadow-inner">
+                        <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shadow-inner ${
+                          isDark ? "bg-white/10 border-white/20 text-white" : "bg-black/5 border-black/15 text-zinc-900"
+                        }`}>
                           <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                           </svg>
@@ -3290,7 +3359,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       </div>
 
                       <div>
-                        <h3 className="text-base font-extrabold text-white">Lagu Disukai</h3>
+                        <h3 className={`text-base font-extrabold ${isDark ? "text-white" : "text-zinc-900"}`}>Lagu Disukai</h3>
                         <p className="text-xs text-zinc-400 mt-0.5">{likedSongs.length} Lagu Favorit</p>
                       </div>
                     </div>
@@ -3317,7 +3386,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                               e.stopPropagation();
                               deletePlaylist(pl.id);
                             }}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition"
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${
+                              isDark ? "text-zinc-500 hover:text-white hover:bg-white/10" : "text-zinc-400 hover:text-black hover:bg-black/5"
+                            }`}
                             title="Hapus Playlist"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3327,7 +3398,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                         </div>
 
                         <div>
-                          <h3 className="text-base font-extrabold text-white truncate">{pl.name}</h3>
+                          <h3 className={`text-base font-extrabold truncate ${isDark ? "text-white" : "text-zinc-900"}`}>{pl.name}</h3>
                           <p className="text-xs text-zinc-400 mt-0.5 truncate">
                             {pl.items.length} Lagu {pl.description ? `• ${pl.description}` : ""}
                           </p>
@@ -3463,7 +3534,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                         onClick={() => toggleLike(currentTrack)}
                         className={`p-1.5 rounded-lg transition cursor-pointer ${
                           isTrackLiked(currentTrack.id)
-                            ? "text-red-500"
+                            ? isDark ? "text-white" : "text-black"
                             : isDark ? "text-zinc-500 hover:text-white" : "text-zinc-400 hover:text-black"
                         }`}
                         title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai"}
@@ -3547,7 +3618,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                               updatedAt: new Date().toISOString(),
                             });
                           }}
-                          className="p-1 rounded-lg text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition cursor-pointer shrink-0"
+                          className={`p-1 rounded-lg opacity-0 group-hover:opacity-100 transition cursor-pointer shrink-0 ${
+                            isDark ? "text-zinc-500 hover:text-white hover:bg-white/10" : "text-zinc-400 hover:text-black hover:bg-black/5"
+                          }`}
                           title="Hapus dari antrean"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3600,7 +3673,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           onClick={() => addToQueue(rec)}
                           className={`p-1.5 rounded-lg transition cursor-pointer active:scale-90 ${
                             queue.some((q) => q.id === rec.id)
-                              ? "text-emerald-400 bg-emerald-500/10"
+                              ? isDark
+                                ? "text-white bg-white/15"
+                                : "text-black bg-black/10"
                               : isDark
                               ? "text-zinc-400 hover:text-white hover:bg-white/10"
                               : "text-zinc-600 hover:text-black hover:bg-black/10"
@@ -3699,7 +3774,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={() => toggleLike(currentTrack)}
                   className={`p-3 rounded-2xl transition cursor-pointer active:scale-90 ${
                     isTrackLiked(currentTrack.id)
-                      ? "text-red-500"
+                      ? isDark
+                        ? "text-white"
+                        : "text-black"
                       : isDark
                       ? "text-zinc-400 hover:text-white"
                       : "text-zinc-500 hover:text-black"
@@ -3810,7 +3887,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }}
                   className={`p-2 rounded-lg transition cursor-pointer ${
                     isTrackLiked(currentTrack.id)
-                      ? "text-red-500"
+                      ? isDark
+                        ? "text-white"
+                        : "text-black"
                       : isDark
                       ? "text-zinc-500 hover:text-white"
                       : "text-zinc-500 hover:text-black"
@@ -4211,7 +4290,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           setQueue([]);
                           saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
                         }}
-                        className="text-xs text-zinc-400 hover:text-red-400 cursor-pointer transition font-medium"
+                        className={`text-xs transition font-medium cursor-pointer ${
+                          isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                        }`}
                       >
                         Hapus Semua
                       </button>
@@ -4287,7 +4368,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                               updatedAt: new Date().toISOString(),
                             });
                           }}
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition cursor-pointer"
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                            isDark ? "text-zinc-500 hover:text-white hover:bg-white/10" : "text-zinc-400 hover:text-black hover:bg-black/5"
+                          }`}
                           title="Hapus dari antrean"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4337,7 +4420,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                             onClick={() => addToQueue(rec)}
                             className={`p-1.5 rounded-xl transition cursor-pointer active:scale-90 ${
                               queue.some((q) => q.id === rec.id)
-                                ? "text-emerald-400 bg-emerald-500/10"
+                                ? isDark
+                                  ? "text-white bg-white/15"
+                                  : "text-black bg-black/10"
                                 : isDark
                                 ? "hover:bg-white/10 text-zinc-400 hover:text-white"
                                 : "hover:bg-black/10 text-zinc-600 hover:text-black"
@@ -4807,7 +4892,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               ? "bg-zinc-900/95 text-white border-white/15 shadow-black/60 backdrop-blur-md"
               : "bg-white/95 text-zinc-900 border-black/10 shadow-black/10 backdrop-blur-md"
           }`}>
-            <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-white" : "text-zinc-900"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
             <span>{queueToast}</span>
