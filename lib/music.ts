@@ -49,6 +49,30 @@ export interface SpotifySearchResult {
   playlists: MusicItem[];
 }
 
+export interface ArtistProfileData {
+  id: string;
+  spotifyId: string;
+  name: string;
+  imageUrl?: string | null;
+  genres: string[];
+  externalUrl?: string;
+  topTracks: MusicItem[];
+  albums: MusicItem[];
+}
+
+export interface AlbumDetailData {
+  id: string;
+  spotifyId: string;
+  title: string;
+  artistNames: string[];
+  artistId?: string | null;
+  artworkUrl?: string;
+  releaseDate?: string;
+  totalTracks: number;
+  externalUrl?: string;
+  tracks: MusicItem[];
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 export const MUSIC_STORAGE_VERSION = 1;

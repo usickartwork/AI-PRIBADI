@@ -6,6 +6,8 @@ import {
   MusicItem,
   LocalPlaylist,
   SpotifySearchResult,
+  ArtistProfileData,
+  AlbumDetailData,
   SPOTIFY_GENRES,
   MOOD_SHORTCUTS,
   getLocalPlaylists,
@@ -283,6 +285,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [artists, setArtists] = useState<MusicItem[]>([]);
   const [albums, setAlbums] = useState<MusicItem[]>([]);
   const [playlistsList, setPlaylistsList] = useState<MusicItem[]>([]);
+
+  // Artist Profile & Album Detail State
+  const [selectedArtist, setSelectedArtist] = useState<ArtistProfileData | null>(null);
+  const [isLoadingArtist, setIsLoadingArtist] = useState(false);
+  const [artistError, setArtistError] = useState<string | null>(null);
+
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumDetailData | null>(null);
+  const [isLoadingAlbum, setIsLoadingAlbum] = useState(false);
+  const [albumError, setAlbumError] = useState<string | null>(null);
 
   // User Library State
   const [likedSongs, setLikedSongs] = useState<MusicItem[]>([]);
@@ -645,6 +656,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   // ─── Search Execution Handlers ─────────────────────────────────────────────
   const handleExecuteSearch = (query: string) => {
     if (!query.trim()) return;
+    setSelectedArtist(null);
+    setSelectedAlbum(null);
     setSearchQuery(query);
     setHasSearched(true);
     if (subTab !== "home") setSubTab("home");
@@ -654,6 +667,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const handleQuickSearch = (term: string) => {
+    setSelectedArtist(null);
+    setSelectedAlbum(null);
     setSearchQuery(term);
     setHasSearched(true);
     if (subTab !== "home") setSubTab("home");
@@ -663,6 +678,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const handleResetToNewSearch = () => {
+    setSelectedArtist(null);
+    setSelectedAlbum(null);
     setSearchQuery("");
     setHasSearched(false);
     if (chatInputRef.current) {
@@ -673,6 +690,76 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const handleSelectRecentSearch = (term: string) => {
     handleQuickSearch(term);
   };
+
+  // ─── Artist Profile & Album Navigation Handlers ─────────────────────────────
+  const openArtistProfile = useCallback(async (artistIdOrName: string) => {
+    if (!artistIdOrName) return;
+    setShowLyrics(false);
+    setSelectedAlbum(null);
+    setIsLoadingArtist(true);
+    setArtistError(null);
+    if (subTab !== "home") setSubTab("home");
+
+    try {
+      let rawId = artistIdOrName;
+      if (rawId.startsWith("spotify:artist:")) {
+        rawId = rawId.replace("spotify:artist:", "");
+      }
+      const isSpotifyId = /^[0-9A-Za-z]{22}$/.test(rawId);
+      const queryParam = isSpotifyId
+        ? `id=${encodeURIComponent(rawId)}`
+        : `name=${encodeURIComponent(artistIdOrName)}`;
+
+      const res = await fetch(`/api/music/artist?${queryParam}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSelectedArtist(json.data);
+      } else {
+        setArtistError(json.error || "Gagal memuat profil artis.");
+      }
+    } catch (err: any) {
+      setArtistError(err?.message || "Gagal memuat profil artis.");
+    } finally {
+      setIsLoadingArtist(false);
+    }
+  }, [subTab]);
+
+  const openAlbumDetail = useCallback(async (albumIdOrUri: string) => {
+    if (!albumIdOrUri) return;
+    setShowLyrics(false);
+    setIsLoadingAlbum(true);
+    setAlbumError(null);
+    if (subTab !== "home") setSubTab("home");
+
+    try {
+      let rawId = albumIdOrUri;
+      if (rawId.startsWith("spotify:album:")) {
+        rawId = rawId.replace("spotify:album:", "");
+      }
+      const res = await fetch(`/api/music/album?id=${encodeURIComponent(rawId)}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSelectedAlbum(json.data);
+      } else {
+        setAlbumError(json.error || "Gagal memuat album.");
+      }
+    } catch (err: any) {
+      setAlbumError(err?.message || "Gagal memuat album.");
+    } finally {
+      setIsLoadingAlbum(false);
+    }
+  }, [subTab]);
+
+  const closeArtistProfile = useCallback(() => {
+    setSelectedArtist(null);
+    setSelectedAlbum(null);
+    setArtistError(null);
+  }, []);
+
+  const closeAlbumDetail = useCallback(() => {
+    setSelectedAlbum(null);
+    setAlbumError(null);
+  }, []);
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
   const playTrack = useCallback(async (track: MusicItem) => {
@@ -1334,7 +1421,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             onChange={(e) => {
               const val = e.target.value;
               setSearchQuery(val);
-              if (!val.trim()) {
+              if (val.trim()) {
+                setSelectedArtist(null);
+                setSelectedAlbum(null);
+              } else {
                 setHasSearched(false);
               }
             }}
@@ -1483,7 +1573,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {track.title}
                 </h4>
                 <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                  {track.artistNames.join(", ")}
+                  {track.artistNames.map((name, i) => (
+                    <span key={`${name}-${i}`}>
+                      {i > 0 && ", "}
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openArtistProfile(name);
+                        }}
+                        className="hover:underline hover:text-white transition cursor-pointer"
+                        title={`Lihat profil ${name}`}
+                      >
+                        {name}
+                      </span>
+                    </span>
+                  ))}
                 </p>
               </div>
 
@@ -1539,6 +1643,304 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  // ─── Artist Profile View Renderer (Strict Monochrome Zinc / Web Theme) ─────
+  const renderArtistProfileView = () => {
+    if (!selectedArtist) return null;
+
+    return (
+      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col space-y-6 pt-2 pb-10 animate-in fade-in-0 duration-200">
+        {/* Navigation Bar inside Artist Profile */}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800/40">
+          <button
+            type="button"
+            onClick={closeArtistProfile}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                : "border-zinc-200 bg-white text-zinc-700 hover:text-black hover:bg-zinc-100"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Kembali</span>
+          </button>
+
+          {selectedArtist.externalUrl && (
+            <a
+              href={selectedArtist.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:text-black hover:bg-zinc-100"
+              }`}
+            >
+              <span>Buka di Spotify</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          )}
+        </div>
+
+        {/* Artist Header / Hero Card */}
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-6 pt-1">
+          {selectedArtist.imageUrl ? (
+            <img
+              src={selectedArtist.imageUrl}
+              alt={selectedArtist.name}
+              className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover shadow-2xl border-2 border-white/10 shrink-0"
+            />
+          ) : (
+            <div
+              className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center shrink-0 border-2 border-white/10 ${
+                isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
+              }`}
+            >
+              <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          )}
+
+          <div className="text-center sm:text-left min-w-0 flex-1 space-y-2">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400">
+              Profil Musisi
+            </span>
+            <h1 className={`text-2xl sm:text-4xl font-black tracking-tight truncate ${isDark ? "text-white" : "text-zinc-900"}`}>
+              {selectedArtist.name}
+            </h1>
+
+            {selectedArtist.genres && selectedArtist.genres.length > 0 && (
+              <div className="flex flex-wrap justify-center sm:justify-start gap-1.5 pt-1">
+                {selectedArtist.genres.slice(0, 5).map((genre) => (
+                  <span
+                    key={genre}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
+                      isDark
+                        ? "bg-zinc-800/80 border-zinc-700/60 text-zinc-300"
+                        : "bg-zinc-100 border-zinc-300 text-zinc-700"
+                    }`}
+                  >
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {selectedArtist.topTracks.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => playAllTracks(selectedArtist.topTracks)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-lg hover:scale-102 active:scale-98"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <polygon points="6 4, 18 12, 6 20" />
+                  </svg>
+                  <span>Putar Populer ({selectedArtist.topTracks.length})</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section: Popular Tracks */}
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">
+              Lagu Populer
+            </h2>
+            <span className="text-xs text-zinc-500">
+              {selectedArtist.topTracks.length} trek
+            </span>
+          </div>
+
+          {renderTrackTable(selectedArtist.topTracks, {
+            emptyMessage: "Belum ada lagu populer yang dapat ditampilkan.",
+          })}
+        </div>
+
+        {/* Section: Albums & Singles */}
+        {selectedArtist.albums.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-zinc-800/40">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                Album & Single
+              </h2>
+              <span className="text-xs text-zinc-500">
+                {selectedArtist.albums.length} rilis
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+              {selectedArtist.albums.map((album) => (
+                <div
+                  key={album.id}
+                  onClick={() => openAlbumDetail(album.providerItemId)}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer group flex flex-col ${
+                    isDark
+                      ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/60 hover:border-zinc-700"
+                      : "bg-white hover:bg-zinc-50 border-zinc-200 shadow-xs"
+                  }`}
+                >
+                  <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-2.5 bg-zinc-800">
+                    {album.artworkUrl ? (
+                      <img
+                        src={album.artworkUrl}
+                        alt={album.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <h4 className={`text-xs sm:text-sm font-semibold truncate group-hover:underline ${
+                    isDark ? "text-white" : "text-zinc-900"
+                  }`}>
+                    {album.title}
+                  </h4>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {album.albumTitle || "Album / Single"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Album Detail View Renderer (Strict Monochrome Zinc / Web Theme) ───────
+  const renderAlbumDetailView = () => {
+    if (!selectedAlbum) return null;
+
+    return (
+      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col space-y-6 pt-2 pb-10 animate-in fade-in-0 duration-200">
+        {/* Navigation Bar inside Album View */}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800/40">
+          <button
+            type="button"
+            onClick={closeAlbumDetail}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                : "border-zinc-200 bg-white text-zinc-700 hover:text-black hover:bg-zinc-100"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>{selectedArtist ? `Kembali ke ${selectedArtist.name}` : "Kembali"}</span>
+          </button>
+
+          {selectedAlbum.externalUrl && (
+            <a
+              href={selectedAlbum.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                isDark
+                  ? "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:text-black hover:bg-zinc-100"
+              }`}
+            >
+              <span>Buka di Spotify</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          )}
+        </div>
+
+        {/* Album Header / Hero Card */}
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-6 pt-1">
+          {selectedAlbum.artworkUrl ? (
+            <img
+              src={selectedAlbum.artworkUrl}
+              alt={selectedAlbum.title}
+              className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover shadow-2xl border border-white/10 shrink-0"
+            />
+          ) : (
+            <div
+              className={`w-28 h-28 sm:w-36 sm:h-36 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 ${
+                isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
+              }`}
+            >
+              <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+              </svg>
+            </div>
+          )}
+
+          <div className="text-center sm:text-left min-w-0 flex-1 space-y-2">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400">
+              Album
+            </span>
+            <h1 className={`text-2xl sm:text-3xl font-black tracking-tight truncate ${isDark ? "text-white" : "text-zinc-900"}`}>
+              {selectedAlbum.title}
+            </h1>
+
+            <p className="text-xs sm:text-sm text-zinc-400">
+              {selectedAlbum.artistNames.map((artName, i) => (
+                <span key={`${artName}-${i}`}>
+                  {i > 0 && ", "}
+                  <span
+                    onClick={() => openArtistProfile(selectedAlbum.artistId || artName)}
+                    className="hover:underline hover:text-white cursor-pointer font-semibold transition"
+                    title={`Lihat profil ${artName}`}
+                  >
+                    {artName}
+                  </span>
+                </span>
+              ))}
+              {selectedAlbum.releaseDate && ` • ${selectedAlbum.releaseDate.slice(0, 4)}`}
+              {selectedAlbum.totalTracks > 0 && ` • ${selectedAlbum.totalTracks} trek`}
+            </p>
+
+            {selectedAlbum.tracks.length > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => playAllTracks(selectedAlbum.tracks)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-lg hover:scale-102 active:scale-98"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <polygon points="6 4, 18 12, 6 20" />
+                  </svg>
+                  <span>Putar Album ({selectedAlbum.tracks.length})</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section: Album Tracklist */}
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">
+              Daftar Lagu
+            </h2>
+            <span className="text-xs text-zinc-500">
+              {selectedAlbum.tracks.length} trek
+            </span>
+          </div>
+
+          {renderTrackTable(selectedAlbum.tracks, {
+            emptyMessage: "Tidak ada trek di album ini.",
+          })}
+        </div>
       </div>
     );
   };
@@ -1623,6 +2025,38 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          ) : selectedAlbum ? (
+            <button
+              type="button"
+              onClick={closeAlbumDetail}
+              title="Kembali"
+              aria-label="Kembali"
+              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+              }`}
+            >
+              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          ) : selectedArtist ? (
+            <button
+              type="button"
+              onClick={closeArtistProfile}
+              title="Kembali"
+              aria-label="Kembali"
+              className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+              }`}
+            >
+              <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
           ) : subTab === "home" ? (
             <button
               type="button"
@@ -1655,6 +2089,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               type="button"
               onClick={() => {
                 setSubTab("home");
+                setSelectedArtist(null);
+                setSelectedAlbum(null);
               }}
               title="Kembali ke Musik"
               aria-label="Kembali ke Musik"
@@ -1675,7 +2111,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       {/* ─── MAIN FULL-WIDTH CONTENT AREA ───────────────────────────────────── */}
       <main
         className={`flex-1 flex flex-col min-h-0 overflow-y-auto bg-transparent ${
-          searchQuery.trim() || subTab === "playlists" || showLyrics ? "pb-28" : "pb-2"
+          searchQuery.trim() || subTab === "playlists" || showLyrics || selectedArtist || selectedAlbum || isLoadingArtist || isLoadingAlbum ? "pb-28" : "pb-2"
         }`}
       >
         {showLyrics ? (
@@ -1704,7 +2140,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {currentTrack?.title || "Tidak ada lagu yang dipilih"}
                 </h3>
                 <p className="text-xs text-zinc-400 truncate">
-                  {currentTrack?.artistNames.join(", ") || "Artis"}
+                  {currentTrack ? (
+                    currentTrack.artistNames.map((name, i) => (
+                      <span key={`${name}-${i}`}>
+                        {i > 0 && ", "}
+                        <span
+                          onClick={() => {
+                            setShowLyrics(false);
+                            openArtistProfile(name);
+                          }}
+                          className="hover:underline hover:text-white transition cursor-pointer"
+                          title={`Lihat profil ${name}`}
+                        >
+                          {name}
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    "Artis"
+                  )}
                 </p>
               </div>
             </div>
@@ -1837,13 +2291,32 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         ) : (
           <div
             className={`px-3.5 sm:px-8 flex-1 flex flex-col ${
-              !searchQuery.trim() && subTab === "home"
+              !searchQuery.trim() && subTab === "home" && !selectedArtist && !selectedAlbum && !isLoadingArtist && !isLoadingAlbum
                 ? "justify-center items-center my-auto min-h-0"
                 : "py-4 sm:py-6"
             }`}
           >
-          {/* ─── TAB 1: MUSIK / SEARCH (Persistent Chat Box: Centered or Results List) ───────── */}
+          {/* ─── TAB 1: MUSIK / SEARCH / ARTIST / ALBUM ───────── */}
           {subTab === "home" && (
+            selectedAlbum ? (
+              renderAlbumDetailView()
+            ) : selectedArtist ? (
+              renderArtistProfileView()
+            ) : isLoadingArtist ? (
+              <div className="w-full max-w-4xl mx-auto py-16 flex flex-col items-center justify-center space-y-4 animate-pulse">
+                <div className="w-28 h-28 rounded-full bg-zinc-800/80" />
+                <div className="h-6 w-48 bg-zinc-800/80 rounded-full" />
+                <div className="h-4 w-32 bg-zinc-800/50 rounded-full" />
+                <p className="text-xs text-zinc-500 pt-2 font-medium">Memuat profil artis dari Spotify...</p>
+              </div>
+            ) : isLoadingAlbum ? (
+              <div className="w-full max-w-4xl mx-auto py-16 flex flex-col items-center justify-center space-y-4 animate-pulse">
+                <div className="w-32 h-32 rounded-2xl bg-zinc-800/80" />
+                <div className="h-6 w-52 bg-zinc-800/80 rounded-full" />
+                <div className="h-4 w-36 bg-zinc-800/50 rounded-full" />
+                <p className="text-xs text-zinc-500 pt-2 font-medium">Memuat album dari Spotify...</p>
+              </div>
+            ) : (
             <div
               className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
                 !searchQuery.trim()
@@ -1954,11 +2427,71 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     </div>
                   )}
 
+                  {/* Artists Section in Search Results */}
+                  {artists.length > 0 && !isSearching && (
+                    <div className="space-y-3 pb-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                          Artis
+                        </h3>
+                        <span className="text-xs text-zinc-500">
+                          {artists.length} ditemukan
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+                        {artists.map((art) => (
+                          <button
+                            key={art.id}
+                            type="button"
+                            onClick={() => openArtistProfile(art.providerItemId || art.title)}
+                            className={`flex flex-col items-center p-3 rounded-2xl border transition-all cursor-pointer group shrink-0 w-28 text-center ${
+                              isDark
+                                ? "bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/90 hover:border-zinc-700"
+                                : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100"
+                            }`}
+                          >
+                            {art.artworkUrl ? (
+                              <img
+                                src={art.artworkUrl}
+                                alt={art.title}
+                                className="w-16 h-16 rounded-full object-cover shadow-sm group-hover:scale-105 transition-transform"
+                              />
+                            ) : (
+                              <div
+                                className={`w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform ${
+                                  isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
+                                }`}
+                              >
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              </div>
+                            )}
+                            <span className={`mt-2 text-xs font-semibold truncate w-full ${isDark ? "text-white" : "text-zinc-900"}`}>
+                              {art.title}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 mt-0.5">Artis</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Song List */}
-                  {!isSearching && renderTrackTable(tracks)}
+                  {!isSearching && (
+                    <div className="space-y-2 pt-1">
+                      {artists.length > 0 && (
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                          Lagu
+                        </h3>
+                      )}
+                      {renderTrackTable(tracks)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+            )
           )}
 
           {/* ─── TAB 3: PLAYLISTS ───────────────────────────────────────────── */}
@@ -2258,7 +2791,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {currentTrack?.title || "Belum ada trek diputar"}
                 </h4>
                 <p className="text-[10px] text-zinc-400 truncate">
-                  {currentTrack?.artistNames.join(", ") || "Pilih lagu untuk memulai"}
+                  {currentTrack ? (
+                    currentTrack.artistNames.map((name, i) => (
+                      <span key={`${name}-${i}`}>
+                        {i > 0 && ", "}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openArtistProfile(name);
+                          }}
+                          className="hover:underline hover:text-white transition cursor-pointer"
+                          title={`Lihat profil ${name}`}
+                        >
+                          {name}
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    "Pilih lagu untuk memulai"
+                  )}
                 </p>
               </div>
             </div>
@@ -2412,7 +2963,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {currentTrack?.title || "Belum ada trek yang diputar"}
                 </h4>
                 <p className="text-[11px] text-zinc-500 truncate">
-                  {currentTrack?.artistNames.join(", ") || "Pilih lagu untuk memulai"}
+                  {currentTrack ? (
+                    currentTrack.artistNames.map((name, i) => (
+                      <span key={`${name}-${i}`}>
+                        {i > 0 && ", "}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openArtistProfile(name);
+                          }}
+                          className="hover:underline hover:text-white transition cursor-pointer"
+                          title={`Lihat profil ${name}`}
+                        >
+                          {name}
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    "Pilih lagu untuk memulai"
+                  )}
                 </p>
               </div>
               {currentTrack && (
