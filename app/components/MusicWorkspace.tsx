@@ -330,7 +330,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const activeLineRef = useRef<HTMLDivElement | null>(null);
-  const [copiedLyrics, setCopiedLyrics] = useState(false);
 
   // Synchronized state refs for callbacks (prevent stale closures)
   const queueRef = useRef<MusicItem[]>(queue);
@@ -508,7 +507,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           if (typeof dur === "number" && dur > 0 && !isNaN(dur)) setDuration(dur);
         } catch {}
       }
-    }, 400);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [isPlaying]);
@@ -995,11 +994,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   }, [currentTrack?.id, fetchLyricsForTrack]);
 
   // Compute active lyric index based on playback currentTime using O(log n) binary search
+  // Calibrated with a 0.65s offset to perfectly synchronize studio LRC timestamps with audio stream decoding
   const activeLyricIndex = useMemo(() => {
     if (!lyricsData || !lyricsData.synced || !lyricsData.lines || lyricsData.lines.length === 0) {
       return -1;
     }
-    return findActiveLyricIndex(lyricsData.lines, currentTime);
+    const LYRICS_PLAYBACK_OFFSET = 0.65;
+    return findActiveLyricIndex(lyricsData.lines, currentTime, LYRICS_PLAYBACK_OFFSET);
   }, [lyricsData, currentTime]);
 
   // Auto-scroll to active lyric line (if user is not manually scrolling)
@@ -1504,115 +1505,32 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       >
         {showLyrics ? (
           <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col px-4 sm:px-8 py-3 sm:py-6 h-full min-h-0 relative animate-in fade-in-0 duration-200">
-            {/* Top Bar inside Lyrics: Track Meta & Utility */}
-            <div className="flex items-center justify-between gap-4 pb-4 border-b border-white/10 dark:border-white/10 shrink-0">
-              <div className="flex items-center gap-3.5 min-w-0">
-                {currentTrack?.artworkUrl ? (
-                  <img
-                    src={currentTrack.artworkUrl}
-                    alt={currentTrack.title}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover shrink-0 shadow-md"
-                  />
-                ) : (
-                  <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl shrink-0 flex items-center justify-center ${
-                      isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
-                    }`}
-                  >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                    </svg>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h3 className="font-extrabold text-sm sm:text-base truncate">
-                    {currentTrack?.title || "Tidak ada lagu yang dipilih"}
-                  </h3>
-                  <p className="text-xs text-zinc-400 truncate">
-                    {currentTrack?.artistNames.join(", ") || "Artis"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    {isLoadingLyrics ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-amber-500 dark:text-amber-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        Memuat lirik dari LRCLIB...
-                      </span>
-                    ) : lyricsData?.synced ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-500 dark:text-emerald-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Lirik Tersinkronisasi • LRCLIB
-                      </span>
-                    ) : lyricsData?.instrumental ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                        Instrumental
-                      </span>
-                    ) : lyricsData?.plainText ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                        Lirik Polos • LRCLIB
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-500">
-                        Lirik tidak tersedia
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions: Copy lyrics & Close */}
-              <div className="flex items-center gap-2 shrink-0">
-                {(lyricsData?.plainText || (lyricsData?.lines && lyricsData.lines.length > 0)) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const text = lyricsData.plainText || lyricsData.lines.map((l) => l.text).join("\n");
-                      if (navigator.clipboard) {
-                        navigator.clipboard.writeText(text);
-                        setCopiedLyrics(true);
-                        setTimeout(() => setCopiedLyrics(false), 2000);
-                      }
-                    }}
-                    title="Salin lirik ke clipboard"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer ${
-                      isDark
-                        ? "bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-200 border border-white/5"
-                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-black/5"
-                    }`}
-                  >
-                    {copiedLyrics ? (
-                      <>
-                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <span>Salin</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setShowLyrics(false)}
-                  title="Tutup Lirik"
-                  className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition cursor-pointer ${
-                    isDark
-                      ? "bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700"
+            {/* Top Bar inside Lyrics: Clean Track Meta */}
+            <div className="flex items-center gap-3.5 pb-4 border-b border-white/5 dark:border-white/5 shrink-0">
+              {currentTrack?.artworkUrl ? (
+                <img
+                  src={currentTrack.artworkUrl}
+                  alt={currentTrack.title}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover shrink-0 shadow-md"
+                />
+              ) : (
+                <div
+                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl shrink-0 flex items-center justify-center ${
+                    isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500"
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                   </svg>
-                </button>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h3 className="font-extrabold text-sm sm:text-base truncate">
+                  {currentTrack?.title || "Tidak ada lagu yang dipilih"}
+                </h3>
+                <p className="text-xs text-zinc-400 truncate">
+                  {currentTrack?.artistNames.join(", ") || "Artis"}
+                </p>
               </div>
             </div>
 
@@ -2279,7 +2197,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                 </svg>
                 {lyricsData?.synced && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${isDark ? "bg-emerald-400" : "bg-emerald-600"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${isDark ? "bg-white" : "bg-zinc-900"}`} />
                 )}
               </button>
 
@@ -2507,7 +2425,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                 </svg>
                 {lyricsData?.synced && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDark ? "bg-emerald-400" : "bg-emerald-600"}`} />
+                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-zinc-900"}`} />
                 )}
               </button>
 

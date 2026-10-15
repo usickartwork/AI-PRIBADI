@@ -119,10 +119,15 @@ export function parseLrc(lrcText: string): LyricLine[] {
  * - lines.length - 1 if current time is at or after the last timestamp
  * - index of the line where lines[i].time <= currentTime < lines[i+1].time
  */
-export function findActiveLyricIndex(lines: LyricLine[], currentTime: number): number {
+export function findActiveLyricIndex(
+  lines: LyricLine[],
+  currentTime: number,
+  offsetSeconds: number = 0
+): number {
   if (!lines || lines.length === 0) return -1;
-  if (currentTime < lines[0].time) return -1;
-  if (currentTime >= lines[lines.length - 1].time) return lines.length - 1;
+  const effectiveTime = Math.max(0, currentTime - offsetSeconds);
+  if (effectiveTime < lines[0].time) return -1;
+  if (effectiveTime >= lines[lines.length - 1].time) return lines.length - 1;
 
   let low = 0;
   let high = lines.length - 1;
@@ -131,7 +136,7 @@ export function findActiveLyricIndex(lines: LyricLine[], currentTime: number): n
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
 
-    if (lines[mid].time <= currentTime) {
+    if (lines[mid].time <= effectiveTime) {
       activeIndex = mid;
       low = mid + 1; // Look for a closer timestamp to the right
     } else {

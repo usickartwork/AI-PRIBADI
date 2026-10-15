@@ -116,6 +116,29 @@ assertEqual(
   "Normalizes punctuation and excessive whitespace"
 );
 
+console.log("\n--- 4. AUDIO LATENCY OFFSET CALIBRATION TESTS ---");
+
+assertEqual(
+  findActiveLyricIndex(testLines, 5.2, 0.5),
+  -1,
+  "Offset of 0.5s at 5.2s properly prevents premature line activation during intro"
+);
+assertEqual(
+  findActiveLyricIndex(testLines, 5.6, 0.5),
+  0,
+  "Offset of 0.5s at 5.6s activates line 0 precisely when vocals start"
+);
+assertEqual(
+  findActiveLyricIndex(testLines, 10.3, 0.5),
+  0,
+  "Offset of 0.5s at 10.3s keeps line 0 active instead of rushing to line 1"
+);
+assertEqual(
+  findActiveLyricIndex(testLines, 10.6, 0.5),
+  1,
+  "Offset of 0.5s at 10.6s transitions to line 1 right on vocal cue"
+);
+
 // ─── Summary ────────────────────────────────────────────────────────────────
 
 console.log("\n=========================================");
