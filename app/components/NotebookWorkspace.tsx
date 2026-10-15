@@ -1139,75 +1139,72 @@ export function NotebookWorkspace({
   // HALAMAN 1: HOME / LANDING COVER VIEW (Persis Desain Cover Referensi Monokrom)
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
-    <div className="flex-1 flex flex-col justify-between h-full w-full relative overflow-y-auto overflow-x-hidden select-none animate-in fade-in-0 duration-200">
-      {/* ── BAGIAN ATAS: Header & Hero Content (Digeser Agak Kebawah Biar Presisi ke Tengah) ── */}
-      <div className="w-full flex flex-col items-center shrink-0">
-        {/* Header Atas */}
-        <div className="w-full max-w-4xl mx-auto z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
-          {onTogglePanel ? (
-            <button
-              type="button"
-              onClick={onTogglePanel}
-              title="Menu Navigasi"
-              className={`p-2 rounded-xl transition md:hidden ${
-                isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          ) : <div />}
-          <div />
-        </div>
+    <div className="flex-1 flex flex-col h-full w-full relative overflow-hidden select-none animate-in fade-in-0 duration-200">
+      {/* Header Atas: Bersih */}
+      <div className="w-full max-w-4xl mx-auto shrink-0 z-30 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
+        {onTogglePanel ? (
+          <button
+            type="button"
+            onClick={onTogglePanel}
+            title="Menu Navigasi"
+            className={`p-2 rounded-xl transition md:hidden ${
+              isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
+            }`}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        ) : <div />}
+        <div />
+      </div>
 
-        {/* Konten Hero Atas - Diberi padding-top lebih besar agar posisinya presisi ke tengah */}
-        <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-8 sm:pt-14 md:pt-18 pb-4 sm:pb-6">
-          <h1 className="text-3xl sm:text-5xl md:text-[52px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
-            One Stop Digital<br />
-            Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
-          </h1>
+      {/* Konten Hero Tengah - Dibuat Pas Tepat di Tengah Layar */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto -mt-6 sm:-mt-10 md:-mt-12 pb-16 sm:pb-24">
+        <h1 className="text-3xl sm:text-5xl md:text-[54px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
+          One Stop Digital<br />
+          Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
+        </h1>
 
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-6 sm:mb-8">
-            Digital library of thoughts, notes, and ideas chosen by creatives for everyday clarity.
-          </p>
+        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-6 sm:mb-8">
+          Digital library of thoughts, notes, and ideas chosen by creatives for everyday clarity.
+        </p>
 
-          {/* 2 Tombol Aksi Sesuai Permintaan */}
-          <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
-            {/* Tombol 1: Create New -> Menampilkan modal input judul terlebih dahulu */}
-            <button
-              type="button"
-              onClick={openNewNoteModal}
-              className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer ${
-                isDark
-                  ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
-                  : "bg-black text-white hover:bg-zinc-800 shadow-zinc-900/10"
-              }`}
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Create New</span>
-            </button>
+        {/* 2 Tombol Aksi Sesuai Permintaan */}
+        <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+          {/* Tombol 1: Create New -> Menampilkan modal input judul terlebih dahulu */}
+          <button
+            type="button"
+            onClick={openNewNoteModal}
+            className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 shadow-lg flex items-center gap-2 cursor-pointer ${
+              isDark
+                ? "bg-white text-black hover:bg-zinc-200 shadow-white/5"
+                : "bg-black text-white hover:bg-zinc-800 shadow-zinc-900/10"
+            }`}
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Create New</span>
+          </button>
 
-            {/* Tombol 2: File Catatan -> Langsung membuka Halaman 3 (Semua File Catatan) */}
-            <button
-              type="button"
-              onClick={() => setPageView("files")}
-              className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 border flex items-center gap-2 cursor-pointer ${
-                isDark
-                  ? "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white border-zinc-700/80 shadow-md"
-                  : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black border-zinc-300 shadow-sm"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>File Catatan {notes.length > 0 ? `(${notes.length})` : ""}</span>
-            </button>
-          </div>
+          {/* Tombol 2: File Catatan -> Langsung membuka Halaman 3 (Semua File Catatan) */}
+          <button
+            type="button"
+            onClick={() => setPageView("files")}
+            className={`px-6 py-3 rounded-full text-xs sm:text-sm font-semibold transition active:scale-95 border flex items-center gap-2 cursor-pointer ${
+              isDark
+                ? "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white border-zinc-700/80 shadow-md"
+                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black border-zinc-300 shadow-sm"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>File Catatan {notes.length > 0 ? `(${notes.length})` : ""}</span>
+          </button>
         </div>
       </div>
 
-      {/* ── BAGIAN BAWAH: DESAIN FOLDER DOKUMEN (Dibuat Agak Kebawah & Siluet Folder Menonjol Tidak Tertutup Isi) ── */}
-      <div className="w-full max-w-4xl mx-auto px-4 pt-2 sm:pt-4 pb-2 sm:pb-4 flex items-end justify-center z-10 shrink-0">
+      {/* ── BAGIAN BAWAH: DESAIN FOLDER DOKUMEN (Menempel di Dasar Layar, Ditenggelamkan Sebagian Agar Tidak Terlalu Dominan) ── */}
+      <div className="absolute bottom-0 inset-x-0 w-full z-10 select-none flex items-end justify-center pointer-events-auto">
         <div 
           onClick={() => setPageView("files")}
-          className="relative w-full max-w-[360px] sm:max-w-[560px] md:max-w-[680px] h-[280px] sm:h-[370px] md:h-[420px] flex items-end justify-center group cursor-pointer"
+          className="relative w-full max-w-[340px] sm:max-w-[540px] md:max-w-[640px] h-[250px] sm:h-[330px] md:h-[370px] flex items-end justify-center group cursor-pointer translate-y-16 sm:translate-y-24 md:translate-y-28 transition-transform duration-300 hover:translate-y-10 sm:hover:translate-y-16 md:hover:translate-y-20"
         >
           {/* 1. SILUET FOLDER BELAKANG (Tab folder dibuat lebih tinggi agar terlihat jelas framing di atas kartu) */}
           {/* Tab folder di kiri atas */}
@@ -1478,7 +1475,7 @@ export function NotebookWorkspace({
 
           {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (FLOATING ROUNDED RECTANGLE DI TENGAH BAWAH PERSIS FIGMA MOCKUP) */}
           <div 
-            className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-[82%] sm:w-[84%] md:w-[86%] h-34 sm:h-44 md:h-50 rounded-[28px] sm:rounded-[36px] md:rounded-[42px] border shadow-2xl backdrop-blur-3xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
+            className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-[82%] sm:w-[84%] md:w-[86%] h-34 sm:h-44 md:h-50 rounded-[28px] sm:rounded-[36px] md:rounded-[42px] border shadow-2xl backdrop-blur-3xl flex items-start justify-end p-3 sm:p-5 z-30 transition-all ${
               isDark 
                 ? "bg-zinc-900/40 border-white/20 shadow-black/60" 
                 : "bg-white/45 border-white/75 shadow-[0_25px_60px_rgba(0,0,0,0.18)]"
@@ -1487,13 +1484,13 @@ export function NotebookWorkspace({
             {/* Tombol Panah Melingkar Hitam Pekat Sesuai Gambar Figma (↗ Arrow Button) */}
             <div 
               title="Buka Semua Catatan"
-              className={`w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-full flex items-center justify-center transition-all transform group-hover:scale-108 active:scale-95 shadow-2xl ${
+              className={`w-12 h-12 sm:w-15 sm:h-15 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all transform group-hover:scale-108 active:scale-95 shadow-2xl ${
                 isDark 
                   ? "bg-white text-zinc-950 group-hover:bg-zinc-200" 
                   : "bg-[#18181b] text-white group-hover:bg-black"
               }`}
             >
-              <ArrowUpRight className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 stroke-[3]" />
+              <ArrowUpRight className="w-6 h-6 sm:w-8 sm:h-8 stroke-[3]" />
             </div>
           </div>
         </div>
