@@ -1139,7 +1139,7 @@ export function NotebookWorkspace({
   // HALAMAN 1: HOME / LANDING COVER VIEW (Persis Desain Cover Referensi Monokrom)
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
-    <div className="flex-1 flex flex-col h-full w-full relative overflow-hidden select-none animate-in fade-in-0 duration-200">
+    <div className="flex-1 flex flex-col h-full w-full relative overflow-y-auto overflow-x-hidden select-none animate-in fade-in-0 duration-200">
       {/* Header Atas: Bersih tanpa badge dan tanpa tombol semua catatan */}
       <div className="w-full max-w-4xl mx-auto shrink-0 z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
         {onTogglePanel ? (
@@ -1157,8 +1157,8 @@ export function NotebookWorkspace({
         <div />
       </div>
 
-      {/* Konten Hero Tengah - Diberi padding-bottom agar seimbang dan tidak tertutup buku */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pb-48 sm:pb-60 md:pb-72 -mt-4 sm:-mt-8">
+      {/* Konten Hero Atas */}
+      <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-2 sm:pt-4 pb-6 sm:pb-8">
         <h1 className="text-3xl sm:text-5xl md:text-[54px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
           One Stop Digital<br />
           Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
@@ -1200,181 +1200,292 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* ─── DESAIN FOLDER DOKUMEN SESUAI GAMBAR REFERENSI FIGMA (Frosted Glass Pocket & Fanning Note Cards) ─── */}
-      <div className="w-full max-w-2xl mx-auto px-4 pb-6 sm:pb-8 pt-2 flex items-center justify-center z-10">
+      {/* ─── DESAIN FOLDER DOKUMEN PERSIS FIGMA MOCKUP (6 Showcase Cards + Frosted Glass Pocket Sleeve) ─── */}
+      <div className="w-full max-w-3xl mx-auto px-4 pb-12 sm:pb-16 flex items-center justify-center z-10">
         <div 
           onClick={() => setPageView("files")}
-          className="relative w-full max-w-[340px] sm:max-w-[460px] md:max-w-[520px] h-[240px] sm:h-[300px] md:h-[340px] flex items-end justify-center group cursor-pointer"
+          className="relative w-full max-w-[360px] sm:max-w-[540px] md:max-w-[640px] h-[260px] sm:h-[340px] md:h-[390px] flex items-end justify-center group cursor-pointer"
         >
           {/* 1. SILUET FOLDER BELAKANG (Back Folder Shape) */}
           {/* Tab folder di kiri atas */}
           <div 
-            className={`absolute top-4 sm:top-2 left-6 sm:left-8 w-28 sm:w-36 h-7 sm:h-9 rounded-t-2xl border-t border-x transition-colors z-0 ${
-              isDark ? "bg-[#18181b] border-zinc-700/70" : "bg-zinc-200 border-zinc-300"
+            className={`absolute top-2 sm:top-0 left-6 sm:left-10 w-32 sm:w-44 h-8 sm:h-10 rounded-t-2xl sm:rounded-t-3xl border-t border-x transition-colors z-0 ${
+              isDark ? "bg-[#27272a] border-zinc-700" : "bg-[#d8d9de] border-[#c7c9cf]"
             }`} 
           />
           {/* Badan folder belakang */}
           <div 
-            className={`absolute inset-x-2 sm:inset-x-3 top-8 sm:top-7 bottom-0 rounded-3xl border shadow-xl transition-colors z-0 ${
-              isDark ? "bg-[#18181b] border-zinc-700/70" : "bg-zinc-200/90 border-zinc-300"
+            className={`absolute inset-x-2 sm:inset-x-4 top-7 sm:top-8 bottom-0 rounded-[28px] sm:rounded-[36px] border shadow-xl transition-colors z-0 ${
+              isDark ? "bg-[#1f1f23] border-zinc-700/80" : "bg-[#e2e3e7] border-[#cbccd2]"
             }`} 
           />
 
-          {/* 2. KARTU-KARTU CATATAN MEREKAH DARI DALAM FOLDER (Fanning Note Cards) */}
-          <div className="relative w-full h-full flex items-end justify-center z-10 pb-6 sm:pb-8">
-            {/* Kartu 1 (Paling Kiri) */}
+          {/* 2. ENAM KARTU SHOWCASE FIGMA YANG MEKAH DARI DALAM FOLDER */}
+          <div className="relative w-full h-full flex items-end justify-center z-10 pb-4 sm:pb-6">
+            
+            {/* ── KARTU 1: La Tennis Club (Paling Kiri, Angled -17° ~ -20°) ── */}
             <div
-              className={`absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-44 sm:h-58 md:h-64 rounded-2xl p-3 sm:p-4 border shadow-xl transition-all duration-300 group-hover:-rotate-17 group-hover:-translate-x-28 -rotate-14 -translate-x-22 sm:-translate-x-32 md:-translate-x-38 translate-y-2 sm:translate-y-3 ${
-                isDark ? "bg-[#101014] border-zinc-700/80 text-white" : "bg-white border-zinc-300 text-zinc-900"
-              }`}
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-50 sm:h-66 md:h-74 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200 shadow-xl overflow-hidden text-zinc-900 transition-all duration-300 group-hover:-rotate-20 group-hover:-translate-x-34 sm:group-hover:-translate-x-48 -rotate-17 -translate-x-28 sm:-translate-x-40 md:-translate-x-46 translate-y-3 sm:translate-y-4 z-10 flex flex-col justify-between"
             >
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-white/10 flex items-center justify-center mb-2">
-                    <span className="text-[9px] sm:text-[10px] font-black">UN</span>
-                  </div>
-                  <p className="text-sm sm:text-base md:text-lg font-black tracking-tight leading-tight">USICK</p>
-                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-zinc-400">Archive Edition</p>
+              <div>
+                <p className="font-serif italic text-xs sm:text-base md:text-lg font-bold tracking-tight text-zinc-950 leading-tight">
+                  La Tennis Club
+                </p>
+                <p className="text-[7px] sm:text-[8.5px] md:text-[9px] text-zinc-500 font-serif leading-[1.3] mt-1 line-clamp-3 sm:line-clamp-4">
+                  We do this platform our own daily to curate and assemble the most striking creative work here. It is inspiring and reinforces the expectation of high aesthetic character.
+                </p>
+              </div>
+
+              {/* Lapangan Tenis Hijau dengan Garis Putih & Net 3D */}
+              <div className="w-full h-20 sm:h-28 md:h-32 bg-[#335639] rounded-xl sm:rounded-2xl relative overflow-hidden mt-2 border border-emerald-900/50 shadow-inner flex flex-col justify-end">
+                {/* Garis-garis Lapangan Tenis */}
+                <div className="absolute inset-x-2 inset-y-1.5 border border-white/60 rounded-xs">
+                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/60" />
+                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-white/60" />
                 </div>
-                <div className="space-y-1 sm:space-y-1.5 opacity-60">
-                  <div className="h-1.5 w-3/4 rounded-full bg-current opacity-30" />
-                  <div className="h-1.5 w-1/2 rounded-full bg-current opacity-20" />
+                {/* Jaring Net Tenis */}
+                <div className="relative w-full h-7 sm:h-9 bg-white/20 backdrop-blur-xs border-t-2 border-white/90 flex items-center justify-between px-1">
+                  <div className="w-1 h-full bg-zinc-900/80 rounded-t-xs" />
+                  <div className="w-full h-full bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:4px_4px] opacity-60" />
+                  <div className="w-1 h-full bg-zinc-900/80 rounded-t-xs" />
                 </div>
               </div>
             </div>
 
-            {/* Kartu 2 (Kiri) */}
+            {/* ── KARTU 2: Contact Us (Kiri Atas, Angled -10°) ── */}
             <div
-              className={`absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-54 h-48 sm:h-62 md:h-70 rounded-2xl p-3.5 sm:p-4.5 border shadow-xl transition-all duration-300 group-hover:-rotate-9 group-hover:-translate-x-15 -rotate-7 -translate-x-11 sm:-translate-x-16 md:-translate-x-20 -translate-y-1 sm:-translate-y-2 ${
-                isDark ? "bg-[#141418] border-zinc-700/80 text-zinc-100" : "bg-zinc-50 border-zinc-300 text-zinc-900"
-              }`}
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:-rotate-12 -rotate-10 -translate-x-16 sm:-translate-x-24 md:-translate-x-28 -translate-y-4 sm:-translate-y-6 z-10 flex flex-col justify-between"
             >
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <p className="text-base sm:text-xl md:text-2xl font-black tracking-tight leading-tight mb-1">
-                    Contact Us
-                  </p>
-                  <p className="text-[9px] sm:text-[10px] opacity-60 leading-relaxed">
-                    Frequently Asked Questions
-                  </p>
+              <div>
+                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">CONNECT</span>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-zinc-950 tracking-tighter leading-none mt-0.5 sm:mt-1">
+                  Contact Us
+                </h2>
+                <p className="text-[7.5px] sm:text-[9px] text-zinc-500 mt-1 leading-snug">
+                  Reach out to build something memorable together.
+                </p>
+              </div>
+
+              {/* Form Input Mockup */}
+              <div className="space-y-1.5 sm:space-y-2 mt-auto">
+                <div className="h-6 sm:h-7 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 flex items-center text-[7px] sm:text-[8px] text-zinc-400">
+                  hello@creativestudio.com
                 </div>
-                <div className="p-1.5 sm:p-2 rounded-lg bg-black/10 dark:bg-white/5 flex items-center justify-between text-[8px] sm:text-[9px] font-mono opacity-70">
-                  <span>INDEX 02</span>
-                  <span>Q&A</span>
+                <div className="h-10 sm:h-14 rounded-xl bg-zinc-100 border border-zinc-200 p-2 text-[7px] sm:text-[8px] text-zinc-400">
+                  Brief description of your goals...
+                </div>
+                <div className="w-fit px-3 py-1 bg-zinc-950 text-white rounded-full text-[7px] sm:text-[8px] font-bold">
+                  Send Message
                 </div>
               </div>
             </div>
 
-            {/* Kartu 3 (Tengah - Desain Utama / Paling Menonjol) */}
+            {/* ── KARTU 3: Frequently Asked Questions (Tengah Kiri, Dark Card + Lime Pill "Let's work ↗", Angled -5°) ── */}
             <div
-              className={`absolute bottom-4 sm:bottom-6 w-40 sm:w-52 md:w-60 h-52 sm:h-66 md:h-74 rounded-2xl p-4 sm:p-5 border shadow-2xl transition-all duration-300 group-hover:-translate-y-6 rotate-0 translate-x-0 -translate-y-3 sm:-translate-y-4 z-20 ${
-                isDark 
-                  ? "bg-[#1e1e24] border-zinc-500/80 text-white ring-1 ring-white/10" 
-                  : "bg-white border-zinc-300 text-zinc-900 ring-1 ring-black/5"
-              }`}
+              className="absolute bottom-4 sm:bottom-6 w-40 sm:w-52 md:w-62 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-2xl overflow-hidden text-white transition-all duration-300 group-hover:-rotate-6 -rotate-5 -translate-x-7 sm:-translate-x-10 md:-translate-x-12 -translate-y-1 sm:-translate-y-2 z-15 flex flex-col justify-between"
             >
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-60">Personal Notebook</span>
-                    <Sparkles className="w-3.5 h-3.5 opacity-60" />
-                  </div>
-                  <p className="text-sm sm:text-lg md:text-xl font-extrabold tracking-tight leading-snug">
-                    Designing Ideas
-                  </p>
-                </div>
+              <div>
+                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">FAQ</span>
+                <h3 className="text-xs sm:text-sm md:text-base font-bold text-white tracking-tight leading-tight mt-0.5">
+                  Frequently Asked Questions
+                </h3>
+                <p className="text-[7px] sm:text-[8.5px] text-zinc-400 mt-0.5 mb-2 leading-tight">
+                  Everything you need to know about working with us.
+                </p>
 
-                {/* 3 Pill Mini Layout Persis Referensi */}
-                <div className="grid grid-cols-3 gap-1 sm:gap-1.5 my-auto">
-                  <div className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center">
-                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">DRAFT</span>
-                    <span className="text-[9px] sm:text-[10px] font-bold">Ideas</span>
+                {/* FAQ Questions */}
+                <div className="space-y-1 sm:space-y-1.5">
+                  <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
+                    <span>Question 1</span>
+                    <span className="opacity-60">+</span>
                   </div>
-                  <div className="p-1.5 rounded-lg bg-black/10 dark:bg-white/10 border border-black/15 dark:border-white/15 text-center">
-                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">ACTIVE</span>
-                    <span className="text-[9px] sm:text-[10px] font-bold">Notes</span>
+                  <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
+                    <span>Question 2</span>
+                    <span className="opacity-60">+</span>
                   </div>
-                  <div className="p-1.5 rounded-lg bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 text-center">
-                    <span className="block text-[7px] sm:text-[8px] opacity-60 font-mono">SAVED</span>
-                    <span className="text-[9px] sm:text-[10px] font-bold">Sync</span>
+                  <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
+                    <span>Question 3</span>
+                    <span className="opacity-60">+</span>
                   </div>
                 </div>
+              </div>
 
-                <div className="pt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-[8px] sm:text-[9px] font-mono opacity-60">
-                  <span>AUTOSYNC</span>
-                  <span>SECURE</span>
-                </div>
+              {/* Tombol Pill Kuning Fluorescent "Let's work ↗" Persis di Screenshot Figma */}
+              <div className="self-end mt-2 bg-[#ddfd45] text-zinc-950 font-extrabold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[9.5px] flex items-center gap-1 shadow-lg tracking-tight hover:scale-105 transition-transform">
+                <span>Let's work</span>
+                <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
               </div>
             </div>
 
-            {/* Kartu 4 (Kanan) */}
+            {/* ── KARTU 4: Pricing plans (Tengah Depan, 0°, 3 Kolom: Starter, Pro Peach Pink, Team) ── */}
             <div
-              className={`absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-54 h-48 sm:h-62 md:h-70 rounded-2xl p-3.5 sm:p-4.5 border shadow-xl transition-all duration-300 group-hover:rotate-9 group-hover:translate-x-15 rotate-7 translate-x-11 sm:translate-x-16 md:translate-x-20 -translate-y-1 sm:-translate-y-2 ${
-                isDark ? "bg-[#141418] border-zinc-700/80 text-white" : "bg-zinc-50 border-zinc-300 text-black"
-              }`}
+              className="absolute bottom-4 sm:bottom-6 w-56 sm:w-76 md:w-88 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#fcfcfd] border border-zinc-200/90 shadow-2xl transition-all duration-300 group-hover:-translate-y-5 rotate-0 translate-x-0 -translate-y-2 sm:-translate-y-4 z-20 flex flex-col justify-between"
             >
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1.5 opacity-60">
-                    <div className="w-2 h-2 rounded-full bg-current" />
-                    <span className="text-[8px] sm:text-[9px] font-mono">deu chair</span>
+              <div>
+                <h3 className="text-xs sm:text-base md:text-lg font-black text-zinc-900 tracking-tight text-center">
+                  Pricing plans
+                </h3>
+                <p className="text-[7px] sm:text-[8.5px] text-zinc-500 text-center mb-2 sm:mb-3">
+                  Choose an approach to your scale.
+                </p>
+
+                {/* 3 Kolom Paket Harga Persis Referensi */}
+                <div className="grid grid-cols-3 gap-1 sm:gap-2">
+                  {/* Kolom 1: Starter */}
+                  <div className="bg-zinc-100/90 rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between border border-zinc-200/50">
+                    <span className="inline-block bg-white text-zinc-700 text-[6px] sm:text-[7.5px] font-semibold px-1.5 py-0.5 rounded-full mx-auto shadow-xs">
+                      Starter
+                    </span>
+                    <div className="my-1 sm:my-1.5">
+                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">$99</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500">/mo</span>
+                    </div>
+                    <div className="space-y-0.5 my-1 opacity-60">
+                      <div className="h-1 w-3/4 rounded-full bg-zinc-400 mx-auto" />
+                      <div className="h-1 w-1/2 rounded-full bg-zinc-300 mx-auto" />
+                    </div>
+                    <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
+                      Choose
+                    </div>
                   </div>
-                  <p className="text-base sm:text-xl md:text-2xl font-black tracking-tight leading-tight">
-                    Creative Thoughts
-                  </p>
+
+                  {/* Kolom 2: Pro (Aksen Peach / Pink Tinted Box Sesuai Figma) */}
+                  <div className="bg-[#faebe8] border border-[#f5cbbe] rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between shadow-xs ring-1 ring-[#f5cbbe]/60">
+                    <span className="inline-block bg-[#f8d4cd] text-rose-900 text-[6px] sm:text-[7.5px] font-bold px-1.5 py-0.5 rounded-full mx-auto">
+                      Pro
+                    </span>
+                    <div className="my-1 sm:my-1.5">
+                      <span className="text-[11px] sm:text-base font-extrabold text-rose-950">$299</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-rose-900/70">/mo</span>
+                    </div>
+                    <div className="space-y-0.5 my-1 opacity-70">
+                      <div className="h-1 w-3/4 rounded-full bg-rose-400/80 mx-auto" />
+                      <div className="h-1 w-1/2 rounded-full bg-rose-300/80 mx-auto" />
+                    </div>
+                    <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
+                      Choose
+                    </div>
+                  </div>
+
+                  {/* Kolom 3: Team */}
+                  <div className="bg-zinc-100/90 rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between border border-zinc-200/50">
+                    <span className="inline-block bg-white text-zinc-700 text-[6px] sm:text-[7.5px] font-semibold px-1.5 py-0.5 rounded-full mx-auto shadow-xs">
+                      Team
+                    </span>
+                    <div className="my-1 sm:my-1.5">
+                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">$499</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500">/mo</span>
+                    </div>
+                    <div className="space-y-0.5 my-1 opacity-60">
+                      <div className="h-1 w-3/4 rounded-full bg-zinc-400 mx-auto" />
+                      <div className="h-1 w-1/2 rounded-full bg-zinc-300 mx-auto" />
+                    </div>
+                    <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
+                      Choose
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5 opacity-60">
-                  <div className="h-1.5 w-full rounded-full bg-current opacity-30" />
-                  <div className="h-1.5 w-2/3 rounded-full bg-current opacity-20" />
-                </div>
+              </div>
+
+              {/* Sub-baris minimal */}
+              <div className="flex items-center justify-between text-[6.5px] sm:text-[7.5px] font-mono text-zinc-400 border-t border-zinc-200/80 pt-1.5">
+                <span>ALL FEATURES INCLUDED</span>
+                <span>CANCEL ANYTIME</span>
               </div>
             </div>
 
-            {/* Kartu 5 (Paling Kanan) */}
+            {/* ── KARTU 5: deu chair (Kanan Atas, Angled +8°) ── */}
             <div
-              className={`absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-44 sm:h-58 md:h-64 rounded-2xl p-3 sm:p-4 border shadow-xl transition-all duration-300 group-hover:rotate-17 group-hover:translate-x-28 rotate-14 translate-x-22 sm:translate-x-32 md:translate-x-38 translate-y-2 sm:translate-y-3 ${
-                isDark ? "bg-[#101014] border-zinc-700/80 text-zinc-300" : "bg-white border-zinc-300 text-zinc-800"
-              }`}
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-56 sm:h-72 md:h-80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:rotate-10 rotate-8 translate-x-16 sm:translate-x-24 md:translate-x-28 -translate-y-4 sm:-translate-y-6 z-10 flex flex-col justify-between"
             >
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <p className="text-xs sm:text-sm font-bold uppercase tracking-wider">Get In Touch</p>
-                  <p className="text-[8px] sm:text-[9px] opacity-60 mt-0.5">Works Collection</p>
+              <div>
+                <div className="flex items-center justify-between text-zinc-900">
+                  <span className="font-mono font-black text-xs sm:text-sm">d:</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
                 </div>
-                <span className="text-[7px] sm:text-[8px] font-mono opacity-50">INDEX 05</span>
+                <h3 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight text-zinc-950 mt-1">
+                  deu chair
+                </h3>
+                <p className="text-[7px] sm:text-[8px] text-zinc-400 font-mono mt-0.5">SERIES 01 / ORGANIC WOOD</p>
+              </div>
+
+              {/* Artwork Kursi Minimalis Modern Berbentuk Melengkung (Circular Backrest) */}
+              <div className="relative w-full h-24 sm:h-32 md:h-36 flex items-center justify-center my-auto">
+                {/* Backrest Kayu Melingkar Modern */}
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full border-[10px] sm:border-[13px] border-[#9b6641] bg-amber-50/40 shadow-md flex items-center justify-center">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#7c4d2d]/30" />
+                </div>
+                {/* Kaki Kursi Minimalis */}
+                <div className="absolute bottom-1 w-16 sm:w-22 h-[2px] bg-zinc-900" />
+                <div className="absolute bottom-1 left-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
+                <div className="absolute bottom-1 right-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
+              </div>
+
+              <div className="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-zinc-400 border-t border-zinc-100 pt-1">
+                <span>EDITION 2026</span>
+                <span>EXPLORE</span>
               </div>
             </div>
+
+            {/* ── KARTU 6: Get In Touch (Paling Kanan, Dark Card + Ambient Interior Light Render, Angled +16°) ── */}
+            <div
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-50 sm:h-66 md:h-74 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-xl overflow-hidden text-white transition-all duration-300 group-hover:rotate-18 group-hover:translate-x-34 sm:group-hover:translate-x-48 rotate-16 translate-x-28 sm:translate-x-40 md:translate-x-46 translate-y-3 sm:translate-y-4 z-15 flex flex-col justify-between"
+            >
+              <div>
+                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-white tracking-tight leading-tight">
+                  Get In Touch
+                </h3>
+                <div className="flex gap-1 mt-1 mb-2">
+                  <span className="text-[6px] sm:text-[7.5px] bg-white/10 rounded-full px-2 py-0.5 text-zinc-400">
+                    Your email
+                  </span>
+                  <span className="text-[6px] sm:text-[7.5px] bg-white/10 rounded-full px-2 py-0.5 text-zinc-400">
+                    Message
+                  </span>
+                </div>
+              </div>
+
+              {/* Render Interior Hangat dengan Pencahayaan Ambient Strip Kuning Emas */}
+              <div className="w-full h-20 sm:h-26 md:h-30 bg-[#1c1a17] rounded-xl sm:rounded-2xl relative overflow-hidden border border-amber-950/40 p-2 flex flex-col justify-between">
+                {/* Dinding Kayu Slatted */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000010_1px,transparent_1px)] [background-size:6px_100%] opacity-40" />
+                {/* Garis LED Ambient Cahaya Emas */}
+                <div className="relative w-full h-1 bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.9)] rounded-full" />
+                {/* Sofa / Tempat Tidur Minimalis */}
+                <div className="relative w-full h-9 sm:h-12 bg-[#2a241f] rounded-lg border-t border-amber-500/20 shadow-md" />
+              </div>
+
+              {/* Kapsul Testimonial / User Rating */}
+              <div className="mt-2 bg-zinc-800/80 border border-zinc-700/60 rounded-full py-0.5 sm:py-1 px-2 flex items-center justify-between text-[6.5px] sm:text-[7.5px] text-zinc-300">
+                <div className="flex -space-x-1">
+                  <div className="w-3 h-3 rounded-full bg-blue-500 ring-1 ring-zinc-900" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 ring-1 ring-zinc-900" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500 ring-1 ring-zinc-900" />
+                </div>
+                <span>★ 4.9 Reviews</span>
+              </div>
+            </div>
+
           </div>
 
-          {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (Front Flap Pocket with Arrow Button) */}
+          {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (Clean Translucent Pocket Sleeve + Circular ↗ Button) */}
           <div 
-            className={`absolute bottom-0 inset-x-0 h-28 sm:h-36 md:h-40 rounded-3xl border shadow-2xl backdrop-blur-xl flex items-center justify-between px-5 sm:px-7 z-30 transition-all ${
+            className={`absolute bottom-0 inset-x-0 h-32 sm:h-42 md:h-46 rounded-[28px] sm:rounded-[36px] border shadow-2xl backdrop-blur-2xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
               isDark 
-                ? "bg-zinc-900/60 border-white/10 shadow-black/60" 
-                : "bg-white/60 border-zinc-300/80 shadow-zinc-900/10"
+                ? "bg-zinc-900/40 border-t border-x border-b border-white/15 shadow-black/60" 
+                : "bg-white/45 border-t border-x border-b border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)]"
             }`}
           >
-            {/* Label Informasi Folder */}
-            <div className="flex flex-col">
-              <span className="text-[9px] sm:text-[11px] font-mono uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                Workspace Folder
-              </span>
-              <span className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2 mt-0.5">
-                <Folder className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-                <span>{notes.length > 0 ? `${notes.length} Catatan Tersimpan` : "Catatan Digital"}</span>
-              </span>
-            </div>
-
-            {/* Tombol Panah Melingkar Persis Gambar Referensi (↗ Arrow Button) */}
+            {/* Tombol Panah Melingkar Hitam/Putih Bersih di Sudut Kanan Bawah Sesuai Gambar Figma */}
             <div 
-              title="Buka Folder Catatan"
-              className={`w-11 h-11 sm:w-13 sm:h-13 rounded-full flex items-center justify-center transition-all transform group-hover:scale-110 active:scale-95 shadow-xl ${
+              title="Buka Semua Catatan"
+              className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all transform group-hover:scale-110 active:scale-95 shadow-2xl ${
                 isDark 
-                  ? "bg-white text-black group-hover:bg-zinc-200" 
-                  : "bg-black text-white group-hover:bg-zinc-800"
+                  ? "bg-white text-zinc-950 group-hover:bg-zinc-200" 
+                  : "bg-[#18181b] text-white group-hover:bg-black"
               }`}
             >
-              <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
+              <ArrowUpRight className="w-6 h-6 sm:w-8 sm:h-8 stroke-[3]" />
             </div>
           </div>
         </div>
