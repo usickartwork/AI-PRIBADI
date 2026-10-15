@@ -1140,7 +1140,7 @@ export function NotebookWorkspace({
   // ─────────────────────────────────────────────────────────────────────────────
   const renderHomePage = () => (
     <div className="flex-1 flex flex-col justify-between h-full w-full relative overflow-y-auto overflow-x-hidden select-none animate-in fade-in-0 duration-200">
-      {/* ── BAGIAN ATAS: Header & Hero Content ── */}
+      {/* ── BAGIAN ATAS: Header & Hero Content (Digeser Agak Kebawah Biar Presisi ke Tengah) ── */}
       <div className="w-full flex flex-col items-center shrink-0">
         {/* Header Atas */}
         <div className="w-full max-w-4xl mx-auto z-20 px-4 sm:px-6 pt-5 sm:pt-6 flex items-center justify-between min-h-[40px]">
@@ -1159,14 +1159,14 @@ export function NotebookWorkspace({
           <div />
         </div>
 
-        {/* Konten Hero Atas */}
-        <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-2 sm:pt-4 pb-3 sm:pb-4">
+        {/* Konten Hero Atas - Diberi padding-top lebih besar agar posisinya presisi ke tengah */}
+        <div className="flex flex-col items-center justify-center text-center px-4 z-20 max-w-2xl mx-auto pt-8 sm:pt-14 md:pt-18 pb-4 sm:pb-6">
           <h1 className="text-3xl sm:text-5xl md:text-[52px] font-extrabold tracking-tight leading-[1.12] mb-3 sm:mb-4">
             One Stop Digital<br />
             Notebook <span className="inline-block hover:scale-110 transition-transform">📓</span> for Creatives.
           </h1>
 
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-5 sm:mb-6">
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed mb-6 sm:mb-8">
             Digital library of thoughts, notes, and ideas chosen by creatives for everyday clarity.
           </p>
 
@@ -1203,187 +1203,190 @@ export function NotebookWorkspace({
         </div>
       </div>
 
-      {/* ── BAGIAN BAWAH: DESAIN FOLDER DOKUMEN FIGMA (Posisi Agak Kebawah / Anchored Lower) ── */}
-      <div className="w-full max-w-4xl mx-auto px-4 pt-4 sm:pt-8 md:pt-10 pb-4 sm:pb-6 flex items-end justify-center z-10 shrink-0">
+      {/* ── BAGIAN BAWAH: DESAIN FOLDER DOKUMEN (Dibuat Agak Kebawah & Siluet Folder Menonjol Tidak Tertutup Isi) ── */}
+      <div className="w-full max-w-4xl mx-auto px-4 pt-2 sm:pt-4 pb-2 sm:pb-4 flex items-end justify-center z-10 shrink-0">
         <div 
           onClick={() => setPageView("files")}
-          className="relative w-full max-w-[360px] sm:max-w-[560px] md:max-w-[680px] h-[270px] sm:h-[360px] md:h-[410px] flex items-end justify-center group cursor-pointer"
+          className="relative w-full max-w-[360px] sm:max-w-[560px] md:max-w-[680px] h-[280px] sm:h-[370px] md:h-[420px] flex items-end justify-center group cursor-pointer"
         >
-          {/* 1. SILUET FOLDER BELAKANG (Back Folder Shape) */}
+          {/* 1. SILUET FOLDER BELAKANG (Tab folder dibuat lebih tinggi agar terlihat jelas framing di atas kartu) */}
           {/* Tab folder di kiri atas */}
           <div 
-            className={`absolute top-0 left-6 sm:left-12 w-36 sm:w-52 md:w-64 h-9 sm:h-12 rounded-t-[24px] sm:rounded-t-[32px] border-t border-x transition-colors z-0 ${
-              isDark ? "bg-[#25252b] border-zinc-700" : "bg-[#d3d4da] border-[#c2c4cb]"
+            className={`absolute -top-7 sm:-top-9 md:-top-11 left-6 sm:left-12 w-44 sm:w-60 md:w-72 h-11 sm:h-14 md:h-16 rounded-t-[24px] sm:rounded-t-[32px] border-t border-x transition-colors z-0 flex items-center px-4 pt-1 ${
+              isDark ? "bg-[#25252b] border-zinc-700 text-zinc-400" : "bg-[#d3d4da] border-[#c2c4cb] text-zinc-600"
             }`} 
-          />
+          >
+            <div className="flex items-center gap-1.5 opacity-70">
+              <Folder className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2]" />
+              <span className="text-[7.5px] sm:text-[9px] font-mono font-bold tracking-wider uppercase">DIGITAL FOLDER</span>
+            </div>
+          </div>
           {/* Badan folder belakang */}
           <div 
-            className={`absolute inset-x-2 sm:inset-x-4 top-8 sm:top-10 bottom-0 rounded-[32px] sm:rounded-[44px] border shadow-2xl transition-colors z-0 ${
+            className={`absolute inset-x-1 sm:inset-x-3 top-2 sm:top-3 bottom-0 rounded-[32px] sm:rounded-[44px] border shadow-2xl transition-colors z-0 ${
               isDark ? "bg-[#1c1c21] border-zinc-700/80" : "bg-[#dbdce2] border-[#c4c6cd]"
             }`} 
           />
 
-          {/* 2. ENAM KARTU SHOWCASE FIGMA YANG MEKAH SECARA SIMETRIS DARI DALAM FOLDER */}
+          {/* 2. ENAM KARTU SHOWCASE FIGMA DENGAN ISI KHUSUS TAB NOTEBOOK */}
           <div className="relative w-full h-full flex items-end justify-center z-10 pb-3 sm:pb-4">
             
-            {/* ── KARTU 1: La Tennis Club (Paling Kiri, Angled -22°, Muncul di Sisi Kiri Luar Kantong) ── */}
+            {/* ── KARTU 1: Catatan Harian (Paling Kiri, Angled -20°, Kertas Bergaris & Stabilo Kuning) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-52 h-52 sm:h-68 md:h-78 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-900 transition-all duration-300 group-hover:-rotate-[24deg] group-hover:-translate-x-38 sm:group-hover:-translate-x-54 -rotate-[22deg] -translate-x-32 sm:-translate-x-46 md:-translate-x-56 translate-y-5 sm:translate-y-7 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-48 sm:h-62 md:h-72 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-900 transition-all duration-300 group-hover:-rotate-[22deg] group-hover:-translate-x-36 sm:group-hover:-translate-x-50 -rotate-[20deg] -translate-x-30 sm:-translate-x-42 md:-translate-x-50 translate-y-5 sm:translate-y-7 z-10 flex flex-col justify-between"
             >
               <div>
                 <p className="font-serif italic text-xs sm:text-base md:text-lg font-bold tracking-tight text-zinc-950 leading-tight">
-                  La Tennis Club
+                  Catatan Harian
                 </p>
                 <p className="text-[7px] sm:text-[8.5px] md:text-[9px] text-zinc-500 font-serif leading-[1.3] mt-1 line-clamp-3 sm:line-clamp-4">
-                  We do this platform our own daily to curate and assemble the most striking creative work here. It is inspiring and reinforces the expectation of high aesthetic character.
+                  Tuangkan refleksi, jurnal pribadi, dan alur pemikiran kreatif setiap hari tanpa batas halaman.
                 </p>
               </div>
 
-              {/* Lapangan Tenis Hijau dengan Garis Putih & Net 3D */}
-              <div className="w-full h-20 sm:h-28 md:h-32 bg-[#335639] rounded-xl sm:rounded-2xl relative overflow-hidden mt-2 border border-emerald-900/50 shadow-inner flex flex-col justify-end">
-                <div className="absolute inset-x-2 inset-y-1.5 border border-white/60 rounded-xs">
-                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/60" />
-                  <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-white/60" />
+              {/* Preview Kertas Catatan Bergaris dengan Highlight Stabilo Lembut */}
+              <div className="w-full h-20 sm:h-26 md:h-30 bg-[#fbf9f4] dark:bg-[#1a1a1e] rounded-xl sm:rounded-2xl relative overflow-hidden mt-2 border border-amber-200/60 dark:border-zinc-700 p-2.5 flex flex-col justify-between shadow-inner">
+                {/* Garis-garis Buku Bergaris */}
+                <div className="space-y-2">
+                  <div className="relative w-full h-[1px] bg-zinc-200 dark:bg-zinc-700/60" />
+                  <div className="relative w-3/4 h-2.5 bg-yellow-200/80 dark:bg-yellow-400/30 rounded-xs flex items-center px-1">
+                    <span className="text-[6px] sm:text-[7px] font-mono text-zinc-700 dark:text-zinc-200">Highlight ide penting</span>
+                  </div>
+                  <div className="relative w-full h-[1px] bg-zinc-200 dark:bg-zinc-700/60" />
+                  <div className="relative w-1/2 h-[1px] bg-zinc-200 dark:bg-zinc-700/60" />
                 </div>
-                {/* Jaring Net Tenis */}
-                <div className="relative w-full h-7 sm:h-9 bg-white/20 backdrop-blur-xs border-t-2 border-white/90 flex items-center justify-between px-1">
-                  <div className="w-1 h-full bg-zinc-900/80 rounded-t-xs" />
-                  <div className="w-full h-full bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:4px_4px] opacity-60" />
-                  <div className="w-1 h-full bg-zinc-900/80 rounded-t-xs" />
-                </div>
+                {/* Pita Pembatas Buku Merah Minimalis */}
+                <div className="absolute top-0 right-3 w-2.5 h-6 bg-rose-500 rounded-b-xs shadow-xs" />
               </div>
             </div>
 
-            {/* ── KARTU 2: Contact Us (Kiri Atas, Angled -11°, Headline Hitam Ekstra Besar) ── */}
+            {/* ── KARTU 2: Tulis Ide (Kiri Atas, Angled -10°, Headline Hitam Ekstra Besar) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-50 md:w-58 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:-rotate-[13deg] -rotate-[11deg] -translate-x-18 sm:-translate-x-26 md:-translate-x-32 -translate-y-6 sm:-translate-y-10 md:-translate-y-12 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-52 sm:h-66 md:h-76 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:-rotate-[12deg] -rotate-[10deg] -translate-x-16 sm:-translate-x-24 md:-translate-x-28 -translate-y-3 sm:-translate-y-5 md:-translate-y-6 z-10 flex flex-col justify-between"
             >
               <div>
-                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">CONNECT</span>
+                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">INSPIRASI KILAT</span>
                 <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-zinc-950 tracking-tighter leading-none mt-0.5 sm:mt-1">
-                  Contact Us
+                  Tulis Ide
                 </h2>
                 <p className="text-[7.5px] sm:text-[9px] text-zinc-500 mt-1 leading-snug">
-                  Reach out to build something memorable together.
+                  Tangkap gagasan segar seketika dalam satu klik cepat.
                 </p>
               </div>
 
-              {/* Form Input Mockup */}
+              {/* Form Input Scratchpad Mockup */}
               <div className="space-y-1.5 sm:space-y-2 mt-auto">
-                <div className="h-6 sm:h-7 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 flex items-center text-[7px] sm:text-[8px] text-zinc-400">
-                  hello@creativestudio.com
+                <div className="h-6 sm:h-7 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 flex items-center text-[7px] sm:text-[8px] text-zinc-500 font-medium">
+                  Judul konsep catatan...
                 </div>
-                <div className="h-10 sm:h-14 rounded-xl bg-zinc-100 border border-zinc-200 p-2 text-[7px] sm:text-[8px] text-zinc-400">
-                  Brief description of your goals...
+                <div className="h-9 sm:h-12 rounded-xl bg-zinc-100 border border-zinc-200 p-2 text-[7px] sm:text-[8px] text-zinc-400">
+                  Ketik apa pun yang terlintas di pikiranmu...
                 </div>
                 <div className="w-fit px-3 py-1 bg-zinc-950 text-white rounded-full text-[7px] sm:text-[8px] font-bold">
-                  Send Message
+                  Simpan Catatan
                 </div>
               </div>
             </div>
 
-            {/* ── KARTU 3: Frequently Asked Questions (Tengah Kiri, Dark Card + Lime Pill "Let's work ↗", Angled -6°) ── */}
+            {/* ── KARTU 3: Daftar Rencana (Tengah Kiri, Dark Card + Lime Pill "+ Catatan Baru ↗", Angled -5°) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-40 sm:w-54 md:w-64 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-2xl overflow-hidden text-white transition-all duration-300 group-hover:-rotate-[8deg] -rotate-[6deg] -translate-x-7 sm:-translate-x-10 md:-translate-x-12 -translate-y-2 sm:-translate-y-4 z-15 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-40 sm:w-52 md:w-60 h-52 sm:h-66 md:h-76 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-2xl overflow-hidden text-white transition-all duration-300 group-hover:-rotate-[7deg] -rotate-[5deg] -translate-x-6 sm:-translate-x-9 md:-translate-x-11 -translate-y-1 sm:-translate-y-2 z-15 flex flex-col justify-between"
             >
               <div>
-                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">FAQ</span>
+                <span className="text-[7px] sm:text-[8px] font-mono uppercase tracking-wider text-zinc-400">CHECKLIST & TUGAS</span>
                 <h3 className="text-xs sm:text-sm md:text-base font-bold text-white tracking-tight leading-tight mt-0.5">
-                  Frequently Asked Questions
+                  Daftar Rencana
                 </h3>
                 <p className="text-[7px] sm:text-[8.5px] text-zinc-400 mt-0.5 mb-2 leading-tight">
-                  Everything you need to know about working with us.
+                  Prioritas harian & to-do list terstruktur.
                 </p>
 
-                {/* FAQ Questions */}
+                {/* Task Checklist Items */}
                 <div className="space-y-1 sm:space-y-1.5">
                   <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
-                    <span>Question 1</span>
-                    <span className="opacity-60">+</span>
+                    <span>✓ Riset konsep desain baru</span>
                   </div>
                   <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
-                    <span>Question 2</span>
-                    <span className="opacity-60">+</span>
+                    <span>✓ Tulis draf bab catatan</span>
                   </div>
                   <div className="bg-white/10 rounded-lg px-2 sm:px-2.5 py-1 text-[7px] sm:text-[8px] text-zinc-200 flex items-center justify-between">
-                    <span>Question 3</span>
-                    <span className="opacity-60">+</span>
+                    <span>○ Evaluasi ringkasan ide</span>
                   </div>
                 </div>
               </div>
 
-              {/* Tombol Pill Kuning Fluorescent "Let's work ↗" Persis di Screenshot Figma */}
+              {/* Tombol Pill Kuning Fluorescent "+ Catatan Baru ↗" */}
               <div className="self-end mt-2 bg-[#ddfd45] text-zinc-950 font-extrabold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[9.5px] flex items-center gap-1 shadow-lg tracking-tight hover:scale-105 transition-transform">
-                <span>Let's work</span>
+                <span>+ Catatan Baru</span>
                 <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
               </div>
             </div>
 
-            {/* ── KARTU 4: Pricing plans (Tengah Depan, 0°, 3 Kolom: Starter, Pro Peach Pink, Team) ── */}
+            {/* ── KARTU 4: Kategori Catatan (Tengah Depan, 0°, 3 Kolom Kategori: Harian, Ide Utama, Arsip) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-58 sm:w-82 md:w-96 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#fcfcfd] border border-zinc-200/90 shadow-2xl transition-all duration-300 group-hover:-translate-y-6 rotate-0 translate-x-0 -translate-y-3 sm:-translate-y-5 md:-translate-y-7 z-20 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-56 sm:w-76 md:w-88 h-52 sm:h-66 md:h-76 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#fcfcfd] border border-zinc-200/90 shadow-2xl transition-all duration-300 group-hover:-translate-y-5 rotate-0 translate-x-0 -translate-y-2 sm:-translate-y-3 md:-translate-y-4 z-20 flex flex-col justify-between"
             >
               <div>
                 <h3 className="text-xs sm:text-base md:text-lg font-black text-zinc-900 tracking-tight text-center">
-                  Pricing plans
+                  Kategori Catatan
                 </h3>
-                <p className="text-[7px] sm:text-[8.5px] text-zinc-500 text-center mb-2 sm:mb-3">
-                  Choose an approach to your scale.
+                <p className="text-[7px] sm:text-[8.5px] text-zinc-500 text-center mb-2 sm:mb-2.5">
+                  Atur dan kelompokkan semua tulisanmu.
                 </p>
 
-                {/* 3 Kolom Paket Harga Persis Referensi */}
+                {/* 3 Kolom Kategori Persis Referensi */}
                 <div className="grid grid-cols-3 gap-1 sm:gap-2">
-                  {/* Kolom 1: Starter */}
+                  {/* Kolom 1: Harian */}
                   <div className="bg-zinc-100/90 rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between border border-zinc-200/50">
                     <span className="inline-block bg-white text-zinc-700 text-[6px] sm:text-[7.5px] font-semibold px-1.5 py-0.5 rounded-full mx-auto shadow-xs">
-                      Starter
+                      Harian
                     </span>
                     <div className="my-1 sm:my-1.5">
-                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">$99</span>
-                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500">/mo</span>
+                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">12</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500 ml-0.5">Catatan</span>
                     </div>
                     <div className="space-y-0.5 my-1 opacity-60">
                       <div className="h-1 w-3/4 rounded-full bg-zinc-400 mx-auto" />
                       <div className="h-1 w-1/2 rounded-full bg-zinc-300 mx-auto" />
                     </div>
                     <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
-                      Choose
+                      Buka
                     </div>
                   </div>
 
-                  {/* Kolom 2: Pro (Aksen Peach / Pink Tinted Box Sesuai Figma) */}
+                  {/* Kolom 2: Ide Utama (Aksen Peach / Pink Tinted Box Sesuai Figma) */}
                   <div className="bg-[#faebe8] border border-[#f5cbbe] rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between shadow-xs ring-1 ring-[#f5cbbe]/60">
                     <span className="inline-block bg-[#f8d4cd] text-rose-900 text-[6px] sm:text-[7.5px] font-bold px-1.5 py-0.5 rounded-full mx-auto">
-                      Pro
+                      Ide Utama
                     </span>
                     <div className="my-1 sm:my-1.5">
-                      <span className="text-[11px] sm:text-base font-extrabold text-rose-950">$299</span>
-                      <span className="text-[6px] sm:text-[7.5px] text-rose-900/70">/mo</span>
+                      <span className="text-[11px] sm:text-base font-extrabold text-rose-950">24</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-rose-900/70 ml-0.5">Proyek</span>
                     </div>
                     <div className="space-y-0.5 my-1 opacity-70">
                       <div className="h-1 w-3/4 rounded-full bg-rose-400/80 mx-auto" />
                       <div className="h-1 w-1/2 rounded-full bg-rose-300/80 mx-auto" />
                     </div>
                     <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
-                      Choose
+                      Buka
                     </div>
                   </div>
 
-                  {/* Kolom 3: Team */}
+                  {/* Kolom 3: Arsip */}
                   <div className="bg-zinc-100/90 rounded-xl p-1.5 sm:p-2 text-center flex flex-col justify-between border border-zinc-200/50">
                     <span className="inline-block bg-white text-zinc-700 text-[6px] sm:text-[7.5px] font-semibold px-1.5 py-0.5 rounded-full mx-auto shadow-xs">
-                      Team
+                      Arsip
                     </span>
                     <div className="my-1 sm:my-1.5">
-                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">$499</span>
-                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500">/mo</span>
+                      <span className="text-[11px] sm:text-base font-extrabold text-zinc-900">8</span>
+                      <span className="text-[6px] sm:text-[7.5px] text-zinc-500 ml-0.5">Berkas</span>
                     </div>
                     <div className="space-y-0.5 my-1 opacity-60">
                       <div className="h-1 w-3/4 rounded-full bg-zinc-400 mx-auto" />
                       <div className="h-1 w-1/2 rounded-full bg-zinc-300 mx-auto" />
                     </div>
                     <div className="bg-zinc-900 text-white rounded-full text-[6px] sm:text-[7.5px] py-1 font-medium mt-auto">
-                      Choose
+                      Buka
                     </div>
                   </div>
                 </div>
@@ -1391,75 +1394,83 @@ export function NotebookWorkspace({
 
               {/* Sub-baris minimal */}
               <div className="flex items-center justify-between text-[6.5px] sm:text-[7.5px] font-mono text-zinc-400 border-t border-zinc-200/80 pt-1.5">
-                <span>ALL FEATURES INCLUDED</span>
-                <span>CANCEL ANYTIME</span>
+                <span>AUTO-SAVE AKTIF</span>
+                <span>ENKRIPSI AMAN</span>
               </div>
             </div>
 
-            {/* ── KARTU 5: deu chair (Kanan Atas, Angled +9°, Tipografi Modern) ── */}
+            {/* ── KARTU 5: Rich Editor (Kanan Atas, Angled +9°, Format & Stabilo) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-50 md:w-58 h-56 sm:h-74 md:h-84 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:rotate-[11deg] rotate-[9deg] translate-x-18 sm:translate-x-26 md:translate-x-32 -translate-y-6 sm:-translate-y-10 md:-translate-y-12 z-10 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-36 sm:w-48 md:w-56 h-52 sm:h-66 md:h-76 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-white border border-zinc-200/90 shadow-xl overflow-hidden text-zinc-950 transition-all duration-300 group-hover:rotate-[11deg] rotate-[9deg] translate-x-16 sm:translate-x-24 md:translate-x-28 -translate-y-3 sm:-translate-y-5 md:-translate-y-6 z-10 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between text-zinc-900">
-                  <span className="font-mono font-black text-xs sm:text-sm">d:</span>
+                  <span className="font-mono font-black text-xs sm:text-sm">n:</span>
                   <div className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
                 </div>
                 <h3 className="text-base sm:text-2xl md:text-3xl font-bold tracking-tight text-zinc-950 mt-1">
-                  deu chair
+                  rich editor
                 </h3>
-                <p className="text-[7px] sm:text-[8px] text-zinc-400 font-mono mt-0.5">SERIES 01 / ORGANIC WOOD</p>
+                <p className="text-[7px] sm:text-[8px] text-zinc-400 font-mono mt-0.5">FORMAT TEKS LENGKAP</p>
               </div>
 
-              {/* Artwork Kursi Minimalis Modern Berbentuk Melengkung (Circular Backrest) */}
-              <div className="relative w-full h-24 sm:h-32 md:h-36 flex items-center justify-center my-auto">
-                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full border-[10px] sm:border-[13px] border-[#9b6641] bg-amber-50/40 shadow-md flex items-center justify-center">
-                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#7c4d2d]/30" />
+              {/* Toolbar Mini Formatting Preview */}
+              <div className="w-full bg-zinc-50 dark:bg-zinc-900/60 rounded-xl p-2 border border-zinc-200/60 my-auto space-y-1.5">
+                <div className="flex items-center justify-between border-b border-zinc-200 pb-1 text-[7px] font-bold">
+                  <span className="px-1 bg-zinc-200 rounded">B</span>
+                  <span className="italic px-1">I</span>
+                  <span className="underline px-1">U</span>
+                  <div className="flex items-center gap-0.5">
+                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div className="w-2 h-2 rounded-full bg-rose-400" />
+                  </div>
                 </div>
-                <div className="absolute bottom-1 w-16 sm:w-22 h-[2px] bg-zinc-900" />
-                <div className="absolute bottom-1 left-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
-                <div className="absolute bottom-1 right-1/3 w-[2px] h-6 sm:h-8 bg-zinc-900" />
+                <p className="text-[6.5px] sm:text-[7.5px] text-zinc-600 dark:text-zinc-300 leading-tight">
+                  Format tebal, stabilo warna warni, dan checklist rapi langsung dalam editor.
+                </p>
               </div>
 
               <div className="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-zinc-400 border-t border-zinc-100 pt-1">
-                <span>EDITION 2026</span>
-                <span>EXPLORE</span>
+                <span>STABILO PALETTE</span>
+                <span>CHECKLIST</span>
               </div>
             </div>
 
-            {/* ── KARTU 6: Get In Touch (Paling Kanan, Dark Card + Ambient Interior Light Render, Angled +18°, Muncul di Sisi Kanan Luar Kantong) ── */}
+            {/* ── KARTU 6: Mode Fokus (Paling Kanan, Dark Card + Lampu Meja Hangat, Angled +18°) ── */}
             <div
-              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-52 h-52 sm:h-68 md:h-78 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-xl overflow-hidden text-white transition-all duration-300 group-hover:rotate-[20deg] group-hover:translate-x-38 sm:group-hover:translate-x-54 rotate-[18deg] translate-x-32 sm:translate-x-46 md:translate-x-56 translate-y-5 sm:translate-y-7 z-15 flex flex-col justify-between"
+              className="absolute bottom-4 sm:bottom-6 w-32 sm:w-44 md:w-50 h-48 sm:h-62 md:h-72 rounded-2xl sm:rounded-3xl p-3 sm:p-4 bg-[#141416] border border-zinc-800 shadow-xl overflow-hidden text-white transition-all duration-300 group-hover:rotate-[20deg] group-hover:translate-x-36 sm:group-hover:translate-x-50 rotate-[18deg] translate-x-30 sm:translate-x-42 md:translate-x-50 translate-y-5 sm:translate-y-7 z-15 flex flex-col justify-between"
             >
               <div>
                 <h3 className="text-xs sm:text-sm md:text-base font-semibold text-white tracking-tight leading-tight">
-                  Get In Touch
+                  Mode Fokus
                 </h3>
                 <div className="flex gap-1 mt-1 mb-2">
                   <span className="text-[6px] sm:text-[7.5px] bg-white/10 rounded-full px-2 py-0.5 text-zinc-400">
-                    Your email
+                    Bebas Distraksi
                   </span>
                   <span className="text-[6px] sm:text-[7.5px] bg-white/10 rounded-full px-2 py-0.5 text-zinc-400">
-                    Message
+                    Tema Gelap
                   </span>
                 </div>
               </div>
 
-              {/* Render Interior Hangat dengan Pencahayaan Ambient Strip Kuning Emas */}
-              <div className="w-full h-20 sm:h-26 md:h-30 bg-[#1c1a17] rounded-xl sm:rounded-2xl relative overflow-hidden border border-amber-950/40 p-2 flex flex-col justify-between">
+              {/* Render Meja Tulis Malam dengan Pencahayaan Hangat Lampu Meja */}
+              <div className="w-full h-18 sm:h-24 md:h-28 bg-[#1c1a17] rounded-xl sm:rounded-2xl relative overflow-hidden border border-amber-950/40 p-2 flex flex-col justify-between">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000010_1px,transparent_1px)] [background-size:6px_100%] opacity-40" />
                 <div className="relative w-full h-1 bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.9)] rounded-full" />
-                <div className="relative w-full h-9 sm:h-12 bg-[#2a241f] rounded-lg border-t border-amber-500/20 shadow-md" />
+                <div className="relative w-full h-8 sm:h-10 bg-[#2a241f] rounded-lg border-t border-amber-500/20 shadow-md flex items-center justify-center">
+                  <span className="text-[6.5px] font-mono text-amber-200/70">Ruang Hening Menulis</span>
+                </div>
               </div>
 
-              {/* Kapsul Testimonial / User Rating */}
+              {/* Kapsul Status Sinkronisasi */}
               <div className="mt-2 bg-zinc-800/80 border border-zinc-700/60 rounded-full py-0.5 sm:py-1 px-2 flex items-center justify-between text-[6.5px] sm:text-[7.5px] text-zinc-300">
-                <div className="flex -space-x-1">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 ring-1 ring-zinc-900" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 ring-1 ring-zinc-900" />
-                  <div className="w-3 h-3 rounded-full bg-amber-500 ring-1 ring-zinc-900" />
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Tersinkronisasi Cloud</span>
                 </div>
-                <span>★ 4.9 Reviews</span>
+                <span>Aman</span>
               </div>
             </div>
 
@@ -1467,7 +1478,7 @@ export function NotebookWorkspace({
 
           {/* 3. KANTONG DEPAN FOLDER FROSTED GLASS (FLOATING ROUNDED RECTANGLE DI TENGAH BAWAH PERSIS FIGMA MOCKUP) */}
           <div 
-            className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-[82%] sm:w-[84%] md:w-[86%] h-36 sm:h-48 md:h-54 rounded-[28px] sm:rounded-[38px] md:rounded-[44px] border shadow-2xl backdrop-blur-3xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
+            className={`absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-[82%] sm:w-[84%] md:w-[86%] h-34 sm:h-44 md:h-50 rounded-[28px] sm:rounded-[36px] md:rounded-[42px] border shadow-2xl backdrop-blur-3xl flex items-end justify-end p-4 sm:p-6 z-30 transition-all ${
               isDark 
                 ? "bg-zinc-900/40 border-white/20 shadow-black/60" 
                 : "bg-white/45 border-white/75 shadow-[0_25px_60px_rgba(0,0,0,0.18)]"
