@@ -88,6 +88,13 @@ export function ScheduleWorkspace({
   // Detail Modal State
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
 
+  // Google Calendar Integration States
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [googleAccountEmail, setGoogleAccountEmail] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleSyncingIds, setGoogleSyncingIds] = useState<Set<string>>(new Set());
+  const [googleNotice, setGoogleNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+
   // Notification & Reminder Alert State
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [activeReminderAlert, setActiveReminderAlert] = useState<ScheduleItem | null>(null);
@@ -111,6 +118,152 @@ export function ScheduleWorkspace({
       }
     }
   }, []);
+
+  // Periksa respon redirect dari Google OAuth callback pada URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      const googleStatus = url.searchParams.get("google_calendar");
+      if (googleStatus === "connected") {
+        const email = url.searchParams.get("email");
+        setIsGoogleConnected(true);
+        if (email) setGoogleAccountEmail(decodeURIComponent(email));
+        setGoogleNotice({
+          type: "success",
+          message: `Google Calendar berhasil terhubung${email ? ` (${decodeURIComponent(email)})` : ""}! Jadwal baru otomatis tersinkronisasi.`,
+        });
+        url.searchParams.delete("google_calendar");
+        url.searchParams.delete("email");
+        window.history.replaceState({}, "", url.toString());
+      } else if (googleStatus === "error") {
+        const msg = url.searchParams.get("message") || "Gagal menghubungkan Google Calendar.";
+        setGoogleNotice({
+          type: "error",
+          message: decodeURIComponent(msg),
+        });
+        url.searchParams.delete("google_calendar");
+        url.searchParams.delete("message");
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch (e) {
+      console.warn("Error parsing URL google_calendar query:", e);
+    }
+  }, []);
+
+  // Cek status koneksi Google Calendar pengguna saat ini
+  useEffect(() => {
+    if (!user?.id || user.id === "guest") {
+      setIsGoogleConnected(false);
+      setGoogleAccountEmail(null);
+      return;
+    }
+    let isMounted = true;
+    const checkGoogleStatus = async () => {
+      try {
+        const res = await fetch(`/api/google/calendar/status?userId=${encodeURIComponent(user.id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.success) {
+            setIsGoogleConnected(Boolean(json.connected));
+            setGoogleAccountEmail(json.accountEmail || null);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to check Google Calendar status:", err);
+      }
+    };
+    checkGoogleStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  // Handler: Mulai alur OAuth Google Calendar
+  const handleConnectGoogleCalendar = () => {
+    if (!user?.id || user.id === "guest") {
+      setShowAuthModal?.(true);
+      return;
+    }
+    setGoogleLoading(true);
+    const returnUrl = typeof window !== "undefined" ? window.location.href : "/";
+    window.location.href = `/api/google/calendar/auth?userId=${encodeURIComponent(user.id)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+  };
+
+  // Handler: Putuskan koneksi Google Calendar
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!user?.id) return;
+    if (!confirm("Putuskan koneksi Google Calendar? Jadwal di Usick One akan tetap aman, namun tidak akan otomatis disinkronkan ke Google Calendar.")) return;
+    setGoogleLoading(true);
+    try {
+      const res = await fetch(`/api/google/calendar/status?userId=${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsGoogleConnected(false);
+        setGoogleAccountEmail(null);
+        setGoogleNotice({
+          type: "info",
+          message: "Koneksi Google Calendar telah diputuskan.",
+        });
+      }
+    } catch (err: any) {
+      console.warn("Disconnect Google Calendar error:", err);
+      setGoogleNotice({
+        type: "error",
+        message: err?.message || "Gagal memutuskan Google Calendar.",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // Handler: Retry sync jadwal spesifik ke Google Calendar
+  const handleRetryGoogleSync = async (item: ScheduleItem) => {
+    if (!user?.id || item.id.startsWith("local_")) return;
+    setGoogleSyncingIds((prev) => new Set(prev).add(item.id));
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/google/calendar/sync", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          scheduleId: item.id,
+          userId: user.id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const updated = schedules.map((s) => (s.id === item.id ? { ...s, ...json.data } : s));
+        updateSchedulesState(updated);
+        if (selectedItem?.id === item.id) {
+          setSelectedItem((prev) => (prev ? { ...prev, ...json.data } : null));
+        }
+        setGoogleNotice({
+          type: "success",
+          message: `Jadwal "${item.title}" berhasil disinkronkan ke Google Calendar!`,
+        });
+      } else {
+        const errorMsg = json.error || "Gagal menyinkronkan ke Google Calendar.";
+        setGoogleNotice({
+          type: "error",
+          message: errorMsg,
+        });
+      }
+    } catch (err: any) {
+      setGoogleNotice({
+        type: "error",
+        message: err?.message || "Terjadi kesalahan saat sinkronisasi.",
+      });
+    } finally {
+      setGoogleSyncingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
 
   // Helper untuk mendapatkan authorization header dari sesi Supabase
   const getAuthHeaders = async () => {
@@ -801,7 +954,7 @@ export function ScheduleWorkspace({
       if (user?.id && !editingItem.id.startsWith("local_")) {
         try {
           const headers = await getAuthHeaders();
-          await fetch("/api/schedules", {
+          const res = await fetch("/api/schedules", {
             method: "PUT",
             headers,
             body: JSON.stringify({
@@ -810,6 +963,10 @@ export function ScheduleWorkspace({
               ...updatedFields,
             }),
           });
+          const json = await res.json();
+          if (json.success && json.data) {
+            Object.assign(updatedFields, json.data);
+          }
         } catch (err) {
           console.warn("Update error:", err);
         }
@@ -1101,8 +1258,51 @@ export function ScheduleWorkspace({
           )}
         </div>
 
-        {/* Header Action: Daftar Agenda Toggle Button (liquid glass circle, identik tab chat) */}
+        {/* Header Action: Google Calendar Connect & Daftar Agenda Toggle Button */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Google Calendar Connect / Status Button */}
+          {isGoogleConnected ? (
+            <button
+              onClick={handleDisconnectGoogleCalendar}
+              disabled={googleLoading}
+              className={`flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm text-xs font-medium ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-red-950/40 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-red-300 shadow-black/40"
+                  : "bg-white/70 hover:bg-red-50 border border-black/10 hover:border-red-300 text-zinc-800 hover:text-red-700 shadow-zinc-900/10"
+              }`}
+              title={`Google Calendar Terhubung${googleAccountEmail ? ` (${googleAccountEmail})` : ""}. Klik untuk putuskan koneksi.`}
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <GoogleCalendarIcon className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Google Calendar</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleConnectGoogleCalendar}
+              disabled={googleLoading}
+              className={`flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 text-xs font-medium ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-300 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-700 hover:text-black shadow-zinc-900/10"
+              }`}
+              title="Hubungkan Google Calendar untuk sinkronisasi otomatis jadwal"
+            >
+              {googleLoading ? (
+                <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : (
+                <GoogleCalendarIcon className="w-4 h-4 shrink-0" />
+              )}
+              <span className="hidden sm:inline">Connect Google Calendar</span>
+              <span className="sm:hidden">Connect</span>
+            </button>
+          )}
+
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
             className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
@@ -1129,6 +1329,52 @@ export function ScheduleWorkspace({
           </button>
         </div>
       </header>
+
+      {/* ─── Google Calendar Sync Notice / Toast ────────────────────────────── */}
+      {googleNotice && (
+        <div className="z-30 px-3.5 sm:px-6 pt-3 animate-fadeIn">
+          <div
+            className={`flex items-center justify-between gap-3 p-3 rounded-2xl border shadow-md text-xs backdrop-blur-md ${
+              googleNotice.type === "success"
+                ? isDark
+                  ? "bg-emerald-950/90 border-emerald-800/80 text-emerald-200"
+                  : "bg-emerald-50 border-emerald-300 text-emerald-900"
+                : googleNotice.type === "error"
+                ? isDark
+                  ? "bg-red-950/90 border-red-800/80 text-red-200"
+                  : "bg-red-50 border-red-300 text-red-900"
+                : isDark
+                ? "bg-zinc-900/90 border-zinc-700 text-zinc-200"
+                : "bg-zinc-100 border-zinc-300 text-zinc-800"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {googleNotice.type === "success" ? (
+                <svg className="w-4 h-4 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : googleNotice.type === "error" ? (
+                <svg className="w-4 h-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <span className="truncate leading-relaxed">{googleNotice.message}</span>
+            </div>
+            <button
+              onClick={() => setGoogleNotice(null)}
+              className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 shrink-0 cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── In-App Reminder Alert Toast / Banner ──────────────────────────── */}
       {activeReminderAlert && (
@@ -1473,12 +1719,18 @@ export function ScheduleWorkspace({
                               </button>
                             </div>
                           ) : (
-                            <div className="pt-2 border-t border-zinc-700/40 flex items-center justify-between text-xs text-zinc-400">
-                              <span className="flex items-center gap-1.5">
+                            <div className="pt-2 border-t border-zinc-700/40 flex flex-wrap items-center justify-between gap-1 text-xs text-zinc-400">
+                              <span className="flex items-center gap-1.5 flex-wrap">
                                 <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
                                 <span>{msg.isRevision ? "Jadwal berhasil diperbarui di agenda" : "Jadwal telah ditambahkan ke agenda"}</span>
+                                {msg.confirmedSchedule?.google_sync_status === "synced" && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 ml-1">
+                                    <GoogleCalendarIcon className="w-3 h-3" />
+                                    <span>Google Calendar</span>
+                                  </span>
+                                )}
                               </span>
                               <button
                                 onClick={() => setCurrentTab("list")}
@@ -1658,6 +1910,9 @@ export function ScheduleWorkspace({
                   onToggleCancel={(item) =>
                     handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
+                  isGoogleConnected={isGoogleConnected}
+                  googleSyncingIds={googleSyncingIds}
+                  onRetryGoogleSync={handleRetryGoogleSync}
                 />
               )}
 
@@ -1675,6 +1930,9 @@ export function ScheduleWorkspace({
                   onToggleCancel={(item) =>
                     handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
+                  isGoogleConnected={isGoogleConnected}
+                  googleSyncingIds={googleSyncingIds}
+                  onRetryGoogleSync={handleRetryGoogleSync}
                 />
               )}
 
@@ -1692,6 +1950,9 @@ export function ScheduleWorkspace({
                   onToggleCancel={(item) =>
                     handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
+                  isGoogleConnected={isGoogleConnected}
+                  googleSyncingIds={googleSyncingIds}
+                  onRetryGoogleSync={handleRetryGoogleSync}
                 />
               )}
 
@@ -1709,6 +1970,9 @@ export function ScheduleWorkspace({
                   onToggleCancel={(item) =>
                     handleUpdateStatus(item, item.status === "cancelled" ? "upcoming" : "cancelled")
                   }
+                  isGoogleConnected={isGoogleConnected}
+                  googleSyncingIds={googleSyncingIds}
+                  onRetryGoogleSync={handleRetryGoogleSync}
                 />
               )}
             </div>
@@ -2004,6 +2268,87 @@ export function ScheduleWorkspace({
                 </div>
               </div>
 
+              {/* Status Sinkronisasi Google Calendar */}
+              <div
+                className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                  isDark ? "bg-zinc-900/80 border-zinc-800 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+                }`}
+              >
+                <div className="flex-1 pr-2">
+                  <div className="font-semibold text-[11px] text-zinc-400 uppercase flex items-center gap-1.5">
+                    <GoogleCalendarIcon className="w-3.5 h-3.5" />
+                    <span>Google Calendar Sync:</span>
+                  </div>
+                  <div className="text-xs font-medium mt-1">
+                    {selectedItem.google_sync_status === "synced" ? (
+                      <span className={`font-semibold flex items-center gap-1.5 ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Tersinkronisasi {selectedItem.google_synced_at ? `(${new Date(selectedItem.google_synced_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})` : ""}</span>
+                      </span>
+                    ) : selectedItem.google_sync_status === "failed" ? (
+                      <span className={`flex items-center gap-1.5 ${isDark ? "text-red-400" : "text-red-600"}`}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className="truncate">Gagal: {selectedItem.google_sync_error || "Terjadi kendala"}</span>
+                      </span>
+                    ) : isGoogleConnected ? (
+                      <span className={`flex items-center gap-1.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Belum disinkronkan</span>
+                      </span>
+                    ) : (
+                      <span className={`flex items-center gap-1.5 ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                        <span>Akun Google Calendar belum terhubung</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {isGoogleConnected ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRetryGoogleSync(selectedItem)}
+                    disabled={googleSyncingIds.has(selectedItem.id)}
+                    className={`px-3 py-1.5 rounded-xl border font-semibold text-xs transition cursor-pointer shrink-0 ${
+                      isDark
+                        ? "border-zinc-700 hover:bg-zinc-800 text-zinc-200"
+                        : "border-zinc-300 hover:bg-zinc-100 text-zinc-800"
+                    }`}
+                  >
+                    {googleSyncingIds.has(selectedItem.id) ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        <span>Menyinkronkan...</span>
+                      </span>
+                    ) : selectedItem.google_sync_status === "synced" ? (
+                      "Sync Ulang"
+                    ) : (
+                      "Sinkronkan ke Google"
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleConnectGoogleCalendar}
+                    className={`px-3 py-1.5 rounded-xl font-semibold text-xs transition cursor-pointer shrink-0 ${
+                      isDark
+                        ? "bg-white hover:bg-zinc-200 text-black"
+                        : "bg-black hover:bg-zinc-800 text-white"
+                    }`}
+                  >
+                    Hubungkan
+                  </button>
+                )}
+              </div>
+
               {/* Action Buttons */}
               <div className="pt-4 border-t border-zinc-700/40 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -2097,6 +2442,18 @@ export function ScheduleWorkspace({
   );
 }
 
+// ─── Sub-component: Google Calendar Icon ─────────────────────────────────────
+function GoogleCalendarIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="17" rx="3" fill="#4285F4" fillOpacity="0.15" stroke="#4285F4" strokeWidth="1.8" />
+      <path d="M3 9h18" stroke="#4285F4" strokeWidth="1.8" />
+      <path d="M8 2v4M16 2v4" stroke="#EA4335" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="15" r="1.8" fill="#34A853" />
+    </svg>
+  );
+}
+
 // ─── Sub-component: Section Group for Schedules (Monochrome Clean) ───────────
 function ScheduleSection({
   title,
@@ -2107,6 +2464,9 @@ function ScheduleSection({
   onDelete,
   onToggleComplete,
   onToggleCancel,
+  isGoogleConnected,
+  googleSyncingIds,
+  onRetryGoogleSync,
 }: {
   title: string;
   items: ScheduleItem[];
@@ -2116,6 +2476,9 @@ function ScheduleSection({
   onDelete: (item: ScheduleItem) => void;
   onToggleComplete: (item: ScheduleItem) => void;
   onToggleCancel?: (item: ScheduleItem) => void;
+  isGoogleConnected?: boolean;
+  googleSyncingIds?: Set<string>;
+  onRetryGoogleSync?: (item: ScheduleItem) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -2162,7 +2525,7 @@ function ScheduleSection({
                   {formatScheduleTime(item.time)} WIB
                 </span>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
                   {item.recurrence !== "once" && (
                     <span className={`text-[10px] px-2 py-0.5 rounded-md border ${
                       isDark ? "border-zinc-700 text-zinc-300 bg-zinc-900" : "border-zinc-200 text-zinc-700 bg-zinc-50"
@@ -2183,6 +2546,68 @@ function ScheduleSection({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                       </svg>
                       <span>{item.reminder_minutes}m</span>
+                    </span>
+                  )}
+
+                  {/* Google Calendar Sync Badge */}
+                  {item.google_sync_status === "synced" && (
+                    <span
+                      title={`Tersinkron dengan Google Calendar${item.google_synced_at ? ` (${new Date(item.google_synced_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})` : ""}`}
+                      className={`text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1 border ${
+                        isDark
+                          ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/60"
+                          : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      }`}
+                    >
+                      <GoogleCalendarIcon className="w-3 h-3" />
+                      <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
+
+                  {item.google_sync_status === "failed" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetryGoogleSync?.(item);
+                      }}
+                      title={`Gagal sinkron: ${item.google_sync_error || "Error"}. Klik untuk sync ulang.`}
+                      disabled={googleSyncingIds?.has(item.id)}
+                      className={`text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1 border transition cursor-pointer ${
+                        isDark
+                          ? "bg-red-950/40 hover:bg-red-900/60 text-red-300 border-red-800/60"
+                          : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                      }`}
+                    >
+                      {googleSyncingIds?.has(item.id) ? (
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      )}
+                      <span>Sync Ulang</span>
+                    </button>
+                  )}
+
+                  {googleSyncingIds?.has(item.id) && item.google_sync_status !== "failed" && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1 border ${
+                        isDark
+                          ? "bg-blue-950/40 text-blue-300 border-blue-800/60"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
+                    >
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Syncing...</span>
                     </span>
                   )}
                 </div>

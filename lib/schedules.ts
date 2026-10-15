@@ -16,6 +16,11 @@ export interface ScheduleItem {
   status: ScheduleStatus;
   reminder_status: ReminderStatus;
   user_email?: string;
+  // Google Calendar Integration
+  google_event_id?: string;
+  google_sync_status?: "synced" | "failed" | "pending" | "disconnected";
+  google_synced_at?: string;
+  google_sync_error?: string;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +50,10 @@ export type CreateScheduleInput = {
   recurrence?: ScheduleRecurrence;
   timezone?: string;
   user_email?: string;
+  google_event_id?: string;
+  google_sync_status?: "synced" | "failed" | "pending" | "disconnected";
+  google_synced_at?: string;
+  google_sync_error?: string;
 };
 
 export type UpdateScheduleInput = Partial<CreateScheduleInput> & {

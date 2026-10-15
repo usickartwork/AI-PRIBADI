@@ -674,6 +674,11 @@ export default function Home() {
   const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook">(() => {
     if (typeof window !== "undefined") {
       try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewParam = urlParams.get("view");
+        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook"].includes(viewParam)) {
+          return viewParam as any;
+        }
         const saved = localStorage.getItem("usick-active-view");
         if (saved === "halaman" || saved === "faith" || saved === "game") {
           localStorage.removeItem("usick-active-view");
