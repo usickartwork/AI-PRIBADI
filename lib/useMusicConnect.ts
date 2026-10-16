@@ -138,7 +138,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   } | null>(null);
 
   const showTransientFeedback = useCallback(
-    (type: "pending" | "success" | "error", text: string, durationMs = 3500) => {
+    (type: "pending" | "success" | "error", text: string, durationMs = 1200) => {
       if (feedbackClearTimeoutRef.current) {
         clearTimeout(feedbackClearTimeoutRef.current);
       }
@@ -592,13 +592,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           showTransientFeedback(
             "error",
             ack.result_message || "Perintah gagal dijalankan",
-            3200
+            2500
           );
         } else if (ack.command_type === "TRANSFER_PLAYBACK") {
           showTransientFeedback(
             "success",
             ack.result_message || "Playback aktif di perangkat tujuan",
-            3000
+            1200
           );
         }
       }
@@ -960,7 +960,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
 
       setIsSendingCommand(true);
       if (commandType === "TRANSFER_PLAYBACK") {
-        showTransientFeedback("pending", "Memindahkan pemutaran ke perangkat tujuan...", 8000);
+        showTransientFeedback("pending", "Memindahkan pemutaran ke perangkat tujuan...", 2500);
       }
 
       const timeoutId = setTimeout(() => {
@@ -970,10 +970,10 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         }
         showTransientFeedback(
           "error",
-          "Perangkat belum merespons (timeout). Pastikan tab Usick One terbuka di perangkat tersebut.",
-          4000
+          "Perangkat belum merespons. Pastikan tab Usick One terbuka di perangkat tersebut.",
+          2500
         );
-      }, 6_000);
+      }, 5_000);
 
       pendingCommandMapRef.current.set(cmd.command_id, {
         timeoutId,
@@ -1031,7 +1031,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           showTransientFeedback(
             "error",
             json?.error || "Gagal mengirim perintah ke perangkat target.",
-            3500
+            2500
           );
           return;
         }
@@ -1049,7 +1049,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         if (pendingCommandMapRef.current.size === 0) {
           setIsSendingCommand(false);
         }
-        showTransientFeedback("error", "Koneksi jaringan terputus saat mengirim perintah.", 3500);
+        showTransientFeedback("error", "Koneksi jaringan terputus saat mengirim perintah.", 2500);
       }
     },
     [
@@ -1253,13 +1253,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         : Math.round((b.currentTime || 0) * 1000);
 
       setIsSendingCommand(true);
-      showTransientFeedback(
-        "pending",
-        isTransferringToSelf
-          ? "Memulai pemutaran di perangkat ini..."
-          : "Meminta perangkat tujuan memulai pemutaran...",
-        7000
-      );
+      if (!isTransferringToSelf) {
+        showTransientFeedback(
+          "pending",
+          "Meminta perangkat tujuan memulai pemutaran...",
+          2500
+        );
+      }
 
       try {
         // CASE 1: "Putar di Sini" (Pulling playback to this device)
@@ -1284,8 +1284,8 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             setIsSendingCommand(false);
             showTransientFeedback(
               "error",
-              "Browser menahan autoplay. Ketuk 'Aktifkan Audio' untuk memindahkan lagu (perangkat asal tetap memutar).",
-              5000
+              "Browser menahan autoplay. Ketuk 'Aktifkan Audio' untuk memindahkan lagu.",
+              3000
             );
             return;
           }
@@ -1356,13 +1356,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             showTransientFeedback(
               "success",
               `Pemutaran aktif di ${localDeviceName}`,
-              3000
+              1200
             );
           } else {
             showTransientFeedback(
               "error",
               json?.error || "Gagal memperbarui status transfer di server.",
-              3500
+              2500
             );
           }
           return;
@@ -1392,7 +1392,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           showTransientFeedback(
             "error",
             json?.error || "Perangkat tujuan tidak merespons. Pemutaran tetap dilanjutkan di sini.",
-            4000
+            2500
           );
           return;
         }
@@ -1406,9 +1406,9 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           showTransientFeedback(
             "error",
             "Perangkat tujuan tidak merespons tepat waktu. Musik tetap diputar di perangkat ini.",
-            4500
+            2500
           );
-        }, 6_500);
+        }, 5_000);
 
         pendingCommandMapRef.current.set(cmdId, {
           timeoutId,
@@ -1444,7 +1444,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         showTransientFeedback(
           "error",
           err?.message || "Gagal memindahkan pemutaran. Musik tetap diputar di sini.",
-          3500
+          2500
         );
       }
     },
@@ -1519,7 +1519,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       volumePercent?: number;
     }) => {
       setIsSendingCommand(true);
-      showTransientFeedback("pending", "Menghubungi Spotify Connect...", 6000);
+      showTransientFeedback("pending", "Menghubungi Spotify Connect...", 2500);
       try {
         const res = await fetch("/api/music/connect", {
           method: "POST",
@@ -1541,10 +1541,10 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           res.ok && json?.success ? "success" : "error",
           json?.message ||
             (res.ok ? "Berhasil" : "Gagal menjalankan perintah Spotify Connect"),
-          3500
+          res.ok && json?.success ? 1200 : 2500
         );
       } catch (err: any) {
-        showTransientFeedback("error", err?.message || "Koneksi ke Spotify gagal.", 3500);
+        showTransientFeedback("error", err?.message || "Koneksi ke Spotify gagal.", 2500);
       } finally {
         setIsSendingCommand(false);
       }

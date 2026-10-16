@@ -455,17 +455,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<MusicItem | null>(null);
   const [activeMenuTrackId, setActiveMenuTrackId] = useState<string | null>(null);
 
-  // Floating Queue Toast State
+  // Floating Queue Toast State (Snappy 1100ms duration with smooth fade-in/fade-out)
   const [queueToast, setQueueToast] = useState<string | null>(null);
+  const [isQueueToastVisible, setIsQueueToastVisible] = useState(false);
   const queueToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const queueToastCleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const musicConnectRef = useRef<any>(null);
 
   const showQueueToast = useCallback((msg: string) => {
     if (queueToastTimeoutRef.current) clearTimeout(queueToastTimeoutRef.current);
+    if (queueToastCleanupTimeoutRef.current) clearTimeout(queueToastCleanupTimeoutRef.current);
     setQueueToast(msg);
+    setIsQueueToastVisible(true);
     queueToastTimeoutRef.current = setTimeout(() => {
-      setQueueToast(null);
-    }, 2200);
+      setIsQueueToastVisible(false);
+      queueToastCleanupTimeoutRef.current = setTimeout(() => {
+        setQueueToast(null);
+      }, 250);
+    }, 1100);
   }, []);
 
   // Spotify-style Recommendations (derived from trending discover catalog, excluding currently playing and queued songs)
@@ -5376,16 +5383,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
       {/* ─── FLOATING QUEUE TOAST NOTIFICATION ───────────────────────────────── */}
       {queueToast && (
-        <div className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-          <div className={`px-4 py-2 rounded-full text-xs font-semibold shadow-xl flex items-center gap-2 border ${
-            isDark
-              ? "bg-zinc-900/95 text-white border-white/15 shadow-black/60 backdrop-blur-md"
-              : "bg-white/95 text-zinc-900 border-black/10 shadow-black/10 backdrop-blur-md"
-          }`}>
+        <div
+          className={`fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 ease-out transform ${
+            isQueueToastVisible
+              ? "opacity-100 translate-y-0 scale-100"
+              : "opacity-0 translate-y-2 scale-95"
+          }`}
+        >
+          <div
+            className={`px-4 py-2 rounded-full text-xs font-semibold shadow-xl flex items-center gap-2 border transition-colors duration-150 ${
+              isDark
+                ? "bg-zinc-900/95 text-white border-white/15 shadow-black/60 backdrop-blur-md"
+                : "bg-white/95 text-zinc-900 border-black/10 shadow-black/10 backdrop-blur-md"
+            }`}
+          >
             <svg className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-white" : "text-zinc-900"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
-            <span>{queueToast}</span>
+            <span className="truncate max-w-[280px] sm:max-w-md">{queueToast}</span>
           </div>
         </div>
       )}

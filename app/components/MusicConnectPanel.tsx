@@ -312,30 +312,38 @@ export function MusicConnectRemoteBar({
       </div>
 
       {/* Autoplay Unlock Banner for iOS / Mobile Safari after Transfer */}
-      {autoplayBlockedPrompt && (
-        <div
-          className={`px-4 py-2 flex items-center justify-between gap-3 text-xs border-b ${
-            isDark
-              ? "bg-white/10 border-white/10 text-white"
-              : "bg-black/5 border-black/10 text-zinc-900"
-          }`}
-        >
-          <span className="font-medium truncate">
-            Browser memerlukan sentuhan untuk mulai memutar audio di perangkat ini.
-          </span>
-          <button
-            type="button"
-            onClick={onUnlockAutoplay}
-            className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 cursor-pointer transition ${
+      <div
+        className={`transition-all duration-200 ease-out overflow-hidden ${
+          autoplayBlockedPrompt
+            ? "max-h-16 opacity-100"
+            : "max-h-0 opacity-0 pointer-events-none"
+        }`}
+      >
+        {autoplayBlockedPrompt && (
+          <div
+            className={`px-4 py-2 flex items-center justify-between gap-3 text-xs border-b ${
               isDark
-                ? "bg-white text-black hover:bg-zinc-200"
-                : "bg-black text-white hover:bg-zinc-800"
+                ? "bg-white/10 border-white/10 text-white"
+                : "bg-black/5 border-black/10 text-zinc-900"
             }`}
           >
-            Aktifkan Audio
-          </button>
-        </div>
-      )}
+            <span className="font-medium truncate">
+              Browser memerlukan sentuhan untuk mulai memutar audio di perangkat ini.
+            </span>
+            <button
+              type="button"
+              onClick={onUnlockAutoplay}
+              className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 cursor-pointer transition ${
+                isDark
+                  ? "bg-white text-black hover:bg-zinc-200"
+                  : "bg-black text-white hover:bg-zinc-800"
+              }`}
+            >
+              Aktifkan Audio
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="max-w-7xl mx-auto px-3.5 sm:px-8 py-2 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Device Indicator + Remote Track Meta */}
@@ -653,34 +661,42 @@ export function MusicConnectModal({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 overscroll-contain">
           {/* Real-time Command / Transfer Feedback */}
-          {commandFeedback && (
-            <div
-              className={`px-3.5 py-2.5 rounded-2xl border text-xs font-medium flex items-center justify-between gap-2 ${
-                commandFeedback.type === "error"
-                  ? isDark
-                    ? "bg-zinc-900 border-zinc-700 text-zinc-200"
-                    : "bg-zinc-100 border-zinc-300 text-zinc-800"
-                  : isDark
-                  ? "bg-white/10 border-white/20 text-white"
-                  : "bg-black/5 border-black/15 text-zinc-900"
-              }`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {commandFeedback.type === "pending" ? (
-                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
-                ) : commandFeedback.type === "success" ? (
-                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-                <span className="truncate">{commandFeedback.text}</span>
+          <div
+            className={`transition-all duration-200 ease-out overflow-hidden ${
+              commandFeedback
+                ? "max-h-20 opacity-100"
+                : "max-h-0 opacity-0 pointer-events-none"
+            }`}
+          >
+            {commandFeedback && (
+              <div
+                className={`px-3.5 py-2.5 rounded-2xl border text-xs font-medium flex items-center justify-between gap-2 shadow-xs transition-colors duration-150 ${
+                  commandFeedback.type === "error"
+                    ? isDark
+                      ? "bg-zinc-900 border-zinc-700 text-zinc-200"
+                      : "bg-zinc-100 border-zinc-300 text-zinc-800"
+                    : isDark
+                    ? "bg-white/10 border-white/20 text-white"
+                    : "bg-black/5 border-black/15 text-zinc-900"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {commandFeedback.type === "pending" ? (
+                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                  ) : commandFeedback.type === "success" ? (
+                    <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  <span className="truncate">{commandFeedback.text}</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Local Device Identity & Custom Name */}
           <div
