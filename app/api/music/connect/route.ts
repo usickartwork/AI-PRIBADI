@@ -232,6 +232,42 @@ async function readRawStoreFromDb(userId: string): Promise<{
   const sysUserId = getSystemConnectUserId(userId);
 
   if (db) {
+    // 1. Primary: Direct query on dedicated `music_device_sessions` table
+    try {
+      const { data: dbSessions, error: sessErr } = await db
+        .from("music_device_sessions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("last_seen_at", { ascending: false });
+
+      if (!sessErr && Array.isArray(dbSessions)) {
+        const { data: dbCommands } = await db
+          .from("music_connect_commands")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(40);
+
+        const store: UserConnectStore = {
+          version: Date.now(),
+          sessions: (dbSessions as AppDeviceSession[]) || [],
+          commands: (dbCommands as MusicConnectCommand[]) || [],
+          acks: [],
+          updatedAt: new Date().toISOString(),
+        };
+        const reconciled = pruneAndReconcileStore(store);
+        mem.set(userId, reconciled);
+        return {
+          rowId: "dedicated_table",
+          rowUpdatedAt: reconciled.updatedAt,
+          store: reconciled,
+        };
+      }
+    } catch {
+      // Fall through to user_notes fallback
+    }
+
+    // 2. Fallback: Query from user_notes
     try {
       const { data, error } = await db
         .from("user_notes")
@@ -281,7 +317,7 @@ async function readRawStoreFromDb(userId: string): Promise<{
  * Performs an atomic Compare-And-Swap (CAS) mutation on the user's Music Connect store.
  * Protects against concurrent read-modify-write race conditions across both:
  * 1. Same serverless instance (via `withUserLock`), and
- * 2. Multiple concurrent serverless instances (via conditional `.eq("updated_at", rowUpdatedAt)` retry loop).
+ * 2. Multiple concurrent serverless instances (via dedicated tables & conditional `.eq("updated_at", rowUpdatedAt)` retry loop).
  */
 async function mutateUserConnectStore<R>(
   userId: string,
@@ -304,8 +340,14 @@ async function mutateUserConnectStore<R>(
       const { result, mirrorSession, mirrorCommand } = mutator(workingStore, nowMs);
       const reconciled = pruneAndReconcileStore(workingStore, nowMs);
       reconciled.version = (baseStore.version || 1) + 1;
-      // Guarantee a strictly unique timestamp for CAS comparison
-      const nextIso = new Date(Math.max(nowMs, Date.parse(rowUpdatedAt || "") + 1)).toISOString();
+
+      // Safe monotonic ISO string that NEVER crashes on null rowUpdatedAt
+      const prevMs =
+        rowUpdatedAt && rowUpdatedAt !== "dedicated_table"
+          ? Date.parse(rowUpdatedAt)
+          : 0;
+      const safePrevMs = Number.isNaN(prevMs) ? 0 : prevMs;
+      const nextIso = new Date(Math.max(nowMs, safePrevMs + 1)).toISOString();
       reconciled.updatedAt = nextIso;
 
       if (!db) {
@@ -313,11 +355,76 @@ async function mutateUserConnectStore<R>(
         return { store: reconciled, result };
       }
 
-      const payloadStr = JSON.stringify(reconciled);
       let persistedOk = false;
 
+      // 1. Direct write to dedicated tables if available
+      if (mirrorSession) {
+        try {
+          const { error: upsertErr } = await db.from("music_device_sessions").upsert(
+            {
+              user_id: userId,
+              session_instance_id: mirrorSession.session_instance_id,
+              spotify_device_id: mirrorSession.spotify_device_id,
+              device_name: mirrorSession.device_name,
+              device_type: mirrorSession.device_type,
+              platform: mirrorSession.platform,
+              browser: mirrorSession.browser,
+              is_connected: mirrorSession.is_connected,
+              is_active_playback: mirrorSession.is_active_playback,
+              can_control: mirrorSession.can_control,
+              can_transfer_playback: mirrorSession.can_transfer_playback,
+              current_track_id: mirrorSession.current_track_id,
+              current_track_name: mirrorSession.current_track_name,
+              current_artist_name: mirrorSession.current_artist_name,
+              current_album_art: mirrorSession.current_album_art,
+              current_track_payload: mirrorSession.current_track_payload,
+              queue_payload: mirrorSession.queue_payload || [],
+              is_playing: mirrorSession.is_playing,
+              progress_ms: mirrorSession.progress_ms,
+              duration_ms: mirrorSession.duration_ms,
+              volume_percent: mirrorSession.volume_percent,
+              shuffle_state: mirrorSession.shuffle_state,
+              repeat_state: mirrorSession.repeat_state,
+              last_seen_at: mirrorSession.last_seen_at,
+              updated_at: mirrorSession.updated_at,
+            },
+            { onConflict: "user_id,session_instance_id" }
+          );
+          if (!upsertErr) {
+            persistedOk = true;
+          }
+        } catch {}
+      }
+
+      if (mirrorCommand) {
+        try {
+          const { error: cmdErr } = await db.from("music_connect_commands").upsert(
+            {
+              command_id: mirrorCommand.command_id,
+              user_id: userId,
+              source_instance_id: mirrorCommand.source_instance_id,
+              source_device_name: mirrorCommand.source_device_name,
+              target_instance_id: mirrorCommand.target_instance_id,
+              command_type: mirrorCommand.command_type,
+              payload: mirrorCommand.payload,
+              status: mirrorCommand.status,
+              result_message: mirrorCommand.result_message,
+              created_at: mirrorCommand.created_at,
+              expires_at: mirrorCommand.expires_at,
+              acknowledged_at: mirrorCommand.acknowledged_at,
+            },
+            { onConflict: "command_id" }
+          );
+          if (!cmdErr) {
+            persistedOk = true;
+          }
+        } catch {}
+      }
+
+      // 2. Backup write to user_notes (with CAS protection)
+      const payloadStr = JSON.stringify(reconciled);
       try {
-        if (rowId && rowUpdatedAt) {
+        if (rowId && rowId !== "dedicated_table" && rowUpdatedAt) {
           const { data: updatedRows, error: updateErr } = await db
             .from("user_notes")
             .update({
@@ -332,8 +439,7 @@ async function mutateUserConnectStore<R>(
           if (!updateErr && updatedRows && updatedRows.length > 0) {
             persistedOk = true;
           }
-        } else {
-          // Check again if a row was just inserted by another instance
+        } else if (rowId !== "dedicated_table") {
           const { data: existingRows } = await db
             .from("user_notes")
             .select("id")
@@ -357,73 +463,26 @@ async function mutateUserConnectStore<R>(
             if (!insertErr) {
               persistedOk = true;
             }
+          } else {
+            const { error: updateErr } = await db
+              .from("user_notes")
+              .update({
+                title: SYSTEM_CONNECT_TITLE,
+                content: payloadStr,
+                updated_at: nextIso,
+              })
+              .eq("id", existingRows[0].id);
+            if (!updateErr) {
+              persistedOk = true;
+            }
           }
         }
       } catch (err) {
-        console.warn("[music/connect] CAS write attempt warning:", err);
+        console.warn("[music/connect] CAS backup write warning:", err);
       }
 
-      if (persistedOk) {
+      if (persistedOk || rowId === "dedicated_table") {
         mem.set(userId, reconciled);
-
-        // Mirror atomically to dedicated tables if `supabase_music_connect.sql` has been applied
-        if (mirrorSession) {
-          try {
-            await db.from("music_device_sessions").upsert(
-              {
-                user_id: userId,
-                session_instance_id: mirrorSession.session_instance_id,
-                spotify_device_id: mirrorSession.spotify_device_id,
-                device_name: mirrorSession.device_name,
-                device_type: mirrorSession.device_type,
-                platform: mirrorSession.platform,
-                browser: mirrorSession.browser,
-                is_connected: mirrorSession.is_connected,
-                is_active_playback: mirrorSession.is_active_playback,
-                can_control: mirrorSession.can_control,
-                can_transfer_playback: mirrorSession.can_transfer_playback,
-                current_track_id: mirrorSession.current_track_id,
-                current_track_name: mirrorSession.current_track_name,
-                current_artist_name: mirrorSession.current_artist_name,
-                current_album_art: mirrorSession.current_album_art,
-                current_track_payload: mirrorSession.current_track_payload,
-                queue_payload: mirrorSession.queue_payload || [],
-                is_playing: mirrorSession.is_playing,
-                progress_ms: mirrorSession.progress_ms,
-                duration_ms: mirrorSession.duration_ms,
-                volume_percent: mirrorSession.volume_percent,
-                shuffle_state: mirrorSession.shuffle_state,
-                repeat_state: mirrorSession.repeat_state,
-                last_seen_at: mirrorSession.last_seen_at,
-                updated_at: mirrorSession.updated_at,
-              },
-              { onConflict: "user_id,session_instance_id" }
-            );
-          } catch {}
-        }
-
-        if (mirrorCommand) {
-          try {
-            await db.from("music_connect_commands").upsert(
-              {
-                command_id: mirrorCommand.command_id,
-                user_id: userId,
-                source_instance_id: mirrorCommand.source_instance_id,
-                source_device_name: mirrorCommand.source_device_name,
-                target_instance_id: mirrorCommand.target_instance_id,
-                command_type: mirrorCommand.command_type,
-                payload: mirrorCommand.payload,
-                status: mirrorCommand.status,
-                result_message: mirrorCommand.result_message,
-                created_at: mirrorCommand.created_at,
-                expires_at: mirrorCommand.expires_at,
-                acknowledged_at: mirrorCommand.acknowledged_at,
-              },
-              { onConflict: "command_id" }
-            );
-          } catch {}
-        }
-
         return { store: reconciled, result };
       }
 
