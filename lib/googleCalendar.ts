@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { clerkClient } from "@clerk/nextjs/server";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { getTimezoneOffset, parseScheduleDateTime, ScheduleItem, ScheduleRecurrence } from "./schedules";
 
@@ -249,12 +250,65 @@ export async function saveGoogleCalendarTokens(
     console.error("[googleCalendar] Error upserting tokens ke Supabase:", error.message);
     throw new Error(`Database error: ${error.message}`);
   }
+
+  // Jika user Clerk, pastikan flag disabled direset ke false
+  if (userId && userId.startsWith("user_")) {
+    try {
+      const clerk = await clerkClient();
+      await clerk.users.updateUserMetadata(userId, {
+        privateMetadata: { google_calendar_disabled: false },
+      });
+    } catch {}
+  }
 }
 
 export async function getValidGoogleAccessToken(
   userId: string
-): Promise<{ accessToken: string; googleEmail?: string } | null> {
-  if (!isSupabaseConfigured || !userId || userId === "guest") return null;
+): Promise<{ accessToken: string; googleEmail?: string; source?: "clerk" | "supabase" } | null> {
+  if (!userId || userId === "guest") return null;
+
+  // 1. Prioritaskan token Google dari sesi login SSO Clerk
+  if (userId.startsWith("user_")) {
+    try {
+      const clerk = await clerkClient();
+      const clerkUser = await clerk.users.getUser(userId);
+
+      const isExplicitlyDisabled =
+        Boolean(clerkUser.privateMetadata?.google_calendar_disabled) ||
+        Boolean(clerkUser.publicMetadata?.google_calendar_disabled);
+
+      if (!isExplicitlyDisabled) {
+        const oauthRes = await clerk.users.getUserOauthAccessToken(userId, "oauth_google");
+        const oauthItem = oauthRes.data?.[0];
+
+        if (oauthItem?.token) {
+          const scopes = (oauthItem as any).scopes || [];
+          // Verifikasi scope kalender telah diberikan oleh user
+          const hasCalendarScope =
+            scopes.length === 0 ||
+            scopes.some((s: string) => typeof s === "string" && s.toLowerCase().includes("calendar"));
+
+          if (hasCalendarScope) {
+            const googleEmail =
+              clerkUser.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
+              clerkUser.emailAddresses?.[0]?.emailAddress ||
+              "";
+
+            return {
+              accessToken: oauthItem.token,
+              googleEmail,
+              source: "clerk",
+            };
+          }
+        }
+      }
+    } catch (clerkErr) {
+      console.warn("[googleCalendar] Clerk OAuth token lookup error:", clerkErr);
+    }
+  }
+
+  // 2. Fallback ke database Supabase (alur OAuth manual / user yang sudah terhubung sebelumnya)
+  if (!isSupabaseConfigured) return null;
 
   try {
     const admin = getSupabaseAdmin();
@@ -273,7 +327,7 @@ export async function getValidGoogleAccessToken(
 
     // Jika access token masih berlaku (buffer 2 menit)
     if (rawAccess && Date.now() < expiryDate - 120_000) {
-      return { accessToken: rawAccess, googleEmail };
+      return { accessToken: rawAccess, googleEmail, source: "supabase" };
     }
 
     // Jika access token kedaluwarsa tapi ada refresh token, lakukan refresh
@@ -285,7 +339,7 @@ export async function getValidGoogleAccessToken(
           expiryDate: refreshed.expiryDate,
           googleEmail,
         });
-        return { accessToken: refreshed.accessToken, googleEmail };
+        return { accessToken: refreshed.accessToken, googleEmail, source: "supabase" };
       } catch (refreshErr) {
         console.warn("[googleCalendar] Refresh token gagal (mungkin izin dicabut):", refreshErr);
         return null;
@@ -300,31 +354,46 @@ export async function getValidGoogleAccessToken(
 }
 
 export async function disconnectGoogleCalendar(userId: string): Promise<boolean> {
-  if (!isSupabaseConfigured || !userId) return false;
+  if (!userId || userId === "guest") return false;
   try {
-    const admin = getSupabaseAdmin();
-    // Ambil token untuk revoke jika memungkinkan
-    const { data } = await admin
-      .from("google_calendar_tokens")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (data) {
-      const tokenToRevoke =
-        decryptSecret(data.encrypted_refresh_token || data.refresh_token || "") ||
-        decryptSecret(data.encrypted_access_token || data.access_token || "");
-      if (tokenToRevoke) {
-        try {
-          await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tokenToRevoke)}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          });
-        } catch {}
+    // 1. Jika user Clerk, tandai disabled pada metadata agar token SSO tidak otomatis terpakai
+    if (userId.startsWith("user_")) {
+      try {
+        const clerk = await clerkClient();
+        await clerk.users.updateUserMetadata(userId, {
+          privateMetadata: { google_calendar_disabled: true },
+        });
+      } catch (e) {
+        console.warn("[googleCalendar] Gagal update Clerk metadata on disconnect:", e);
       }
     }
 
-    await admin.from("google_calendar_tokens").delete().eq("user_id", userId);
+    // 2. Hapus token di database Supabase jika ada
+    if (isSupabaseConfigured) {
+      const admin = getSupabaseAdmin();
+      const { data } = await admin
+        .from("google_calendar_tokens")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (data) {
+        const tokenToRevoke =
+          decryptSecret(data.encrypted_refresh_token || data.refresh_token || "") ||
+          decryptSecret(data.encrypted_access_token || data.access_token || "");
+        if (tokenToRevoke) {
+          try {
+            await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tokenToRevoke)}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+          } catch {}
+        }
+      }
+
+      await admin.from("google_calendar_tokens").delete().eq("user_id", userId);
+    }
+
     return true;
   } catch (err) {
     console.error("[googleCalendar] Gagal memutuskan koneksi Google Calendar:", err);

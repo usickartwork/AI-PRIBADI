@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
       connected: Boolean(account),
       email: account?.googleEmail || "",
       accountEmail: account?.googleEmail || "",
-      isConfigured,
+      source: account?.source || (Boolean(account) ? "supabase" : undefined),
+      isConfigured: isConfigured || Boolean(account),
     });
   } catch (err: any) {
     console.error("[google/calendar/status] Error:", err);
