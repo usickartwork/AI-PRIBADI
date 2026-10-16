@@ -1633,20 +1633,20 @@ export function NotebookWorkspace({
             </button>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-10">
+          <div className="max-w-4xl mx-auto flex flex-col gap-8 pb-12">
             {groupedNotes.map((group) => (
               <div key={group.title} className="flex flex-col">
-                {/* Header Kategori Waktu (Today, Previous 7 Days, Previous 30 Days, Bulan) */}
+                {/* Header Kategori Waktu (Today, Previous 7 Days, Previous 30 Days, Bulan) - Tetap ada garis bawah */}
                 <div
-                  className={`pb-2 border-b text-xs sm:text-[13px] font-semibold tracking-tight ${
+                  className={`pb-2.5 mb-1.5 border-b text-sm sm:text-[15px] font-semibold tracking-tight ${
                     isDark ? "text-zinc-400 border-white/10" : "text-zinc-500 border-black/10"
                   }`}
                 >
                   {group.title}
                 </div>
 
-                {/* Daftar Baris Catatan */}
-                <div className="flex flex-col">
+                {/* Daftar Baris Catatan (Lebih besar & tanpa garis bawah di setiap item) */}
+                <div className="flex flex-col gap-0.5">
                   {group.items.map((note) => {
                     const snippet = extractPlainText(note.content) || "Tidak ada teks tambahan";
                     const rowDate = formatNoteRowDate(note.updated_at);
@@ -1655,16 +1655,16 @@ export function NotebookWorkspace({
                       <div
                         key={note.id}
                         onClick={() => handleSelectNoteFromGrid(note)}
-                        className={`group flex items-center justify-between gap-3 py-3 px-2 -mx-2 rounded-lg border-b transition-colors cursor-pointer select-none ${
+                        className={`group flex items-center justify-between gap-4 py-3.5 sm:py-4 px-3 -mx-3 rounded-xl transition-colors cursor-pointer select-none ${
                           isDark
-                            ? "border-white/[0.08] hover:bg-white/[0.04]"
-                            : "border-black/[0.08] hover:bg-black/[0.03]"
+                            ? "hover:bg-white/[0.04]"
+                            : "hover:bg-black/[0.03]"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           {/* Baris 1: Judul Catatan Tebal */}
                           <h3
-                            className={`text-sm sm:text-[15px] font-bold tracking-tight truncate mb-0.5 ${
+                            className={`text-base sm:text-lg font-bold tracking-tight truncate mb-1 ${
                               isDark ? "text-zinc-100 group-hover:text-white" : "text-zinc-900 group-hover:text-black"
                             }`}
                           >
@@ -1672,7 +1672,7 @@ export function NotebookWorkspace({
                           </h3>
 
                           {/* Baris 2: Waktu di kiri + Cuplikan isi 1 baris */}
-                          <div className="flex items-center gap-2.5 text-xs sm:text-[13px] min-w-0">
+                          <div className="flex items-center gap-3 text-sm sm:text-[15px] min-w-0">
                             <span
                               className={`shrink-0 font-normal ${
                                 isDark ? "text-zinc-400" : "text-zinc-500"
@@ -1695,7 +1695,7 @@ export function NotebookWorkspace({
                           type="button"
                           onClick={(e) => handleTogglePin(e, note.id)}
                           title={note.is_pinned ? "Lepas Sematan" : "Sematkan"}
-                          className={`p-1.5 rounded-md transition shrink-0 ${
+                          className={`p-2 rounded-lg transition shrink-0 ${
                             note.is_pinned
                               ? isDark
                                 ? "opacity-100 text-white hover:bg-white/10"
@@ -1705,7 +1705,7 @@ export function NotebookWorkspace({
                                 : "opacity-0 group-hover:opacity-70 hover:!opacity-100 text-zinc-500 hover:bg-black/10"
                           }`}
                         >
-                          <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? "fill-current" : ""}`} />
+                          <Pin className={`w-4 h-4 ${note.is_pinned ? "fill-current" : ""}`} />
                         </button>
                       </div>
                     );

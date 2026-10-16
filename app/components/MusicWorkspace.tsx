@@ -567,17 +567,110 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ─── Initialize Local Storage Data ──────────────────────────────────────────
+  // ─── Cloud Sync Helper (Persists Liked Songs & Playlists to User Account) ───
+  const syncLibraryToCloud = useCallback(async (nextLiked: MusicItem[], nextPlaylists: LocalPlaylist[]) => {
+    try {
+      await fetch("/api/music/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          likedSongs: nextLiked,
+          playlists: nextPlaylists,
+        }),
+      });
+    } catch (err) {
+      console.warn("[music] Cloud sync error:", err);
+    }
+  }, []);
+
+  // ─── Initialize Local & Cloud Account Library Data ──────────────────────────
   useEffect(() => {
-    setLikedSongs(getLikedSongs());
-    setLocalPlaylists(getLocalPlaylists());
+    let isMounted = true;
+    const initialLocalLiked = getLikedSongs();
+    const initialLocalPlaylists = getLocalPlaylists();
+
+    setLikedSongs(initialLocalLiked);
+    setLocalPlaylists(initialLocalPlaylists);
     setRecentSearches(getRecentSearches());
 
     // When refreshing or entering the web, the queue starts empty until user adds tracks
     saveQueueState({ items: [], currentIndex: 0, updatedAt: new Date().toISOString() });
     setQueue([]);
     setCurrentTrack(null);
-  }, []);
+
+    // Sync Liked Songs & Playlists with the authenticated user's cloud account
+    (async () => {
+      try {
+        const res = await fetch("/api/music/library", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!isMounted || !json?.success || !json?.userId) return;
+
+        const ownerKey = "usick_music_owner_user_id";
+        const lastOwnerId = typeof window !== "undefined" ? localStorage.getItem(ownerKey) : null;
+        const currentLocalLiked = getLikedSongs();
+        const currentLocalPl = getLocalPlaylists();
+
+        if (json.hasCloudRecord) {
+          const cloudLiked: MusicItem[] = Array.isArray(json.likedSongs) ? json.likedSongs : [];
+          const cloudPl: LocalPlaylist[] = Array.isArray(json.playlists) ? json.playlists : [];
+
+          if (!lastOwnerId && (currentLocalLiked.length > 0 || currentLocalPl.length > 0)) {
+            // First time linking this browser to the account: merge any local items with cloud
+            const likedMap = new Map<string, MusicItem>();
+            [...cloudLiked, ...currentLocalLiked].forEach((item) => {
+              if (item?.id && !likedMap.has(item.id)) likedMap.set(item.id, item);
+            });
+            const mergedLiked = Array.from(likedMap.values());
+
+            const plMap = new Map<string, LocalPlaylist>();
+            [...cloudPl, ...currentLocalPl].forEach((pl) => {
+              if (pl?.id && !plMap.has(pl.id)) plMap.set(pl.id, pl);
+            });
+            const mergedPl = Array.from(plMap.values());
+
+            setLikedSongs(mergedLiked);
+            saveLikedSongs(mergedLiked);
+            setLocalPlaylists(mergedPl);
+            saveLocalPlaylists(mergedPl);
+            try { localStorage.setItem(ownerKey, json.userId); } catch {}
+
+            if (mergedLiked.length !== cloudLiked.length || mergedPl.length !== cloudPl.length) {
+              syncLibraryToCloud(mergedLiked, mergedPl);
+            }
+          } else {
+            // Use the account's cloud library across devices
+            setLikedSongs(cloudLiked);
+            saveLikedSongs(cloudLiked);
+            setLocalPlaylists(cloudPl);
+            saveLocalPlaylists(cloudPl);
+            try { localStorage.setItem(ownerKey, json.userId); } catch {}
+          }
+        } else {
+          // Account has no cloud record yet
+          if (!lastOwnerId || lastOwnerId === json.userId) {
+            try { localStorage.setItem(ownerKey, json.userId); } catch {}
+            if (currentLocalLiked.length > 0 || currentLocalPl.length > 0) {
+              syncLibraryToCloud(currentLocalLiked, currentLocalPl);
+            }
+          } else {
+            // Different user logged in on the same browser and has an empty cloud library
+            setLikedSongs([]);
+            saveLikedSongs([]);
+            setLocalPlaylists([]);
+            saveLocalPlaylists([]);
+            try { localStorage.setItem(ownerKey, json.userId); } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("[music] Failed to load cloud music library:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [syncLibraryToCloud]);
 
   // ─── Initialize YouTube IFrame Player API for 100% Full Playback ───────────
   useEffect(() => {
@@ -1779,6 +1872,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
     setLikedSongs(updated);
     saveLikedSongs(updated);
+    syncLibraryToCloud(updated, localPlaylists);
   };
 
   const handleCreatePlaylist = (e: React.FormEvent) => {
@@ -1797,6 +1891,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const updated = [newPl, ...localPlaylists];
     setLocalPlaylists(updated);
     saveLocalPlaylists(updated);
+    syncLibraryToCloud(likedSongs, updated);
 
     setNewPlaylistName("");
     setNewPlaylistDesc("");
@@ -1809,16 +1904,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (pl.id === playlistId) {
         const exists = pl.items.some((item) => item.id === track.id);
         if (exists) return pl;
-        return {
+        const updatedPl = {
           ...pl,
           items: [...pl.items, track],
           updatedAt: new Date().toISOString(),
         };
+        if (selectedLocalPlaylist?.id === playlistId) {
+          setSelectedLocalPlaylist(updatedPl);
+        }
+        return updatedPl;
       }
       return pl;
     });
     setLocalPlaylists(updated);
     saveLocalPlaylists(updated);
+    syncLibraryToCloud(likedSongs, updated);
     setAddToPlaylistTrack(null);
   };
 
@@ -1836,6 +1936,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     });
     setLocalPlaylists(updated);
     saveLocalPlaylists(updated);
+    syncLibraryToCloud(likedSongs, updated);
   };
 
   const deletePlaylist = (playlistId: string) => {
@@ -1843,6 +1944,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const updated = localPlaylists.filter((pl) => pl.id !== playlistId);
     setLocalPlaylists(updated);
     saveLocalPlaylists(updated);
+    syncLibraryToCloud(likedSongs, updated);
     if (selectedLocalPlaylist?.id === playlistId) {
       setSelectedLocalPlaylist(null);
     }
