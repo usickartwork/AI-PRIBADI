@@ -458,6 +458,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   // Floating Queue Toast State
   const [queueToast, setQueueToast] = useState<string | null>(null);
   const queueToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const musicConnectRef = useRef<any>(null);
 
   const showQueueToast = useCallback((msg: string) => {
     if (queueToastTimeoutRef.current) clearTimeout(queueToastTimeoutRef.current);
@@ -1083,7 +1084,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   }, []);
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
-  const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean }) => {
+  const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean; forceLocal?: boolean }) => {
+    const mc = musicConnectRef.current;
+    if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "PLAY_TRACK",
+        {
+          track,
+          positionSeconds: options?.startSeconds || 0,
+          autoPlay: options?.autoPlay !== false,
+        }
+      );
+      showQueueToast(
+        `Memutar "${track.title}" di ${mc.remoteActiveSession.device_name}`
+      );
+      return;
+    }
+
     const startSec = Math.max(0, options?.startSeconds || 0);
     const shouldAutoPlay = options?.autoPlay !== false;
     setCurrentTrack(track);
@@ -1199,6 +1217,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const addToQueue = (track: MusicItem) => {
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "ADD_TO_QUEUE",
+        { track }
+      );
+      showQueueToast(
+        `"${track.title}" ditambahkan ke antrean ${mc.remoteActiveSession.device_name}`
+      );
+      // Keep local queue state synced so Device B's queue view reflects the addition
+      setQueue((prevQueue) => {
+        const exists = prevQueue.some((item) => item.id === track.id);
+        if (exists) return prevQueue;
+        const updated = [...prevQueue, track];
+        saveQueueState({ items: updated, currentIndex: queueIndex, updatedAt: new Date().toISOString() });
+        return updated;
+      });
+      return;
+    }
+
     if (!currentTrack) {
       playTrack(track);
       setQueue([track]);
@@ -1700,7 +1739,37 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         }, 650);
       });
     },
+    onRemoteAddToQueue: (track: MusicItem) => {
+      setQueue((prevQueue) => {
+        const exists = prevQueue.some((item) => item.id === track.id);
+        if (exists) return prevQueue;
+        const updated = [...prevQueue, track];
+        saveQueueState({
+          items: updated,
+          currentIndex: queueIndexRef.current,
+          updatedAt: new Date().toISOString(),
+        });
+        showQueueToast(`"${track.title}" ditambahkan ke antrean`);
+        return updated;
+      });
+    },
+    onRemotePlayTrack: async (track: MusicItem, incomingQueue?: MusicItem[]) => {
+      if (Array.isArray(incomingQueue) && incomingQueue.length > 0) {
+        setQueue(incomingQueue);
+        const idx = incomingQueue.findIndex((item) => item.id === track.id);
+        const validIdx = idx >= 0 ? idx : 0;
+        setQueueIndex(validIdx);
+        saveQueueState({
+          items: incomingQueue,
+          currentIndex: validIdx,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await playTrack(track, { autoPlay: true, forceLocal: true });
+      return true;
+    },
   });
+  musicConnectRef.current = musicConnect;
 
   // ─── Mobile Background Playback & MediaSession Integration ────────────────
   useEffect(() => {
@@ -4022,13 +4091,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         )}
       </div>
 
-      {/* ─── REMOTE ACTIVE PLAYBACK BAR (When no local track is loaded but another device is playing) ─── */}
-      {!currentTrack && musicConnect.enabled && musicConnect.remoteActiveSession && (
+      {/* ─── REMOTE ACTIVE PLAYBACK BAR (When another device owns active playback) ─── */}
+      {musicConnect.enabled && musicConnect.remoteActiveSession ? (
         <div className="shrink-0 z-30 relative">
           <MusicConnectRemoteBar
             isDark={isDark}
             remoteSession={musicConnect.remoteActiveSession}
-            hasLocalTrack={false}
+            hasLocalTrack={Boolean(currentTrack)}
             isSendingCommand={musicConnect.isSendingCommand}
             autoplayBlockedPrompt={musicConnect.autoplayBlockedPrompt}
             onUnlockAutoplay={() => {
@@ -4041,10 +4110,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             onOpenConnectModal={() => musicConnect.setShowConnectModal(true)}
           />
         </div>
-      )}
-
-      {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Only rendered when a track is active) ─── */}
-      {currentTrack && (
+      ) : currentTrack ? (
+        /* ─── LOCAL PERSISTENT BOTTOM MINI-PLAYER (Only rendered when playing locally) ─── */
         <footer
           className={`shrink-0 z-30 transition-all relative border-t ${
             isDark
@@ -4052,24 +4119,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               : "bg-[#fafafc] border-black/10 text-zinc-900"
           } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
         >
-          {musicConnect.enabled && musicConnect.remoteActiveSession && (
-            <MusicConnectRemoteBar
-              isDark={isDark}
-              remoteSession={musicConnect.remoteActiveSession}
-              hasLocalTrack={true}
-              isSendingCommand={musicConnect.isSendingCommand}
-              autoplayBlockedPrompt={musicConnect.autoplayBlockedPrompt}
-              onUnlockAutoplay={() => {
-                void musicConnect.unlockAutoplayAndConfirmTransfer();
-              }}
-              onSendCommand={musicConnect.sendAppCommand}
-              onTransferHere={() =>
-                musicConnect.transferAppPlayback(musicConnect.localInstanceId, true)
-              }
-              onOpenConnectModal={() => musicConnect.setShowConnectModal(true)}
-            />
-          )}
-
           {/* ─── MOBILE VIEW (< sm): Sleek, Larger Bar (Click to expand, Heart + Play on right) ─ */}
           <div className="block sm:hidden">
             {/* Top Progress Bar */}
@@ -4484,7 +4533,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           </div>
         </div>
       </footer>
-      )}
+      ) : null}
 
       {/* ─── SPOTIFY-STYLE MOBILE FULL-SCREEN MUSIC PLAYER ───────────────────── */}
       {showMobilePlayer && currentTrack && (

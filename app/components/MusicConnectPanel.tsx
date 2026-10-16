@@ -373,9 +373,8 @@ export function MusicConnectRemoteBar({
           {/* Remote Previous */}
           <button
             type="button"
-            disabled={isSendingCommand}
             onClick={() => onSendCommand(remoteSession.session_instance_id, "PREVIOUS")}
-            className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer active:scale-95 ${
               isDark ? "text-zinc-300 hover:text-white hover:bg-white/10" : "text-zinc-600 hover:text-black hover:bg-black/5"
             }`}
             title={`Lagu sebelumnya di ${remoteSession.device_name}`}
@@ -388,14 +387,13 @@ export function MusicConnectRemoteBar({
           {/* Remote Play / Pause */}
           <button
             type="button"
-            disabled={isSendingCommand}
             onClick={() =>
               onSendCommand(
                 remoteSession.session_instance_id,
                 remoteSession.is_playing ? "PAUSE" : "PLAY"
               )
             }
-            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition cursor-pointer shadow-sm ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition cursor-pointer active:scale-95 shadow-sm ${
               isDark
                 ? "bg-white text-black hover:bg-zinc-200"
                 : "bg-black text-white hover:bg-zinc-800"
@@ -420,9 +418,8 @@ export function MusicConnectRemoteBar({
           {/* Remote Next */}
           <button
             type="button"
-            disabled={isSendingCommand}
             onClick={() => onSendCommand(remoteSession.session_instance_id, "NEXT")}
-            className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-xl transition cursor-pointer active:scale-95 ${
               isDark ? "text-zinc-300 hover:text-white hover:bg-white/10" : "text-zinc-600 hover:text-black hover:bg-black/5"
             }`}
             title={`Lagu berikutnya di ${remoteSession.device_name}`}

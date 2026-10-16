@@ -19,7 +19,8 @@ export type MusicConnectCommandType =
   | "SHUFFLE"
   | "REPEAT"
   | "TRANSFER_PLAYBACK"
-  | "PLAY_TRACK";
+  | "PLAY_TRACK"
+  | "ADD_TO_QUEUE";
 
 export type CommandLifecycleStatus =
   | "pending"

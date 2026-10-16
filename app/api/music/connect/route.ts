@@ -108,6 +108,7 @@ const VALID_COMMAND_TYPES = new Set<MusicConnectCommandType>([
   "REPEAT",
   "TRANSFER_PLAYBACK",
   "PLAY_TRACK",
+  "ADD_TO_QUEUE",
 ]);
 
 function normalizeStore(raw: unknown): UserConnectStore {

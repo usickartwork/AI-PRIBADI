@@ -43,6 +43,8 @@ export interface MusicConnectPlayerBridge {
     positionSeconds: number;
     autoPlay: boolean;
   }) => Promise<boolean>;
+  onRemoteAddToQueue?: (track: MusicItem) => void;
+  onRemotePlayTrack?: (track: MusicItem, queue?: MusicItem[]) => Promise<boolean>;
 }
 
 interface PendingCommandExpectation {
@@ -308,7 +310,83 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             snapshotOverride = { repeat_state: nextRepeat };
             break;
           }
-          case "PLAY_TRACK":
+          case "ADD_TO_QUEUE": {
+            const track = cmd.payload?.track;
+            if (track && b.onRemoteAddToQueue) {
+              b.onRemoteAddToQueue(track);
+              resultMessage = `"${track.title}" ditambahkan ke antrean di ${localDeviceName}`;
+            } else {
+              status = "failed";
+              resultMessage = "Data lagu tidak lengkap";
+            }
+            break;
+          }
+          case "PLAY_TRACK": {
+            const track = cmd.payload?.track || b.currentTrack;
+            const queue = Array.isArray(cmd.payload?.queue) ? cmd.payload.queue : b.queue;
+            if (track && b.onRemotePlayTrack) {
+              const ok = await b.onRemotePlayTrack(track, queue);
+              if (!ok) {
+                status = "failed";
+                resultMessage = `Gagal memutar lagu di ${localDeviceName}`;
+              } else {
+                claimActiveUntilRef.current = Date.now() + 15_000;
+                setAutoplayBlockedPrompt(false);
+                resultMessage = `Memutar "${track.title}" di ${localDeviceName}`;
+                snapshotOverride = {
+                  is_playing: true,
+                  is_active_playback: true,
+                  current_track_id: track.id,
+                  current_track_name: track.title,
+                  current_artist_name: track.artistNames?.join(", ") || null,
+                  current_album_art: track.artworkUrl || null,
+                  current_track_payload: track,
+                  progress_ms: 0,
+                };
+              }
+            } else {
+              // Fallback to transfer logic
+              const posSec =
+                typeof cmd.payload?.positionSeconds === "number"
+                  ? cmd.payload.positionSeconds
+                  : typeof cmd.payload?.positionMs === "number"
+                  ? cmd.payload.positionMs / 1000
+                  : 0;
+              const autoPlay = cmd.payload?.autoPlay !== false;
+              const ok = await b.onRemoteTransferHere({
+                track: track || null,
+                queue,
+                positionSeconds: posSec,
+                autoPlay,
+              });
+              if (!ok && autoPlay) {
+                status = "failed";
+                setAutoplayBlockedPrompt(true);
+                pendingTransferConfirmRef.current = {
+                  fromInstanceId: cmd.source_instance_id,
+                  track: track || null,
+                  queue,
+                  progressMs: Math.round(posSec * 1000),
+                };
+                resultMessage = `Browser di ${localDeviceName} menahan autoplay.`;
+              } else {
+                claimActiveUntilRef.current = Date.now() + 15_000;
+                setAutoplayBlockedPrompt(false);
+                resultMessage = `Playback aktif di ${localDeviceName}`;
+                snapshotOverride = {
+                  is_playing: autoPlay,
+                  is_active_playback: true,
+                  current_track_id: track?.id || null,
+                  current_track_name: track?.title || null,
+                  current_artist_name: track?.artistNames?.join(", ") || null,
+                  current_album_art: track?.artworkUrl || null,
+                  current_track_payload: track || null,
+                  progress_ms: Math.round(posSec * 1000),
+                };
+              }
+            }
+            break;
+          }
           case "TRANSFER_PLAYBACK": {
             const track = cmd.payload?.track || b.currentTrack;
             const queue = Array.isArray(cmd.payload?.queue) ? cmd.payload.queue : b.queue;
@@ -601,9 +679,16 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
 
     void syncHeartbeat({ includeSpotify: false, notifyPeers: true });
 
+    const hasRemoteActive = sessions.some(
+      (s) =>
+        s.session_instance_id !== localInstanceId &&
+        (s.is_active_playback || s.is_playing)
+    );
+    const pollInterval = hasRemoteActive || showConnectModal ? 2_500 : 6_000;
+
     const interval = setInterval(() => {
       void syncHeartbeat({ includeSpotify: showConnectModal, notifyPeers: false });
-    }, 8_000);
+    }, pollInterval);
 
     const handleUnload = () => {
       try {
@@ -631,7 +716,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       window.removeEventListener("beforeunload", handleUnload);
       window.removeEventListener("pagehide", handleUnload);
     };
-  }, [enabled, localInstanceId, showConnectModal, syncHeartbeat, sendWakeupPing]);
+  }, [enabled, localInstanceId, showConnectModal, sessions, syncHeartbeat, sendWakeupPing]);
 
   // Immediately sync & ping peers whenever local track, play/pause, shuffle, or repeat changes
   useEffect(() => {
@@ -752,6 +837,10 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         applyServerResponse(json);
         // Trigger immediate wakeup on target device
         sendWakeupPing();
+
+        // Rapid follow-up pulls to get the ACK and updated playback state from target device quickly
+        setTimeout(() => void pullServerState(), 400);
+        setTimeout(() => void pullServerState(), 1200);
       } catch {
         clearTimeout(timeoutId);
         pendingCommandMapRef.current.delete(cmd.command_id);
@@ -770,6 +859,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       showTransientFeedback,
       applyServerResponse,
       sendWakeupPing,
+      pullServerState,
     ]
   );
 
@@ -780,6 +870,50 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       commandType: MusicConnectCommandType,
       payload?: MusicConnectCommandPayload
     ) => {
+      // Optimistic instant local session feedback for snappy responsive controls
+      if (commandType === "PLAY" || commandType === "PAUSE") {
+        const nextIsPlaying = commandType === "PLAY";
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_instance_id === targetInstanceId
+              ? { ...s, is_playing: nextIsPlaying, updated_at: new Date().toISOString() }
+              : s
+          )
+        );
+      } else if (commandType === "SEEK") {
+        const targetMs =
+          typeof payload?.positionMs === "number"
+            ? payload.positionMs
+            : typeof payload?.positionSeconds === "number"
+            ? Math.round(payload.positionSeconds * 1000)
+            : undefined;
+        if (typeof targetMs === "number") {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.session_instance_id === targetInstanceId
+                ? { ...s, progress_ms: targetMs, updated_at: new Date().toISOString() }
+                : s
+            )
+          );
+        }
+      } else if (commandType === "SHUFFLE" && typeof payload?.shuffle === "boolean") {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_instance_id === targetInstanceId
+              ? { ...s, shuffle_state: payload.shuffle!, updated_at: new Date().toISOString() }
+              : s
+          )
+        );
+      } else if (commandType === "REPEAT" && payload?.repeatMode) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_instance_id === targetInstanceId
+              ? { ...s, repeat_state: payload.repeatMode!, updated_at: new Date().toISOString() }
+              : s
+          )
+        );
+      }
+
       if (commandType === "SEEK" || commandType === "SET_VOLUME") {
         const key = `${targetInstanceId}:${commandType}`;
         const prevTimer = debounceCommandTimersRef.current.get(key);
