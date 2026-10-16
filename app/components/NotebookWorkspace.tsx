@@ -1110,30 +1110,70 @@ export function NotebookWorkspace({
     return notes.find((n) => n.id === activeNoteId) || null;
   }, [notes, activeNoteId]);
 
-  const formatNoteTime = (isoString: string) => {
+  const formatNoteRowDate = (isoString: string) => {
     try {
       const d = new Date(isoString);
       const now = new Date();
-      const diffMs = now.getTime() - d.getTime();
-      const diffMin = Math.floor(diffMs / 60000);
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfNoteDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const diffDays = Math.floor((startOfToday.getTime() - startOfNoteDay.getTime()) / 86400000);
 
-      if (diffMin < 2) return "Baru saja";
-      if (diffMin < 60) return `${diffMin} mnt lalu`;
-      if (diffMin < 1440) return `${Math.floor(diffMin / 60)} jam lalu`;
-
-      const isToday =
-        d.getDate() === now.getDate() &&
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear();
-
-      if (isToday) {
+      if (diffDays === 0) {
         return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       }
-      return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+      if (diffDays > 0 && diffDays <= 7) {
+        return d.toLocaleDateString("en-US", { weekday: "long" });
+      }
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = String(d.getFullYear()).slice(-2);
+      return `${day}/${month}/${year}`;
     } catch {
       return "";
     }
   };
+
+  const groupedNotes = useMemo(() => {
+    const groups: { title: string; items: NoteItem[] }[] = [];
+    const groupMap = new Map<string, NoteItem[]>();
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    for (const note of filteredNotes) {
+      let groupTitle = "Previous 30 Days";
+      if (note.is_pinned) {
+        groupTitle = "Pinned";
+      } else {
+        try {
+          const d = new Date(note.updated_at);
+          const startOfNoteDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          const diffDays = Math.floor((startOfToday.getTime() - startOfNoteDay.getTime()) / 86400000);
+
+          if (diffDays <= 0) {
+            groupTitle = "Today";
+          } else if (diffDays <= 7) {
+            groupTitle = "Previous 7 Days";
+          } else if (diffDays <= 30) {
+            groupTitle = "Previous 30 Days";
+          } else if (d.getFullYear() === now.getFullYear()) {
+            groupTitle = d.toLocaleDateString("en-US", { month: "long" });
+          } else {
+            groupTitle = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          }
+        } catch {}
+      }
+
+      if (!groupMap.has(groupTitle)) {
+        const arr: NoteItem[] = [];
+        groupMap.set(groupTitle, arr);
+        groups.push({ title: groupTitle, items: arr });
+      }
+      groupMap.get(groupTitle)!.push(note);
+    }
+
+    return groups;
+  }, [filteredNotes]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // HALAMAN 1: HOME / LANDING COVER VIEW (Persis Desain Cover Referensi Monokrom)
@@ -1499,14 +1539,14 @@ export function NotebookWorkspace({
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // HALAMAN 3: SEMUA FILE CATATAN (GRID CARD VIEW PERSIS GAMBAR REFERENSI KEDUA)
+  // HALAMAN 3: SEMUA FILE CATATAN (LIST VIEW KRONOLOGIS PERSIS GAMBAR REFERENSI)
   // ─────────────────────────────────────────────────────────────────────────────
   const renderFilesPage = () => (
     <div className="flex-1 flex flex-col h-full w-full overflow-hidden animate-in fade-in-0 duration-150">
       {/* Top Bar Halaman Semua File */}
       <div
-        className={`px-4 sm:px-8 py-3.5 border-b flex items-center justify-between shrink-0 gap-3 ${
-          isDark ? "border-zinc-800 bg-[#09090b]" : "border-zinc-200 bg-white"
+        className={`px-4 sm:px-8 py-3.5 border-b flex items-center justify-between shrink-0 gap-3 backdrop-blur-md ${
+          isDark ? "border-white/10 bg-transparent" : "border-black/10 bg-transparent"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -1515,7 +1555,7 @@ export function NotebookWorkspace({
             type="button"
             onClick={() => setPageView("home")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 text-zinc-300 hover:text-white" : "hover:bg-zinc-100 text-zinc-700 hover:text-black"
+              isDark ? "hover:bg-white/10 text-zinc-300 hover:text-white" : "hover:bg-black/5 text-zinc-700 hover:text-black"
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -1526,11 +1566,11 @@ export function NotebookWorkspace({
           <span className="text-xs text-zinc-500 font-medium">({notes.length})</span>
         </div>
 
-        {/* Search Bar & Tombol Tambah */}
-        <div className="flex items-center gap-2">
+        {/* Search Bar & Tombol Tambah Lingkaran Tanpa Teks */}
+        <div className="flex items-center gap-2.5">
           <div
             className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition ${
-              isDark ? "bg-zinc-900 border-zinc-800 focus-within:border-zinc-700" : "bg-zinc-50 border-zinc-200 focus-within:border-zinc-300"
+              isDark ? "bg-white/5 border-white/10 focus-within:border-white/25" : "bg-black/5 border-black/10 focus-within:border-black/25"
             }`}
           >
             <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
@@ -1551,17 +1591,18 @@ export function NotebookWorkspace({
           <button
             type="button"
             onClick={openNewNoteModal}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer shadow-xs ${
+            title="Catatan Baru"
+            aria-label="Catatan Baru"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer shadow-xs shrink-0 ${
               isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
             }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>Catatan Baru</span>
+            <Plus className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
 
-      {/* Konten Grid Kartu Catatan (Persis Screenshot Referensi dengan Palet Web) */}
+      {/* Konten Daftar Catatan Kronologis (Persis Gambar Referensi) */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 overscroll-contain">
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center text-center text-xs text-zinc-500">
@@ -1571,7 +1612,7 @@ export function NotebookWorkspace({
         ) : filteredNotes.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center max-w-sm mx-auto">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ${
-              isDark ? "bg-zinc-900 text-zinc-600" : "bg-zinc-100 text-zinc-400"
+              isDark ? "bg-white/5 text-zinc-500" : "bg-black/5 text-zinc-400"
             }`}>
               <FileText className="w-7 h-7" />
             </div>
@@ -1582,81 +1623,96 @@ export function NotebookWorkspace({
             <button
               type="button"
               onClick={openNewNoteModal}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              title="Buat Catatan Pertama"
+              aria-label="Buat Catatan Pertama"
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition cursor-pointer ${
                 isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
               }`}
             >
-              + Buat Catatan Pertama
+              <Plus className="w-5 h-5 stroke-[2.5]" />
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
-            {filteredNotes.map((note) => {
-              const snippet = extractPlainText(note.content) || "Belum ada tulisan di dalam catatan ini...";
-
-              return (
+          <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-10">
+            {groupedNotes.map((group) => (
+              <div key={group.title} className="flex flex-col">
+                {/* Header Kategori Waktu (Today, Previous 7 Days, Previous 30 Days, Bulan) */}
                 <div
-                  key={note.id}
-                  onClick={() => handleSelectNoteFromGrid(note)}
-                  className={`group relative flex flex-col justify-between p-5 rounded-2xl border transition-all cursor-pointer select-none ${
-                    isDark
-                      ? "bg-[#18181b] hover:bg-zinc-800/80 border-zinc-800 hover:border-zinc-700 shadow-lg shadow-black/40"
-                      : "bg-white hover:bg-zinc-50 border-zinc-200 hover:border-zinc-300 shadow-sm"
-                  } ${note.is_pinned ? (isDark ? "ring-1 ring-zinc-600" : "ring-1 ring-zinc-400") : ""}`}
+                  className={`pb-2 border-b text-xs sm:text-[13px] font-semibold tracking-tight ${
+                    isDark ? "text-zinc-400 border-white/10" : "text-zinc-500 border-black/10"
+                  }`}
                 >
-                  <div>
-                    {/* Baris Atas Kartu: Timestamp di kiri, Badge Tag di kanan */}
-                    <div className="flex items-center justify-between mb-3 text-xs">
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-                        {formatNoteTime(note.updated_at)}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {note.is_pinned && (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
-                            isDark ? "bg-zinc-800 text-zinc-200" : "bg-zinc-100 text-zinc-800"
-                          }`}>
-                            <Pin className="w-2.5 h-2.5 fill-current" />
-                            <span>Pinned</span>
-                          </span>
-                        )}
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          isDark ? "bg-zinc-800/80 text-zinc-400" : "bg-zinc-100 text-zinc-600"
-                        }`}>
-                          Note
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Judul Catatan Tebal */}
-                    <h3 className={`text-base font-bold tracking-tight mb-2 truncate ${
-                      isDark ? "text-white group-hover:text-zinc-100" : "text-black group-hover:text-zinc-900"
-                    }`}>
-                      {note.title.trim() || "Catatan Tanpa Judul"}
-                    </h3>
-
-                    {/* Cuplikan Teks 3 Baris */}
-                    <p className="text-xs sm:text-[13px] text-zinc-500 dark:text-zinc-400 line-clamp-3 leading-relaxed mb-4">
-                      {snippet}
-                    </p>
-                  </div>
-
-                  {/* Baris Bawah Kartu: Aksi Cepat */}
-                  <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-                    <span className="text-[10px] opacity-70">Klik untuk membuka canvas</span>
-                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={(e) => handleTogglePin(e, note.id)}
-                        title={note.is_pinned ? "Lepas Sematan" : "Sematkan"}
-                        className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
-                      >
-                        <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? "fill-current text-white" : ""}`} />
-                      </button>
-                    </div>
-                  </div>
+                  {group.title}
                 </div>
-              );
-            })}
+
+                {/* Daftar Baris Catatan */}
+                <div className="flex flex-col">
+                  {group.items.map((note) => {
+                    const snippet = extractPlainText(note.content) || "Tidak ada teks tambahan";
+                    const rowDate = formatNoteRowDate(note.updated_at);
+
+                    return (
+                      <div
+                        key={note.id}
+                        onClick={() => handleSelectNoteFromGrid(note)}
+                        className={`group flex items-center justify-between gap-3 py-3 px-2 -mx-2 rounded-lg border-b transition-colors cursor-pointer select-none ${
+                          isDark
+                            ? "border-white/[0.08] hover:bg-white/[0.04]"
+                            : "border-black/[0.08] hover:bg-black/[0.03]"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          {/* Baris 1: Judul Catatan Tebal */}
+                          <h3
+                            className={`text-sm sm:text-[15px] font-bold tracking-tight truncate mb-0.5 ${
+                              isDark ? "text-zinc-100 group-hover:text-white" : "text-zinc-900 group-hover:text-black"
+                            }`}
+                          >
+                            {note.title.trim() || "Catatan Tanpa Judul"}
+                          </h3>
+
+                          {/* Baris 2: Waktu di kiri + Cuplikan isi 1 baris */}
+                          <div className="flex items-center gap-2.5 text-xs sm:text-[13px] min-w-0">
+                            <span
+                              className={`shrink-0 font-normal ${
+                                isDark ? "text-zinc-400" : "text-zinc-500"
+                              }`}
+                            >
+                              {rowDate}
+                            </span>
+                            <span
+                              className={`truncate ${
+                                isDark ? "text-zinc-500" : "text-zinc-500"
+                              }`}
+                            >
+                              {snippet}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Tombol Pin di kanan (muncul saat di-pin atau saat hover) */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleTogglePin(e, note.id)}
+                          title={note.is_pinned ? "Lepas Sematan" : "Sematkan"}
+                          className={`p-1.5 rounded-md transition shrink-0 ${
+                            note.is_pinned
+                              ? isDark
+                                ? "opacity-100 text-white hover:bg-white/10"
+                                : "opacity-100 text-black hover:bg-black/10"
+                              : isDark
+                                ? "opacity-0 group-hover:opacity-70 hover:!opacity-100 text-zinc-400 hover:bg-white/10"
+                                : "opacity-0 group-hover:opacity-70 hover:!opacity-100 text-zinc-500 hover:bg-black/10"
+                          }`}
+                        >
+                          <Pin className={`w-3.5 h-3.5 ${note.is_pinned ? "fill-current" : ""}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -1670,8 +1726,8 @@ export function NotebookWorkspace({
     <div className="flex-1 flex flex-col h-full w-full overflow-hidden animate-in fade-in-0 duration-150">
       {/* Header Bar Canvas */}
       <div
-        className={`px-3.5 sm:px-6 py-2.5 border-b flex items-center justify-between shrink-0 gap-2 ${
-          isDark ? "border-zinc-800 bg-[#09090b]" : "border-zinc-200 bg-white"
+        className={`px-3.5 sm:px-6 py-2.5 border-b flex items-center justify-between shrink-0 gap-2 backdrop-blur-md ${
+          isDark ? "border-white/10 bg-transparent" : "border-black/10 bg-transparent"
         }`}
       >
         <div className="flex items-center gap-2">
@@ -1683,7 +1739,7 @@ export function NotebookWorkspace({
               setPageView("files");
             }}
             className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-zinc-100 text-zinc-700"
+              isDark ? "hover:bg-white/10 text-zinc-300" : "hover:bg-black/5 text-zinc-700"
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -1699,7 +1755,7 @@ export function NotebookWorkspace({
             }}
             title="Kembali ke Cover Home"
             className={`hidden sm:flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+              isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/5 text-zinc-600 hover:text-black"
             }`}
           >
             <Home className="w-3.5 h-3.5" />
@@ -1747,8 +1803,8 @@ export function NotebookWorkspace({
               title={activeNote.is_pinned ? "Lepas Sematan" : "Sematkan"}
               className={`p-2 rounded-xl transition cursor-pointer ${
                 activeNote.is_pinned
-                  ? isDark ? "bg-zinc-800 text-white" : "bg-zinc-100 text-black"
-                  : isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+                  ? isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  : isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/5 text-zinc-600 hover:text-black"
               }`}
             >
               <Pin className={`w-4 h-4 ${activeNote.is_pinned ? "fill-current" : ""}`} />
@@ -1762,7 +1818,7 @@ export function NotebookWorkspace({
             className={`p-2 rounded-xl transition cursor-pointer ${
               copiedSuccess
                 ? "text-zinc-200 font-bold"
-                : isDark ? "hover:bg-zinc-800 text-zinc-400 hover:text-white" : "hover:bg-zinc-100 text-zinc-600 hover:text-black"
+                : isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/5 text-zinc-600 hover:text-black"
             }`}
           >
             {copiedSuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -1781,8 +1837,8 @@ export function NotebookWorkspace({
 
       {/* ─── TOOLBAR WYSIWYG RESPONSIVE LENGKAP (DIPERBAIKI MOBILE: TANPA PERLU SLIDE) ─── */}
       <div
-        className={`px-2.5 sm:px-8 py-1.5 sm:py-2 border-b flex flex-wrap sm:flex-nowrap items-center gap-y-1.5 gap-x-1 sm:gap-x-1.5 shrink-0 ${
-          isDark ? "bg-[#141416] border-zinc-800/80 text-zinc-300" : "bg-zinc-50 border-zinc-200 text-zinc-700"
+        className={`px-2.5 sm:px-8 py-1.5 sm:py-2 border-b flex flex-wrap sm:flex-nowrap items-center gap-y-1.5 gap-x-1 sm:gap-x-1.5 shrink-0 backdrop-blur-md ${
+          isDark ? "bg-white/[0.03] border-white/10 text-zinc-300" : "bg-black/[0.02] border-black/10 text-zinc-700"
         }`}
       >
         {/* Format Karakter: Bold, Italic, Underline, Strikethrough */}
@@ -2090,8 +2146,8 @@ export function NotebookWorkspace({
 
   return (
     <div
-      className={`h-full w-full flex flex-col overflow-hidden ${
-        isDark ? "bg-[#09090b] text-zinc-100" : "bg-[#ffffff] text-zinc-900"
+      className={`h-full w-full flex flex-col overflow-hidden bg-transparent ${
+        isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
       {/* ─── ROUTING 3 HALAMAN RESMI (Dipertahankan di DOM agar canvas & editorRef tidak unmount) ─── */}

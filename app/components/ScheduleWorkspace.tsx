@@ -1266,54 +1266,11 @@ export function ScheduleWorkspace({
           )}
         </div>
 
-        {/* Header Action: Google Calendar Connect & Daftar Agenda Toggle Button */}
+        {/* Header Action: Daftar Agenda Toggle Button dengan Indikator Lingkaran */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Google Calendar Connect / Status Button */}
-          {isGoogleConnected ? (
-            <button
-              onClick={handleDisconnectGoogleCalendar}
-              disabled={googleLoading}
-              className={`flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm text-xs font-medium ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-red-950/40 border border-white/10 hover:border-red-500/40 text-zinc-200 hover:text-red-300 shadow-black/40"
-                  : "bg-white/70 hover:bg-red-50 border border-black/10 hover:border-red-300 text-zinc-800 hover:text-red-700 shadow-zinc-900/10"
-              }`}
-              title={`Google Calendar Terhubung${googleAccountEmail ? ` (${googleAccountEmail})` : ""}. Klik untuk putuskan koneksi.`}
-            >
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <GoogleCalendarIcon className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline">Google Calendar</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleConnectGoogleCalendar}
-              disabled={googleLoading}
-              className={`flex items-center gap-1.5 h-10 sm:h-11 px-3 sm:px-3.5 rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 text-xs font-medium ${
-                isDark
-                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-300 hover:text-white shadow-black/40"
-                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-700 hover:text-black shadow-zinc-900/10"
-              }`}
-              title="Hubungkan Google Calendar untuk sinkronisasi otomatis jadwal"
-            >
-              {googleLoading ? (
-                <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-              ) : (
-                <GoogleCalendarIcon className="w-4 h-4 shrink-0" />
-              )}
-              <span className="hidden sm:inline">Connect Google Calendar</span>
-              <span className="sm:hidden">Connect</span>
-            </button>
-          )}
-
           <button
             onClick={() => setCurrentTab(currentTab === "chat" ? "list" : "chat")}
-            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+            className={`flex h-10 sm:h-11 ${isGoogleConnected ? "px-3 sm:px-3.5 gap-2" : "w-10 sm:w-11"} items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
               currentTab === "list"
                 ? isDark
                   ? "bg-white text-black shadow-xs"
@@ -1325,12 +1282,18 @@ export function ScheduleWorkspace({
             title={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
             aria-label={currentTab === "list" ? "Chat Jadwal" : "Daftar Agenda"}
           >
+            {isGoogleConnected && (
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
+              </span>
+            )}
             {currentTab === "list" ? (
-              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
             ) : (
-              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             )}
@@ -1734,9 +1697,9 @@ export function ScheduleWorkspace({
                                 </svg>
                                 <span>{msg.isRevision ? "Jadwal berhasil diperbarui di agenda" : "Jadwal telah ditambahkan ke agenda"}</span>
                                 {msg.confirmedSchedule?.google_sync_status === "synced" && (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 ml-1">
-                                    <GoogleCalendarIcon className="w-3 h-3" />
-                                    <span>Google Calendar</span>
+                                  <span className="relative flex h-2 w-2 shrink-0 ml-1" title="Tersinkronisasi">
+                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDark ? "bg-white" : "bg-black"}`} />
+                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isDark ? "bg-white" : "bg-black"}`} />
                                   </span>
                                 )}
                               </span>
@@ -2284,12 +2247,14 @@ export function ScheduleWorkspace({
               >
                 <div className="flex-1 pr-2">
                   <div className="font-semibold text-[11px] text-zinc-400 uppercase flex items-center gap-1.5">
-                    <GoogleCalendarIcon className="w-3.5 h-3.5" />
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isDark ? "bg-white" : "bg-black"}`} />
+                    </span>
                     <span>Google Calendar Sync:</span>
                   </div>
                   <div className="text-xs font-medium mt-1">
                     {selectedItem.google_sync_status === "synced" ? (
-                      <span className={`font-semibold flex items-center gap-1.5 ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                      <span className={`font-semibold flex items-center gap-1.5 ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
@@ -2450,18 +2415,6 @@ export function ScheduleWorkspace({
   );
 }
 
-// ─── Sub-component: Google Calendar Icon ─────────────────────────────────────
-function GoogleCalendarIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="4" width="18" height="17" rx="3" fill="#4285F4" fillOpacity="0.15" stroke="#4285F4" strokeWidth="1.8" />
-      <path d="M3 9h18" stroke="#4285F4" strokeWidth="1.8" />
-      <path d="M8 2v4M16 2v4" stroke="#EA4335" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="12" cy="15" r="1.8" fill="#34A853" />
-    </svg>
-  );
-}
-
 // ─── Sub-component: Section Group for Schedules (Monochrome Clean) ───────────
 function ScheduleSection({
   title,
@@ -2557,20 +2510,14 @@ function ScheduleSection({
                     </span>
                   )}
 
-                  {/* Google Calendar Sync Badge */}
+                  {/* Google Calendar Sync Indicator (Hanya lingkaran sesuai tema) */}
                   {item.google_sync_status === "synced" && (
                     <span
                       title={`Tersinkron dengan Google Calendar${item.google_synced_at ? ` (${new Date(item.google_synced_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})` : ""}`}
-                      className={`text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1 border ${
-                        isDark
-                          ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/60"
-                          : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                      }`}
+                      className="relative flex h-2 w-2 shrink-0 mx-0.5"
                     >
-                      <GoogleCalendarIcon className="w-3 h-3" />
-                      <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDark ? "bg-white" : "bg-black"}`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isDark ? "bg-white" : "bg-black"}`} />
                     </span>
                   )}
 
