@@ -1124,14 +1124,30 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
 
       const b = bridgeRef.current;
       const sourceSession =
+        remoteActiveSession ||
         sessions.find((s) => isDeviceSessionOnline(s) && s.is_active_playback) ||
         sessions.find((s) => isDeviceSessionOnline(s) && s.is_playing) ||
         null;
 
       const isTransferringToSelf = targetInstanceId === localInstanceId;
-      const trackToTransfer = isTransferringToSelf
+      let candidateTrack = isTransferringToSelf
         ? sourceSession?.current_track_payload || b.currentTrack
         : b.currentTrack || sourceSession?.current_track_payload || null;
+
+      if (!candidateTrack && sourceSession?.current_track_id) {
+        candidateTrack = {
+          id: sourceSession.current_track_id,
+          provider: "spotify",
+          providerItemId: sourceSession.current_track_id,
+          itemType: "track",
+          title: sourceSession.current_track_name || "Lagu",
+          artistNames: sourceSession.current_artist_name ? [sourceSession.current_artist_name] : [],
+          artworkUrl: sourceSession.current_album_art || "",
+          durationMs: sourceSession.duration_ms || 0,
+          externalUrl: "",
+        };
+      }
+      const trackToTransfer = candidateTrack;
 
       const queueToTransfer = isTransferringToSelf
         ? sourceSession?.queue_payload && sourceSession.queue_payload.length > 0
@@ -1316,15 +1332,27 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   const unlockAutoplayAndConfirmTransfer = useCallback(async () => {
     setAutoplayBlockedPrompt(false);
     const b = bridgeRef.current;
-    const started = await b.onRemotePlay();
+    const pending = pendingTransferConfirmRef.current;
+    pendingTransferConfirmRef.current = null;
+
+    let started = false;
+    if (pending?.track) {
+      started = await b.onRemoteTransferHere({
+        track: pending.track,
+        queue: pending.queue,
+        positionSeconds: Math.max(0, (pending.progressMs || 0) / 1000),
+        autoPlay: true,
+      });
+    } else {
+      started = await b.onRemotePlay();
+    }
+
     if (!started) {
       setAutoplayBlockedPrompt(true);
       return;
     }
 
     claimActiveUntilRef.current = Date.now() + 15_000;
-    const pending = pendingTransferConfirmRef.current;
-    pendingTransferConfirmRef.current = null;
 
     try {
       const res = await fetch("/api/music/connect", {

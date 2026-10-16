@@ -1648,7 +1648,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       const trackToPlay = currentTrack || queueRef.current[0] || null;
       if (!trackToPlay) return false;
       if (!currentTrack || loadedTrackIdRef.current !== trackToPlay.id) {
-        await playTrack(trackToPlay, { autoPlay: true });
+        await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
       } else if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         try {
           ytPlayerRef.current.playVideo();
@@ -1657,23 +1657,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           }
           setIsPlaying(true);
         } catch {
-          await playTrack(trackToPlay, { autoPlay: true });
+          await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
         }
       } else {
-        await playTrack(trackToPlay, { autoPlay: true });
+        await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
       }
-
-      return await new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          try {
-            const st = ytPlayerRef.current?.getPlayerState?.();
-            // 1 = PLAYING, 3 = BUFFERING
-            resolve(st === 1 || st === 3);
-          } catch {
-            resolve(true);
-          }
-        }, 600);
-      });
+      return true;
     },
     onRemotePause: () => {
       userRequestedPauseRef.current = true;
@@ -1708,7 +1697,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       setRepeatMode(nextMode);
     },
     onRemoteTransferHere: async ({ track, queue: incomingQueue, positionSeconds, autoPlay }) => {
-      const targetTrack = track || currentTrack || incomingQueue[0] || queueRef.current[0] || null;
+      const targetTrack = track || currentTrack || incomingQueue?.[0] || queueRef.current[0] || null;
       if (Array.isArray(incomingQueue) && incomingQueue.length > 0) {
         setQueue(incomingQueue);
         const idx = targetTrack
@@ -1723,19 +1712,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         });
       }
       if (!targetTrack) return false;
-      await playTrack(targetTrack, { startSeconds: positionSeconds, autoPlay });
-      if (!autoPlay) return true;
-      return await new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          try {
-            const st = ytPlayerRef.current?.getPlayerState?.();
-            // 1 = PLAYING, 3 = BUFFERING
-            resolve(st === 1 || st === 3);
-          } catch {
-            resolve(true);
-          }
-        }, 650);
-      });
+      await playTrack(targetTrack, { startSeconds: positionSeconds, autoPlay, forceLocal: true });
+      return true;
     },
     onRemoteAddToQueue: (track: MusicItem) => {
       setQueue((prevQueue) => {
