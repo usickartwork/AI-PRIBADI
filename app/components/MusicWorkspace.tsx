@@ -1574,10 +1574,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   };
 
-  const playNext = () => {
+  const playNext = (): MusicItem | null => {
     const currentQueue = queueRef.current;
     const currentIndex = queueIndexRef.current;
-    if (currentQueue.length === 0) return;
+    if (currentQueue.length === 0) return null;
 
     let nextIdx = 0;
     if (isShuffleRef.current) {
@@ -1590,23 +1590,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         if (repeatModeRef.current === "all") {
           nextIdx = 0;
         } else {
-          return;
+          return null;
         }
       }
     }
     setQueueIndex(nextIdx);
     const nextTrack = currentQueue[nextIdx];
     if (nextTrack) playTrack(nextTrack);
+    return nextTrack || null;
   };
 
-  const playPrevious = () => {
+  const playPrevious = (): MusicItem | null => {
     if (currentTime > 3) {
       handleSeek(0);
-      return;
+      return currentTrack;
     }
     const currentQueue = queueRef.current;
     const currentIndex = queueIndexRef.current;
-    if (currentQueue.length === 0) return;
+    if (currentQueue.length === 0) return null;
 
     let prevIdx = 0;
     if (currentIndex <= 0) {
@@ -1617,6 +1618,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setQueueIndex(prevIdx);
     const prevTrack = currentQueue[prevIdx];
     if (prevTrack) playTrack(prevTrack);
+    return prevTrack || null;
   };
 
   const handleTrackEnded = () => {
@@ -1691,12 +1693,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     onRemoteTogglePlay: () => {
       togglePlayPause();
     },
-    onRemoteNext: () => {
-      playNext();
-    },
-    onRemotePrevious: () => {
-      playPrevious();
-    },
+    onRemoteNext: () => playNext(),
+    onRemotePrevious: () => playPrevious(),
     onRemoteSeek: (seconds: number) => {
       handleSeek(seconds);
     },

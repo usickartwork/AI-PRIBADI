@@ -248,44 +248,28 @@ export function MusicConnectRemoteBar({
   onOpenConnectModal,
 }: MusicConnectRemoteBarProps) {
   const durationSec = Math.max(1, (remoteSession.duration_ms || 0) / 1000);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [userSeekSec, setUserSeekSec] = useState<number | null>(null);
+  const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [displayProgressSec, setDisplayProgressSec] = useState<number>(() =>
-    Math.max(0, (remoteSession.progress_ms || 0) / 1000)
-  );
-
-  const lastTrackIdRef = useRef<string | null>(remoteSession.current_track_id);
-  const currentProgressRef = useRef<number>(Math.max(0, (remoteSession.progress_ms || 0) / 1000));
-
-  // Sync smoothly with remote server updates (only snap on track change or seek > 2.5s)
-  useEffect(() => {
-    const serverSec = Math.max(0, (remoteSession.progress_ms || 0) / 1000);
-    const trackChanged = lastTrackIdRef.current !== remoteSession.current_track_id;
-
-    if (trackChanged) {
-      lastTrackIdRef.current = remoteSession.current_track_id;
-      currentProgressRef.current = serverSec;
-      setDisplayProgressSec(serverSec);
-      return;
-    }
-
-    // Only snap if difference is significant (seek / skip > 2.5s)
-    if (Math.abs(serverSec - currentProgressRef.current) > 2.5) {
-      currentProgressRef.current = serverSec;
-      setDisplayProgressSec(serverSec);
-    }
-  }, [remoteSession.current_track_id, remoteSession.progress_ms]);
-
-  // Monotonic local forward timer while playing: advances 0.5s smoothly with ZERO rubber-banding
+  // Smooth monotonic tick while remote session is actively playing (every 250ms)
   useEffect(() => {
     if (!remoteSession.is_playing) return;
-
-    const timer = setInterval(() => {
-      currentProgressRef.current = Math.min(durationSec, currentProgressRef.current + 0.5);
-      setDisplayProgressSec(currentProgressRef.current);
-    }, 500);
-
+    setNowMs(Date.now());
+    const timer = setInterval(() => setNowMs(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [remoteSession.is_playing, durationSec]);
+  }, [remoteSession.is_playing]);
+
+  useEffect(() => {
+    return () => {
+      if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+    };
+  }, []);
+
+  const displayProgressSec =
+    userSeekSec !== null
+      ? userSeekSec
+      : getInterpolatedRemoteProgressSec(remoteSession, nowMs);
 
   const pct = Math.max(0, Math.min(100, (displayProgressSec / durationSec) * 100));
 
@@ -308,8 +292,11 @@ export function MusicConnectRemoteBar({
           const rect = e.currentTarget.getBoundingClientRect();
           const clickPct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           const targetSec = clickPct * durationSec;
-          currentProgressRef.current = targetSec;
-          setDisplayProgressSec(targetSec);
+          setUserSeekSec(targetSec);
+          if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+          seekTimeoutRef.current = setTimeout(() => {
+            setUserSeekSec(null);
+          }, 1500);
           onSendCommand(remoteSession.session_instance_id, "SEEK", {
             positionSeconds: targetSec,
             positionMs: Math.round(targetSec * 1000),
@@ -317,9 +304,9 @@ export function MusicConnectRemoteBar({
         }}
       >
         <div
-          className={`h-full transition-[width] duration-500 ease-linear ${
-            isDark ? "bg-white" : "bg-zinc-900"
-          }`}
+          className={`h-full ${
+            remoteSession.is_playing ? "transition-[width] duration-250 ease-linear" : ""
+          } ${isDark ? "bg-white" : "bg-zinc-900"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -375,9 +362,9 @@ export function MusicConnectRemoteBar({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                  remoteSession.is_playing ? "animate-pulse" : ""
-                } ${isDark ? "bg-white" : "bg-zinc-900"}`}
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  remoteSession.is_playing ? "bg-emerald-500" : isDark ? "bg-white/40" : "bg-black/40"
+                }`}
               />
               <span className="text-[10px] sm:text-[11px] font-bold tracking-tight truncate">
                 {remoteSession.is_playing ? "Sedang diputar di" : "Terakhir aktif di"}{" "}
@@ -775,8 +762,8 @@ export function MusicConnectModal({
                 <div className="flex items-center gap-2 min-w-0">
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${
-                      remoteControllableSession.is_playing ? "animate-ping" : ""
-                    } ${isDark ? "bg-white" : "bg-black"}`}
+                      remoteControllableSession.is_playing ? "bg-emerald-500" : isDark ? "bg-white/40" : "bg-black/40"
+                    }`}
                   />
                   <span className="text-xs font-bold truncate">
                     Remote Control: {remoteControllableSession.device_name}
@@ -857,7 +844,6 @@ export function MusicConnectModal({
                   {/* Shuffle */}
                   <button
                     type="button"
-                    disabled={isSendingCommand}
                     onClick={() =>
                       onSendAppCommand(remoteControllableSession.session_instance_id, "SHUFFLE", {
                         shuffle: !remoteControllableSession.shuffle_state,
@@ -880,7 +866,6 @@ export function MusicConnectModal({
                   {/* Previous */}
                   <button
                     type="button"
-                    disabled={isSendingCommand}
                     onClick={() =>
                       onSendAppCommand(remoteControllableSession.session_instance_id, "PREVIOUS")
                     }
@@ -895,7 +880,6 @@ export function MusicConnectModal({
                   {/* Play / Pause */}
                   <button
                     type="button"
-                    disabled={isSendingCommand}
                     onClick={() =>
                       onSendAppCommand(
                         remoteControllableSession.session_instance_id,
@@ -921,7 +905,6 @@ export function MusicConnectModal({
                   {/* Next */}
                   <button
                     type="button"
-                    disabled={isSendingCommand}
                     onClick={() =>
                       onSendAppCommand(remoteControllableSession.session_instance_id, "NEXT")
                     }
@@ -936,7 +919,6 @@ export function MusicConnectModal({
                   {/* Repeat */}
                   <button
                     type="button"
-                    disabled={isSendingCommand}
                     onClick={() => {
                       const nextRep =
                         remoteControllableSession.repeat_state === "off"

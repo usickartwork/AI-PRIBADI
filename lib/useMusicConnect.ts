@@ -31,8 +31,8 @@ export interface MusicConnectPlayerBridge {
   onRemotePlay: () => Promise<boolean>;
   onRemotePause: () => void;
   onRemoteTogglePlay: () => void;
-  onRemoteNext: () => void;
-  onRemotePrevious: () => void;
+  onRemoteNext: () => MusicItem | null | void;
+  onRemotePrevious: () => MusicItem | null | void;
   onRemoteSeek: (seconds: number) => void;
   onRemoteVolume: (volume0to1: number) => void;
   onRemoteShuffle: (shuffle: boolean) => void;
@@ -217,12 +217,28 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
    */
   const sendWakeupPing = useCallback(() => {
     try {
-      if (realtimeChannelRef.current) {
-        realtimeChannelRef.current.send({
-          type: "broadcast",
-          event: "connect_ping",
-          payload: { t: Date.now() },
-        });
+      const ch = realtimeChannelRef.current;
+      if (ch) {
+        if (ch.state === "joined") {
+          ch.send({
+            type: "broadcast",
+            event: "connect_ping",
+            payload: { t: Date.now() },
+          });
+        } else {
+          // If channel is still connecting or reconnecting, retry after a short delay
+          setTimeout(() => {
+            try {
+              if (realtimeChannelRef.current?.state === "joined") {
+                realtimeChannelRef.current.send({
+                  type: "broadcast",
+                  event: "connect_ping",
+                  payload: { t: Date.now() },
+                });
+              }
+            } catch {}
+          }, 180);
+        }
       }
     } catch {}
     try {
@@ -294,13 +310,39 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             break;
           }
           case "NEXT": {
-            b.onRemoteNext();
+            const nextTrack = b.onRemoteNext();
             resultMessage = `Lagu berikutnya di ${localDeviceName}`;
+            if (nextTrack) {
+              snapshotOverride = {
+                current_track_id: nextTrack.id,
+                current_track_name: nextTrack.title,
+                current_artist_name: nextTrack.artistNames?.join(", ") || null,
+                current_album_art: nextTrack.artworkUrl || null,
+                current_track_payload: nextTrack,
+                progress_ms: 0,
+                duration_ms: nextTrack.durationMs || 0,
+                is_playing: true,
+                is_active_playback: true,
+              };
+            }
             break;
           }
           case "PREVIOUS": {
-            b.onRemotePrevious();
+            const prevTrack = b.onRemotePrevious();
             resultMessage = `Lagu sebelumnya di ${localDeviceName}`;
+            if (prevTrack) {
+              snapshotOverride = {
+                current_track_id: prevTrack.id,
+                current_track_name: prevTrack.title,
+                current_artist_name: prevTrack.artistNames?.join(", ") || null,
+                current_album_art: prevTrack.artworkUrl || null,
+                current_track_payload: prevTrack,
+                progress_ms: 0,
+                duration_ms: prevTrack.durationMs || 0,
+                is_playing: true,
+                is_active_playback: true,
+              };
+            }
             break;
           }
           case "SEEK": {
@@ -546,21 +588,48 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         setRealtimeTopic((prev) => (prev === json.realtimeTopic ? prev : json.realtimeTopic));
       }
       if (Array.isArray(json.sessions)) {
-        setSessions((prev) => (areSessionsEqual(prev, json.sessions) ? prev : json.sessions));
+        // Protect optimistic values for any target session that still has an in-flight command
+        const protectedSessions = json.sessions.map((s: AppDeviceSession) => {
+          let merged = s;
+          for (const pending of pendingCommandMapRef.current.values()) {
+            if (pending.targetInstanceId === s.session_instance_id) {
+              if (pending.commandType === "PLAY" && !s.is_playing) {
+                merged = { ...merged, is_playing: true, is_active_playback: true };
+              } else if (pending.commandType === "PAUSE" && s.is_playing) {
+                merged = { ...merged, is_playing: false };
+              }
+            }
+          }
+          return merged;
+        });
+
+        setSessions((prev) => (areSessionsEqual(prev, protectedSessions) ? prev : protectedSessions));
       }
       if (json.activeSession !== undefined) {
         setActiveSession((prev) => {
-          if (!prev && !json.activeSession) return null;
+          let target = json.activeSession as AppDeviceSession | null;
+          if (target && pendingCommandMapRef.current.size > 0) {
+            for (const pending of pendingCommandMapRef.current.values()) {
+              if (pending.targetInstanceId === target.session_instance_id) {
+                if (pending.commandType === "PLAY" && !target.is_playing) {
+                  target = { ...target, is_playing: true, is_active_playback: true };
+                } else if (pending.commandType === "PAUSE" && target.is_playing) {
+                  target = { ...target, is_playing: false };
+                }
+              }
+            }
+          }
+          if (!prev && !target) return null;
           if (
             prev &&
-            json.activeSession &&
-            prev.session_instance_id === json.activeSession.session_instance_id &&
-            prev.is_playing === json.activeSession.is_playing &&
-            prev.current_track_id === json.activeSession.current_track_id
+            target &&
+            prev.session_instance_id === target.session_instance_id &&
+            prev.is_playing === target.is_playing &&
+            prev.current_track_id === target.current_track_id
           ) {
             return prev;
           }
-          return json.activeSession;
+          return target;
         });
       }
       if (Array.isArray(json.pendingCommands)) {
@@ -660,20 +729,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     [enabled, localInstanceId, buildLocalSessionSnapshot, applyServerResponse, sendWakeupPing]
   );
 
-  // Throttled incoming wakeup ping handler (caps pull execution to at most once per 800ms)
+  // Fast micro-coalesced incoming wakeup ping handler (sub-50ms reaction time)
   const lastPingPullTimeRef = useRef<number>(0);
-  const pingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleIncomingPing = useCallback(() => {
     const now = Date.now();
-    if (now - lastPingPullTimeRef.current < 800) {
-      if (!pingDebounceTimerRef.current) {
-        pingDebounceTimerRef.current = setTimeout(() => {
-          pingDebounceTimerRef.current = null;
-          lastPingPullTimeRef.current = Date.now();
-          void pullServerState();
-        }, 800);
-      }
+    if (now - lastPingPullTimeRef.current < 50) {
+      pullQueuedRef.current = true;
       return;
     }
     lastPingPullTimeRef.current = now;
@@ -711,7 +773,11 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           .on("broadcast", { event: "connect_ping" }, () => {
             handleIncomingPing();
           })
-          .subscribe();
+          .subscribe((status: string) => {
+            if (status === "SUBSCRIBED") {
+              void pullServerState();
+            }
+          });
 
         realtimeChannelRef.current = channel;
       } catch (err) {
@@ -733,19 +799,20 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         realtimeChannelRef.current = null;
       }
     };
-  }, [enabled, localInstanceId, realtimeTopic, handleIncomingPing]);
+  }, [enabled, localInstanceId, realtimeTopic, handleIncomingPing, pullServerState]);
 
-  // Initial registration + periodic heartbeat (NEVER notifies peers on timer, stops ping storms!)
+  // Initial registration + adaptive periodic heartbeat (NEVER notifies peers on timer, stops ping storms!)
   useEffect(() => {
     if (!enabled || !localInstanceId) return;
 
     // Silent initial registration on mount
     void syncHeartbeat({ includeSpotify: false, notifyPeers: false });
 
-    // Periodic silent heartbeat every 5s
+    // Adaptive silent poll: 1.8s during active cross-device session, 5s when idle
+    const pollIntervalMs = remoteActiveSession || bridge.isPlaying ? 1_800 : 5_000;
     const interval = setInterval(() => {
       void syncHeartbeat({ includeSpotify: showConnectModal, notifyPeers: false });
-    }, 5_000);
+    }, pollIntervalMs);
 
     const handleUnload = () => {
       try {
@@ -891,7 +958,11 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           return;
         }
 
-        applyServerResponse(json);
+        // Avoid overwriting optimistic local state with stale sessions from command POST response
+        if (json && json.success) {
+          if (json.realtimeTopic) setRealtimeTopic(json.realtimeTopic);
+          if (json.userId) setUserId(json.userId);
+        }
         // Trigger immediate wakeup on target device
         sendWakeupPing();
       } catch {
@@ -910,7 +981,6 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       userId,
       executeServerVerifiedCommand,
       showTransientFeedback,
-      applyServerResponse,
       sendWakeupPing,
       pullServerState,
     ]
@@ -923,15 +993,56 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       commandType: MusicConnectCommandType,
       payload?: MusicConnectCommandPayload
     ) => {
+      const nowIso = new Date().toISOString();
+
       // Optimistic instant local session feedback for snappy responsive controls
       if (commandType === "PLAY" || commandType === "PAUSE") {
         const nextIsPlaying = commandType === "PLAY";
         setSessions((prev) =>
           prev.map((s) =>
             s.session_instance_id === targetInstanceId
-              ? { ...s, is_playing: nextIsPlaying, updated_at: new Date().toISOString() }
+              ? { ...s, is_playing: nextIsPlaying, updated_at: nowIso }
               : s
           )
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId
+            ? { ...prev, is_playing: nextIsPlaying, updated_at: nowIso }
+            : prev
+        );
+      } else if (commandType === "PLAY_TRACK" && payload?.track) {
+        const track = payload.track;
+        const updater = (s: AppDeviceSession) => ({
+          ...s,
+          is_playing: true,
+          is_active_playback: true,
+          current_track_id: track.id,
+          current_track_name: track.title,
+          current_artist_name: track.artistNames?.join(", ") || null,
+          current_album_art: track.artworkUrl || null,
+          current_track_payload: track,
+          progress_ms: Math.round((payload.positionSeconds || 0) * 1000),
+          duration_ms: track.durationMs || s.duration_ms,
+          updated_at: nowIso,
+        });
+        setSessions((prev) =>
+          prev.map((s) => (s.session_instance_id === targetInstanceId ? updater(s) : s))
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId ? updater(prev) : prev
+        );
+      } else if (commandType === "NEXT" || commandType === "PREVIOUS") {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_instance_id === targetInstanceId
+              ? { ...s, progress_ms: 0, is_playing: true, updated_at: nowIso }
+              : s
+          )
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId
+            ? { ...prev, progress_ms: 0, is_playing: true, updated_at: nowIso }
+            : prev
         );
       } else if (commandType === "SEEK") {
         const targetMs =
@@ -944,26 +1055,41 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           setSessions((prev) =>
             prev.map((s) =>
               s.session_instance_id === targetInstanceId
-                ? { ...s, progress_ms: targetMs, updated_at: new Date().toISOString() }
+                ? { ...s, progress_ms: targetMs, updated_at: nowIso }
                 : s
             )
+          );
+          setActiveSession((prev) =>
+            prev && prev.session_instance_id === targetInstanceId
+              ? { ...prev, progress_ms: targetMs, updated_at: nowIso }
+              : prev
           );
         }
       } else if (commandType === "SHUFFLE" && typeof payload?.shuffle === "boolean") {
         setSessions((prev) =>
           prev.map((s) =>
             s.session_instance_id === targetInstanceId
-              ? { ...s, shuffle_state: payload.shuffle!, updated_at: new Date().toISOString() }
+              ? { ...s, shuffle_state: payload.shuffle!, updated_at: nowIso }
               : s
           )
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId
+            ? { ...prev, shuffle_state: payload.shuffle!, updated_at: nowIso }
+            : prev
         );
       } else if (commandType === "REPEAT" && payload?.repeatMode) {
         setSessions((prev) =>
           prev.map((s) =>
             s.session_instance_id === targetInstanceId
-              ? { ...s, repeat_state: payload.repeatMode!, updated_at: new Date().toISOString() }
+              ? { ...s, repeat_state: payload.repeatMode!, updated_at: nowIso }
               : s
           )
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId
+            ? { ...prev, repeat_state: payload.repeatMode!, updated_at: nowIso }
+            : prev
         );
       }
 
