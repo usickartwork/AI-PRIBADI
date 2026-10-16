@@ -567,20 +567,36 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ─── Cloud Sync Helper (Persists Liked Songs & Playlists to User Account) ───
-  const syncLibraryToCloud = useCallback(async (nextLiked: MusicItem[], nextPlaylists: LocalPlaylist[]) => {
-    try {
-      await fetch("/api/music/library", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          likedSongs: nextLiked,
-          playlists: nextPlaylists,
-        }),
-      });
-    } catch (err) {
-      console.warn("[music] Cloud sync error:", err);
+  // ─── Cloud Sync Helper (Debounced & Race-Safe Persistence to User Account) ──
+  const cloudSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cloudSyncAbortRef = useRef<AbortController | null>(null);
+
+  const syncLibraryToCloud = useCallback((nextLiked: MusicItem[], nextPlaylists: LocalPlaylist[]) => {
+    if (cloudSyncTimeoutRef.current) {
+      clearTimeout(cloudSyncTimeoutRef.current);
     }
+    cloudSyncTimeoutRef.current = setTimeout(async () => {
+      if (cloudSyncAbortRef.current) {
+        cloudSyncAbortRef.current.abort();
+      }
+      const controller = new AbortController();
+      cloudSyncAbortRef.current = controller;
+      try {
+        await fetch("/api/music/library", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            likedSongs: nextLiked,
+            playlists: nextPlaylists,
+          }),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.warn("[music] Cloud sync error:", err);
+        }
+      }
+    }, 350);
   }, []);
 
   // ─── Initialize Local & Cloud Account Library Data ──────────────────────────

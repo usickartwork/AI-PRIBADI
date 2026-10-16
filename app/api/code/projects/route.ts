@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import fs from "fs";
@@ -66,8 +67,14 @@ function cleanProjects(list: any[]): any[] {
 // ─── GET: Ambil daftar project user untuk sinkronisasi multi-device ────────────
 export async function GET(req: NextRequest) {
   try {
+    let clerkUserId: string | null = null;
+    try {
+      const a = await auth();
+      clerkUserId = a.userId;
+    } catch {}
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId")?.trim();
+    const userId = clerkUserId || searchParams.get("userId")?.trim();
 
     if (!userId) {
       return NextResponse.json(
@@ -136,8 +143,15 @@ export async function GET(req: NextRequest) {
 // ─── POST: Simpan dan perbarui project user untuk sinkronisasi multi-device ───
 export async function POST(req: NextRequest) {
   try {
+    let clerkUserId: string | null = null;
+    try {
+      const a = await auth();
+      clerkUserId = a.userId;
+    } catch {}
+
     const body = await req.json();
-    const { userId, projects } = body;
+    const { projects } = body;
+    const userId = clerkUserId || body.userId;
 
     if (!userId) {
       return NextResponse.json(

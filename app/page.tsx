@@ -1,30 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { MarkdownMessage } from "./components/MarkdownMessage";
 import { AuthModal } from "./components/AuthModal";
 import { CompleteProfileModal } from "./components/CompleteProfileModal";
-import { CodeWorkspace } from "./components/CodeWorkspace";
-import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
-import { FaithWorkspace } from "./components/FaithWorkspace";
-import { ImageWorkspace } from "./components/ImageWorkspace";
-import MessagesWorkspace from "./components/MessagesWorkspace";
-import { GameWorkspace } from "./components/GameWorkspace";
-import { MusicWorkspace } from "./components/MusicWorkspace";
-import { NotebookWorkspace } from "./components/NotebookWorkspace";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
 import { ShiningText } from "@/components/ui/shining-text";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
 import Footer01 from "@/components/ui/footer-01";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
-import { PricingModal } from "./components/PricingModal";
-import { UpgradePromptModal } from "./components/UpgradePromptModal";
-import { UsageHistoryModal } from "./components/UsageHistoryModal";
-import { ChatSearchModal } from "./components/ChatSearchModal";
-import { VoiceAssistantModal } from "./components/VoiceAssistantModal";
-import { ShareAIResponseModal } from "./components/ShareAIResponseModal";
 import { Pattern as SettingsSidebarAccordion } from "@/components/ui/settings-sidebar-accordion";
+
+const CodeWorkspace = dynamic(() => import("./components/CodeWorkspace").then((m) => m.CodeWorkspace), { ssr: false });
+const ScheduleWorkspace = dynamic(() => import("./components/ScheduleWorkspace").then((m) => m.ScheduleWorkspace), { ssr: false });
+const FaithWorkspace = dynamic(() => import("./components/FaithWorkspace").then((m) => m.FaithWorkspace), { ssr: false });
+const ImageWorkspace = dynamic(() => import("./components/ImageWorkspace").then((m) => m.ImageWorkspace), { ssr: false });
+const MessagesWorkspace = dynamic(() => import("./components/MessagesWorkspace"), { ssr: false });
+const GameWorkspace = dynamic(() => import("./components/GameWorkspace").then((m) => m.GameWorkspace), { ssr: false });
+const MusicWorkspace = dynamic(() => import("./components/MusicWorkspace").then((m) => m.MusicWorkspace), { ssr: false });
+const NotebookWorkspace = dynamic(() => import("./components/NotebookWorkspace").then((m) => m.NotebookWorkspace), { ssr: false });
+const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal), { ssr: false });
+const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal), { ssr: false });
+const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal), { ssr: false });
+const ChatSearchModal = dynamic(() => import("./components/ChatSearchModal").then((m) => m.ChatSearchModal), { ssr: false });
+const VoiceAssistantModal = dynamic(() => import("./components/VoiceAssistantModal").then((m) => m.VoiceAssistantModal), { ssr: false });
+const ShareAIResponseModal = dynamic(() => import("./components/ShareAIResponseModal").then((m) => m.ShareAIResponseModal), { ssr: false });
 import Avatar from "@/components/ui/components-primitives-avatar";
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
@@ -705,6 +707,27 @@ export default function Home() {
   const isInitialActiveViewSyncDone = useRef(false);
 
   const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
+
+  // Lazy-Mount + Keep-Alive: mount heavy background workspaces on first visit and keep them alive afterward
+  const [visitedViews, setVisitedViews] = useState<Record<string, boolean>>(() => ({
+    [activeView]: true,
+  }));
+  const [isBackgroundMessagesReady, setIsBackgroundMessagesReady] = useState(false);
+
+  useEffect(() => {
+    setVisitedViews((prev) => {
+      const nextKey = isHalamanActive ? halamanSubTab : activeView;
+      if (prev[activeView] && prev[nextKey]) return prev;
+      return { ...prev, [activeView]: true, [nextKey]: true };
+    });
+  }, [activeView, halamanSubTab, isHalamanActive]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsBackgroundMessagesReady(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     try {
@@ -3263,7 +3286,10 @@ export default function Home() {
         <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
-          <MeshDriftBackground isDark={isDark} />
+          <MeshDriftBackground
+            isDark={isDark}
+            paused={isHalamanActive && halamanSubTab === "game" && (subscription?.plan || "free") !== "free"}
+          />
       {/* ─── MOBILE BACKDROP OVERLAY ────────────────────────────────────────── */}
       <div
         ref={backdropRef}
@@ -3785,116 +3811,128 @@ export default function Home() {
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-transparent border-0 shadow-none">
-        {/* CodeWorkspace dijaga tetap ter-mount di latar belakang agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
-        <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
-          <CodeWorkspace
-            key="code-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            userId={user?.id}
-            userName={chatAccountName}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        </div>
-
-        {/* MusicWorkspace dijaga tetap ter-mount di latar belakang agar audio player / Spotify embed tidak terputus saat beralih tab */}
-        <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
-          <MusicWorkspace
-            key="music-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            userName={chatAccountName}
-          />
-        </div>
-
-        {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang */}
-        <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
-          <NotebookWorkspace
-            key={user?.id || "guest-notebook"}
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            user={user}
-            setShowAuthModal={setShowAuthModal}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        </div>
-
-        {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
-        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
-            <LockedFeatureView
-              isDark={isDark}
-              title="Faith Space (Eksklusif Pro)"
-              description="Eksplorasi renungan batin, panduan rohani, dan ayat harian interaktif ini hanya tersedia untuk pengguna paket Usick One Pro."
-              onUpgrade={() => {
-                setSelectedLockedModelName("Faith Space (Pro)");
-                setShowUpgradeModal(true);
-              }}
-              onBack={() => setActiveView("chats")}
-            />
-          ) : (
-            <FaithWorkspace
-              key="faith-workspace-instance"
+        {/* CodeWorkspace: Lazy-mount saat pertama kali dibuka & dijaga tetap ter-mount di latar belakang agar proses generate tidak terputus */}
+        {(activeView === "code" || visitedViews.code) && (
+          <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
+            <CodeWorkspace
+              key="code-workspace-instance"
               isDark={isDark}
               onClose={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-              subTabsElement={halamanSubTabsBar}
-            />
-          )}
-        </div>
-
-        {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
-        <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
-            <LockedFeatureView
-              isDark={isDark}
-              title="Messages (Eksklusif Pro)"
-              description="Fitur pertemanan dan percakapan pribadi antar pengguna secara realtime hanya dapat diakses pada paket Usick One Pro."
-              onUpgrade={() => {
-                setSelectedLockedModelName("Messages (Pro)");
-                setShowUpgradeModal(true);
-              }}
-              onBack={() => setActiveView("chats")}
-            />
-          ) : (
-            <MessagesWorkspace
-              key="messages-workspace-instance"
-              isDark={isDark}
               userId={user?.id}
-              isVisible={activeView === "messages"}
-              resetNonce={messagesResetNonce}
+              userName={chatAccountName}
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-              onRequireAuth={() => setShowAuthModal(true)}
-              onUnreadCountChange={setUnreadMessagesCount}
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
-        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
-            <LockedFeatureView
+        {/* MusicWorkspace: Lazy-mount saat pertama kali dibuka & dijaga tetap ter-mount di latar belakang agar audio player tidak terputus saat beralih tab */}
+        {(activeView === "music" || visitedViews.music) && (
+          <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
+            <MusicWorkspace
+              key="music-workspace-instance"
               isDark={isDark}
-              title="3D Survival Game (Eksklusif Pro)"
-              description="Permainan interaktif 3D Survival dunia terbuka bertenaga Three.js ini khusus untuk pengguna paket Usick One Pro."
-              onUpgrade={() => {
-                setSelectedLockedModelName("3D Survival Game (Pro)");
-                setShowUpgradeModal(true);
-              }}
-              onBack={() => setActiveView("chats")}
-            />
-          ) : (
-            <GameWorkspace
-              key="game-workspace-instance"
-              isDark={isDark}
-              isVisible={isHalamanActive && halamanSubTab === "game"}
               onClose={() => setActiveView("chats")}
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-              subTabsElement={halamanSubTabsBar}
+              userName={chatAccountName}
             />
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* NotebookWorkspace: Lazy-mount saat pertama kali dibuka & dijaga tetap ter-mount di latar belakang */}
+        {(activeView === "notebook" || visitedViews.notebook) && (
+          <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
+            <NotebookWorkspace
+              key={user?.id || "guest-notebook"}
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              user={user}
+              setShowAuthModal={setShowAuthModal}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          </div>
+        )}
+
+        {/* FaithWorkspace (Sub-tab Faith di dalam Halaman): Lazy-mount saat pertama kali dibuka & dijaga tetap ter-mount */}
+        {((isHalamanActive && halamanSubTab === "faith") || visitedViews.faith) && (
+          <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
+            {(subscription?.plan || "free") === "free" ? (
+              <LockedFeatureView
+                isDark={isDark}
+                title="Faith Space (Eksklusif Pro)"
+                description="Eksplorasi renungan batin, panduan rohani, dan ayat harian interaktif ini hanya tersedia untuk pengguna paket Usick One Pro."
+                onUpgrade={() => {
+                  setSelectedLockedModelName("Faith Space (Pro)");
+                  setShowUpgradeModal(true);
+                }}
+                onBack={() => setActiveView("chats")}
+              />
+            ) : (
+              <FaithWorkspace
+                key="faith-workspace-instance"
+                isDark={isDark}
+                onClose={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+                subTabsElement={halamanSubTabsBar}
+              />
+            )}
+          </div>
+        )}
+
+        {/* MessagesWorkspace: Mount saat dibuka atau setelah idle 2 detik untuk badge pesan belum dibaca */}
+        {(activeView === "messages" || visitedViews.messages || isBackgroundMessagesReady) && (
+          <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
+            {(subscription?.plan || "free") === "free" ? (
+              <LockedFeatureView
+                isDark={isDark}
+                title="Messages (Eksklusif Pro)"
+                description="Fitur pertemanan dan percakapan pribadi antar pengguna secara realtime hanya dapat diakses pada paket Usick One Pro."
+                onUpgrade={() => {
+                  setSelectedLockedModelName("Messages (Pro)");
+                  setShowUpgradeModal(true);
+                }}
+                onBack={() => setActiveView("chats")}
+              />
+            ) : (
+              <MessagesWorkspace
+                key="messages-workspace-instance"
+                isDark={isDark}
+                userId={user?.id}
+                isVisible={activeView === "messages"}
+                resetNonce={messagesResetNonce}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+                onRequireAuth={() => setShowAuthModal(true)}
+                onUnreadCountChange={setUnreadMessagesCount}
+              />
+            )}
+          </div>
+        )}
+
+        {/* GameWorkspace (Sub-tab Game di dalam Halaman): Lazy-mount saat pertama kali dibuka & dijaga tetap ter-mount */}
+        {((isHalamanActive && halamanSubTab === "game") || visitedViews.game) && (
+          <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
+            {(subscription?.plan || "free") === "free" ? (
+              <LockedFeatureView
+                isDark={isDark}
+                title="3D Survival Game (Eksklusif Pro)"
+                description="Permainan interaktif 3D Survival dunia terbuka bertenaga Three.js ini khusus untuk pengguna paket Usick One Pro."
+                onUpgrade={() => {
+                  setSelectedLockedModelName("3D Survival Game (Pro)");
+                  setShowUpgradeModal(true);
+                }}
+                onBack={() => setActiveView("chats")}
+              />
+            ) : (
+              <GameWorkspace
+                key="game-workspace-instance"
+                isDark={isDark}
+                isVisible={isHalamanActive && halamanSubTab === "game"}
+                onClose={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+                subTabsElement={halamanSubTabsBar}
+              />
+            )}
+          </div>
+        )}
 
         {activeView === "schedule" ? (
           <ScheduleWorkspace

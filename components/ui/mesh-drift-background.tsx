@@ -316,13 +316,18 @@ function createShader(gl: WebGLRenderingContext, type: number, source: string): 
   return shader;
 }
 
-export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
+export function MeshDriftBackground({ isDark = true, paused = false }: { isDark?: boolean; paused?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDarkRef = useRef(isDark);
+  const pausedRef = useRef(paused);
 
   useEffect(() => {
     isDarkRef.current = isDark;
   }, [isDark]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -438,6 +443,8 @@ export function MeshDriftBackground({ isDark = true }: { isDark?: boolean }) {
 
     const render = (currentTime: number) => {
       animationFrameId = requestAnimationFrame(render);
+
+      if (pausedRef.current) return;
 
       const delta = currentTime - lastRenderTime;
       if (delta < targetFpsInterval) return;

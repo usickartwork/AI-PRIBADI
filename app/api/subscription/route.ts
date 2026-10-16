@@ -2,10 +2,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { getUserSubscription, upgradeUserToPro, downgradeUserToFree, deductCredits } from "@/lib/subscriptionServer";
 import { supabase } from "@/lib/supabase";
 
 async function getUserIdFromRequest(req: NextRequest): Promise<string> {
+  try {
+    const { userId: clerkUserId } = await auth();
+    if (clerkUserId) return clerkUserId;
+  } catch {}
+
   const authHeader = req.headers.get("authorization");
   if (authHeader && authHeader.startsWith("Bearer ")) {
     try {
@@ -38,9 +44,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    let userId = body.userId;
+    let userId = "";
+    try {
+      const { userId: clerkUserId } = await auth();
+      if (clerkUserId) userId = clerkUserId;
+    } catch {}
+
     if (!userId) {
-      userId = await getUserIdFromRequest(req);
+      userId = String(body.userId || (await getUserIdFromRequest(req)) || "guest");
     }
 
     const { action, code, password } = body;

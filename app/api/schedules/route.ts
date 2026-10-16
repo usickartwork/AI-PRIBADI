@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ScheduleItem, isSchedulePast } from "@/lib/schedules";
@@ -12,6 +13,14 @@ import {
   updateGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
 } from "@/lib/googleCalendar";
+
+async function resolveScheduleUserId(fallbackUserId?: string | null): Promise<string | undefined> {
+  try {
+    const { userId: clerkUserId } = await auth();
+    if (clerkUserId) return clerkUserId;
+  } catch {}
+  return fallbackUserId?.trim() || undefined;
+}
 
 function getSupabaseClient(req: NextRequest) {
   if (!isSupabaseConfigured) return null;
@@ -41,7 +50,7 @@ function getSupabaseClient(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId")?.trim();
+    const userId = await resolveScheduleUserId(searchParams.get("userId"));
 
     if (!userId) {
       return NextResponse.json(
@@ -120,7 +129,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      user_id,
+      user_id: rawUserId,
       title,
       description,
       date,
@@ -131,6 +140,7 @@ export async function POST(req: NextRequest) {
       timezone = "Asia/Jakarta",
       user_email,
     } = body;
+    const user_id = await resolveScheduleUserId(rawUserId);
 
     if (!user_id) {
       return NextResponse.json(
@@ -293,7 +303,8 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, user_id, ...updates } = body;
+    const { id, user_id: rawUserId, ...updates } = body;
+    const user_id = await resolveScheduleUserId(rawUserId);
 
     if (!id || !user_id) {
       return NextResponse.json(
@@ -369,7 +380,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const userId = searchParams.get("userId");
+    const userId = await resolveScheduleUserId(searchParams.get("userId"));
     const googleEventId = searchParams.get("googleEventId") || searchParams.get("google_event_id");
 
     if (!id || !userId) {
