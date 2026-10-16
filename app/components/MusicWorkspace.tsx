@@ -28,6 +28,12 @@ import {
   getClientLyricsCache,
   setClientLyricsCache,
 } from "@/lib/lyrics";
+import { useMusicConnect } from "@/lib/useMusicConnect";
+import {
+  MusicConnectButton,
+  MusicConnectRemoteBar,
+  MusicConnectModal,
+} from "./MusicConnectPanel";
 
 interface MusicWorkspaceProps {
   isDark: boolean;
@@ -491,6 +497,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [isYtReady, setIsYtReady] = useState(false);
   const [isResolvingAudio, setIsResolvingAudio] = useState(false);
   const pendingVideoIdRef = useRef<string | null>(null);
+  const pendingVideoOptionsRef = useRef<{ startSeconds: number; autoPlay: boolean }>({
+    startSeconds: 0,
+    autoPlay: true,
+  });
   const [currentVideoId, setCurrentVideoId] = useState<string>("");
   const loadedTrackIdRef = useRef<string | null>(null);
 
@@ -725,8 +735,26 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               } catch {}
               if (pendingVideoIdRef.current) {
                 const vid = pendingVideoIdRef.current;
+                const opts = pendingVideoOptionsRef.current;
                 pendingVideoIdRef.current = null;
-                event.target.loadVideoById(vid);
+                try {
+                  if (opts.autoPlay) {
+                    event.target.loadVideoById({
+                      videoId: vid,
+                      startSeconds: opts.startSeconds || 0,
+                    });
+                    event.target.playVideo();
+                  } else if (typeof event.target.cueVideoById === "function") {
+                    event.target.cueVideoById({
+                      videoId: vid,
+                      startSeconds: opts.startSeconds || 0,
+                    });
+                  } else {
+                    event.target.loadVideoById(vid);
+                  }
+                } catch (loadErr) {
+                  console.warn("ytPlayer onReady initial load error:", loadErr);
+                }
               }
             },
             onStateChange: (event: any) => {
@@ -1055,18 +1083,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   }, []);
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
-  const playTrack = useCallback(async (track: MusicItem) => {
+  const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean }) => {
+    const startSec = Math.max(0, options?.startSeconds || 0);
+    const shouldAutoPlay = options?.autoPlay !== false;
     setCurrentTrack(track);
-    setIsPlaying(true);
-    userRequestedPauseRef.current = false;
-    setCurrentTime(0);
+    setIsPlaying(shouldAutoPlay);
+    userRequestedPauseRef.current = !shouldAutoPlay;
+    setCurrentTime(startSec);
     loadedTrackIdRef.current = track.id;
 
     // Reset clock snapshot and lyric index immediately to prevent stale interpolation
     playbackClockRef.current = {
-      positionSeconds: 0,
+      positionSeconds: startSec,
       snapshotPerfTime: performance.now(),
-      isPlaying: true,
+      isPlaying: shouldAutoPlay,
       duration: track.durationMs ? track.durationMs / 1000 : 0,
       trackId: track.id,
     };
@@ -1074,7 +1104,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setActiveLyricIndex(-1);
 
     // Keep mobile background audio alive by acquiring HTML5 audio session lock
-    if (audioRef.current) {
+    if (shouldAutoPlay && audioRef.current) {
       try {
         if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
           audioRef.current.src = SILENT_AUDIO_URI;
@@ -1136,16 +1166,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
       try {
-        ytPlayerRef.current.loadVideoById({
-          videoId: targetVideoId,
-          startSeconds: 0,
-        });
-        ytPlayerRef.current.playVideo();
+        if (shouldAutoPlay) {
+          ytPlayerRef.current.loadVideoById({
+            videoId: targetVideoId,
+            startSeconds: startSec,
+          });
+          ytPlayerRef.current.playVideo();
+        } else if (typeof ytPlayerRef.current.cueVideoById === "function") {
+          ytPlayerRef.current.cueVideoById({
+            videoId: targetVideoId,
+            startSeconds: startSec,
+          });
+        }
       } catch (err) {
         console.warn("ytPlayer loadVideoById error:", err);
       }
     } else {
       pendingVideoIdRef.current = targetVideoId;
+      pendingVideoOptionsRef.current = {
+        startSeconds: startSec,
+        autoPlay: shouldAutoPlay,
+      };
     }
   }, []);
 
@@ -1549,6 +1590,117 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
     playNext();
   };
+
+  // ─── Music Connect (Multi-Device Playback Awareness & Remote Control) ───────
+  const musicConnect = useMusicConnect({
+    currentTrack,
+    queue,
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    isMuted,
+    isShuffle,
+    repeatMode,
+    onRemotePlay: async () => {
+      userRequestedPauseRef.current = false;
+      const trackToPlay = currentTrack || queueRef.current[0] || null;
+      if (!trackToPlay) return false;
+      if (!currentTrack || loadedTrackIdRef.current !== trackToPlay.id) {
+        await playTrack(trackToPlay, { autoPlay: true });
+      } else if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+        try {
+          ytPlayerRef.current.playVideo();
+          if (audioRef.current) {
+            audioRef.current.play().catch(() => {});
+          }
+          setIsPlaying(true);
+        } catch {
+          await playTrack(trackToPlay, { autoPlay: true });
+        }
+      } else {
+        await playTrack(trackToPlay, { autoPlay: true });
+      }
+
+      return await new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          try {
+            const st = ytPlayerRef.current?.getPlayerState?.();
+            // 1 = PLAYING, 3 = BUFFERING
+            resolve(st === 1 || st === 3);
+          } catch {
+            resolve(true);
+          }
+        }, 600);
+      });
+    },
+    onRemotePause: () => {
+      userRequestedPauseRef.current = true;
+      playbackClockRef.current.isPlaying = false;
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
+        try {
+          ytPlayerRef.current.pauseVideo();
+        } catch {}
+      }
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+        } catch {}
+      }
+      setIsPlaying(false);
+    },
+    onRemoteTogglePlay: () => {
+      togglePlayPause();
+    },
+    onRemoteNext: () => {
+      playNext();
+    },
+    onRemotePrevious: () => {
+      playPrevious();
+    },
+    onRemoteSeek: (seconds: number) => {
+      handleSeek(seconds);
+    },
+    onRemoteVolume: (vol0to1: number) => {
+      handleVolumeChange(vol0to1);
+    },
+    onRemoteShuffle: (nextShuffle: boolean) => {
+      setIsShuffle(nextShuffle);
+    },
+    onRemoteRepeat: (nextMode: "off" | "all" | "one") => {
+      setRepeatMode(nextMode);
+    },
+    onRemoteTransferHere: async ({ track, queue: incomingQueue, positionSeconds, autoPlay }) => {
+      const targetTrack = track || currentTrack || incomingQueue[0] || queueRef.current[0] || null;
+      if (Array.isArray(incomingQueue) && incomingQueue.length > 0) {
+        setQueue(incomingQueue);
+        const idx = targetTrack
+          ? incomingQueue.findIndex((item) => item.id === targetTrack.id)
+          : 0;
+        const validIdx = idx >= 0 ? idx : 0;
+        setQueueIndex(validIdx);
+        saveQueueState({
+          items: incomingQueue,
+          currentIndex: validIdx,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      if (!targetTrack) return false;
+      await playTrack(targetTrack, { startSeconds: positionSeconds, autoPlay });
+      if (!autoPlay) return true;
+      return await new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          try {
+            const st = ytPlayerRef.current?.getPlayerState?.();
+            // 1 = PLAYING, 3 = BUFFERING
+            resolve(st === 1 || st === 3);
+          } catch {
+            resolve(true);
+          }
+        }, 650);
+      });
+    },
+  });
 
   // ─── Mobile Background Playback & MediaSession Integration ────────────────
   useEffect(() => {
@@ -2710,6 +2862,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             {/* Right: Bespoke Liquid-Glass Playlist / Musik / Lyrics Toggle Icon Button */}
             <div className="flex items-center gap-2 shrink-0">
+              {musicConnect.enabled && (
+                <MusicConnectButton
+                  isDark={isDark}
+                  isOpen={musicConnect.showConnectModal}
+                  onClick={() => musicConnect.setShowConnectModal((prev) => !prev)}
+                  onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
+                  remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
+                  variant="header"
+                />
+              )}
               {showLyrics ? (
                 <button
                   type="button"
@@ -3860,6 +4022,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         )}
       </div>
 
+      {/* ─── REMOTE ACTIVE PLAYBACK BAR (When no local track is loaded but another device is playing) ─── */}
+      {!currentTrack && musicConnect.enabled && musicConnect.remoteActiveSession && (
+        <div className="shrink-0 z-30 relative">
+          <MusicConnectRemoteBar
+            isDark={isDark}
+            remoteSession={musicConnect.remoteActiveSession}
+            hasLocalTrack={false}
+            isSendingCommand={musicConnect.isSendingCommand}
+            autoplayBlockedPrompt={musicConnect.autoplayBlockedPrompt}
+            onUnlockAutoplay={() => {
+              void musicConnect.unlockAutoplayAndConfirmTransfer();
+            }}
+            onSendCommand={musicConnect.sendAppCommand}
+            onTransferHere={() =>
+              musicConnect.transferAppPlayback(musicConnect.localInstanceId, true)
+            }
+            onOpenConnectModal={() => musicConnect.setShowConnectModal(true)}
+          />
+        </div>
+      )}
+
       {/* ─── PERSISTENT BOTTOM MINI-PLAYER (Only rendered when a track is active) ─── */}
       {currentTrack && (
         <footer
@@ -3869,6 +4052,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               : "bg-[#fafafc] border-black/10 text-zinc-900"
           } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
         >
+          {musicConnect.enabled && musicConnect.remoteActiveSession && (
+            <MusicConnectRemoteBar
+              isDark={isDark}
+              remoteSession={musicConnect.remoteActiveSession}
+              hasLocalTrack={true}
+              isSendingCommand={musicConnect.isSendingCommand}
+              autoplayBlockedPrompt={musicConnect.autoplayBlockedPrompt}
+              onUnlockAutoplay={() => {
+                void musicConnect.unlockAutoplayAndConfirmTransfer();
+              }}
+              onSendCommand={musicConnect.sendAppCommand}
+              onTransferHere={() =>
+                musicConnect.transferAppPlayback(musicConnect.localInstanceId, true)
+              }
+              onOpenConnectModal={() => musicConnect.setShowConnectModal(true)}
+            />
+          )}
+
           {/* ─── MOBILE VIEW (< sm): Sleek, Larger Bar (Click to expand, Heart + Play on right) ─ */}
           <div className="block sm:hidden">
             {/* Top Progress Bar */}
@@ -4233,6 +4434,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }`} />
                 )}
               </button>
+
+              {musicConnect.enabled && (
+                <MusicConnectButton
+                  isDark={isDark}
+                  isOpen={musicConnect.showConnectModal}
+                  onClick={() => musicConnect.setShowConnectModal((prev) => !prev)}
+                  onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
+                  remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
+                  variant="desktop-footer"
+                />
+              )}
 
               {/* Volume control */}
               <div className="flex items-center gap-2">
@@ -4861,6 +5073,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 )}
               </button>
 
+              {musicConnect.enabled && (
+                <MusicConnectButton
+                  isDark={isDark}
+                  isOpen={musicConnect.showConnectModal}
+                  onClick={() => musicConnect.setShowConnectModal(true)}
+                  onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
+                  remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
+                  variant="mobile-player"
+                />
+              )}
+
               {/* Queue Button (Icon Only, Enlarged, Toggles Queue in Place of Cover/Lyrics) */}
               <button
                 type="button"
@@ -4893,6 +5116,28 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── MODAL: MUSIC CONNECT (MULTI-DEVICE PLAYBACK & SPOTIFY CONNECT) ──── */}
+      {musicConnect.enabled && (
+        <MusicConnectModal
+          isOpen={musicConnect.showConnectModal}
+          isDark={isDark}
+          onClose={() => musicConnect.setShowConnectModal(false)}
+          localInstanceId={musicConnect.localInstanceId}
+          localDeviceName={musicConnect.localDeviceName}
+          onRenameLocalDevice={musicConnect.handleRenameLocalDevice}
+          sessions={musicConnect.sessions}
+          activeSession={musicConnect.activeSession}
+          spotifyConnect={musicConnect.spotifyConnect}
+          isLoadingDevices={musicConnect.isLoadingDevices}
+          isSendingCommand={musicConnect.isSendingCommand}
+          commandFeedback={musicConnect.commandFeedback}
+          onRefreshDevices={musicConnect.refreshDevices}
+          onSendAppCommand={musicConnect.sendAppCommand}
+          onTransferAppPlayback={musicConnect.transferAppPlayback}
+          onExecuteSpotifyAction={musicConnect.executeSpotifyAction}
+        />
       )}
 
       {/* ─── MODAL 1: SPOTIFY SETUP & API CREDENTIALS GUIDE ──────────────────── */}
