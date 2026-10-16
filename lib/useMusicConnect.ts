@@ -219,25 +219,23 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     try {
       const ch = realtimeChannelRef.current;
       if (ch) {
-        if (ch.state === "joined") {
+        try {
           ch.send({
             type: "broadcast",
             event: "connect_ping",
             payload: { t: Date.now() },
           });
-        } else {
-          // If channel is still connecting or reconnecting, retry after a short delay
+        } catch {}
+        if (ch.state !== "joined") {
           setTimeout(() => {
             try {
-              if (realtimeChannelRef.current?.state === "joined") {
-                realtimeChannelRef.current.send({
-                  type: "broadcast",
-                  event: "connect_ping",
-                  payload: { t: Date.now() },
-                });
-              }
+              realtimeChannelRef.current?.send({
+                type: "broadcast",
+                event: "connect_ping",
+                payload: { t: Date.now() },
+              });
             } catch {}
-          }, 180);
+          }, 150);
         }
       }
     } catch {}
@@ -285,7 +283,31 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             b.onRemotePause();
             claimActiveUntilRef.current = 0;
             resultMessage = `Dijeda di ${localDeviceName}`;
-            snapshotOverride = { is_playing: false };
+            const wasTransferred = Boolean(cmd.payload?.wasTransferred);
+            snapshotOverride = {
+              is_playing: false,
+              ...(wasTransferred ? { is_active_playback: false } : {}),
+            };
+            if (wasTransferred) {
+              const newActiveId = cmd.payload?.newActiveInstanceId;
+              const nowIso = new Date().toISOString();
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s.session_instance_id === localInstanceId
+                    ? { ...s, is_active_playback: false, is_playing: false, updated_at: nowIso }
+                    : newActiveId && s.session_instance_id === newActiveId
+                    ? { ...s, is_active_playback: true, is_playing: true, updated_at: nowIso }
+                    : s
+                )
+              );
+              if (newActiveId) {
+                setActiveSession((prev) =>
+                  prev && prev.session_instance_id === newActiveId
+                    ? { ...prev, is_active_playback: true, is_playing: true, updated_at: nowIso }
+                    : null
+                );
+              }
+            }
             break;
           }
           case "TOGGLE_PLAY": {
@@ -566,12 +588,19 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       }
 
       if (ack.source_instance_id === localInstanceId) {
-        showTransientFeedback(
-          ack.status === "succeeded" ? "success" : "error",
-          ack.result_message ||
-            (ack.status === "succeeded" ? "Perintah berhasil dijalankan" : "Perintah gagal"),
-          3200
-        );
+        if (ack.status === "failed") {
+          showTransientFeedback(
+            "error",
+            ack.result_message || "Perintah gagal dijalankan",
+            3200
+          );
+        } else if (ack.command_type === "TRANSFER_PLAYBACK") {
+          showTransientFeedback(
+            "success",
+            ack.result_message || "Playback aktif di perangkat tujuan",
+            3000
+          );
+        }
       }
     },
     [localInstanceId, showTransientFeedback]
@@ -914,7 +943,9 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       });
 
       setIsSendingCommand(true);
-      showTransientFeedback("pending", "Mengirim perintah ke perangkat...", 8000);
+      if (commandType === "TRANSFER_PLAYBACK") {
+        showTransientFeedback("pending", "Memindahkan pemutaran ke perangkat tujuan...", 8000);
+      }
 
       const timeoutId = setTimeout(() => {
         pendingCommandMapRef.current.delete(cmd.command_id);
@@ -1216,6 +1247,42 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           pendingTransferConfirmRef.current = null;
           claimActiveUntilRef.current = Date.now() + 15_000;
 
+          // Optimistically flip local session ownership to this device
+          const nowIso = new Date().toISOString();
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.session_instance_id === localInstanceId
+                ? {
+                    ...s,
+                    is_active_playback: true,
+                    is_playing: autoPlay,
+                    current_track_payload: trackToTransfer || s.current_track_payload,
+                    current_track_id: trackToTransfer?.id || s.current_track_id,
+                    current_track_name: trackToTransfer?.title || s.current_track_name,
+                    progress_ms: progressMsToTransfer,
+                    updated_at: nowIso,
+                  }
+                : {
+                    ...s,
+                    is_active_playback: false,
+                    is_playing: false,
+                    updated_at: nowIso,
+                  }
+            )
+          );
+          setActiveSession((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  session_instance_id: localInstanceId,
+                  device_name: localDeviceName,
+                  is_active_playback: true,
+                  is_playing: autoPlay,
+                  updated_at: nowIso,
+                }
+              : null
+          );
+
           // Step 2: Now that local playback is verified active, commit transfer & pause source device
           const res = await fetch("/api/music/connect", {
             method: "POST",
@@ -1238,6 +1305,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           if (res.ok && json?.success) {
             applyServerResponse(json);
             sendWakeupPing();
+            setTimeout(sendWakeupPing, 120);
             showTransientFeedback(
               "success",
               `Pemutaran aktif di ${localDeviceName}`,
@@ -1303,11 +1371,27 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             // Target device confirmed playback started -> now pause local player!
             claimActiveUntilRef.current = 0;
             bridgeRef.current.onRemotePause();
+            const confirmedNowIso = new Date().toISOString();
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.session_instance_id === targetInstanceId
+                  ? { ...s, is_active_playback: true, is_playing: true, updated_at: confirmedNowIso }
+                  : s.session_instance_id === localInstanceId
+                  ? { ...s, is_active_playback: false, is_playing: false, updated_at: confirmedNowIso }
+                  : s
+              )
+            );
+            setActiveSession((prev) =>
+              prev && prev.session_instance_id === targetInstanceId
+                ? { ...prev, is_active_playback: true, is_playing: true, updated_at: confirmedNowIso }
+                : sessions.find((s) => s.session_instance_id === targetInstanceId) || prev
+            );
           },
         });
 
         applyServerResponse(json);
         sendWakeupPing();
+        setTimeout(sendWakeupPing, 120);
       } catch (err: any) {
         setIsSendingCommand(false);
         showTransientFeedback(

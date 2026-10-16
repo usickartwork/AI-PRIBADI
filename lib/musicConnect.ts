@@ -110,6 +110,8 @@ export interface MusicConnectCommandPayload {
   track?: MusicItem | null;
   queue?: MusicItem[];
   autoPlay?: boolean;
+  wasTransferred?: boolean;
+  newActiveInstanceId?: string;
 }
 
 export interface MusicConnectCommand {

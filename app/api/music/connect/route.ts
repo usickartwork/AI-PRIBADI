@@ -325,7 +325,9 @@ async function mutateUserConnectStore<R>(
   mutator: (store: UserConnectStore, nowMs: number) => {
     result: R;
     mirrorSession?: AppDeviceSession;
+    mirrorSessions?: AppDeviceSession[];
     mirrorCommand?: MusicConnectCommand;
+    mirrorCommands?: MusicConnectCommand[];
   }
 ): Promise<{ store: UserConnectStore; result: R }> {
   return withUserLock(userId, async () => {
@@ -338,7 +340,10 @@ async function mutateUserConnectStore<R>(
       const { rowId, rowUpdatedAt, store: baseStore } = await readRawStoreFromDb(userId);
       const workingStore: UserConnectStore = JSON.parse(JSON.stringify(baseStore));
 
-      const { result, mirrorSession, mirrorCommand } = mutator(workingStore, nowMs);
+      const { result, mirrorSession, mirrorSessions, mirrorCommand, mirrorCommands } = mutator(
+        workingStore,
+        nowMs
+      );
       const reconciled = pruneAndReconcileStore(workingStore, nowMs);
       reconciled.version = (baseStore.version || 1) + 1;
 
@@ -358,64 +363,85 @@ async function mutateUserConnectStore<R>(
 
       let persistedOk = false;
 
-      // 1. Direct write to dedicated tables if available
-      if (mirrorSession) {
+      // 1. Direct write to dedicated tables if available (bulk upsert support)
+      const sessionsToUpsert: AppDeviceSession[] = [
+        ...(mirrorSessions || []),
+        ...(mirrorSession ? [mirrorSession] : []),
+      ];
+
+      if (sessionsToUpsert.length > 0) {
+        // Deduplicate by session_instance_id (keep latest)
+        const sessionMap = new Map<string, AppDeviceSession>();
+        for (const s of sessionsToUpsert) {
+          sessionMap.set(s.session_instance_id, s);
+        }
+        const sessionRows = Array.from(sessionMap.values()).map((s) => ({
+          user_id: userId,
+          session_instance_id: s.session_instance_id,
+          spotify_device_id: s.spotify_device_id,
+          device_name: s.device_name,
+          device_type: s.device_type,
+          platform: s.platform,
+          browser: s.browser,
+          is_connected: s.is_connected,
+          is_active_playback: s.is_active_playback,
+          can_control: s.can_control,
+          can_transfer_playback: s.can_transfer_playback,
+          current_track_id: s.current_track_id,
+          current_track_name: s.current_track_name,
+          current_artist_name: s.current_artist_name,
+          current_album_art: s.current_album_art,
+          current_track_payload: s.current_track_payload,
+          queue_payload: s.queue_payload || [],
+          is_playing: s.is_playing,
+          progress_ms: s.progress_ms,
+          duration_ms: s.duration_ms,
+          volume_percent: s.volume_percent,
+          shuffle_state: s.shuffle_state,
+          repeat_state: s.repeat_state,
+          last_seen_at: s.last_seen_at,
+          updated_at: s.updated_at,
+        }));
+
         try {
-          const { error: upsertErr } = await db.from("music_device_sessions").upsert(
-            {
-              user_id: userId,
-              session_instance_id: mirrorSession.session_instance_id,
-              spotify_device_id: mirrorSession.spotify_device_id,
-              device_name: mirrorSession.device_name,
-              device_type: mirrorSession.device_type,
-              platform: mirrorSession.platform,
-              browser: mirrorSession.browser,
-              is_connected: mirrorSession.is_connected,
-              is_active_playback: mirrorSession.is_active_playback,
-              can_control: mirrorSession.can_control,
-              can_transfer_playback: mirrorSession.can_transfer_playback,
-              current_track_id: mirrorSession.current_track_id,
-              current_track_name: mirrorSession.current_track_name,
-              current_artist_name: mirrorSession.current_artist_name,
-              current_album_art: mirrorSession.current_album_art,
-              current_track_payload: mirrorSession.current_track_payload,
-              queue_payload: mirrorSession.queue_payload || [],
-              is_playing: mirrorSession.is_playing,
-              progress_ms: mirrorSession.progress_ms,
-              duration_ms: mirrorSession.duration_ms,
-              volume_percent: mirrorSession.volume_percent,
-              shuffle_state: mirrorSession.shuffle_state,
-              repeat_state: mirrorSession.repeat_state,
-              last_seen_at: mirrorSession.last_seen_at,
-              updated_at: mirrorSession.updated_at,
-            },
-            { onConflict: "user_id,session_instance_id" }
-          );
+          const { error: upsertErr } = await db
+            .from("music_device_sessions")
+            .upsert(sessionRows, { onConflict: "user_id,session_instance_id" });
           if (!upsertErr) {
             persistedOk = true;
           }
         } catch {}
       }
 
-      if (mirrorCommand) {
+      const commandsToUpsert: MusicConnectCommand[] = [
+        ...(mirrorCommands || []),
+        ...(mirrorCommand ? [mirrorCommand] : []),
+      ];
+
+      if (commandsToUpsert.length > 0) {
+        const commandMap = new Map<string, MusicConnectCommand>();
+        for (const c of commandsToUpsert) {
+          commandMap.set(c.command_id, c);
+        }
+        const commandRows = Array.from(commandMap.values()).map((c) => ({
+          command_id: c.command_id,
+          user_id: userId,
+          source_instance_id: c.source_instance_id,
+          source_device_name: c.source_device_name,
+          target_instance_id: c.target_instance_id,
+          command_type: c.command_type,
+          payload: c.payload,
+          status: c.status,
+          result_message: c.result_message,
+          created_at: c.created_at,
+          expires_at: c.expires_at,
+          acknowledged_at: c.acknowledged_at,
+        }));
+
         try {
-          const { error: cmdErr } = await db.from("music_connect_commands").upsert(
-            {
-              command_id: mirrorCommand.command_id,
-              user_id: userId,
-              source_instance_id: mirrorCommand.source_instance_id,
-              source_device_name: mirrorCommand.source_device_name,
-              target_instance_id: mirrorCommand.target_instance_id,
-              command_type: mirrorCommand.command_type,
-              payload: mirrorCommand.payload,
-              status: mirrorCommand.status,
-              result_message: mirrorCommand.result_message,
-              created_at: mirrorCommand.created_at,
-              expires_at: mirrorCommand.expires_at,
-              acknowledged_at: mirrorCommand.acknowledged_at,
-            },
-            { onConflict: "command_id" }
-          );
+          const { error: cmdErr } = await db
+            .from("music_connect_commands")
+            .upsert(commandRows, { onConflict: "command_id" });
           if (!cmdErr) {
             persistedOk = true;
           }
@@ -1163,6 +1189,7 @@ export async function POST(req: NextRequest) {
         return {
           result: { disconnected: false, session: updatedSession },
           mirrorSession: updatedSession,
+          mirrorSessions: isActivePlayback ? workingStore.sessions : undefined,
         };
       });
 
@@ -1303,6 +1330,12 @@ export async function POST(req: NextRequest) {
         }
         if (typeof rawPayload.autoPlay === "boolean") {
           validatedPayload.autoPlay = rawPayload.autoPlay;
+        }
+        if (typeof rawPayload.wasTransferred === "boolean") {
+          validatedPayload.wasTransferred = rawPayload.wasTransferred;
+        }
+        if (typeof rawPayload.newActiveInstanceId === "string") {
+          validatedPayload.newActiveInstanceId = rawPayload.newActiveInstanceId;
         }
 
         // Supersede older pending SEEK or SET_VOLUME commands to the same target to prevent queue backlog
@@ -1452,14 +1485,16 @@ export async function POST(req: NextRequest) {
         // CRITICAL TRANSFER RULE:
         // If this ack is for TRANSFER_PLAYBACK and status === "succeeded",
         // only NOW switch active playback ownership to targetInstanceId and pause the source device!
+        const createdPauseCommands: MusicConnectCommand[] = [];
         if (cmd.command_type === "TRANSFER_PLAYBACK" && status === "succeeded") {
           for (const s of workingStore.sessions) {
             if (s.session_instance_id === targetInstanceId) {
               s.is_active_playback = true;
               s.is_playing = true;
+              s.updated_at = nowIso;
             } else {
               if (s.is_active_playback || s.is_playing) {
-                workingStore.commands.push({
+                const pauseCmd: MusicConnectCommand = {
                   command_id: `cmd_xfer_pause_${nowMs.toString(36)}_${Math.random()
                     .toString(36)
                     .slice(2, 6)}`,
@@ -1468,16 +1503,19 @@ export async function POST(req: NextRequest) {
                   source_device_name: updatedTargetSession?.device_name || "Perangkat Tujuan",
                   target_instance_id: s.session_instance_id,
                   command_type: "PAUSE",
-                  payload: {},
+                  payload: { wasTransferred: true, newActiveInstanceId: targetInstanceId },
                   status: "pending",
                   result_message: "Playback telah berpindah dan aktif di perangkat tujuan",
                   created_at: nowIso,
                   expires_at: new Date(nowMs + COMMAND_EXPIRATION_MS).toISOString(),
                   acknowledged_at: null,
-                });
+                };
+                workingStore.commands.push(pauseCmd);
+                createdPauseCommands.push(pauseCmd);
               }
               s.is_active_playback = false;
               s.is_playing = false;
+              s.updated_at = nowIso;
             }
           }
         }
@@ -1499,7 +1537,9 @@ export async function POST(req: NextRequest) {
         return {
           result: { ok: true, status: 200, ack: ackObj },
           mirrorSession: updatedTargetSession,
+          mirrorSessions: workingStore.sessions,
           mirrorCommand: workingStore.commands[cmdIdx],
+          mirrorCommands: [workingStore.commands[cmdIdx], ...createdPauseCommands],
         };
       });
 
@@ -1585,6 +1625,7 @@ export async function POST(req: NextRequest) {
 
         // Case A: Initiated by the target device itself AFTER confirming local playback started
         if (initiatorInstanceId === toInstanceId && confirmedByTarget) {
+          const createdPauseCommands: MusicConnectCommand[] = [];
           for (const s of workingStore.sessions) {
             if (s.session_instance_id === toInstanceId) {
               s.is_active_playback = true;
@@ -1603,7 +1644,7 @@ export async function POST(req: NextRequest) {
               s.updated_at = nowIso;
             } else {
               if (s.is_active_playback || s.is_playing) {
-                workingStore.commands.push({
+                const pauseCmd: MusicConnectCommand = {
                   command_id: `cmd_xfer_pause_${nowMs.toString(36)}_${Math.random()
                     .toString(36)
                     .slice(2, 6)}`,
@@ -1612,16 +1653,19 @@ export async function POST(req: NextRequest) {
                   source_device_name: workingStore.sessions[targetIdx].device_name,
                   target_instance_id: s.session_instance_id,
                   command_type: "PAUSE",
-                  payload: {},
+                  payload: { wasTransferred: true, newActiveInstanceId: toInstanceId },
                   status: "pending",
                   result_message: "Playback dipindahkan ke perangkat lain",
                   created_at: nowIso,
                   expires_at: new Date(nowMs + COMMAND_EXPIRATION_MS).toISOString(),
                   acknowledged_at: null,
-                });
+                };
+                workingStore.commands.push(pauseCmd);
+                createdPauseCommands.push(pauseCmd);
               }
               s.is_active_playback = false;
               s.is_playing = false;
+              s.updated_at = nowIso;
             }
           }
 
@@ -1636,6 +1680,8 @@ export async function POST(req: NextRequest) {
               progressMs: progressMsToTransfer,
             },
             mirrorSession: workingStore.sessions[targetIdx],
+            mirrorSessions: workingStore.sessions,
+            mirrorCommands: createdPauseCommands,
           };
         }
 
@@ -1676,6 +1722,7 @@ export async function POST(req: NextRequest) {
             progressMs: progressMsToTransfer,
           },
           mirrorCommand: transferCmd,
+          mirrorSessions: workingStore.sessions,
         };
       });
 
