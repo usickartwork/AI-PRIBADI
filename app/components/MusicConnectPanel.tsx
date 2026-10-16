@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   AppDeviceSession,
   MusicConnectCommandPayload,
@@ -247,29 +247,55 @@ export function MusicConnectRemoteBar({
   onTransferHere,
   onOpenConnectModal,
 }: MusicConnectRemoteBarProps) {
-  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const durationSec = Math.max(1, (remoteSession.duration_ms || 0) / 1000);
 
+  const [displayProgressSec, setDisplayProgressSec] = useState<number>(() =>
+    Math.max(0, (remoteSession.progress_ms || 0) / 1000)
+  );
+
+  const lastTrackIdRef = useRef<string | null>(remoteSession.current_track_id);
+  const currentProgressRef = useRef<number>(Math.max(0, (remoteSession.progress_ms || 0) / 1000));
+
+  // Sync smoothly with remote server updates (only snap on track change or seek > 2.5s)
+  useEffect(() => {
+    const serverSec = Math.max(0, (remoteSession.progress_ms || 0) / 1000);
+    const trackChanged = lastTrackIdRef.current !== remoteSession.current_track_id;
+
+    if (trackChanged) {
+      lastTrackIdRef.current = remoteSession.current_track_id;
+      currentProgressRef.current = serverSec;
+      setDisplayProgressSec(serverSec);
+      return;
+    }
+
+    // Only snap if difference is significant (seek / skip > 2.5s)
+    if (Math.abs(serverSec - currentProgressRef.current) > 2.5) {
+      currentProgressRef.current = serverSec;
+      setDisplayProgressSec(serverSec);
+    }
+  }, [remoteSession.current_track_id, remoteSession.progress_ms]);
+
+  // Monotonic local forward timer while playing: advances 0.5s smoothly with ZERO rubber-banding
   useEffect(() => {
     if (!remoteSession.is_playing) return;
-    const timer = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [remoteSession.is_playing]);
 
-  const progressSec = getInterpolatedRemoteProgressSec(remoteSession, nowMs);
-  const durationSec = Math.max(1, (remoteSession.duration_ms || 0) / 1000);
-  const pct = Math.max(0, Math.min(100, (progressSec / durationSec) * 100));
+    const timer = setInterval(() => {
+      currentProgressRef.current = Math.min(durationSec, currentProgressRef.current + 0.5);
+      setDisplayProgressSec(currentProgressRef.current);
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, [remoteSession.is_playing, durationSec]);
+
+  const pct = Math.max(0, Math.min(100, (displayProgressSec / durationSec) * 100));
 
   return (
     <div
-      className={`w-full transition-all select-none ${
-        hasLocalTrack
-          ? isDark
-            ? "bg-zinc-900/95 border-b border-white/10 text-white"
-            : "bg-zinc-100/95 border-b border-black/10 text-zinc-900"
-          : isDark
-          ? "bg-[#121215] border-t border-white/10 text-white pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]"
-          : "bg-[#fafafc] border-t border-black/10 text-zinc-900 pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]"
-      }`}
+      className={`w-full transition-all select-none border-t ${
+        isDark
+          ? "bg-[#121215] border-white/10 text-white"
+          : "bg-[#fafafc] border-black/10 text-zinc-900"
+      } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
     >
       {/* Interactive Remote Progress Scrubber */}
       <div
@@ -282,6 +308,8 @@ export function MusicConnectRemoteBar({
           const rect = e.currentTarget.getBoundingClientRect();
           const clickPct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
           const targetSec = clickPct * durationSec;
+          currentProgressRef.current = targetSec;
+          setDisplayProgressSec(targetSec);
           onSendCommand(remoteSession.session_instance_id, "SEEK", {
             positionSeconds: targetSec,
             positionMs: Math.round(targetSec * 1000),
@@ -289,7 +317,7 @@ export function MusicConnectRemoteBar({
         }}
       >
         <div
-          className={`h-full transition-all duration-300 ${
+          className={`h-full transition-[width] duration-500 ease-linear ${
             isDark ? "bg-white" : "bg-zinc-900"
           }`}
           style={{ width: `${pct}%` }}
@@ -362,7 +390,7 @@ export function MusicConnectRemoteBar({
                 ? ` • ${remoteSession.current_artist_name}`
                 : ""}
               <span className="hidden sm:inline text-[10px] font-mono text-zinc-400 ml-2">
-                {formatSec(progressSec)} / {formatSec(durationSec)}
+                {formatSec(displayProgressSec)} / {formatSec(durationSec)}
               </span>
             </p>
           </div>

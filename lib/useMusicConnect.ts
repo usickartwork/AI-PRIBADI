@@ -54,6 +54,33 @@ interface PendingCommandExpectation {
   onConfirmedSuccess?: () => void;
 }
 
+function areSessionsEqual(prev: AppDeviceSession[], next: AppDeviceSession[]): boolean {
+  if (prev === next) return true;
+  if (!prev || !next) return false;
+  if (prev.length !== next.length) return false;
+  for (let i = 0; i < prev.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (!a || !b) return false;
+    if (
+      a.session_instance_id !== b.session_instance_id ||
+      a.is_playing !== b.is_playing ||
+      a.is_active_playback !== b.is_active_playback ||
+      a.current_track_id !== b.current_track_id ||
+      a.current_track_name !== b.current_track_name ||
+      a.device_name !== b.device_name ||
+      a.volume_percent !== b.volume_percent ||
+      a.shuffle_state !== b.shuffle_state ||
+      a.repeat_state !== b.repeat_state ||
+      Math.abs(a.progress_ms - b.progress_ms) > 2500 ||
+      a.is_connected !== b.is_connected
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   const enabled = isMusicConnectEnabled();
 
@@ -87,6 +114,9 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   useEffect(() => {
     bridgeRef.current = bridge;
   }, [bridge]);
+
+  const userIdRef = useRef<string | null>(userId);
+  userIdRef.current = userId;
 
   const processedCommandIdsRef = useRef<Set<string>>(new Set());
   const handledAckIdsRef = useRef<Set<string>>(new Set());
@@ -143,7 +173,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       const nowIso = new Date().toISOString();
       const volPct = b.isMuted ? 0 : Math.round((b.volume ?? 0.8) * 100);
       return {
-        user_id: userId || "anonymous",
+        user_id: userIdRef.current || "anonymous",
         session_instance_id: localInstanceId,
         spotify_device_id: null,
         device_name: localDeviceName,
@@ -177,7 +207,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         ...override,
       };
     },
-    [userId, localInstanceId, localDeviceName, deviceMeta]
+    [localInstanceId, localDeviceName, deviceMeta]
   );
 
   /**
@@ -509,17 +539,29 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   const applyServerResponse = useCallback(
     (json: any) => {
       if (!json || !json.success) return;
-      if (json.userId && json.userId !== userId) {
-        setUserId(json.userId);
+      if (json.userId) {
+        setUserId((prev) => (prev === json.userId ? prev : json.userId));
       }
-      if (json.realtimeTopic && json.realtimeTopic !== realtimeTopic) {
-        setRealtimeTopic(json.realtimeTopic);
+      if (json.realtimeTopic) {
+        setRealtimeTopic((prev) => (prev === json.realtimeTopic ? prev : json.realtimeTopic));
       }
       if (Array.isArray(json.sessions)) {
-        setSessions(json.sessions);
+        setSessions((prev) => (areSessionsEqual(prev, json.sessions) ? prev : json.sessions));
       }
       if (json.activeSession !== undefined) {
-        setActiveSession(json.activeSession);
+        setActiveSession((prev) => {
+          if (!prev && !json.activeSession) return null;
+          if (
+            prev &&
+            json.activeSession &&
+            prev.session_instance_id === json.activeSession.session_instance_id &&
+            prev.is_playing === json.activeSession.is_playing &&
+            prev.current_track_id === json.activeSession.current_track_id
+          ) {
+            return prev;
+          }
+          return json.activeSession;
+        });
       }
       if (Array.isArray(json.pendingCommands)) {
         for (const cmd of json.pendingCommands) {
@@ -537,7 +579,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         setSpotifyConnect(json.spotifyConnect);
       }
     },
-    [userId, realtimeTopic, executeServerVerifiedCommand, handleServerVerifiedAck]
+    [executeServerVerifiedCommand, handleServerVerifiedAck]
   );
 
   // Pull verified state & pending commands from `/api/music/connect` (triggered on `connect_ping`)
@@ -618,6 +660,26 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     [enabled, localInstanceId, buildLocalSessionSnapshot, applyServerResponse, sendWakeupPing]
   );
 
+  // Throttled incoming wakeup ping handler (caps pull execution to at most once per 800ms)
+  const lastPingPullTimeRef = useRef<number>(0);
+  const pingDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleIncomingPing = useCallback(() => {
+    const now = Date.now();
+    if (now - lastPingPullTimeRef.current < 800) {
+      if (!pingDebounceTimerRef.current) {
+        pingDebounceTimerRef.current = setTimeout(() => {
+          pingDebounceTimerRef.current = null;
+          lastPingPullTimeRef.current = Date.now();
+          void pullServerState();
+        }, 800);
+      }
+      return;
+    }
+    lastPingPullTimeRef.current = now;
+    void pullServerState();
+  }, [pullServerState]);
+
   // Set up Zero-Trust Wakeup Channel (`connect_ping` only!)
   useEffect(() => {
     if (!enabled || !localInstanceId) return;
@@ -628,7 +690,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         const bc = new BroadcastChannel("usick_music_connect_wakeup_v2");
         bc.onmessage = (ev) => {
           if (ev.data?.event === "connect_ping") {
-            void pullServerState();
+            handleIncomingPing();
           }
         };
         broadcastChannelRef.current = bc;
@@ -647,7 +709,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
 
         channel
           .on("broadcast", { event: "connect_ping" }, () => {
-            void pullServerState();
+            handleIncomingPing();
           })
           .subscribe();
 
@@ -671,24 +733,19 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         realtimeChannelRef.current = null;
       }
     };
-  }, [enabled, localInstanceId, realtimeTopic, pullServerState]);
+  }, [enabled, localInstanceId, realtimeTopic, handleIncomingPing]);
 
-  // Initial registration + periodic heartbeat + disconnect on tab close
+  // Initial registration + periodic heartbeat (NEVER notifies peers on timer, stops ping storms!)
   useEffect(() => {
     if (!enabled || !localInstanceId) return;
 
-    void syncHeartbeat({ includeSpotify: false, notifyPeers: true });
+    // Silent initial registration on mount
+    void syncHeartbeat({ includeSpotify: false, notifyPeers: false });
 
-    const hasRemoteActive = sessions.some(
-      (s) =>
-        s.session_instance_id !== localInstanceId &&
-        (s.is_active_playback || s.is_playing)
-    );
-    const pollInterval = hasRemoteActive || showConnectModal ? 2_500 : 6_000;
-
+    // Periodic silent heartbeat every 5s
     const interval = setInterval(() => {
       void syncHeartbeat({ includeSpotify: showConnectModal, notifyPeers: false });
-    }, pollInterval);
+    }, 5_000);
 
     const handleUnload = () => {
       try {
@@ -716,7 +773,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       window.removeEventListener("beforeunload", handleUnload);
       window.removeEventListener("pagehide", handleUnload);
     };
-  }, [enabled, localInstanceId, showConnectModal, sessions, syncHeartbeat, sendWakeupPing]);
+  }, [enabled, localInstanceId, showConnectModal, syncHeartbeat, sendWakeupPing]);
 
   // Immediately sync & ping peers whenever local track, play/pause, shuffle, or repeat changes
   useEffect(() => {
@@ -837,10 +894,6 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         applyServerResponse(json);
         // Trigger immediate wakeup on target device
         sendWakeupPing();
-
-        // Rapid follow-up pulls to get the ACK and updated playback state from target device quickly
-        setTimeout(() => void pullServerState(), 400);
-        setTimeout(() => void pullServerState(), 1200);
       } catch {
         clearTimeout(timeoutId);
         pendingCommandMapRef.current.delete(cmd.command_id);
