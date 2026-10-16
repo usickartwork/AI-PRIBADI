@@ -1260,6 +1260,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const togglePlayPause = () => {
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        mc.remoteActiveSession.is_playing ? "PAUSE" : "PLAY"
+      );
+      return;
+    }
+
     if (!currentTrack) {
       if (queue.length > 0) {
         playTrack(queue[0]);
@@ -1315,6 +1324,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       duration: playbackClockRef.current.duration,
       trackId: currentTrack?.id || "",
     };
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "SEEK",
+        { positionSeconds: newTime, positionMs: Math.round(newTime * 1000) }
+      );
+      return;
+    }
     if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === "function") {
       try {
         ytPlayerRef.current.seekTo(newTime, true);
@@ -1550,6 +1568,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const handleVolumeChange = (val: number) => {
     setVolume(val);
     setIsMuted(val === 0);
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "SET_VOLUME",
+        { volumePercent: Math.round(val * 100) }
+      );
+    }
     if (ytPlayerRef.current && typeof ytPlayerRef.current.setVolume === "function") {
       try {
         ytPlayerRef.current.setVolume(val * 100);
@@ -1562,6 +1588,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "SET_VOLUME",
+        { volumePercent: nextMuted ? 0 : Math.round((volume || 0.8) * 100) }
+      );
+    }
     if (ytPlayerRef.current) {
       try {
         if (nextMuted) {
@@ -1574,7 +1608,34 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
   };
 
+  const toggleShuffle = () => {
+    const nextShuffle = !isShuffle;
+    setIsShuffle(nextShuffle);
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "SHUFFLE", {
+        shuffle: nextShuffle,
+      });
+    }
+  };
+
+  const toggleRepeat = () => {
+    const nextMode = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
+    setRepeatMode(nextMode);
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "REPEAT", {
+        repeatMode: nextMode,
+      });
+    }
+  };
+
   const playNext = (): MusicItem | null => {
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "NEXT");
+      return null;
+    }
     const currentQueue = queueRef.current;
     const currentIndex = queueIndexRef.current;
     if (currentQueue.length === 0) return null;
@@ -1601,6 +1662,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const playPrevious = (): MusicItem | null => {
+    const mc = musicConnectRef.current;
+    if (mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "PREVIOUS");
+      return null;
+    }
     if (currentTime > 3) {
       handleSeek(0);
       return currentTrack;
@@ -4293,7 +4359,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 {/* Shuffle */}
                 <button
                   type="button"
-                  onClick={() => setIsShuffle((prev) => !prev)}
+                  onClick={toggleShuffle}
                   className={`p-2 rounded-xl transition cursor-pointer ${
                     isShuffle
                       ? isDark
@@ -4363,9 +4429,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 {/* Repeat */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
-                  }
+                  onClick={toggleRepeat}
                   className={`p-2 rounded-xl transition cursor-pointer ${
                     repeatMode !== "off"
                       ? isDark
@@ -4970,7 +5034,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Shuffle */}
               <button
                 type="button"
-                onClick={() => setIsShuffle((prev) => !prev)}
+                onClick={toggleShuffle}
                 className={`p-3 rounded-full transition cursor-pointer active:scale-90 ${
                   isShuffle
                     ? isDark ? "text-white" : "text-black font-bold"
@@ -5042,9 +5106,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Repeat */}
               <button
                 type="button"
-                onClick={() =>
-                  setRepeatMode((prev) => (prev === "off" ? "all" : prev === "all" ? "one" : "off"))
-                }
+                onClick={toggleRepeat}
                 className={`p-3 rounded-full transition cursor-pointer relative active:scale-90 ${
                   repeatMode !== "off"
                     ? isDark ? "text-white" : "text-black font-bold"

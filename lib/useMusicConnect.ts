@@ -760,6 +760,10 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
 
   // Fast micro-coalesced incoming wakeup ping handler (sub-50ms reaction time)
   const lastPingPullTimeRef = useRef<number>(0);
+  const executeCommandRef = useRef(executeServerVerifiedCommand);
+  executeCommandRef.current = executeServerVerifiedCommand;
+  const pullServerStateRef = useRef(pullServerState);
+  pullServerStateRef.current = pullServerState;
 
   const handleIncomingPing = useCallback(() => {
     const now = Date.now();
@@ -768,27 +772,32 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       return;
     }
     lastPingPullTimeRef.current = now;
-    void pullServerState();
-  }, [pullServerState]);
+    void pullServerStateRef.current();
+  }, []);
 
-  // Set up Zero-Trust Wakeup Channel (`connect_ping` only!)
+  const handleIncomingPingRef = useRef(handleIncomingPing);
+  handleIncomingPingRef.current = handleIncomingPing;
+
+  // Set up Instant Zero-Trust Command & Wakeup Channel (Sub-20ms Realtime WebSocket + BroadcastChannel)
   useEffect(() => {
     if (!enabled || !localInstanceId) return;
 
-    // 1. Same-browser multi-tab BroadcastChannel wakeup listener
+    // 1. Same-browser multi-tab BroadcastChannel instant command & wakeup listener
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       try {
         const bc = new BroadcastChannel("usick_music_connect_wakeup_v2");
         bc.onmessage = (ev) => {
-          if (ev.data?.event === "connect_ping") {
-            handleIncomingPing();
+          if (ev.data?.event === "connect_command" && ev.data?.command) {
+            void executeCommandRef.current(ev.data.command);
+          } else if (ev.data?.event === "connect_ping") {
+            handleIncomingPingRef.current();
           }
         };
         broadcastChannelRef.current = bc;
       } catch {}
     }
 
-    // 2. Supabase Realtime cross-device wakeup listener (uses server-derived opaque topic)
+    // 2. Supabase Realtime cross-device instant command & wakeup listener (uses server-derived topic)
     let channel: any = null;
     if (isSupabaseConfigured && realtimeTopic) {
       try {
@@ -799,12 +808,18 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         });
 
         channel
+          .on("broadcast", { event: "connect_command" }, (payload: any) => {
+            const incoming = payload?.payload || payload;
+            if (incoming && typeof incoming === "object" && incoming.command_id) {
+              void executeCommandRef.current(incoming);
+            }
+          })
           .on("broadcast", { event: "connect_ping" }, () => {
-            handleIncomingPing();
+            handleIncomingPingRef.current();
           })
           .subscribe((status: string) => {
             if (status === "SUBSCRIBED") {
-              void pullServerState();
+              void pullServerStateRef.current();
             }
           });
 
@@ -828,7 +843,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         realtimeChannelRef.current = null;
       }
     };
-  }, [enabled, localInstanceId, realtimeTopic, handleIncomingPing, pullServerState]);
+  }, [enabled, localInstanceId, realtimeTopic]);
 
   // Initial registration + adaptive periodic heartbeat (NEVER notifies peers on timer, stops ping storms!)
   useEffect(() => {
@@ -877,9 +892,10 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     if (bridge.isPlaying) {
       claimActiveUntilRef.current = Date.now() + 10_000;
     }
+    sendWakeupPing();
     const timer = setTimeout(() => {
       void syncHeartbeat({ claimActive: bridge.isPlaying, notifyPeers: true });
-    }, 120);
+    }, 50);
     return () => clearTimeout(timer);
   }, [
     enabled,
@@ -965,6 +981,37 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
         targetInstanceId,
       });
 
+      // 1. Instant 0ms broadcast over Supabase Realtime & BroadcastChannel (sub-20ms reaction)
+      try {
+        if (realtimeChannelRef.current) {
+          realtimeChannelRef.current.send({
+            type: "broadcast",
+            event: "connect_command",
+            payload: cmd,
+          });
+          if (realtimeChannelRef.current.state !== "joined") {
+            setTimeout(() => {
+              try {
+                realtimeChannelRef.current?.send({
+                  type: "broadcast",
+                  event: "connect_command",
+                  payload: cmd,
+                });
+              } catch {}
+            }, 100);
+          }
+        }
+      } catch {}
+      try {
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({
+            event: "connect_command",
+            command: cmd,
+          });
+        }
+      } catch {}
+
+      // 2. In parallel, persist to server / database with Clerk auth verification
       try {
         const res = await fetch("/api/music/connect", {
           method: "POST",
