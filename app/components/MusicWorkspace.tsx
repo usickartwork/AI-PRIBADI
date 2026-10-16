@@ -880,10 +880,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (rawId.startsWith("spotify:artist:")) {
         rawId = rawId.replace("spotify:artist:", "");
       }
+      try {
+        rawId = decodeURIComponent(rawId);
+      } catch {}
+
       const isSpotifyId = /^[0-9A-Za-z]{22}$/.test(rawId);
       const queryParam = isSpotifyId
         ? `id=${encodeURIComponent(rawId)}`
-        : `name=${encodeURIComponent(artistIdOrName)}`;
+        : `name=${encodeURIComponent(rawId)}`;
 
       const res = await fetch(`/api/music/artist?${queryParam}`);
       const json = await res.json();
@@ -911,6 +915,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (rawId.startsWith("spotify:album:")) {
         rawId = rawId.replace("spotify:album:", "");
       }
+      try {
+        rawId = decodeURIComponent(rawId);
+      } catch {}
+
       const res = await fetch(`/api/music/album?id=${encodeURIComponent(rawId)}`);
       const json = await res.json();
       if (json.success && json.data) {
@@ -2887,6 +2895,38 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <div className="h-6 w-52 bg-zinc-800/80 rounded-full" />
                 <div className="h-4 w-36 bg-zinc-800/50 rounded-full" />
                 <p className="text-xs text-zinc-500 pt-2 font-medium">Memuat album dari Spotify...</p>
+              </div>
+            ) : artistError ? (
+              <div className="w-full max-w-md mx-auto py-16 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-zinc-300 font-medium">{artistError}</p>
+                <button
+                  type="button"
+                  onClick={() => setArtistError(null)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-white font-medium transition cursor-pointer"
+                >
+                  Kembali ke Beranda
+                </button>
+              </div>
+            ) : albumError ? (
+              <div className="w-full max-w-md mx-auto py-16 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-zinc-300 font-medium">{albumError}</p>
+                <button
+                  type="button"
+                  onClick={() => setAlbumError(null)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-white font-medium transition cursor-pointer"
+                >
+                  Kembali ke Beranda
+                </button>
               </div>
             ) : (
             <div
