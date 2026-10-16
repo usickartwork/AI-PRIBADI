@@ -193,6 +193,29 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // ─── Otomatis Buat Event di Google Calendar jika Akun Terhubung ───────────
+      if (user_id && user_id !== "guest") {
+        try {
+          const googleAccount = await getValidGoogleAccessToken(user_id);
+          if (googleAccount) {
+            try {
+              const googleEvent = await createGoogleCalendarEvent(newSchedule, googleAccount.accessToken);
+              if (googleEvent?.eventId) {
+                newSchedule.google_event_id = googleEvent.eventId;
+                newSchedule.google_sync_status = "synced";
+                newSchedule.google_synced_at = new Date().toISOString();
+              }
+            } catch (syncErr: any) {
+              console.warn("[schedules] Google Calendar sync error on create:", syncErr?.message);
+              newSchedule.google_sync_status = "failed";
+              newSchedule.google_sync_error = syncErr?.message || "Gagal sinkronisasi Google Calendar";
+            }
+          }
+        } catch (gErr) {
+          console.warn("[schedules] Error checking Google Calendar token:", gErr);
+        }
+      }
+
       const { data, error } = await client
         .from("schedules")
         .insert([newSchedule])
@@ -210,51 +233,6 @@ export async function POST(req: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-      }
-
-      // ─── Otomatis Buat Event di Google Calendar jika Akun Terhubung ───────────
-      if (user_id && user_id !== "guest") {
-        try {
-          const googleAccount = await getValidGoogleAccessToken(user_id);
-          if (googleAccount) {
-            try {
-              const googleEvent = await createGoogleCalendarEvent(finalItem, googleAccount.accessToken);
-              if (googleEvent?.eventId) {
-                finalItem.google_event_id = googleEvent.eventId;
-                finalItem.google_sync_status = "synced";
-                finalItem.google_synced_at = new Date().toISOString();
-
-                // Update record di Supabase jika tersimpan di database
-                if (isSupabaseConfigured && finalItem.id && !finalItem.id.startsWith("local_")) {
-                  await client
-                    .from("schedules")
-                    .update({
-                      google_event_id: googleEvent.eventId,
-                      google_sync_status: "synced",
-                      google_synced_at: finalItem.google_synced_at,
-                    })
-                    .eq("id", finalItem.id);
-                }
-              }
-            } catch (syncErr: any) {
-              console.warn("[schedules] Google Calendar sync error on create:", syncErr?.message);
-              finalItem.google_sync_status = "failed";
-              finalItem.google_sync_error = syncErr?.message || "Gagal sinkronisasi Google Calendar";
-
-              if (isSupabaseConfigured && finalItem.id && !finalItem.id.startsWith("local_")) {
-                await client
-                  .from("schedules")
-                  .update({
-                    google_sync_status: "failed",
-                    google_sync_error: finalItem.google_sync_error,
-                  })
-                  .eq("id", finalItem.id);
-              }
-            }
-          }
-        } catch (gErr) {
-          console.warn("[schedules] Error checking Google Calendar token:", gErr);
-        }
       }
 
       if (error) {
@@ -392,6 +370,7 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const userId = searchParams.get("userId");
+    const googleEventId = searchParams.get("googleEventId") || searchParams.get("google_event_id");
 
     if (!id || !userId) {
       return NextResponse.json(
@@ -404,17 +383,25 @@ export async function DELETE(req: NextRequest) {
     if (userId && userId !== "guest") {
       try {
         const googleAccount = await getValidGoogleAccessToken(userId);
-        if (googleAccount && isSupabaseConfigured) {
-          const client = getSupabaseClient(req) || supabase;
-          const { data: scheduleToDelete } = await client
-            .from("schedules")
-            .select("google_event_id")
-            .eq("id", id)
-            .maybeSingle();
+        if (googleAccount) {
+          let targetEventId = googleEventId?.trim();
 
-          if (scheduleToDelete?.google_event_id) {
+          // Jika googleEventId belum dikirim dari client, cari di Supabase
+          if (!targetEventId && isSupabaseConfigured && !id.startsWith("local_")) {
+            const client = getSupabaseClient(req) || supabase;
+            const { data: scheduleToDelete } = await client
+              .from("schedules")
+              .select("google_event_id")
+              .eq("id", id)
+              .maybeSingle();
+
+            targetEventId = scheduleToDelete?.google_event_id;
+          }
+
+          if (targetEventId) {
             try {
-              await deleteGoogleCalendarEvent(scheduleToDelete.google_event_id, googleAccount.accessToken);
+              console.log(`[schedules] Menghapus event Google Calendar: ${targetEventId} untuk user: ${userId}`);
+              await deleteGoogleCalendarEvent(targetEventId, googleAccount.accessToken);
             } catch (delErr: any) {
               console.warn("[schedules] Google Calendar delete event warning:", delErr);
             }
@@ -425,7 +412,7 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && !id.startsWith("local_")) {
       const client = getSupabaseClient(req) || supabase;
       const { error } = await client
         .from("schedules")

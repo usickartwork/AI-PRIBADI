@@ -1059,10 +1059,17 @@ export function ScheduleWorkspace({
   const handleDeleteSchedule = async (item: ScheduleItem) => {
     if (!confirm(`Hapus jadwal "${item.title}"?`)) return;
 
-    if (user?.id && !item.id.startsWith("local_")) {
+    if (user?.id && (!item.id.startsWith("local_") || item.google_event_id)) {
       try {
         const headers = await getAuthHeaders();
-        await fetch(`/api/schedules?id=${encodeURIComponent(item.id)}&userId=${encodeURIComponent(userId)}`, {
+        const queryParams = new URLSearchParams({
+          id: item.id,
+          userId: userId,
+        });
+        if (item.google_event_id) {
+          queryParams.set("googleEventId", item.google_event_id);
+        }
+        await fetch(`/api/schedules?${queryParams.toString()}`, {
           method: "DELETE",
           headers,
         });

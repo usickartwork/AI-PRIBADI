@@ -594,7 +594,8 @@ export async function deleteGoogleCalendarEvent(
     return true;
   }
 
-  console.warn("[googleCalendar] deleteEvent warning status:", res.status);
+  const errText = await res.text().catch(() => "");
+  console.warn("[googleCalendar] deleteEvent warning status:", res.status, errText);
   return false;
 }
 
