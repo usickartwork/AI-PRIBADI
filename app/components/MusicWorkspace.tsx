@@ -577,38 +577,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const queueIndexRef = useRef<number>(queueIndex);
   const repeatModeRef = useRef<"off" | "all" | "one">(repeatMode);
   const isShuffleRef = useRef<boolean>(isShuffle);
-  const currentTrackRef = useRef<MusicItem | null>(currentTrack);
-  const volumeRef = useRef<number>(volume);
-  const isMutedRef = useRef<boolean>(isMuted);
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
   useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
   useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
-  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
-  useEffect(() => { volumeRef.current = volume; }, [volume]);
-  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
 
-  // Primary HTML5 Audio Ref & Dual-Engine State (HTML5 Primary + YouTube IFrame Fallback)
+  // Audio Ref (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const activeEngineRef = useRef<"html5" | "youtube">("html5");
-  const pendingHtml5SeekRef = useRef<number | null>(null);
-  const html5ErrorRetryTrackIdRef = useRef<string | null>(null);
-  const playRequestIdRef = useRef<number>(0);
-  const resolvedPlayCacheRef = useRef<
-    Map<
-      string,
-      {
-        audioUrl: string | null;
-        audioMimeType: string | null;
-        audioSource: string | null;
-        isFullTrackAudio: boolean;
-        durationSeconds?: number;
-        videoId: string | null;
-        expiresAt: number;
-      }
-    >
-  >(new Map());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ─── Cloud Sync Helper (Debounced & Race-Safe Persistence to User Account) ──
@@ -732,7 +708,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
   }, [syncLibraryToCloud]);
 
-  // ─── Initialize YouTube IFrame Player API (Fallback Engine) ───────────────
+  // ─── Initialize YouTube IFrame Player API for 100% Full Playback ───────────
   useEffect(() => {
     let isMounted = true;
 
@@ -765,9 +741,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               isYtReadyRef.current = true;
               setIsYtReady(true);
               try {
-                event.target.setVolume(volumeRef.current * 100);
+                event.target.setVolume(volume * 100);
               } catch {}
-              if (pendingVideoIdRef.current && activeEngineRef.current === "youtube") {
+              if (pendingVideoIdRef.current) {
                 const vid = pendingVideoIdRef.current;
                 const opts = pendingVideoOptionsRef.current;
                 pendingVideoIdRef.current = null;
@@ -793,13 +769,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             },
             onStateChange: (event: any) => {
               if (!isMounted) return;
-              // Ignore YouTube events when HTML5 Audio is the active engine
-              if (activeEngineRef.current !== "youtube") {
-                if (event.data === 1) {
-                  try { event.target.pauseVideo(); } catch {}
-                }
-                return;
-              }
               // 1: PLAYING, 2: PAUSED, 0: ENDED
               if (event.data === 1) {
                 setIsPlaying(true);
@@ -813,7 +782,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     snapshotPerfTime: performance.now(),
                     isPlaying: true,
                     duration: dur,
-                    trackId: currentTrackRef.current?.id || "",
+                    trackId: currentTrack?.id || "",
                   };
                 } catch {}
               } else if (event.data === 2) {
@@ -853,40 +822,36 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (typeof document === "undefined") return;
 
       if (!document.hidden) {
-        // User returned to the app! If playback was active and not paused by user, ensure engine is playing
+        // User returned to the app! If playback was active and not paused by user, resume immediately!
         if (isPlayingRef.current && !userRequestedPauseRef.current) {
-          if (activeEngineRef.current === "html5") {
-            if (audioRef.current && audioRef.current.paused && audioRef.current.src) {
-              try {
-                audioRef.current.play().catch(() => {});
-              } catch {}
-            }
-          } else if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
             try {
               ytPlayerRef.current.playVideo();
+            } catch {}
+          }
+          if (audioRef.current) {
+            try {
+              audioRef.current.play().catch(() => {});
             } catch {}
           }
           playbackClockRef.current.snapshotPerfTime = performance.now();
           playbackClockRef.current.isPlaying = true;
         }
       } else {
-        // App minimized or user switched away to another app (e.g. WhatsApp / iOS Lock Screen)
+        // App minimized or user switched away to another app (e.g. WhatsApp)
         if (isPlayingRef.current && !userRequestedPauseRef.current) {
-          if (activeEngineRef.current === "html5") {
-            if (audioRef.current && audioRef.current.paused && audioRef.current.src) {
-              try {
-                audioRef.current.play().catch(() => {});
-              } catch {}
-            }
-          } else if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+          if (audioRef.current) {
+            try {
+              audioRef.current.play().catch(() => {});
+            } catch {}
+          }
+          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
             try {
               ytPlayerRef.current.playVideo();
             } catch {}
           }
           if ("mediaSession" in navigator) {
-            try {
-              navigator.mediaSession.playbackState = "playing";
-            } catch {}
+            navigator.mediaSession.playbackState = "playing";
           }
         }
       }
@@ -935,36 +900,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   useEffect(() => {
     if (!isPlaying) return;
     const interval = setInterval(() => {
-      if (activeEngineRef.current === "html5") {
-        const audio = audioRef.current;
-        if (audio && audio.src && !audio.src.startsWith("data:audio")) {
-          const cur = audio.currentTime;
-          const dur = audio.duration;
-          if (typeof cur === "number" && !isNaN(cur) && !isScrubbingRef.current) {
-            setCurrentTime(cur);
-            playbackClockRef.current = {
-              positionSeconds: cur,
-              snapshotPerfTime: performance.now(),
-              isPlaying: !audio.paused,
-              duration:
-                typeof dur === "number" && dur > 0 && isFinite(dur)
-                  ? dur
-                  : playbackClockRef.current.duration,
-              trackId: currentTrack?.id || "",
-            };
-          }
-          if (typeof dur === "number" && dur > 0 && isFinite(dur)) {
-            setDuration(dur);
-          }
-        }
-        return;
-      }
-
       if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === "function") {
         try {
           const cur = ytPlayerRef.current.getCurrentTime();
           const dur = ytPlayerRef.current.getDuration();
-          if (typeof cur === "number" && !isNaN(cur) && !isScrubbingRef.current) {
+          if (typeof cur === "number" && !isNaN(cur)) {
             setCurrentTime(cur);
             // Re-sync monotonic clock snapshot to correct any hardware/buffer drift
             playbackClockRef.current = {
@@ -1235,339 +1175,130 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setAlbumError(null);
   }, []);
 
-  // ─── Dual-Engine Helpers: Primary HTML5 Audio + Fallback YouTube IFrame ────
-  const activateYoutubeFallback = useCallback(
-    (videoId: string, startSec: number, shouldAutoPlay: boolean) => {
-      if (!videoId) return;
-      activeEngineRef.current = "youtube";
-
-      // Ensure HTML5 Audio is paused and does not play in parallel
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-          audioRef.current.removeAttribute("src");
-          audioRef.current.load();
-        } catch {}
-      }
-
-      setCurrentVideoId(videoId);
-
-      if (
-        ytPlayerRef.current &&
-        isYtReadyRef.current &&
-        typeof ytPlayerRef.current.loadVideoById === "function"
-      ) {
-        try {
-          if (shouldAutoPlay) {
-            ytPlayerRef.current.loadVideoById({
-              videoId,
-              startSeconds: startSec,
-            });
-            ytPlayerRef.current.playVideo();
-          } else if (typeof ytPlayerRef.current.cueVideoById === "function") {
-            ytPlayerRef.current.cueVideoById({
-              videoId,
-              startSeconds: startSec,
-            });
-          }
-        } catch (err) {
-          console.warn("ytPlayer loadVideoById error:", err);
+  // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
+  const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean; forceLocal?: boolean }) => {
+    const mc = musicConnectRef.current;
+    if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
+      mc.sendAppCommand(
+        mc.remoteActiveSession.session_instance_id,
+        "PLAY_TRACK",
+        {
+          track,
+          positionSeconds: options?.startSeconds || 0,
+          autoPlay: options?.autoPlay !== false,
         }
-      } else {
-        pendingVideoIdRef.current = videoId;
-        pendingVideoOptionsRef.current = {
-          startSeconds: startSec,
-          autoPlay: shouldAutoPlay,
-        };
-      }
-    },
-    []
-  );
+      );
+      showQueueToast(
+        `Memutar "${track.title}" di ${mc.remoteActiveSession.device_name}`
+      );
+      return;
+    }
 
-  const activateHtml5Audio = useCallback(
-    (
-      audioUrl: string,
-      startSec: number,
-      shouldAutoPlay: boolean,
-      fallbackVideoId?: string | null
-    ) => {
-      const audio = audioRef.current;
-      if (!audio || !audioUrl) {
-        if (fallbackVideoId) {
-          activateYoutubeFallback(fallbackVideoId, startSec, shouldAutoPlay);
-        }
-        return;
-      }
+    const startSec = Math.max(0, options?.startSeconds || 0);
+    const shouldAutoPlay = options?.autoPlay !== false;
+    setCurrentTrack(track);
+    setIsPlaying(shouldAutoPlay);
+    userRequestedPauseRef.current = !shouldAutoPlay;
+    setCurrentTime(startSec);
+    loadedTrackIdRef.current = track.id;
 
-      activeEngineRef.current = "html5";
+    // Reset clock snapshot and lyric index immediately to prevent stale interpolation
+    playbackClockRef.current = {
+      positionSeconds: startSec,
+      snapshotPerfTime: performance.now(),
+      isPlaying: shouldAutoPlay,
+      duration: track.durationMs ? track.durationMs / 1000 : 0,
+      trackId: track.id,
+    };
+    activeLyricIndexRef.current = -1;
+    setActiveLyricIndex(-1);
 
-      // Ensure YouTube IFrame player is paused so duplicate audio never occurs
-      if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
-        try {
-          ytPlayerRef.current.pauseVideo();
-        } catch {}
-      }
-
+    // Keep mobile background audio alive by acquiring HTML5 audio session lock
+    if (shouldAutoPlay && audioRef.current) {
       try {
-        audio.loop = repeatModeRef.current === "one";
-        audio.muted = isMutedRef.current;
-        try {
-          audio.volume = isMutedRef.current ? 0 : volumeRef.current;
-        } catch {}
-
-        pendingHtml5SeekRef.current = startSec > 0 ? startSec : null;
-
-        if (audio.src !== audioUrl) {
-          audio.src = audioUrl;
-          audio.load();
-        } else if (startSec >= 0) {
-          try {
-            audio.currentTime = startSec;
-            pendingHtml5SeekRef.current = null;
-          } catch {}
+        if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+          audioRef.current.src = SILENT_AUDIO_URI;
+          audioRef.current.loop = true;
         }
+        audioRef.current.play().catch(() => {});
+      } catch {}
+    }
 
-        if (shouldAutoPlay) {
-          const playPromise = audio.play();
-          if (playPromise && typeof playPromise.catch === "function") {
-            playPromise.catch((err: unknown) => {
-              const errName = err instanceof Error ? err.name : "";
-              // Ignore AbortError caused by rapid track switching
-              if (errName === "AbortError") return;
-              console.warn("[HTML5 Audio Play Error]:", errName || err);
-              if (
-                fallbackVideoId &&
-                errName !== "NotAllowedError" &&
-                typeof document !== "undefined" &&
-                !document.hidden
-              ) {
-                activateYoutubeFallback(fallbackVideoId, startSec, shouldAutoPlay);
-              }
-            });
-          }
-        } else {
-          audio.pause();
-        }
-      } catch (err) {
-        console.warn("[HTML5 Audio Init Error]:", err);
-        if (fallbackVideoId) {
-          activateYoutubeFallback(fallbackVideoId, startSec, shouldAutoPlay);
-        }
-      }
-    },
-    [activateYoutubeFallback]
-  );
+    // Update queue index if track is already in queue, but never auto-add unqueued tracks to queue
+    setQueue((prevQueue) => {
+      const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
+      const newIdx = existingIdx !== -1 ? existingIdx : -1;
+      setQueueIndex(newIdx);
+      saveQueueState({ items: prevQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
+      return prevQueue;
+    });
 
-  // ─── Audio Playback Logic (Primary HTML5 Audio + YouTube Fallback) ─────────
-  const playTrack = useCallback(
-    async (
-      track: MusicItem,
-      options?: { startSeconds?: number; autoPlay?: boolean; forceLocal?: boolean; forceRefreshUrl?: boolean }
-    ) => {
-      const mc = musicConnectRef.current;
-      if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
-        mc.sendAppCommand(
-          mc.remoteActiveSession.session_instance_id,
-          "PLAY_TRACK",
-          {
-            track,
-            positionSeconds: options?.startSeconds || 0,
-            autoPlay: options?.autoPlay !== false,
-          }
-        );
-        showQueueToast(
-          `Memutar "${track.title}" di ${mc.remoteActiveSession.device_name}`
-        );
-        return;
-      }
+    if (track.durationMs && track.durationMs > 0) {
+      setDuration(track.durationMs / 1000);
+    }
 
-      const startSec = Math.max(0, options?.startSeconds || 0);
-      const shouldAutoPlay = options?.autoPlay !== false;
-      const reqId = ++playRequestIdRef.current;
+    let videoId = track.youtubeVideoId;
 
-      currentTrackRef.current = track;
-      setCurrentTrack(track);
-      setIsPlaying(shouldAutoPlay);
-      userRequestedPauseRef.current = !shouldAutoPlay;
-      setCurrentTime(startSec);
-      loadedTrackIdRef.current = track.id;
-
-      const initialDurationSec = track.durationMs && track.durationMs > 0 ? track.durationMs / 1000 : 0;
-      if (initialDurationSec > 0) {
-        setDuration(initialDurationSec);
-      }
-
-      // Reset clock snapshot and lyric index immediately to prevent stale interpolation
-      playbackClockRef.current = {
-        positionSeconds: startSec,
-        snapshotPerfTime: performance.now(),
-        isPlaying: shouldAutoPlay,
-        duration: initialDurationSec,
-        trackId: track.id,
-      };
-      activeLyricIndexRef.current = -1;
-      setActiveLyricIndex(-1);
-
-      // Update queue index if track is already in queue, but never auto-add unqueued tracks to queue
-      setQueue((prevQueue) => {
-        const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
-        const newIdx = existingIdx !== -1 ? existingIdx : -1;
-        setQueueIndex(newIdx);
-        saveQueueState({ items: prevQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
-        return prevQueue;
-      });
-
-      // Check pre-resolved client cache first so iOS background auto-next can start synchronously!
-      const cached = !options?.forceRefreshUrl ? resolvedPlayCacheRef.current.get(track.id) : undefined;
-      if (cached && cached.expiresAt > Date.now()) {
-        if (cached.videoId) {
-          track.youtubeVideoId = cached.videoId;
-          setCurrentVideoId(cached.videoId);
-        }
-        if (cached.audioUrl) {
-          if (typeof cached.durationSeconds === "number" && cached.durationSeconds > 0) {
-            setDuration(cached.durationSeconds);
-            playbackClockRef.current.duration = cached.durationSeconds;
-          }
-          activateHtml5Audio(cached.audioUrl, startSec, shouldAutoPlay, cached.videoId);
-          return;
-        }
-        if (cached.videoId) {
-          activateYoutubeFallback(cached.videoId, startSec, shouldAutoPlay);
-          return;
-        }
-      }
-
-      // If track already has a direct HTTPS .m4a/.mp3 previewUrl in metadata, start HTML5 audio immediately while resolving
-      if (
-        !options?.forceRefreshUrl &&
-        typeof track.previewUrl === "string" &&
-        track.previewUrl.startsWith("https://")
-      ) {
-        activateHtml5Audio(track.previewUrl, startSec, shouldAutoPlay, track.youtubeVideoId || null);
-      }
-
+    if (!videoId) {
       setIsResolvingAudio(true);
       try {
         const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
-        const refreshParam = options?.forceRefreshUrl ? "&refresh=1" : "";
-        const durationParam = track.durationMs ? `&durationMs=${encodeURIComponent(String(track.durationMs))}` : "";
         const res = await fetch(
-          `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}${durationParam}${refreshParam}`
+          `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
         );
         const data = await res.json();
-
-        // Guard against race conditions if user switched tracks while resolving
-        if (reqId !== playRequestIdRef.current) return;
-
-        if (data.success) {
-          const resolvedEntry = {
-            audioUrl: typeof data.audioUrl === "string" ? data.audioUrl : null,
-            audioMimeType: typeof data.audioMimeType === "string" ? data.audioMimeType : null,
-            audioSource: typeof data.audioSource === "string" ? data.audioSource : null,
-            isFullTrackAudio: Boolean(data.isFullTrackAudio),
-            durationSeconds: typeof data.durationSeconds === "number" ? data.durationSeconds : undefined,
-            videoId: typeof data.videoId === "string" ? data.videoId : track.youtubeVideoId || null,
-            expiresAt: typeof data.expiresAt === "number" ? data.expiresAt : Date.now() + 25 * 60 * 1000,
-          };
-
-          resolvedPlayCacheRef.current.set(track.id, resolvedEntry);
-
-          if (resolvedEntry.videoId) {
-            track.youtubeVideoId = resolvedEntry.videoId;
-            setCurrentVideoId(resolvedEntry.videoId);
-            setQueue((prevQueue) => {
-              const updated = prevQueue.map((item) =>
-                item.id === track.id ? { ...item, youtubeVideoId: resolvedEntry.videoId || undefined } : item
-              );
-              saveQueueState({ items: updated, currentIndex: queueIndexRef.current, updatedAt: new Date().toISOString() });
-              return updated;
-            });
-          }
-
-          if (resolvedEntry.audioUrl) {
-            if (typeof resolvedEntry.durationSeconds === "number" && resolvedEntry.durationSeconds > 0) {
-              setDuration(resolvedEntry.durationSeconds);
-              playbackClockRef.current.duration = resolvedEntry.durationSeconds;
-            }
-            activateHtml5Audio(resolvedEntry.audioUrl, startSec, shouldAutoPlay, resolvedEntry.videoId);
-            return;
-          }
-
-          if (resolvedEntry.videoId) {
-            activateYoutubeFallback(resolvedEntry.videoId, startSec, shouldAutoPlay);
-            return;
-          }
+        if (data.success && data.videoId) {
+          videoId = data.videoId;
+          track.youtubeVideoId = videoId;
+          // Persist the resolved videoId to the queue
+          setQueue((prevQueue) => {
+            const updated = prevQueue.map((item) =>
+              item.id === track.id ? { ...item, youtubeVideoId: videoId } : item
+            );
+            saveQueueState({ items: updated, currentIndex: queueIndexRef.current, updatedAt: new Date().toISOString() });
+            return updated;
+          });
         }
       } catch (err) {
         console.warn("Failed to resolve audio for track:", err);
       } finally {
-        if (reqId === playRequestIdRef.current) {
-          setIsResolvingAudio(false);
-        }
+        setIsResolvingAudio(false);
       }
-
-      if (reqId !== playRequestIdRef.current) return;
-
-      if (track.youtubeVideoId) {
-        activateYoutubeFallback(track.youtubeVideoId, startSec, shouldAutoPlay);
-      }
-    },
-    [activateHtml5Audio, activateYoutubeFallback]
-  );
-
-  // ─── Pre-Resolve Next Queue Track in Background for Seamless iOS Auto-Next ─
-  useEffect(() => {
-    if (!currentTrack || queue.length === 0) return;
-
-    const candidates: MusicItem[] = [];
-    if (queueIndex >= 0 && queueIndex + 1 < queue.length) {
-      candidates.push(queue[queueIndex + 1]);
-    } else if (queue.length > 0 && repeatMode === "all") {
-      candidates.push(queue[0]);
     }
 
-    if (candidates.length === 0) return;
+    if (!videoId) {
+      console.warn("Could not resolve videoId for track:", track.title);
+      return;
+    }
 
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      for (const nextItem of candidates) {
-        if (cancelled || !nextItem) break;
-        const existing = resolvedPlayCacheRef.current.get(nextItem.id);
-        if (existing && existing.expiresAt > Date.now()) continue;
+    const targetVideoId = videoId;
+    setCurrentVideoId(targetVideoId);
 
-        try {
-          const artist = nextItem.artistNames.length > 0 ? nextItem.artistNames.join(" ") : "";
-          const durationParam = nextItem.durationMs
-            ? `&durationMs=${encodeURIComponent(String(nextItem.durationMs))}`
-            : "";
-          const res = await fetch(
-            `/api/music/play?title=${encodeURIComponent(nextItem.title)}&artist=${encodeURIComponent(
-              artist
-            )}&id=${encodeURIComponent(nextItem.id)}${durationParam}`
-          );
-          if (!res.ok || cancelled) continue;
-          const data = await res.json();
-          if (data?.success && !cancelled) {
-            resolvedPlayCacheRef.current.set(nextItem.id, {
-              audioUrl: typeof data.audioUrl === "string" ? data.audioUrl : null,
-              audioMimeType: typeof data.audioMimeType === "string" ? data.audioMimeType : null,
-              audioSource: typeof data.audioSource === "string" ? data.audioSource : null,
-              isFullTrackAudio: Boolean(data.isFullTrackAudio),
-              durationSeconds: typeof data.durationSeconds === "number" ? data.durationSeconds : undefined,
-              videoId: typeof data.videoId === "string" ? data.videoId : nextItem.youtubeVideoId || null,
-              expiresAt: typeof data.expiresAt === "number" ? data.expiresAt : Date.now() + 25 * 60 * 1000,
-            });
-          }
-        } catch {}
+    if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
+      try {
+        if (shouldAutoPlay) {
+          ytPlayerRef.current.loadVideoById({
+            videoId: targetVideoId,
+            startSeconds: startSec,
+          });
+          ytPlayerRef.current.playVideo();
+        } else if (typeof ytPlayerRef.current.cueVideoById === "function") {
+          ytPlayerRef.current.cueVideoById({
+            videoId: targetVideoId,
+            startSeconds: startSec,
+          });
+        }
+      } catch (err) {
+        console.warn("ytPlayer loadVideoById error:", err);
       }
-    }, 1200);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [currentTrack?.id, queue, queueIndex, repeatMode]);
+    } else {
+      pendingVideoIdRef.current = targetVideoId;
+      pendingVideoOptionsRef.current = {
+        startSeconds: startSec,
+        autoPlay: shouldAutoPlay,
+      };
+    }
+  }, []);
 
   const playAllTracks = (items: MusicItem[]) => {
     if (!items || items.length === 0) return;
@@ -1637,30 +1368,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
-    // If the displayed track hasn't been loaded into the active engine yet, load and play it directly!
+    // If the displayed track hasn't been loaded into the YouTube engine yet
+    // (e.g. restored from saved queue when opening the tab), load and play it directly!
     if (loadedTrackIdRef.current !== currentTrack.id) {
       playTrack(currentTrack);
       return;
-    }
-
-    if (activeEngineRef.current === "html5" && audioRef.current && audioRef.current.src) {
-      try {
-        if (isPlaying) {
-          userRequestedPauseRef.current = true;
-          audioRef.current.pause();
-          playbackClockRef.current.isPlaying = false;
-          setIsPlaying(false);
-        } else {
-          userRequestedPauseRef.current = false;
-          audioRef.current.play().catch(() => {});
-          playbackClockRef.current.snapshotPerfTime = performance.now();
-          playbackClockRef.current.isPlaying = true;
-          setIsPlaying(true);
-        }
-        return;
-      } catch (err) {
-        console.warn("HTML5 togglePlay error:", err);
-      }
     }
 
     if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
@@ -1675,6 +1387,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         } else {
           userRequestedPauseRef.current = false;
           ytPlayerRef.current.playVideo();
+          if (audioRef.current) {
+            try {
+              if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+                audioRef.current.src = SILENT_AUDIO_URI;
+                audioRef.current.loop = true;
+              }
+              audioRef.current.play().catch(() => {});
+            } catch {}
+          }
           setIsPlaying(true);
         }
         return;
@@ -1702,12 +1423,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         "SEEK",
         { positionSeconds: newTime, positionMs: Math.round(newTime * 1000) }
       );
-      return;
-    }
-    if (activeEngineRef.current === "html5" && audioRef.current && audioRef.current.src) {
-      try {
-        audioRef.current.currentTime = newTime;
-      } catch {}
       return;
     }
     if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === "function") {
@@ -1953,12 +1668,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         { volumePercent: Math.round(val * 100) }
       );
     }
-    if (audioRef.current) {
-      try {
-        audioRef.current.muted = val === 0;
-        audioRef.current.volume = val;
-      } catch {}
-    }
     if (ytPlayerRef.current && typeof ytPlayerRef.current.setVolume === "function") {
       try {
         ytPlayerRef.current.setVolume(val * 100);
@@ -1978,12 +1687,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         "SET_VOLUME",
         { volumePercent: nextMuted ? 0 : Math.round((volume || 0.8) * 100) }
       );
-    }
-    if (audioRef.current) {
-      try {
-        audioRef.current.muted = nextMuted;
-        audioRef.current.volume = nextMuted ? 0 : volume || 0.8;
-      } catch {}
     }
     if (ytPlayerRef.current) {
       try {
@@ -2011,9 +1714,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const toggleRepeat = () => {
     const nextMode = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
     setRepeatMode(nextMode);
-    if (audioRef.current) {
-      audioRef.current.loop = nextMode === "one";
-    }
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "REPEAT", {
@@ -2082,13 +1782,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const handleTrackEnded = () => {
     if (repeatModeRef.current === "one") {
       handleSeek(0);
-      if (activeEngineRef.current === "html5" && audioRef.current && audioRef.current.src) {
-        try {
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
-        } catch {}
-        return;
-      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         ytPlayerRef.current.playVideo();
       }
@@ -2114,16 +1807,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (!trackToPlay) return false;
       if (!currentTrack || loadedTrackIdRef.current !== trackToPlay.id) {
         await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
-      } else if (activeEngineRef.current === "html5" && audioRef.current && audioRef.current.src) {
-        try {
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch {
-          await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
-        }
       } else if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         try {
           ytPlayerRef.current.playVideo();
+          if (audioRef.current) {
+            audioRef.current.play().catch(() => {});
+          }
           setIsPlaying(true);
         } catch {
           await playTrack(trackToPlay, { autoPlay: true, forceLocal: true });
@@ -2136,14 +1825,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     onRemotePause: () => {
       userRequestedPauseRef.current = true;
       playbackClockRef.current.isPlaying = false;
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-        } catch {}
-      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
         try {
           ytPlayerRef.current.pauseVideo();
+        } catch {}
+      }
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
         } catch {}
       }
       setIsPlaying(false);
@@ -2164,9 +1853,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     },
     onRemoteRepeat: (nextMode: "off" | "all" | "one") => {
       setRepeatMode(nextMode);
-      if (audioRef.current) {
-        audioRef.current.loop = nextMode === "one";
-      }
     },
     onRemoteTransferHere: async ({ track, queue: incomingQueue, positionSeconds, autoPlay }) => {
       const targetTrack = track || currentTrack || incomingQueue?.[0] || queueRef.current[0] || null;
@@ -2289,7 +1975,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
 
-    if (currentTrack && typeof MediaMetadata !== "undefined") {
+    if (currentTrack) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: currentTrack.title,
@@ -2310,9 +1996,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    try {
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-    } catch {}
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 
     const handlePlay = () => {
       userRequestedPauseRef.current = false;
@@ -2320,29 +2004,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         playTrack(currentTrack);
         return;
       }
-      if (activeEngineRef.current === "html5" && audioRef.current && audioRef.current.src) {
-        try {
-          audioRef.current.play().catch(() => {});
-        } catch {}
-        playbackClockRef.current.snapshotPerfTime = performance.now();
-        playbackClockRef.current.isPlaying = true;
-        setIsPlaying(true);
-        return;
-      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         ytPlayerRef.current.playVideo();
+      }
+      if (audioRef.current) {
+        try {
+          if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+            audioRef.current.src = SILENT_AUDIO_URI;
+            audioRef.current.loop = true;
+          }
+          audioRef.current.play().catch(() => {});
+        } catch {}
       }
       setIsPlaying(true);
     };
 
     const handlePause = () => {
       userRequestedPauseRef.current = true;
-      playbackClockRef.current.isPlaying = false;
-      if (activeEngineRef.current === "html5" && audioRef.current) {
-        try { audioRef.current.pause(); } catch {}
-        setIsPlaying(false);
-        return;
-      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
         ytPlayerRef.current.pauseVideo();
       }
@@ -3398,147 +3076,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         isDark ? "text-zinc-100" : "text-zinc-900"
       }`}
     >
-      {/* Persistent Primary HTML5 Audio Player for iOS Safari / Lock Screen / Background Playback */}
+      {/* Hidden Audio Player for audio previews & mobile background keepalive */}
       <audio
         ref={audioRef}
-        preload="auto"
         playsInline
-        onLoadedMetadata={() => {
-          const audio = audioRef.current;
-          if (!audio || activeEngineRef.current !== "html5") return;
-          const dur = audio.duration;
-          if (typeof dur === "number" && Number.isFinite(dur) && dur > 0) {
-            setDuration(dur);
-            playbackClockRef.current.duration = dur;
-          }
-          if (pendingHtml5SeekRef.current !== null && pendingHtml5SeekRef.current >= 0) {
-            try {
-              const targetSeek =
-                typeof dur === "number" && Number.isFinite(dur) && dur > 0
-                  ? Math.min(pendingHtml5SeekRef.current, Math.max(0, dur - 0.25))
-                  : pendingHtml5SeekRef.current;
-              audio.currentTime = targetSeek;
-              setCurrentTime(targetSeek);
-              playbackClockRef.current.positionSeconds = targetSeek;
-              playbackClockRef.current.snapshotPerfTime = performance.now();
-            } catch {}
-            pendingHtml5SeekRef.current = null;
-          }
-        }}
-        onPlay={() => {
-          if (activeEngineRef.current !== "html5") return;
-          setIsPlaying(true);
-          playbackClockRef.current.isPlaying = true;
-          playbackClockRef.current.snapshotPerfTime = performance.now();
-          if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
-            try {
-              navigator.mediaSession.playbackState = "playing";
-            } catch {}
-          }
-        }}
-        onPlaying={() => {
-          if (activeEngineRef.current !== "html5") return;
-          setIsPlaying(true);
-          playbackClockRef.current.isPlaying = true;
-          playbackClockRef.current.snapshotPerfTime = performance.now();
-          if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
-            try {
-              navigator.mediaSession.playbackState = "playing";
-            } catch {}
-          }
-        }}
-        onPause={() => {
-          const audio = audioRef.current;
-          if (!audio || activeEngineRef.current !== "html5" || audio.ended) return;
-          setIsPlaying(false);
-          playbackClockRef.current.isPlaying = false;
-          playbackClockRef.current.positionSeconds = audio.currentTime || 0;
-          playbackClockRef.current.snapshotPerfTime = performance.now();
-          if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
-            try {
-              navigator.mediaSession.playbackState = "paused";
-            } catch {}
-          }
-        }}
         onTimeUpdate={() => {
-          const audio = audioRef.current;
-          if (
-            !audio ||
-            activeEngineRef.current !== "html5" ||
-            !audio.src ||
-            audio.src.startsWith("data:audio")
-          ) {
-            return;
-          }
-          const cur = audio.currentTime || 0;
-          const rawDur = audio.duration;
-          const dur =
-            typeof rawDur === "number" && Number.isFinite(rawDur) && rawDur > 0
-              ? rawDur
-              : playbackClockRef.current.duration || 0;
-          setCurrentTime(cur);
-          if (dur > 0) {
-            setDuration(dur);
-          }
-          playbackClockRef.current = {
-            positionSeconds: cur,
-            snapshotPerfTime: performance.now(),
-            isPlaying: !audio.paused && !audio.ended,
-            duration: dur,
-            trackId: loadedTrackIdRef.current || "",
-          };
-          if (
-            dur > 0 &&
-            typeof navigator !== "undefined" &&
-            "mediaSession" in navigator &&
-            typeof navigator.mediaSession.setPositionState === "function"
-          ) {
-            try {
-              navigator.mediaSession.setPositionState({
-                duration: dur,
-                playbackRate: audio.playbackRate || 1,
-                position: Math.min(Math.max(0, cur), dur),
-              });
-            } catch {}
+          if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+            setCurrentTime(audioRef.current.currentTime);
+            setDuration(audioRef.current.duration || 30);
           }
         }}
         onEnded={() => {
-          const audio = audioRef.current;
-          if (
-            !audio ||
-            activeEngineRef.current !== "html5" ||
-            !audio.src ||
-            audio.src.startsWith("data:audio")
-          ) {
-            return;
-          }
-          handleTrackEnded();
-        }}
-        onError={() => {
-          const audio = audioRef.current;
-          if (!audio || activeEngineRef.current !== "html5") return;
-          const srcAttr = audio.getAttribute("src");
-          if (!srcAttr || srcAttr.startsWith("data:audio")) return;
-
-          const activeTrack = currentTrackRef.current;
-          const resumeSec = Math.max(0, audio.currentTime || playbackClockRef.current.positionSeconds || 0);
-          const shouldPlay = !userRequestedPauseRef.current;
-
-          if (activeTrack && html5ErrorRetryTrackIdRef.current !== activeTrack.id) {
-            html5ErrorRetryTrackIdRef.current = activeTrack.id;
-            playTrack(activeTrack, {
-              startSeconds: resumeSec,
-              autoPlay: shouldPlay,
-              forceLocal: true,
-              forceRefreshUrl: true,
-            });
-            return;
-          }
-
-          const cached = activeTrack ? resolvedPlayCacheRef.current.get(activeTrack.id) : undefined;
-          const fallbackVid = cached?.videoId || activeTrack?.youtubeVideoId || currentVideoId;
-          if (fallbackVid) {
-            activateYoutubeFallback(fallbackVid, resumeSec, shouldPlay);
+          if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+            if (repeatMode === "one") {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(() => {});
+            } else {
+              playNext();
+            }
           }
         }}
       />
