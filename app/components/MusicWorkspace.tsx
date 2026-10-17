@@ -936,11 +936,28 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       setIsSpotifyConfigured(json.configured ?? false);
 
       if (json.success && json.data) {
-        const fetchedTracks = json.data.tracks || [];
+        const fetchedTracks: MusicItem[] = json.data.tracks || [];
         if (fetchedTracks.length > 0) {
-          setTracks(fetchedTracks);
           if (!query.trim()) {
-            setDiscoverTracks(shuffleArray(fetchedTracks));
+            const combined = [...fetchedTracks];
+            if (combined.length < 20) {
+              const existingIds = new Set(combined.map((t) => t.id));
+              const existingKeys = new Set(
+                combined.map((t) => `${t.title.toLowerCase()}_${(t.artistNames[0] || "").toLowerCase()}`)
+              );
+              for (const starter of shuffleArray(FEATURED_STARTER_TRACKS)) {
+                const key = `${starter.title.toLowerCase()}_${(starter.artistNames[0] || "").toLowerCase()}`;
+                if (!existingIds.has(starter.id) && !existingKeys.has(key)) {
+                  combined.push(starter);
+                  existingIds.add(starter.id);
+                  existingKeys.add(key);
+                }
+              }
+            }
+            setTracks(combined);
+            setDiscoverTracks(shuffleArray(combined));
+          } else {
+            setTracks(fetchedTracks);
           }
         }
         if (json.data.artists) setArtists(json.data.artists);

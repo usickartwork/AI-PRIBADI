@@ -65,61 +65,102 @@ function mapITunesTrack(item: any): MusicItem {
 // dan terus berganti secara dinamis/acak setiap kali dibuka atau di-refresh.
 
 const INDONESIA_TRENDING_PRESETS = [
-  "Sal Priadi OR Hindia OR Juicy Luicy OR Mahalini",
-  "Nadin Amizah OR Tulus OR Tiara Andini OR Rizky Febian",
-  "Maliq & D'Essentials OR Sheila on 7 OR Pamungkas OR Yura Yunita",
-  "Feast OR Reality Club OR For Revenge OR Feby Putri",
-  "Bernadya OR Sal Priadi OR Juicy Luicy OR Guyon Waton",
-  "Lyodra OR Mahalini OR Hindia OR Denny Caknan",
+  "Sal Priadi OR Hindia OR Juicy Luicy OR Mahalini OR Tulus OR Nadin Amizah OR Tiara Andini OR Rizky Febian",
+  "Nadin Amizah OR Tulus OR Tiara Andini OR Rizky Febian OR Lyodra OR Pamungkas OR Yura Yunita OR Sheila on 7",
+  "Maliq & D'Essentials OR Sheila on 7 OR Pamungkas OR Yura Yunita OR Sal Priadi OR Feast OR Reality Club OR Mahalini",
+  "Feast OR Reality Club OR For Revenge OR Feby Putri OR Hindia OR Juicy Luicy OR Tulus OR Nadin Amizah",
+  "Bernadya OR Sal Priadi OR Juicy Luicy OR Guyon Waton OR Mahalini OR Tiara Andini OR Lyodra OR Rizky Febian",
+  "Lyodra OR Mahalini OR Hindia OR Denny Caknan OR Sheila on 7 OR Yura Yunita OR Pamungkas OR Sal Priadi",
 ];
 
 const GLOBAL_TRENDING_PRESETS = [
-  "Bruno Mars OR Billie Eilish OR Sabrina Carpenter OR Lady Gaga",
-  "The Weeknd OR Taylor Swift OR Coldplay OR Olivia Rodrigo",
-  "ROSÉ OR Dua Lipa OR Benson Boone OR SZA",
-  "Post Malone OR Chappell Roan OR Gracie Abrams OR Teddy Swims",
-  "Kendrick Lamar OR Ariana Grande OR Harry Styles OR Ed Sheeran",
+  "Bruno Mars OR Billie Eilish OR Sabrina Carpenter OR Lady Gaga OR The Weeknd OR Taylor Swift OR Coldplay OR Dua Lipa",
+  "The Weeknd OR Taylor Swift OR Coldplay OR Olivia Rodrigo OR Benson Boone OR SZA OR Post Malone OR Ariana Grande",
+  "ROSÉ OR Dua Lipa OR Benson Boone OR SZA OR Bruno Mars OR Billie Eilish OR Chappell Roan OR Teddy Swims",
+  "Post Malone OR Chappell Roan OR Gracie Abrams OR Teddy Swims OR Sabrina Carpenter OR Lady Gaga OR Harry Styles OR Ed Sheeran",
+  "Kendrick Lamar OR Ariana Grande OR Harry Styles OR Ed Sheeran OR The Weeknd OR Billie Eilish OR Dua Lipa OR Coldplay",
 ];
 
 const VIRAL_HITS_PRESETS = [
-  "Die With A Smile OR APT. OR Birds of a feather OR Espresso",
-  "Gala Bunga Matahari OR Taste OR Beautiful Things OR Kita Bikin Romantis",
-  "Sialan OR Dari Planet Lain OR Good Luck Babe OR Lose Control",
-  "Untungnya Hidup Harus Tetap Berjalan OR Bermuara OR That's So True OR Nina",
+  "Die With A Smile OR APT. OR Birds of a feather OR Espresso OR Gala Bunga Matahari OR Taste OR Beautiful Things OR Sialan",
+  "Gala Bunga Matahari OR Taste OR Beautiful Things OR Kita Bikin Romantis OR Dari Planet Lain OR Good Luck Babe OR Lose Control OR Espresso",
+  "Sialan OR Dari Planet Lain OR Good Luck Babe OR Lose Control OR Die With A Smile OR Birds of a feather OR Nina OR Bermuara",
+  "Untungnya Hidup Harus Tetap Berjalan OR Bermuara OR That's So True OR Nina OR Gala Bunga Matahari OR APT. OR Espresso OR Taste",
 ];
 
-// 12 Presets seimbang untuk Home Discovery (Kombinasi lagu & artis trending Indonesia + Global)
+// 12 Presets seimbang untuk Home Discovery (10 artis berbeda per preset: kombinasi Indonesia + Global)
 const DEFAULT_TRENDING_PRESETS = [
-  "Sal Priadi OR Bruno Mars OR Gala Bunga Matahari OR Billie Eilish OR Juicy Luicy",
-  "Sabrina Carpenter OR Hindia OR APT. OR The Weeknd OR Mahalini",
-  "Lady Gaga OR Nadin Amizah OR Die With A Smile OR Coldplay OR Tulus",
-  "Billie Eilish OR Maliq & D'Essentials OR Birds of a feather OR Bruno Mars OR Sheila on 7",
-  "Benson Boone OR Yura Yunita OR Espresso OR Taylor Swift OR Rizky Febian",
-  "ROSÉ OR Juicy Luicy OR Beautiful Things OR Dua Lipa OR Pamungkas",
-  "Chappell Roan OR Bernadya OR Taste OR The Weeknd OR Feast",
-  "Gracie Abrams OR Sal Priadi OR Sialan OR Billie Eilish OR Tiara Andini",
-  "Post Malone OR Nadin Amizah OR Dari Planet Lain OR Bruno Mars OR Reality Club",
-  "Teddy Swims OR Hindia OR Good Luck Babe OR Sabrina Carpenter OR Lyodra",
-  "Olivia Rodrigo OR Tulus OR Kita Bikin Romantis OR Lady Gaga OR For Revenge",
-  "Coldplay OR Feby Putri OR Die With A Smile OR Dua Lipa OR Guyon Waton",
+  "Sal Priadi OR Bruno Mars OR Billie Eilish OR Juicy Luicy OR Sabrina Carpenter OR Hindia OR The Weeknd OR Mahalini OR Coldplay OR Tulus",
+  "Sabrina Carpenter OR Hindia OR The Weeknd OR Mahalini OR Lady Gaga OR Nadin Amizah OR Bruno Mars OR Sheila on 7 OR Dua Lipa OR Pamungkas",
+  "Lady Gaga OR Nadin Amizah OR Coldplay OR Tulus OR Billie Eilish OR Maliq & D'Essentials OR Benson Boone OR Yura Yunita OR Taylor Swift OR Rizky Febian",
+  "Billie Eilish OR Maliq & D'Essentials OR Bruno Mars OR Sheila on 7 OR Dua Lipa OR Juicy Luicy OR Olivia Rodrigo OR Lyodra OR The Weeknd OR Sal Priadi",
+  "Benson Boone OR Yura Yunita OR Taylor Swift OR Rizky Febian OR Sabrina Carpenter OR Pamungkas OR Coldplay OR Mahalini OR Post Malone OR Hindia",
+  "ROSÉ OR Juicy Luicy OR Dua Lipa OR Pamungkas OR Bruno Mars OR Nadin Amizah OR Billie Eilish OR Tulus OR Ariana Grande OR Tiara Andini",
+  "Chappell Roan OR Bernadya OR The Weeknd OR Feast OR Sabrina Carpenter OR Sal Priadi OR Lady Gaga OR Sheila on 7 OR Coldplay OR Yura Yunita",
+  "Gracie Abrams OR Sal Priadi OR Billie Eilish OR Tiara Andini OR Bruno Mars OR Juicy Luicy OR Taylor Swift OR Hindia OR Dua Lipa OR Rizky Febian",
+  "Post Malone OR Nadin Amizah OR Bruno Mars OR Reality Club OR Billie Eilish OR Tulus OR Sabrina Carpenter OR Mahalini OR The Weeknd OR Lyodra",
+  "Teddy Swims OR Hindia OR Sabrina Carpenter OR Lyodra OR Coldplay OR Juicy Luicy OR Lady Gaga OR Sal Priadi OR Dua Lipa OR Yura Yunita",
+  "Olivia Rodrigo OR Tulus OR Lady Gaga OR For Revenge OR Bruno Mars OR Nadin Amizah OR Billie Eilish OR Sheila on 7 OR The Weeknd OR Tiara Andini",
+  "Coldplay OR Feby Putri OR Dua Lipa OR Guyon Waton OR Bruno Mars OR Sal Priadi OR Sabrina Carpenter OR Mahalini OR Taylor Swift OR Juicy Luicy",
 ];
 
-async function fetchITunesFallback(query: string, limit: number = 30): Promise<MusicItem[]> {
+const DISCOVERY_SUPPLEMENT_ARTISTS = [
+  "Sal Priadi",
+  "Bruno Mars",
+  "Billie Eilish",
+  "Sabrina Carpenter",
+  "Hindia",
+  "Juicy Luicy",
+  "The Weeknd",
+  "Mahalini",
+  "Lady Gaga",
+  "Nadin Amizah",
+  "Coldplay",
+  "Tulus",
+  "Dua Lipa",
+  "Sheila on 7",
+  "Taylor Swift",
+  "Rizky Febian",
+  "Yura Yunita",
+  "Pamungkas",
+  "Olivia Rodrigo",
+  "Tiara Andini",
+  "Lyodra",
+  "Benson Boone",
+  "Ariana Grande",
+  "Ed Sheeran",
+];
+
+async function fetchITunesFallback(
+  query: string,
+  limit: number = 30,
+  isDiscovery: boolean = false
+): Promise<MusicItem[]> {
   try {
-    const terms = query
+    const rawTerms = query
       .split(/\bOR\b/i)
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const termSet = new Set<string>(rawTerms);
+    if (isDiscovery || rawTerms.length > 1) {
+      const shuffledSupplement = [...DISCOVERY_SUPPLEMENT_ARTISTS].sort(() => 0.5 - Math.random());
+      for (const extra of shuffledSupplement) {
+        if (termSet.size >= 12) break;
+        termSet.add(extra);
+      }
+    }
+
     // Acak urutan terms agar adil bagi semua artis/lagu dalam query
-    const shuffledTerms = [...terms].sort(() => 0.5 - Math.random());
-    const queriesToRun = shuffledTerms.length > 1 ? shuffledTerms.slice(0, 4) : [query];
-    const perTermLimit = Math.max(8, Math.ceil(limit / queriesToRun.length));
+    const shuffledTerms = [...termSet].sort(() => 0.5 - Math.random());
+    const maxTerms = isDiscovery || shuffledTerms.length > 1 ? 12 : 1;
+    const queriesToRun = shuffledTerms.length > 1 ? shuffledTerms.slice(0, maxTerms) : [query];
+    const perTermLimit = Math.max(5, Math.ceil(limit / Math.max(queriesToRun.length, 1)) + 2);
 
     const results = await Promise.all(
       queriesToRun.map(async (t) => {
         try {
-          const clean = t.replace(/[^\w\s-]/g, " ").trim();
+          const clean = t.replace(/[()"']/g, " ").replace(/\s+/g, " ").trim();
           const res = await fetch(
             `https://itunes.apple.com/search?term=${encodeURIComponent(clean)}&entity=song&limit=${perTermLimit}`,
             { next: { revalidate: 3600 } }
@@ -136,8 +177,9 @@ async function fetchITunesFallback(query: string, limit: number = 30): Promise<M
     const seen = new Set<string>();
     const artistCount = new Map<string, number>();
     const mapped: MusicItem[] = [];
+    const maxPerArtist = isDiscovery || queriesToRun.length > 1 ? 2 : 5;
 
-    // Acak hasil iTunes sebelum deduplikasi dan batasi max 2 lagu per artis
+    // Acak hasil iTunes sebelum deduplikasi dan batasi max 2 lagu per artis untuk discovery
     const allResults = results.flat().sort(() => 0.5 - Math.random());
 
     for (const item of allResults) {
@@ -148,7 +190,7 @@ async function fetchITunesFallback(query: string, limit: number = 30): Promise<M
 
       const artist = (item.artistName || "Unknown").toLowerCase().trim();
       const count = artistCount.get(artist) || 0;
-      if (count >= 2) continue; // Maksimal 2 lagu per artis (anti-saturasi)
+      if (count >= maxPerArtist) continue;
       artistCount.set(artist, count + 1);
 
       mapped.push(mapITunesTrack(item));
@@ -187,28 +229,41 @@ export async function GET(req: NextRequest) {
       } else if (category === "viral") {
         effectiveQuery = VIRAL_HITS_PRESETS[seedNum % VIRAL_HITS_PRESETS.length];
       } else if (category === "chill") {
-        effectiveQuery = "Hindia OR Nadin Amizah OR Billie Eilish OR Coldplay acoustic";
+        effectiveQuery = "Hindia OR Nadin Amizah OR Billie Eilish OR Coldplay OR Tulus OR Sal Priadi OR Taylor Swift OR Lauv";
       } else if (category === "workout") {
-        effectiveQuery = "workout energy motivation pop dance Dua Lipa The Weeknd";
+        effectiveQuery = "Dua Lipa OR The Weeknd OR Calvin Harris OR David Guetta OR Bruno Mars OR Lady Gaga OR Sabrina Carpenter OR Rihanna";
       } else if (category === "rock") {
-        effectiveQuery = "Queen OR Coldplay OR Arctic Monkeys rock alternative";
+        effectiveQuery = "Queen OR Coldplay OR Arctic Monkeys OR Linkin Park OR Green Day OR Oasis OR Sheila on 7 OR Dewa 19";
       } else {
         effectiveQuery = DEFAULT_TRENDING_PRESETS[seedNum % DEFAULT_TRENDING_PRESETS.length];
         isDefaultPool = true;
       }
     }
 
+    const isDiscovery = isDefaultPool || Boolean(category);
+    const minRequiredTracks = isDiscovery ? Math.min(requestedLimit, 20) : 1;
     const cacheKey = `${effectiveQuery.toLowerCase()}_${type}_${requestedLimit}_${category}`;
 
-    // Cek in-memory cache
+    // Cek in-memory cache (pastikan jumlah lagu memenuhi batas minimum discovery)
     const cachedResult = searchCache.get(cacheKey);
-    if (cachedResult && Date.now() < cachedResult.expiresAt && cachedResult.data.tracks.length > 0) {
+    if (
+      cachedResult &&
+      Date.now() < cachedResult.expiresAt &&
+      cachedResult.data.tracks.length >= minRequiredTracks
+    ) {
+      const responseData = isDiscovery
+        ? {
+            ...cachedResult.data,
+            tracks: [...cachedResult.data.tracks].sort(() => 0.5 - Math.random()),
+          }
+        : cachedResult.data;
+
       return NextResponse.json({
         success: true,
         configured: true,
         cached: true,
         query: effectiveQuery,
-        data: cachedResult.data,
+        data: responseData,
       });
     }
 
@@ -221,15 +276,33 @@ export async function GET(req: NextRequest) {
     const rawPlaylists: any[] = [];
 
     if (meta) {
+      const orTerms = isDiscovery
+        ? effectiveQuery
+            .split(/\bOR\b/i)
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [];
+
       // Fungsi pembantu untuk melakukan request pencarian dengan token tertentu
       const executeSearch = async (token: string, clientId: string) => {
         const PAGE_SIZE = 10;
         const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 3); // 30 item
 
         const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
-          const offset = pageIdx * PAGE_SIZE;
+          // Untuk mode discovery, bagi daftar artis ke masing-masing request paralel agar tidak didominasi 1 artis
+          let pageQuery = effectiveQuery;
+          let offset = pageIdx * PAGE_SIZE;
+          if (isDiscovery && orTerms.length >= 6) {
+            const chunkSize = Math.ceil(orTerms.length / pagesToFetch);
+            const slice = orTerms.slice(pageIdx * chunkSize, (pageIdx + 1) * chunkSize);
+            if (slice.length > 0) {
+              pageQuery = slice.join(" OR ");
+              offset = 0;
+            }
+          }
+
           const spotifyUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-            effectiveQuery
+            pageQuery
           )}&type=${encodeURIComponent(type)}&limit=${PAGE_SIZE}&offset=${offset}&market=ID`;
 
           try {
@@ -289,8 +362,8 @@ export async function GET(req: NextRequest) {
 
     // Deduplicate & limit artist dominance (Anti-saturation: max 2 tracks per artist)
     const seenTracks = new Set<string>();
+    const seenTitleArtistKeys = new Set<string>();
     const artistTrackCount = new Map<string, number>();
-    const isDiscovery = isDefaultPool || Boolean(category);
     const MAX_PER_ARTIST = isDiscovery ? 2 : 5;
 
     // Urutkan berdasarkan popularitas Spotify
@@ -302,23 +375,19 @@ export async function GET(req: NextRequest) {
 
     for (const rawTrack of sortedRawTracks) {
       if (seenTracks.has(rawTrack.id)) continue;
-      seenTracks.add(rawTrack.id);
+      const mappedTrack = mapSpotifyTrack(rawTrack);
+      const titleArtistKey = `${mappedTrack.title.toLowerCase()}_${(mappedTrack.artistNames[0] || "").toLowerCase()}`;
+      if (seenTitleArtistKeys.has(titleArtistKey)) continue;
 
       const primaryArtist = (rawTrack.artists?.[0]?.name || "Unknown").toLowerCase().trim();
       const currentCount = artistTrackCount.get(primaryArtist) || 0;
       if (currentCount >= MAX_PER_ARTIST) continue;
 
+      seenTracks.add(rawTrack.id);
+      seenTitleArtistKeys.add(titleArtistKey);
       artistTrackCount.set(primaryArtist, currentCount + 1);
-      tracks.push(mapSpotifyTrack(rawTrack));
+      tracks.push(mappedTrack);
       if (tracks.length >= requestedLimit) break;
-    }
-
-    // Untuk discover/rekomendasi home: acak urutan hasil agar bervariasi dan tidak mengelompok per artis
-    if (isDiscovery && tracks.length > 0) {
-      for (let i = tracks.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
-      }
     }
 
     // Deduplicate artists
@@ -354,16 +423,32 @@ export async function GET(req: NextRequest) {
       .slice(0, 15)
       .map(mapSpotifyPlaylist);
 
-    // ─── FALLBACK AKTIF OTOMATIS JIKA SPOTIFY LIMIT / KOSONG ──────────────
-    // Jika Spotify search sedang terkena limit (429 QUOTA_EXCEEDED), kita ambil lagu via catalog fallback
-    if (tracks.length === 0) {
-      console.warn(`[music/search] Spotify rate-limited/kosong. Mengambil katalog fallback...`);
-      const fallbackList = await fetchITunesFallback(effectiveQuery, requestedLimit);
+    // ─── FALLBACK & PELENGKAP OTOMATIS JIKA SPOTIFY LIMIT / HASIL KURANG DARI MINIMUM ───
+    // Jika Spotify search terkena limit (429 QUOTA_EXCEEDED) atau jumlah lagu setelah anti-saturasi < minRequiredTracks,
+    // lengkapi daftar lagu menggunakan katalog fallback agar daftar rekomendasi beranda tidak pernah kosong.
+    if (tracks.length < minRequiredTracks) {
+      console.warn(
+        `[music/search] Jumlah lagu (${tracks.length}) < ${minRequiredTracks}. Melengkapi via katalog fallback...`
+      );
+      const fallbackList = await fetchITunesFallback(effectiveQuery, requestedLimit, isDiscovery);
       if (fallbackList.length > 0) {
-        tracks.push(...fallbackList);
+        for (const fbTrack of fallbackList) {
+          if (tracks.length >= requestedLimit) break;
+          const fbKey = `${fbTrack.title.toLowerCase()}_${(fbTrack.artistNames[0] || "").toLowerCase()}`;
+          if (seenTracks.has(fbTrack.id) || seenTitleArtistKeys.has(fbKey)) continue;
 
-        // Ekstrak artis & album unik untuk melengkapi UI
-        const seenArt = new Set<string>();
+          const primaryArtist = (fbTrack.artistNames[0] || "Unknown").toLowerCase().trim();
+          const currentCount = artistTrackCount.get(primaryArtist) || 0;
+          if (currentCount >= MAX_PER_ARTIST) continue;
+
+          seenTracks.add(fbTrack.id);
+          seenTitleArtistKeys.add(fbKey);
+          artistTrackCount.set(primaryArtist, currentCount + 1);
+          tracks.push(fbTrack);
+        }
+
+        // Ekstrak artis unik untuk melengkapi UI jika belum ada
+        const seenArt = new Set<string>(artists.map((a) => a.title.toLowerCase()));
         for (const t of fallbackList) {
           const art = t.artistNames[0];
           if (art && !seenArt.has(art.toLowerCase())) {
@@ -384,10 +469,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Untuk discover/rekomendasi home: acak urutan hasil akhir agar bervariasi dan tidak mengelompok per artis
+    if (isDiscovery && tracks.length > 0) {
+      for (let i = tracks.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+      }
+    }
+
     const resultData = { tracks, artists, albums, playlists };
 
-    // Simpan ke cache jika menghasilkan lagu
-    if (tracks.length > 0) {
+    // Simpan ke cache jika menghasilkan lagu yang cukup
+    if (tracks.length >= minRequiredTracks) {
       const ttlMs = isDefaultPool || category ? 60 * 60 * 1000 : 30 * 60 * 1000;
       searchCache.set(cacheKey, {
         data: resultData,
