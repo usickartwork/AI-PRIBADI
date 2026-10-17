@@ -3536,22 +3536,41 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Music Feature Button (Spotify Web Player & Discovery) */}
+            {/* Music Feature Button (Music One Player, Lirik & Music Connect - Pro) */}
             <div
               onClick={() => {
+                if ((subscription?.plan || "free") === "free") {
+                  setSelectedLockedModelName("Music One & Connect (Pro)");
+                  setShowUpgradeModal(true);
+                  return;
+                }
                 setActiveView("music");
                 closeSidebarOnMobile();
               }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
                 activeView === "music"
                   ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-              </svg>
-              <span>Music</span>
+              <div className="flex items-center gap-3 md:gap-3">
+                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                </svg>
+                <span>Music</span>
+              </div>
+              {(subscription?.plan || "free") === "free" && (
+                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                  isDark
+                    ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                }`}>
+                  <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  PRO
+                </span>
+              )}
             </div>
 
             {/* Tab Lainnya (Game & Faith) disembunyikan sementara sesuai instruksi pengguna */}
@@ -3847,15 +3866,28 @@ export default function Home() {
           </div>
         ) : null}
 
-        {/* MusicWorkspace dijaga tetap ter-mount di latar belakang agar audio player / Spotify embed tidak terputus saat beralih tab */}
+        {/* MusicWorkspace dijaga tetap ter-mount di latar belakang untuk pengguna Pro agar audio player & Music Connect tidak terputus saat beralih tab */}
         <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
-          <MusicWorkspace
-            key="music-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            userName={chatAccountName}
-          />
+          {(subscription?.plan || "free") === "free" ? (
+            <LockedFeatureView
+              isDark={isDark}
+              title="Music One & Connect (Eksklusif Pro)"
+              description="Streaming lagu penuh berkualitas tinggi, lirik sinkron realtime, dan fitur dengar bersama (Music Connect) hanya tersedia pada paket Usick One Pro."
+              onUpgrade={() => {
+                setSelectedLockedModelName("Music One & Connect (Pro)");
+                setShowUpgradeModal(true);
+              }}
+              onBack={() => setActiveView("chats")}
+            />
+          ) : (
+            <MusicWorkspace
+              key="music-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              userName={chatAccountName}
+            />
+          )}
         </div>
 
         {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
@@ -4930,7 +4962,7 @@ export default function Home() {
                     <div>
                       <h2 className="text-lg font-bold tracking-tight">Paket & Harga (Pricing)</h2>
                       <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                        Pilih paket langganan yang paling sesuai dengan kebutuhan produktivitas Anda
+                        Pilih paket langganan untuk menikmati seluruh benefit ekosistem produktivitas, kreativitas & hiburan One Mind
                       </p>
                     </div>
 
@@ -4953,13 +4985,19 @@ export default function Home() {
                             )}
                           </div>
                           <div className="text-2xl font-bold tracking-tight mb-1">
-                            Rp 0 <span className="text-xs font-normal text-zinc-500">/ bulan</span>
+                            Rp 0 <span className="text-xs font-normal text-zinc-500">/ selamanya</span>
                           </div>
                           <p className={`text-xs mb-4 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                            Cocok untuk eksplorasi dan kebutuhan percakapan harian santai.
+                            Cocok untuk eksplorasi AI harian, asisten suara, catatan pintar, dan penjadwalan dasar.
                           </p>
 
                           <ul className="space-y-2 text-xs">
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Usick One AI Flagship & Voice Assistant</span>
+                            </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -4970,25 +5008,25 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>50 Code Credits (Reset Harian)</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span>Maksimal 3 jadwal aktif</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span>Model Usick One AI Flagship</span>
+                              <span>50 Code Credits Studio PRD (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
                               <span>Upaya Penalaran: Faster & Balanced</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Smart Schedule (Maksimal 3 Jadwal Aktif)</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Catatan Pintar (AI Notebook)</span>
                             </li>
                             <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -5000,19 +5038,25 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
-                              <span>Fitur Messages: Chat Pribadi Antar Teman</span>
+                              <span>Model Eksternal (Gemini, Claude, GPT, DeepSeek, Qwen)</span>
                             </li>
                             <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
-                              <span>Model Eksternal (Gemini, Claude, GPT, dll.)</span>
+                              <span>Tab Image: Studio Generator & Terjemahan Gambar</span>
                             </li>
                             <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
-                              <span>Tab Image: Generator & Terjemahan Gambar</span>
+                              <span>Tab Messages: Chat Pribadi Realtime Antar Teman</span>
+                            </li>
+                            <li className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500 line-through">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Tab Music: Streaming Musik Penuh, Lirik & Music Connect</span>
                             </li>
                           </ul>
                         </div>
@@ -5076,10 +5120,16 @@ export default function Home() {
                             Rp 49.000 <span className="text-xs font-normal text-zinc-500">/ bulan</span>
                           </div>
                           <p className={`text-xs mb-4 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                            Kapasitas maksimal untuk coding profesional, analisis mendalam & estafet PRD.
+                            Akses penuh seluruh ekosistem: 10+ Model AI Dunia, Code Studio PRD, Image Studio, Messages Realtime, serta Music One & Connect.
                           </p>
 
                           <ul className="space-y-2 text-xs">
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span><strong>Semua Fitur di Paket Free</strong> (Voice, Catatan, dll.)</span>
+                            </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -5090,7 +5140,7 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span><strong>200 Code Credits</strong> (Reset Harian)</span>
+                              <span><strong>200 Code Credits</strong> Studio PRD & Estafet (Reset Harian)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -5102,31 +5152,37 @@ export default function Home() {
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Akses Penuh <strong>Fitur Messages (Realtime Chat)</strong></span>
+                              <span><strong>Semua Model AI Eksternal</strong> (Gemini, Claude, GPT, DeepSeek, Qwen)</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Maksimal <strong>50 jadwal aktif</strong></span>
+                              <span><strong>Tab Image:</strong> Studio Generator & Terjemahan Gambar AI</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Semua Model Eksternal (Gemini, Claude, GPT, dll.)</span>
+                              <span><strong>Tab Messages:</strong> Chat Pribadi Realtime Antar Teman</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Akses Penuh Tab Image: Generator & Terjemahan</span>
+                              <span><strong>Tab Music:</strong> Streaming Musik Penuh, Lirik Sinkron & Music Connect</span>
                             </li>
                             <li className="flex items-center gap-2">
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                               </svg>
-                              <span>Prioritas reasoning speed & akses fitur baru</span>
+                              <span>Smart Schedule (Maksimal <strong>50 Jadwal Aktif</strong>)</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Prioritas kecepatan respons & akses fitur baru</span>
                             </li>
                           </ul>
                         </div>

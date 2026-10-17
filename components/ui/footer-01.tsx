@@ -232,7 +232,7 @@ export default function Footer01({
                   isDark ? "text-zinc-400" : "text-zinc-600"
                 )}
               >
-                One Mind. Infinite Intelligence. Ekosistem AI terpadu: Chat, Code, Image Generation, hingga Schedule otomatis bersama model-model terbaik dunia dalam satu ruang kerja.
+                One Mind. Infinite Intelligence. Ekosistem cerdas terpadu: Multi-Model AI Chat, Voice Assistant Realtime, Code Studio & PRD, Image Generation & Translasi, Music One & Connect, Messages Realtime, Catatan Pintar, hingga Smart Schedule otomatis dalam satu ruang kerja.
               </p>
 
               {/* Call-to-action Button */}
@@ -406,14 +406,18 @@ export default function Footer01({
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">Fitur Ekosistem One Mind</h3>
-                    <p className={cn("text-xs", isDark ? "text-zinc-400" : "text-zinc-500")}>Teknologi AI Multi-Model Terlengkap</p>
+                    <p className={cn("text-xs", isDark ? "text-zinc-400" : "text-zinc-500")}>Seluruh Fitur Produktivitas, Kreativitas & Hiburan dalam Satu Web</p>
                   </div>
                 </div>
-                <div className={cn("space-y-2.5 text-sm leading-relaxed", isDark ? "text-zinc-300" : "text-zinc-600")}>
-                  <p>• <strong>Chat Multi-Model:</strong> Beralih fleksibel antara Claude 3.7, ChatGPT, Gemini, DeepSeek, Qwen, Kimi, dan GLM dalam satu percakapan.</p>
-                  <p>• <strong>Code Workspace:</strong> Editor kode terintegrasi dengan pratinjau langsung, debugging, dan auto-refactor berbasis AI.</p>
-                  <p>• <strong>Image Generation:</strong> Studio visual teks-ke-gambar ultra-realistis dengan resolusi tinggi.</p>
-                  <p>• <strong>Schedule Automation:</strong> Asisten penjadwalan cerdas dengan pengingat otomatis dan notifikasi browser.</p>
+                <div className={cn("space-y-2 text-xs sm:text-sm leading-relaxed max-h-72 overflow-y-auto pr-1", isDark ? "text-zinc-300" : "text-zinc-600")}>
+                  <p>• <strong>Chat Multi-Model & Mode Max:</strong> Beralih fleksibel antara Usick One Flagship, Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi, dan GLM dengan penalaran Faster, Balanced, hingga Max.</p>
+                  <p>• <strong>Voice Assistant Realtime:</strong> Percakapan suara dua arah interaktif dengan Voice Orb berlatensi rendah.</p>
+                  <p>• <strong>Code Studio & Estafet PRD:</strong> Ruang kerja penyusunan spesifikasi teknis, arsitektur sistem, dan generator prompt coding profesional.</p>
+                  <p>• <strong>Image Studio (One Design) & Translasi:</strong> Generator gambar AI berbagai rasio/gaya visual serta penerjemah teks di dalam gambar secara instan.</p>
+                  <p>• <strong>Music One & Music Connect:</strong> Pemutar musik penuh (Full Audio Streaming), lirik tersinkronisasi realtime, dan fitur dengar bersama teman lewat kode sesi.</p>
+                  <p>• <strong>Messages Realtime:</strong> Pertemanan dan obrolan pribadi instan antar pengguna di dalam ekosistem One Mind.</p>
+                  <p>• <strong>Smart Schedule Automation:</strong> Asisten penjadwalan cerdas dengan pengingat otomatis dan notifikasi realtime.</p>
+                  <p>• <strong>Catatan Pintar (AI Notebook):</strong> Ruang pencatatan terorganisir untuk menyimpan ide, dokumen, dan rangkuman proyek.</p>
                 </div>
                 <Button
                   type="button"
@@ -435,20 +439,22 @@ export default function Footer01({
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Paket & Langganan One Mind</h3>
-                    <p className={cn("text-xs", isDark ? "text-zinc-400" : "text-zinc-500")}>Akses fleksibel tanpa komitmen tersembunyi</p>
+                    <h3 className="font-bold text-lg">Paket & Benefit One Mind</h3>
+                    <p className={cn("text-xs", isDark ? "text-zinc-400" : "text-zinc-500")}>Pilih paket sesuai kebutuhan eksplorasi dan produktivitas Anda</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className={cn("p-4 rounded-xl border flex flex-col justify-between", isDark ? "border-zinc-800 bg-zinc-950/60" : "border-zinc-200 bg-zinc-50")}>
                     <div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">Starter</span>
-                      <h4 className="font-bold text-base mt-2">Free Explorer</h4>
-                      <p className="text-2xl font-extrabold mt-1">Rp 0 <span className="text-xs font-normal opacity-70">/ bulan</span></p>
-                      <ul className="mt-3 space-y-1.5 text-xs opacity-80">
-                        <li>• 50.000 Kredit AI Awal</li>
-                        <li>• Akses Model Cepat (Gemini, Qwen)</li>
-                        <li>• Riwayat Chat Standar</li>
+                      <h4 className="font-bold text-base mt-2">Usick One Free</h4>
+                      <p className="text-2xl font-extrabold mt-1">Rp 0 <span className="text-xs font-normal opacity-70">/ selamanya</span></p>
+                      <ul className="mt-3 space-y-1.5 text-xs opacity-85">
+                        <li>• Usick One AI Flagship & Voice Assistant</li>
+                        <li>• 10.000 AI Credits & 50 Code Credits / hari</li>
+                        <li>• Penalaran Faster & Balanced</li>
+                        <li>• Smart Schedule (Maks. 3 Jadwal)</li>
+                        <li>• Catatan Pintar (AI Notebook)</li>
                       </ul>
                     </div>
                     <Button
@@ -468,13 +474,15 @@ export default function Footer01({
                     <span className={cn("absolute -top-2.5 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", isDark ? "bg-white text-black" : "bg-black text-white")}>Populer</span>
                     <div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Pro Member</span>
-                      <h4 className="font-bold text-base mt-2">One Mind Pro</h4>
-                      <p className="text-2xl font-extrabold mt-1">Rp 149.000 <span className="text-xs font-normal opacity-70">/ bln</span></p>
-                      <ul className="mt-3 space-y-1.5 text-xs opacity-80">
-                        <li>• 1.000.000 Kredit Bulanan</li>
-                        <li>• Akses Semua 10+ Model Premium</li>
-                        <li>• Prioritas Inferensi Cepat</li>
-                        <li>• Fitur Code & Auto-Schedule</li>
+                      <h4 className="font-bold text-base mt-2">Usick One Pro</h4>
+                      <p className="text-2xl font-extrabold mt-1">Rp 49.000 <span className="text-xs font-normal opacity-70">/ bln</span></p>
+                      <ul className="mt-3 space-y-1.5 text-xs opacity-90">
+                        <li>• 100.000 AI Credits & 200 Code Credits / hari</li>
+                        <li>• Semua Model Eksternal (Gemini, Claude, GPT, dll.)</li>
+                        <li>• Penalaran Mode Max (Mendalam)</li>
+                        <li>• Tab Music: Full Audio, Lirik & Music Connect</li>
+                        <li>• Tab Image Studio & Tab Messages Realtime</li>
+                        <li>• Smart Schedule hingga 50 Jadwal Aktif</li>
                       </ul>
                     </div>
                     <Button
@@ -534,18 +542,18 @@ export default function Footer01({
 
             {activeModal === "changelog" && (
               <div className="space-y-4">
-                <h3 className="font-bold text-lg">Catatan Rilis (Changelog v2.4)</h3>
+                <h3 className="font-bold text-lg">Catatan Rilis (Changelog v2.5)</h3>
                 <div className={cn("space-y-3 text-xs leading-relaxed max-h-60 overflow-y-auto pr-1", isDark ? "text-zinc-300" : "text-zinc-600")}>
                   <div className={cn("p-3 rounded-xl border", isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50")}>
-                    <span className="font-bold text-sm block mb-1">v2.4 — One Mind Experience</span>
-                    <p>• Integrasi antarmuka landing page baru dengan animasi live gradient bars.</p>
-                    <p>• Pembaharuan TechText hero intro loader yang lebih presisi dan mulus.</p>
-                    <p>• Peningkatan kecepatan respons AI hingga 40% dengan optimasi inferensi token.</p>
+                    <span className="font-bold text-sm block mb-1">v2.5 — Full Pro Ecosystem & Music Connect</span>
+                    <p>• Hadirnya Tab Music (Pro) dengan pemutar lagu penuh, lirik tersinkronisasi, dan Music Connect untuk dengar bersama teman secara realtime.</p>
+                    <p>• Integrasi Tab Messages (Pro) untuk chat pribadi realtime antar pengguna dan Tab Image Studio (One Design) & Translasi Gambar.</p>
+                    <p>• Penambahan Catatan Pintar (AI Notebook) serta pembaruan paket Usick One Pro.</p>
                   </div>
                   <div className={cn("p-3 rounded-xl border", isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50")}>
-                    <span className="font-bold text-sm block mb-1">v2.3 — Voice & Vision Update</span>
-                    <p>• Asisten suara interaktif Voice Orb dengan latensi ultra-rendah.</p>
-                    <p>• Pratinjau gambar fullscreen dengan dukungan download resolusi asli.</p>
+                    <span className="font-bold text-sm block mb-1">v2.4 — One Mind Experience & Voice Assistant</span>
+                    <p>• Asisten suara interaktif Voice Orb berlatensi rendah dan antarmuka landing page baru.</p>
+                    <p>• Peningkatan kecepatan respons AI Multi-Model dengan mode penalaran Faster, Balanced, dan Max.</p>
                   </div>
                 </div>
               </div>

@@ -170,17 +170,17 @@ export function PricingModal({
         </button>
 
         {/* Header Section */}
-        <div className="text-center max-w-xl mx-auto mb-8 sm:mb-10">
+        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase mb-3 border ${
             isDark ? "bg-zinc-800/90 text-zinc-300 border-zinc-700" : "bg-zinc-100 text-zinc-800 border-zinc-300"
           }`}>
             Usick One Subscription
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Choose how you use AI
+            Pilih Paket Ekosistem One Mind Anda
           </h2>
           <p className={`mt-2.5 text-xs sm:text-sm leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-            Start free with Usick One AI, or unlock more models and higher usage with Pro.
+            Mulai gratis dengan Usick One AI, Voice Assistant, Code Studio, Catatan & Smart Schedule — atau buka akses penuh ke seluruh Model AI Dunia, Studio Image AI, Messages Realtime, serta Music One & Connect dengan Pro.
           </p>
         </div>
 

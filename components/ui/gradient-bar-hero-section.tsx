@@ -205,15 +205,41 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
         </h1>
 
         {/* Subtitle / Description */}
-        <div className="mb-8 sm:mb-10 px-4 max-w-2xl mx-auto animate-in fade-in-0 slide-in-from-bottom-4 duration-800">
+        <div className="mb-6 sm:mb-7 px-4 max-w-2xl mx-auto animate-in fade-in-0 slide-in-from-bottom-4 duration-800">
           <p
             className={cn(
               "text-[clamp(0.95rem,2.2vw,1.15rem)] leading-relaxed font-normal",
               isDark ? "text-zinc-400" : "text-zinc-600"
             )}
           >
-            Akses langsung ekosistem AI terlengkap: Chat, Code, Image Generation, hingga Schedule otomatis bersama model-model terbaik dunia tanpa berpindah aplikasi.
+            Akses langsung ekosistem cerdas terlengkap dalam satu ruang kerja: Multi-Model AI Chat, Voice Assistant Realtime, Code Studio & PRD, Image Generation & Translasi, Music One & Connect, Messages Realtime, Smart Schedule, hingga Catatan Pintar bersama model-model terbaik dunia tanpa berpindah aplikasi.
           </p>
+        </div>
+
+        {/* All Web Features Pills Showcase */}
+        <div className="mb-8 sm:mb-10 px-4 max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-900">
+          {[
+            "Multi-Model AI Chat",
+            "Voice Assistant Realtime",
+            "Code Studio & PRD",
+            "Image Studio & Translasi",
+            "Music One & Connect",
+            "Messages Realtime",
+            "Smart Schedule",
+            "Catatan Pintar",
+          ].map((feature) => (
+            <span
+              key={feature}
+              className={cn(
+                "px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium border backdrop-blur-md transition-colors",
+                isDark
+                  ? "bg-zinc-900/70 border-zinc-800 text-zinc-300"
+                  : "bg-white/80 border-zinc-200 text-zinc-700 shadow-2xs"
+              )}
+            >
+              {feature}
+            </span>
+          ))}
         </div>
 
         {/* CTA Button: Get Started (Replacing waitlist & email field as instructed) */}

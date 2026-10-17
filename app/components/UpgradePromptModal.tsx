@@ -118,7 +118,7 @@ export function UpgradePromptModal({
 
         {/* Title */}
         <h3 className="text-xl font-bold tracking-tight">
-          Unlock more AI models
+          Buka Akses Penuh Usick One Pro
         </h3>
 
         {targetModelName && (
@@ -129,11 +129,9 @@ export function UpgradePromptModal({
           </div>
         )}
 
-        {/* Description matching Section 16 */}
+        {/* Description matching full Pro ecosystem benefits */}
         <p className={`mt-3 text-xs sm:text-sm leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-          Gemini, GPT, Claude and other
-          <br />
-          AI models are available with Pro.
+          Nikmati seluruh Model AI Dunia (Gemini, Claude, GPT, DeepSeek, Qwen), Mode Max, Studio Image AI, Messages Realtime, serta Music One & Connect dalam satu paket Pro.
         </p>
 
         {/* Price */}
