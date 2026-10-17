@@ -4285,31 +4285,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <MusicConnectIcon className="w-4 h-4 shrink-0" />
                 <span className="font-semibold truncate">
                   Sedang mendengarkan di{" "}
-                  <span className="font-bold underline decoration-dotted">{currentListeningDevice}</span>
+                  <span className="font-bold">{currentListeningDevice}</span>
                 </span>
               </div>
 
-              {isRemoteActive && remoteActiveSession ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    musicConnect.transferAppPlayback(musicConnect.localInstanceId, true);
-                  }}
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg border transition shrink-0 ${
-                    isDark
-                      ? "border-white/20 bg-white/10 hover:bg-white hover:text-black text-white"
-                      : "border-black/15 bg-black/5 hover:bg-black hover:text-white text-zinc-900"
-                  }`}
-                  title="Pindahkan pemutaran musik ke perangkat ini"
-                >
-                  Putar di Sini
-                </button>
-              ) : (
-                <span className="text-[10px] text-zinc-400 hidden sm:inline">
-                  Connect
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 text-zinc-400 shrink-0">
+                <span className="text-[11px] hidden sm:inline">Connect</span>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
           )}
 
@@ -4835,7 +4820,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             >
               <MusicConnectIcon className="w-3.5 h-3.5 shrink-0" />
               <span>
-                Sedang mendengarkan di <span className="font-bold underline decoration-dotted">{currentListeningDevice}</span>
+                Sedang mendengarkan di <span className="font-bold">{currentListeningDevice}</span>
               </span>
             </div>
           )}

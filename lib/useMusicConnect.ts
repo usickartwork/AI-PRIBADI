@@ -1264,37 +1264,32 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
       try {
         // CASE 1: "Putar di Sini" (Pulling playback to this device)
         if (isTransferringToSelf) {
-          // Step 1: Start & verify playback on THIS device FIRST before pausing source device!
-          const started = await b.onRemoteTransferHere({
-            track: trackToTransfer || null,
-            queue: queueToTransfer,
-            positionSeconds: Math.max(0, progressMsToTransfer / 1000),
-            autoPlay,
-          });
-
-          if (!started && autoPlay) {
-            // Autoplay blocked or track failed on this device -> DO NOT pause source device!
-            setAutoplayBlockedPrompt(true);
-            pendingTransferConfirmRef.current = {
-              fromInstanceId: sourceSession?.session_instance_id || "",
-              track: trackToTransfer || null,
-              queue: queueToTransfer,
-              progressMs: progressMsToTransfer,
-            };
-            setIsSendingCommand(false);
-            showTransientFeedback(
-              "error",
-              "Browser menahan autoplay. Ketuk 'Aktifkan Audio' untuk memindahkan lagu.",
-              3000
-            );
-            return;
+          // Send instant PAUSE command to remote source device via WebSocket (< 20ms)
+          if (sourceSession && sourceSession.session_instance_id !== localInstanceId) {
+            const pauseCmd = createCommandEnvelope({
+              userId: userId || "user",
+              sourceInstanceId: localInstanceId,
+              sourceDeviceName: localDeviceName,
+              targetInstanceId: sourceSession.session_instance_id,
+              commandType: "PAUSE",
+              payload: { wasTransferred: true, newActiveInstanceId: localInstanceId },
+            });
+            try {
+              realtimeChannelRef.current?.send({
+                type: "broadcast",
+                event: "connect_command",
+                payload: pauseCmd,
+              });
+            } catch {}
+            try {
+              broadcastChannelRef.current?.postMessage({
+                event: "connect_command",
+                command: pauseCmd,
+              });
+            } catch {}
           }
 
-          setAutoplayBlockedPrompt(false);
-          pendingTransferConfirmRef.current = null;
-          claimActiveUntilRef.current = Date.now() + 15_000;
-
-          // Optimistically flip local session ownership to this device
+          // Optimistically flip local session ownership to this device immediately (0ms)
           const nowIso = new Date().toISOString();
           setSessions((prev) =>
             prev.map((s) =>
@@ -1330,8 +1325,43 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
               : null
           );
 
-          // Step 2: Now that local playback is verified active, commit transfer & pause source device
-          const res = await fetch("/api/music/connect", {
+          // Start playback on this device
+          claimActiveUntilRef.current = Date.now() + 15_000;
+          const started = await b.onRemoteTransferHere({
+            track: trackToTransfer || null,
+            queue: queueToTransfer,
+            positionSeconds: Math.max(0, progressMsToTransfer / 1000),
+            autoPlay,
+          });
+
+          if (!started && autoPlay) {
+            setAutoplayBlockedPrompt(true);
+            pendingTransferConfirmRef.current = {
+              fromInstanceId: sourceSession?.session_instance_id || "",
+              track: trackToTransfer || null,
+              queue: queueToTransfer,
+              progressMs: progressMsToTransfer,
+            };
+            setIsSendingCommand(false);
+            showTransientFeedback(
+              "error",
+              "Browser menahan autoplay. Ketuk 'Aktifkan Audio' untuk memindahkan lagu.",
+              3000
+            );
+            return;
+          }
+
+          setAutoplayBlockedPrompt(false);
+          pendingTransferConfirmRef.current = null;
+          setIsSendingCommand(false);
+          showTransientFeedback(
+            "success",
+            `Pemutaran aktif di ${localDeviceName}`,
+            1200
+          );
+
+          // Persist transfer state to server
+          void fetch("/api/music/connect", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1345,32 +1375,98 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
               progress_ms: progressMsToTransfer,
               auto_play: autoPlay,
             }),
-          });
-
-          const json = await res.json().catch(() => ({}));
-          setIsSendingCommand(false);
-          if (res.ok && json?.success) {
-            applyServerResponse(json);
-            sendWakeupPing();
-            setTimeout(sendWakeupPing, 120);
-            showTransientFeedback(
-              "success",
-              `Pemutaran aktif di ${localDeviceName}`,
-              1200
-            );
-          } else {
-            showTransientFeedback(
-              "error",
-              json?.error || "Gagal memperbarui status transfer di server.",
-              2500
-            );
-          }
+          }).then(async (res) => {
+            const json = await res.json().catch(() => ({}));
+            if (res.ok && json?.success) {
+              applyServerResponse(json);
+              sendWakeupPing();
+            }
+          }).catch(() => {});
           return;
         }
 
-        // CASE 2: Pushing playback from THIS device to another target device
-        // Do NOT pause local player yet! Wait until target device sends `ack: succeeded`.
-        const res = await fetch("/api/music/connect", {
+        // CASE 2: Pushing playback from THIS device to target remote device (Device A -> Device B)
+        // 1. Immediately pause local player with zero audio overlap
+        claimActiveUntilRef.current = 0;
+        b.onRemotePause();
+
+        // 2. Optimistically update local session state (0ms)
+        const nowIso = new Date().toISOString();
+        const targetDev = sessions.find((s) => s.session_instance_id === targetInstanceId);
+        const targetName = targetDev?.device_name || "perangkat tujuan";
+
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_instance_id === targetInstanceId
+              ? {
+                  ...s,
+                  is_active_playback: true,
+                  is_playing: autoPlay,
+                  current_track_payload: trackToTransfer || s.current_track_payload,
+                  current_track_id: trackToTransfer?.id || s.current_track_id,
+                  current_track_name: trackToTransfer?.title || s.current_track_name,
+                  progress_ms: progressMsToTransfer,
+                  updated_at: nowIso,
+                }
+              : s.session_instance_id === localInstanceId
+              ? {
+                  ...s,
+                  is_active_playback: false,
+                  is_playing: false,
+                  updated_at: nowIso,
+                }
+              : s
+          )
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId
+            ? { ...prev, is_active_playback: true, is_playing: autoPlay, updated_at: nowIso }
+            : targetDev
+            ? { ...targetDev, is_active_playback: true, is_playing: autoPlay, updated_at: nowIso }
+            : prev
+        );
+
+        // 3. Create TRANSFER_PLAYBACK command envelope
+        const transferCmd = createCommandEnvelope({
+          userId: userId || "user",
+          sourceInstanceId: localInstanceId,
+          sourceDeviceName: localDeviceName,
+          targetInstanceId,
+          commandType: "TRANSFER_PLAYBACK",
+          payload: {
+            track: trackToTransfer,
+            queue: queueToTransfer,
+            positionSeconds: Math.max(0, progressMsToTransfer / 1000),
+            positionMs: progressMsToTransfer,
+            autoPlay,
+            newActiveInstanceId: targetInstanceId,
+          },
+        });
+
+        // 4. Instantly broadcast to target device via WebSocket (< 20ms) & BroadcastChannel
+        try {
+          realtimeChannelRef.current?.send({
+            type: "broadcast",
+            event: "connect_command",
+            payload: transferCmd,
+          });
+        } catch {}
+        try {
+          broadcastChannelRef.current?.postMessage({
+            event: "connect_command",
+            command: transferCmd,
+          });
+        } catch {}
+
+        setIsSendingCommand(false);
+        showTransientFeedback(
+          "success",
+          `Beralih ke ${targetName}`,
+          1200
+        );
+
+        // 5. In parallel, persist transfer on server
+        void fetch("/api/music/connect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1384,61 +1480,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
             progress_ms: progressMsToTransfer,
             auto_play: autoPlay,
           }),
-        });
-
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json?.success || !json?.transferCommand?.command_id) {
-          setIsSendingCommand(false);
-          showTransientFeedback(
-            "error",
-            json?.error || "Perangkat tujuan tidak merespons. Pemutaran tetap dilanjutkan di sini.",
-            2500
-          );
-          return;
-        }
-
-        const cmdId = json.transferCommand.command_id as string;
-        const timeoutId = setTimeout(() => {
-          pendingCommandMapRef.current.delete(cmdId);
-          if (pendingCommandMapRef.current.size === 0) {
-            setIsSendingCommand(false);
+        }).then(async (res) => {
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && json?.success) {
+            applyServerResponse(json);
+            sendWakeupPing();
           }
-          showTransientFeedback(
-            "error",
-            "Perangkat tujuan tidak merespons tepat waktu. Musik tetap diputar di perangkat ini.",
-            2500
-          );
-        }, 5_000);
-
-        pendingCommandMapRef.current.set(cmdId, {
-          timeoutId,
-          commandType: "TRANSFER_PLAYBACK",
-          targetInstanceId,
-          onConfirmedSuccess: () => {
-            // Target device confirmed playback started -> now pause local player!
-            claimActiveUntilRef.current = 0;
-            bridgeRef.current.onRemotePause();
-            const confirmedNowIso = new Date().toISOString();
-            setSessions((prev) =>
-              prev.map((s) =>
-                s.session_instance_id === targetInstanceId
-                  ? { ...s, is_active_playback: true, is_playing: true, updated_at: confirmedNowIso }
-                  : s.session_instance_id === localInstanceId
-                  ? { ...s, is_active_playback: false, is_playing: false, updated_at: confirmedNowIso }
-                  : s
-              )
-            );
-            setActiveSession((prev) =>
-              prev && prev.session_instance_id === targetInstanceId
-                ? { ...prev, is_active_playback: true, is_playing: true, updated_at: confirmedNowIso }
-                : sessions.find((s) => s.session_instance_id === targetInstanceId) || prev
-            );
-          },
-        });
-
-        applyServerResponse(json);
-        sendWakeupPing();
-        setTimeout(sendWakeupPing, 120);
+        }).catch(() => {});
       } catch (err: any) {
         setIsSendingCommand(false);
         showTransientFeedback(

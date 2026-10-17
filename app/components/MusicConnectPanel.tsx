@@ -426,7 +426,7 @@ export function MusicConnectRemoteBar({
               />
               <span className="text-[10px] sm:text-[11px] font-bold tracking-tight truncate">
                 {remoteSession.is_playing ? "Sedang diputar di" : "Terakhir aktif di"}{" "}
-                <span className="underline decoration-dotted">{remoteSession.device_name}</span>
+                <span className="font-bold">{remoteSession.device_name}</span>
               </span>
             </div>
             <p className="text-xs font-semibold truncate mt-0.5">
@@ -615,10 +615,66 @@ export function MusicConnectContent({
   const localSession = onlineSessions.find((s) => s.session_instance_id === localInstanceId);
   const isLocalPlaying = Boolean(localSession?.is_playing);
 
-  // Other online devices (all online devices except the local device)
-  const otherOnlineSessions = onlineSessions.filter(
-    (s) => s.session_instance_id !== localInstanceId
+  // Is another remote device currently active/playing?
+  const isRemoteActive = Boolean(
+    remoteControllableSession &&
+      (remoteControllableSession.is_playing || remoteControllableSession.is_active_playback)
   );
+
+  // Currently active device in the top card
+  const activeSessionDisplay = isRemoteActive ? remoteControllableSession : localSession;
+  const isCurrentDeviceLocal = !isRemoteActive;
+
+  // Build the list of switchable devices (devices user can click to switch playback to).
+  // CRITICAL: NEVER include the currently active playback device in this list!
+  // If remote is playing, THIS local device MUST be in the switchable list as "Perangkat ini".
+  // If local is playing, all other remote devices are in the switchable list.
+  interface SwitchableDeviceItem {
+    id: string;
+    name: string;
+    type: string;
+    platform: string;
+    browser: string;
+    isLocal: boolean;
+    isPlaying: boolean;
+    currentTrack?: string | null;
+    currentArtist?: string | null;
+  }
+
+  const switchableDevices: SwitchableDeviceItem[] = [];
+
+  if (isRemoteActive) {
+    // Add local device as a switch target
+    switchableDevices.push({
+      id: localInstanceId,
+      name: localDeviceName,
+      type: localSession?.device_type || "mobile",
+      platform: localSession?.platform || "Web",
+      browser: localSession?.browser || "Browser",
+      isLocal: true,
+      isPlaying: false,
+      currentTrack: null,
+      currentArtist: null,
+    });
+  }
+
+  for (const s of onlineSessions) {
+    if (s.session_instance_id === localInstanceId) continue;
+    if (activeSessionDisplay && s.session_instance_id === activeSessionDisplay.session_instance_id) {
+      continue;
+    }
+    switchableDevices.push({
+      id: s.session_instance_id,
+      name: s.device_name,
+      type: s.device_type,
+      platform: s.platform || "Web",
+      browser: s.browser || "Browser",
+      isLocal: false,
+      isPlaying: Boolean(s.is_playing),
+      currentTrack: s.current_track_name,
+      currentArtist: s.current_artist_name,
+    });
+  }
 
   const handleSaveDeviceName = (e: React.FormEvent) => {
     e.preventDefault();
@@ -704,7 +760,7 @@ export function MusicConnectContent({
           </div>
         )}
 
-        {/* ─── CARD: CURRENT DEVICE (Matching Gambar 2) ─── */}
+        {/* ─── CARD: CURRENT ACTIVE DEVICE ─── */}
         <div
           className={`p-4 rounded-2xl border transition-all ${
             isDark
@@ -712,94 +768,11 @@ export function MusicConnectContent({
               : "bg-zinc-50 border-black/10 text-zinc-900 shadow-xs"
           }`}
         >
-          {remoteControllableSession ? (
-            /* When another device is currently active */
+          {activeSessionDisplay ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-bold truncate">
-                      {remoteControllableSession.device_name}
-                    </span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
-                        isDark ? "bg-white/15 text-white" : "bg-black/10 text-black"
-                      }`}
-                    >
-                      Aktif
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-400 truncate mt-1">
-                    {remoteControllableSession.current_track_name
-                      ? `${remoteControllableSession.current_track_name}${
-                          remoteControllableSession.current_artist_name
-                            ? ` — ${remoteControllableSession.current_artist_name}`
-                            : ""
-                        }`
-                      : "Sedang memutar di perangkat ini"}
-                  </p>
-                </div>
-
-                {/* Right: Device Icon (Theme Styled, strictly no green) */}
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
-                    isDark
-                      ? "bg-white/10 border-white/20 text-white"
-                      : "bg-black/5 border-black/15 text-zinc-900"
-                  }`}
-                >
-                  <DeviceTypeIcon
-                    type={remoteControllableSession.device_type}
-                    className="w-6 h-6"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-white/5">
-                <span className="text-xs text-zinc-400 truncate">
-                  Kontrol musik dari perangkat ini
-                </span>
-                <button
-                  type="button"
-                  disabled={isSendingCommand}
-                  onClick={() => onTransferAppPlayback(localInstanceId, true)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                    isDark
-                      ? "bg-white text-black hover:bg-zinc-200"
-                      : "bg-black text-white hover:bg-zinc-800"
-                  }`}
-                >
-                  Putar di Sini
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* When this device is active (Gambar 2 layout) */
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  {!isEditingName ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-bold truncate">
-                        {localDeviceName || "Perangkat ini"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingName(true)}
-                        className="text-zinc-400 hover:text-white transition cursor-pointer"
-                        title="Ubah nama perangkat"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
+                  {isCurrentDeviceLocal && isEditingName ? (
                     <form onSubmit={handleSaveDeviceName} className="flex items-center gap-2">
                       <input
                         type="text"
@@ -808,7 +781,9 @@ export function MusicConnectContent({
                         placeholder="Nama perangkat"
                         maxLength={35}
                         className={`w-full rounded-xl border px-2.5 py-1 text-xs outline-none ${
-                          isDark ? "bg-zinc-950 border-zinc-700 text-white" : "bg-white border-zinc-300 text-zinc-900"
+                          isDark
+                            ? "bg-zinc-950 border-zinc-700 text-white"
+                            : "bg-white border-zinc-300 text-zinc-900"
                         }`}
                         autoFocus
                       />
@@ -821,20 +796,57 @@ export function MusicConnectContent({
                         Simpan
                       </button>
                     </form>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold truncate">
+                        {isCurrentDeviceLocal
+                          ? localDeviceName || "Perangkat ini"
+                          : activeSessionDisplay.device_name}
+                      </span>
+                      {isCurrentDeviceLocal ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingName(true)}
+                          className="text-zinc-400 hover:text-white transition cursor-pointer"
+                          title="Ubah nama perangkat"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                            isDark ? "bg-white/15 text-white" : "bg-black/10 text-black"
+                          }`}
+                        >
+                          Aktif
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   <p className="text-xs text-zinc-400 truncate mt-1">
-                    {localSession?.current_track_name
-                      ? `${localSession.current_track_name}${
-                          localSession.current_artist_name ? ` — ${localSession.current_artist_name}` : ""
+                    {activeSessionDisplay.current_track_name
+                      ? `${activeSessionDisplay.current_track_name}${
+                          activeSessionDisplay.current_artist_name
+                            ? ` — ${activeSessionDisplay.current_artist_name}`
+                            : ""
                         }`
-                      : isLocalPlaying
-                      ? "Sedang memutar di perangkat ini"
-                      : "Perangkat ini • Tersedia"}
+                      : isCurrentDeviceLocal
+                      ? isLocalPlaying
+                        ? "Sedang memutar di perangkat ini"
+                        : "Perangkat ini • Tersedia"
+                      : "Sedang memutar di perangkat ini"}
                   </p>
                 </div>
 
-                {/* Right: Device Icon (Theme Styled, strictly no green) */}
+                {/* Right: Device Icon */}
                 <div
                   className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
                     isDark
@@ -843,109 +855,91 @@ export function MusicConnectContent({
                   }`}
                 >
                   <DeviceTypeIcon
-                    type={localSession?.device_type || "computer"}
+                    type={activeSessionDisplay.device_type}
                     className="w-6 h-6"
                   />
                 </div>
               </div>
             </div>
+          ) : (
+            <div className="text-xs text-zinc-400">Tidak ada perangkat aktif</div>
           )}
         </div>
 
-        {/* ─── SECTION: PUTAR DI PERANGKATMU (Matching Gambar 2) ─── */}
+        {/* ─── SECTION: PUTAR DI PERANGKATMU ─── */}
         <div className="space-y-3 pt-1">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
               Putar di perangkatmu
             </h4>
-            {otherOnlineSessions.length > 0 && (
+            {switchableDevices.length > 0 && (
               <span className="text-[11px] text-zinc-500 font-medium">
-                {otherOnlineSessions.length} online
+                {switchableDevices.length} tersedia
               </span>
             )}
           </div>
 
-          {/* If other devices exist: Render the list, hide 'no other devices' completely */}
-          {otherOnlineSessions.length > 0 ? (
+          {/* List of switchable devices: NO separate buttons, entire row is clickable! */}
+          {switchableDevices.length > 0 ? (
             <div className="space-y-2">
-              {otherOnlineSessions.map((dev) => {
-                const isSelected = Boolean(dev.is_active_playback);
-                return (
-                  <div
-                    key={dev.session_instance_id}
-                    className={`p-3.5 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? isDark
-                          ? "bg-white/10 border-white/25 shadow-sm"
-                          : "bg-black/5 border-black/20 shadow-xs"
-                        : isDark
-                        ? "bg-zinc-900/50 border-zinc-800/80 hover:border-zinc-700"
-                        : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? isDark
-                              ? "bg-white text-black"
-                              : "bg-black text-white"
-                            : isDark
-                            ? "bg-zinc-800 text-zinc-300"
-                            : "bg-zinc-200 text-zinc-700"
-                        }`}
-                      >
-                        <DeviceTypeIcon type={dev.device_type} className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-bold truncate">
-                            {dev.device_name}
-                          </span>
-                          {dev.is_playing ? (
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                isDark ? "bg-white text-black" : "bg-black text-white"
-                              }`}
-                            >
-                              Memutar
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-zinc-400 font-medium">
-                              Tersedia
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                          {dev.current_track_name
-                            ? `${dev.current_track_name}${
-                                dev.current_artist_name ? ` — ${dev.current_artist_name}` : ""
-                              }`
-                            : `${dev.platform || "Web"} • ${dev.browser || "Browser"}`}
-                        </p>
-                      </div>
+              {switchableDevices.map((dev) => (
+                <div
+                  key={dev.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onTransferAppPlayback(dev.id, true)}
+                  className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
+                    isDark
+                      ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/80 hover:border-zinc-700"
+                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200 hover:border-zinc-300"
+                  }`}
+                  title={`Ketuk untuk memindahkan pemutaran ke ${dev.name}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition ${
+                        isDark
+                          ? "bg-zinc-800 text-zinc-300 group-hover:bg-white group-hover:text-black"
+                          : "bg-zinc-200 text-zinc-700 group-hover:bg-black group-hover:text-white"
+                      }`}
+                    >
+                      <DeviceTypeIcon type={dev.type} className="w-5 h-5" />
                     </div>
-
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={isSendingCommand}
-                        onClick={() => onTransferAppPlayback(dev.session_instance_id, true)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          isDark
-                            ? "bg-white text-black hover:bg-zinc-200"
-                            : "bg-black text-white hover:bg-zinc-800"
-                        }`}
-                      >
-                        Pilih
-                      </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs sm:text-sm font-bold truncate">
+                          {dev.name}
+                        </span>
+                        {dev.isLocal && (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              isDark ? "bg-white/15 text-white" : "bg-black/10 text-black"
+                            }`}
+                          >
+                            Perangkat ini
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                        {dev.isLocal
+                          ? "Ketuk untuk beralih ke perangkat ini"
+                          : dev.currentTrack
+                          ? `${dev.currentTrack}${dev.currentArtist ? ` — ${dev.currentArtist}` : ""}`
+                          : `${dev.platform} • ${dev.browser} • Siap memutar`}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="shrink-0 flex items-center text-zinc-400 group-hover:text-current transition pr-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
-            /* If NO other devices exist at all: Show clean 'No other devices found' */
+            /* If NO other switchable devices exist: Clean informational state */
             <div
               className={`py-8 px-4 rounded-2xl border text-center space-y-1.5 ${
                 isDark ? "bg-zinc-900/30 border-zinc-800/60" : "bg-zinc-50 border-zinc-200"

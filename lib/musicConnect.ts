@@ -242,31 +242,48 @@ export function detectDeviceInfo(instanceId?: string): {
   }
 
   const ua = navigator.userAgent || "";
+  const navPlatform = ((navigator as any).platform || "").toLowerCase();
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const screenMinDim =
+    typeof window !== "undefined" && window.screen
+      ? Math.min(window.screen.width, window.screen.height)
+      : 1024;
+  const isTouchScreen = maxTouchPoints > 0;
 
   let platform = "Desktop";
   let deviceType: DeviceCategory = "desktop";
 
-  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) {
-    platform = "iPad";
-    deviceType = "tablet";
-  } else if (/iPhone|iPod/i.test(ua)) {
+  // iOS detection (iPhone, iPod, iPad)
+  // Handles iPhone in Desktop Mode (which reports Macintosh in UA, but has touch and phone screen width < 600)
+  const isIPhoneExplicit =
+    /iPhone|iPod/i.test(ua) ||
+    navPlatform.includes("iphone") ||
+    navPlatform.includes("ipod");
+  const isIPadExplicit = /iPad/i.test(ua) || navPlatform.includes("ipad");
+  const isAppleTouch =
+    (/Macintosh|Mac OS X/i.test(ua) || navPlatform.includes("mac")) && isTouchScreen;
+
+  if (isIPhoneExplicit || (isAppleTouch && screenMinDim < 600)) {
     platform = "iPhone";
     deviceType = "mobile";
+  } else if (isIPadExplicit || (isAppleTouch && screenMinDim >= 600)) {
+    platform = "iPad";
+    deviceType = "tablet";
   } else if (/Android/i.test(ua)) {
-    if (/Mobile/i.test(ua)) {
+    if (/Mobile/i.test(ua) || screenMinDim < 600) {
       platform = "Android";
       deviceType = "mobile";
     } else {
       platform = "Tablet Android";
       deviceType = "tablet";
     }
-  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+  } else if (/Macintosh|Mac OS X/i.test(ua) || navPlatform.includes("mac")) {
     platform = "Mac";
     deviceType = "desktop";
-  } else if (/Windows/i.test(ua)) {
+  } else if (/Windows/i.test(ua) || navPlatform.includes("win")) {
     platform = "Windows";
     deviceType = "desktop";
-  } else if (/Linux/i.test(ua)) {
+  } else if (/Linux/i.test(ua) || navPlatform.includes("linux")) {
     platform = "Linux";
     deviceType = "desktop";
   }
