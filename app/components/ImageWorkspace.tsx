@@ -214,6 +214,7 @@ export function ImageWorkspace({
         body: JSON.stringify({
           prompt: textToUse,
           size: ratioConfig.size,
+          userId: userId || undefined,
         }),
       });
 
