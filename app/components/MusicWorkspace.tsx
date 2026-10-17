@@ -923,15 +923,34 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack?.id]);
 
+  const lastFetchedSearchQueryRef = useRef<string>("");
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+
   // ─── Initial & Category-Based Spotify Catalog Fetch (Loads 50 songs) ──────
   const fetchSpotifyMusic = useCallback(async (query: string = "", category: string = "all", limit: number = 50) => {
+    const normalizedQuery = query.trim().replace(/\s+/g, " ").toLowerCase();
+    if (normalizedQuery) {
+      lastFetchedSearchQueryRef.current = `${normalizedQuery}__${category}__${limit}`;
+    }
+
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    searchAbortControllerRef.current = controller;
+
     setIsSearching(true);
     setSearchError(null);
     try {
       const categoryParam = category !== "all" ? `&category=${encodeURIComponent(category)}` : "";
       const seedParam = !query.trim() ? `&seed=${Math.floor(Math.random() * 10000)}` : "";
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}${categoryParam}${seedParam}&limit=${limit}`);
+      const res = await fetch(
+        `/api/music/search?q=${encodeURIComponent(query.trim())}${categoryParam}${seedParam}&limit=${limit}`,
+        { signal: controller.signal }
+      );
       const json = await res.json();
+
+      if (controller.signal.aborted) return;
 
       setIsSpotifyConfigured(json.configured ?? false);
 
@@ -967,9 +986,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         setSearchError(json.error);
       }
     } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setSearchError(err?.message || "Gagal menghubungkan ke Spotify API.");
     } finally {
-      setIsSearching(false);
+      if (searchAbortControllerRef.current === controller) {
+        setIsSearching(false);
+      }
     }
   }, []);
 
@@ -982,41 +1004,84 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
+      lastFetchedSearchQueryRef.current = "";
       setHasSearched(false);
       return;
     }
-    const timer = setTimeout(() => {
+    const normalizedKey = `${trimmed.replace(/\s+/g, " ").toLowerCase()}__all__50`;
+    // Jika query yang dinormalisasi sudah sama persis dengan pencarian terakhir
+    // (mis. saat tutup keyboard HP yang meng-commit teks IME/spasi akhir), jangan refresh ulang!
+    if (normalizedKey === lastFetchedSearchQueryRef.current) {
+      return;
+    }
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
       setHasSearched(true);
       fetchSpotifyMusic(trimmed, "all", 50);
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [searchQuery, fetchSpotifyMusic]);
 
   // ─── Search Execution Handlers ─────────────────────────────────────────────
   const handleExecuteSearch = (query: string) => {
-    if (!query.trim()) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
     setSelectedArtist(null);
     setSelectedAlbum(null);
-    setSearchQuery(query);
+    if (searchQuery !== query) {
+      setSearchQuery(query);
+    }
     setHasSearched(true);
     if (subTab !== "home") setSubTab("home");
-    addRecentSearch(query.trim());
+    addRecentSearch(trimmed);
     setRecentSearches(getRecentSearches());
-    fetchSpotifyMusic(query.trim(), "all", 50);
+    // Tutup mode ketik (keyboard mobile) dengan mulus
+    if (chatInputRef.current) {
+      chatInputRef.current.blur();
+    }
+    // Hanya fetch jika query belum pernah di-fetch oleh debounce saat mengetik
+    const normalizedKey = `${trimmed.replace(/\s+/g, " ").toLowerCase()}__all__50`;
+    if (normalizedKey !== lastFetchedSearchQueryRef.current) {
+      fetchSpotifyMusic(trimmed, "all", 50);
+    }
   };
 
   const handleQuickSearch = (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
     setSelectedArtist(null);
     setSelectedAlbum(null);
     setSearchQuery(term);
     setHasSearched(true);
     if (subTab !== "home") setSubTab("home");
-    addRecentSearch(term);
+    addRecentSearch(trimmed);
     setRecentSearches(getRecentSearches());
-    fetchSpotifyMusic(term, "all", 50);
+    const normalizedKey = `${trimmed.replace(/\s+/g, " ").toLowerCase()}__all__50`;
+    if (normalizedKey !== lastFetchedSearchQueryRef.current) {
+      fetchSpotifyMusic(trimmed, "all", 50);
+    }
   };
 
   const handleResetToNewSearch = () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+    lastFetchedSearchQueryRef.current = "";
     setSelectedArtist(null);
     setSelectedAlbum(null);
     setSearchQuery("");
@@ -2376,6 +2441,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <button
               type="button"
               onClick={() => {
+                if (searchTimeoutRef.current) {
+                  clearTimeout(searchTimeoutRef.current);
+                  searchTimeoutRef.current = null;
+                }
+                lastFetchedSearchQueryRef.current = "";
                 setSearchQuery("");
                 setHasSearched(false);
                 if (chatInputRef.current) chatInputRef.current.focus();
@@ -3616,8 +3686,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     </div>
                   </div>
 
-                  {/* Loading Indicator */}
-                  {isSearching && (
+                  {/* Loading Indicator (only when list is empty) */}
+                  {isSearching && tracks.length === 0 && (
                     <div className="flex items-center gap-2 py-8 justify-center text-xs text-zinc-400">
                       <span className="w-2 h-2 rounded-full bg-zinc-400 animate-ping" />
                       <span>Mengambil daftar lagu Spotify...</span>
@@ -3636,7 +3706,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   )}
 
                   {/* Artists Section in Search Results */}
-                  {artists.length > 0 && !isSearching && (
+                  {artists.length > 0 && (
                     <div className="space-y-3 pb-2 pt-1">
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
@@ -3652,7 +3722,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                             key={art.id}
                             type="button"
                             onClick={() => openArtistProfile(art.providerItemId || art.title)}
-                            className={`flex flex-col items-center p-3 rounded-2xl border transition-all cursor-pointer group shrink-0 w-28 text-center ${
+                            className={`flex flex-col items-center p-3 rounded-2xl border transition-colors cursor-pointer group shrink-0 w-28 text-center ${
                               isDark
                                 ? "bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/90 hover:border-zinc-700"
                                 : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100"
@@ -3686,7 +3756,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   )}
 
                   {/* Song List */}
-                  {!isSearching && (
+                  {(!isSearching || tracks.length > 0) && (
                     <div className="space-y-2 pt-1">
                       {artists.length > 0 && (
                         <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
