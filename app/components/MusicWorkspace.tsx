@@ -33,6 +33,7 @@ import {
   MusicConnectButton,
   MusicConnectRemoteBar,
   MusicConnectModal,
+  MusicConnectSidePanel,
 } from "./MusicConnectPanel";
 
 interface MusicWorkspaceProps {
@@ -2984,7 +2985,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <MusicConnectButton
                   isDark={isDark}
                   isOpen={musicConnect.showConnectModal}
-                  onClick={() => musicConnect.setShowConnectModal((prev) => !prev)}
+                  onClick={() =>
+                    musicConnect.setShowConnectModal((prev) => {
+                      const next = !prev;
+                      if (next) setShowDesktopQueue(false);
+                      return next;
+                    })
+                  }
                   onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
                   remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
                   variant="header"
@@ -4138,6 +4145,39 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
           </aside>
         )}
+
+        {/* ─── DESKTOP SPOTIFY-STYLE CONNECT SIDE PANEL ───────────────────────── */}
+        {musicConnect.enabled && musicConnect.showConnectModal && (
+          <aside
+            className={`hidden sm:flex flex-col w-80 lg:w-96 shrink-0 h-full border-l overflow-hidden transition-all duration-300 animate-in slide-in-from-right z-20 select-none ${
+              isDark
+                ? "bg-[#121215]/95 backdrop-blur-md border-white/10 text-white shadow-[-8px_0_24px_rgba(0,0,0,0.3)]"
+                : "bg-[#fafafc]/95 backdrop-blur-md border-black/10 text-zinc-900 shadow-[-8px_0_24px_rgba(0,0,0,0.05)]"
+            }`}
+          >
+            <MusicConnectSidePanel
+              isDark={isDark}
+              onClose={() => musicConnect.setShowConnectModal(false)}
+              localInstanceId={musicConnect.localInstanceId}
+              localDeviceName={musicConnect.localDeviceName}
+              onRenameLocalDevice={musicConnect.handleRenameLocalDevice}
+              sessions={musicConnect.sessions}
+              activeSession={musicConnect.activeSession}
+              spotifyConnect={musicConnect.spotifyConnect}
+              isLoadingDevices={musicConnect.isLoadingDevices}
+              isSendingCommand={musicConnect.isSendingCommand}
+              commandFeedback={musicConnect.commandFeedback}
+              onRefreshDevices={musicConnect.refreshDevices}
+              onSendAppCommand={musicConnect.sendAppCommand}
+              onTransferAppPlayback={musicConnect.transferAppPlayback}
+              onExecuteSpotifyAction={musicConnect.executeSpotifyAction}
+              onJamClick={() => {
+                musicConnect.refreshDevices(true);
+                showQueueToast("Sesi Jam aktif • Perangkat terhubung realtime");
+              }}
+            />
+          </aside>
+        )}
       </div>
 
       {/* ─── REMOTE ACTIVE PLAYBACK BAR (When another device owns active playback) ─── */}
@@ -4156,7 +4196,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             onTransferHere={() =>
               musicConnect.transferAppPlayback(musicConnect.localInstanceId, true)
             }
-            onOpenConnectModal={() => musicConnect.setShowConnectModal(true)}
+            onOpenConnectModal={() => {
+              setShowDesktopQueue(false);
+              musicConnect.setShowConnectModal(true);
+            }}
           />
         </div>
       ) : currentTrack ? (
@@ -4509,7 +4552,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               <button
                 type="button"
-                onClick={() => setShowDesktopQueue((prev) => !prev)}
+                onClick={() => {
+                  setShowDesktopQueue((prev) => {
+                    const next = !prev;
+                    if (next) musicConnect.setShowConnectModal(false);
+                    return next;
+                  });
+                }}
                 className={`p-2 transition cursor-pointer relative ${
                   showDesktopQueue
                     ? isDark
@@ -4535,7 +4584,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <MusicConnectButton
                   isDark={isDark}
                   isOpen={musicConnect.showConnectModal}
-                  onClick={() => musicConnect.setShowConnectModal((prev) => !prev)}
+                  onClick={() => {
+                    musicConnect.setShowConnectModal((prev) => {
+                      const next = !prev;
+                      if (next) setShowDesktopQueue(false);
+                      return next;
+                    });
+                  }}
                   onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
                   remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
                   variant="desktop-footer"
@@ -5231,6 +5286,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           onSendAppCommand={musicConnect.sendAppCommand}
           onTransferAppPlayback={musicConnect.transferAppPlayback}
           onExecuteSpotifyAction={musicConnect.executeSpotifyAction}
+          onJamClick={() => {
+            musicConnect.refreshDevices(true);
+            showQueueToast("Sesi Jam aktif • Perangkat terhubung realtime");
+          }}
         />
       )}
 
