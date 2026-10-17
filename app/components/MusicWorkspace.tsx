@@ -929,7 +929,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setSearchError(null);
     try {
       const categoryParam = category !== "all" ? `&category=${encodeURIComponent(category)}` : "";
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}${categoryParam}&limit=${limit}`);
+      const seedParam = !query.trim() ? `&seed=${Math.floor(Math.random() * 10000)}` : "";
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}${categoryParam}${seedParam}&limit=${limit}`);
       const json = await res.json();
 
       setIsSpotifyConfigured(json.configured ?? false);
