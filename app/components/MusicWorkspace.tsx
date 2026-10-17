@@ -1855,12 +1855,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         }
       : currentTrack;
 
-  // The device currently listening/playing
-  const currentListeningDevice = isRemoteActive
-    ? remoteActiveSession?.device_name
-    : musicConnect.enabled && (isPlaying || currentTrack) && musicConnect.localDeviceName
-    ? musicConnect.localDeviceName
-    : null;
+  // The device currently listening/playing (ONLY shown on devices that are NOT listening directly)
+  const currentListeningDevice =
+    isRemoteActive &&
+    remoteActiveSession &&
+    (remoteActiveSession.is_playing || remoteActiveSession.is_active_playback)
+      ? remoteActiveSession.device_name
+      : null;
 
   const effectiveCurrentTime =
     isRemoteActive && remoteActiveSession
@@ -4370,7 +4371,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={() => toggleLike(activeTrack as any)}
-                  className={`p-3 rounded-2xl transition cursor-pointer active:scale-90 ${
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center transition cursor-pointer active:scale-90 ${
                     isTrackLiked(activeTrack.id)
                       ? isDark
                         ? "text-white"
@@ -4381,7 +4382,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }`}
                   title={isTrackLiked(activeTrack.id) ? "Hapus dari disukai" : "Sukai lagu"}
                 >
-                  <svg className={`w-6 h-6 ${isTrackLiked(activeTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-5.5 h-5.5 ${isTrackLiked(activeTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -4620,17 +4621,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             </div>
 
-            {/* Right: Lyrics, Queue & Inset Volume Control (Shifted leftward, longer slider, larger icon) */}
-            <div className="flex items-center justify-end gap-3 sm:gap-4 w-1/4 pr-4 sm:pr-8">
+            {/* Right: Lyrics, Queue, Connect & Volume Control (Symmetrically spaced) */}
+            <div className="flex items-center justify-end gap-2 sm:gap-2.5 w-1/4 pr-4 sm:pr-8">
               {/* Lyrics Toggle Button */}
               <button
                 type="button"
                 onClick={() => setShowLyrics((prev) => !prev)}
-                className={`p-2 transition cursor-pointer relative ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative shrink-0 ${
                   showLyrics
                     ? isDark
-                      ? "text-white bg-white/15 rounded-xl font-bold"
-                      : "text-black bg-black/10 rounded-xl font-bold"
+                      ? "text-white bg-white/15 font-bold"
+                      : "text-black bg-black/10 font-bold"
                     : isDark
                     ? "text-zinc-400 hover:text-white"
                     : "text-zinc-500 hover:text-black"
@@ -4646,10 +4647,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   />
                 </svg>
                 {lyricsData?.synced && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isDark ? "bg-white" : "bg-zinc-900"}`} />
+                  <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isDark ? "bg-white" : "bg-zinc-900"}`} />
                 )}
               </button>
 
+              {/* Queue Button */}
               <button
                 type="button"
                 onClick={() => {
@@ -4659,11 +4661,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     return next;
                   });
                 }}
-                className={`p-2 transition cursor-pointer relative ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative shrink-0 ${
                   showDesktopQueue
                     ? isDark
-                      ? "text-white bg-white/15 rounded-xl font-bold"
-                      : "text-black bg-black/10 rounded-xl font-bold"
+                      ? "text-white bg-white/15 font-bold"
+                      : "text-black bg-black/10 font-bold"
                     : isDark
                     ? "text-zinc-400 hover:text-white"
                     : "text-zinc-600 hover:text-black"
@@ -4674,12 +4676,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 {queue.length > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${
+                  <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
                     showDesktopQueue ? (isDark ? "bg-black" : "bg-white") : (isDark ? "bg-white" : "bg-black")
                   }`} />
                 )}
               </button>
 
+              {/* Connect Button */}
               {musicConnect.enabled && (
                 <MusicConnectButton
                   isDark={isDark}
@@ -4698,11 +4701,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
 
               {/* Volume control */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer shrink-0 ${
+                    isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
                   title={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted ? (

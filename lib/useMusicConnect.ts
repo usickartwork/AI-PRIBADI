@@ -492,12 +492,24 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
                 : 0;
             const autoPlay = cmd.payload?.autoPlay !== false;
 
-            const ok = await b.onRemoteTransferHere({
-              track: track || null,
-              queue,
-              positionSeconds: posSec,
-              autoPlay,
-            });
+            // Loop/rewind guard: If this local player is ALREADY playing this exact track and currentTime is within 3.5s of posSec,
+            // don't interrupt playback or seek backward!
+            const alreadyPlayingSameTrack =
+              b.isPlaying &&
+              b.currentTrack?.id &&
+              track?.id &&
+              b.currentTrack.id === track.id &&
+              Math.abs((b.currentTime || 0) - posSec) < 3.5;
+
+            let ok = true;
+            if (!alreadyPlayingSameTrack) {
+              ok = await b.onRemoteTransferHere({
+                track: track || null,
+                queue,
+                positionSeconds: posSec,
+                autoPlay,
+              });
+            }
 
             if (!ok && autoPlay) {
               status = "failed";
@@ -1471,6 +1483,7 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "transfer_app",
+            command_id: transferCmd.command_id,
             initiator_instance_id: localInstanceId,
             from_instance_id: localInstanceId,
             to_instance_id: targetInstanceId,

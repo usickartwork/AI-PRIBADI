@@ -1686,11 +1686,15 @@ export async function POST(req: NextRequest) {
         }
 
         // Case B: Remote transfer push (Source -> Target).
-        // Do NOT pause source device yet! Dispatch TRANSFER_PLAYBACK command and wait for target's ack.
+        // Reuse client command_id if provided to prevent duplicate execution across WebSocket & HTTP poll
+        const commandId =
+          typeof body.command_id === "string" && body.command_id.trim()
+            ? body.command_id.trim()
+            : `cmd_xfer_play_${nowMs.toString(36)}_${Math.random()
+                .toString(36)
+                .slice(2, 6)}`;
         const transferCmd: MusicConnectCommand = {
-          command_id: `cmd_xfer_play_${nowMs.toString(36)}_${Math.random()
-            .toString(36)
-            .slice(2, 6)}`,
+          command_id: commandId,
           user_id: userId,
           source_instance_id: initiatorInstanceId,
           source_device_name: sourceSession?.device_name || "Perangkat Asal",

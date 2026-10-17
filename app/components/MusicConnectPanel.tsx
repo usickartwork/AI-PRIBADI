@@ -129,7 +129,7 @@ export function MusicConnectButton({
             : "Music Connect • Pilih Perangkat"
         }
         aria-label="Music Connect"
-        className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 shrink-0 ${
+        className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all cursor-pointer relative active:scale-90 shrink-0 ml-1.5 ${
           isOpen || hasRemoteActive
             ? isDark
               ? "text-white"
@@ -139,10 +139,10 @@ export function MusicConnectButton({
             : "text-zinc-500 hover:text-black"
         }`}
       >
-        <MusicConnectIcon className="w-6 h-6 shrink-0" />
+        <MusicConnectIcon className="w-5.5 h-5.5 shrink-0 translate-x-[1px]" />
         {(hasRemoteActive || hasOtherOnline) && (
           <span
-            className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${
+            className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${
               isDark ? "bg-white" : "bg-zinc-900"
             }`}
           />
@@ -234,11 +234,11 @@ export function MusicConnectButton({
     <button
       type="button"
       onClick={onClick}
-      className={`p-2 transition cursor-pointer relative ${
+      className={`w-9 h-9 rounded-xl flex items-center justify-center transition cursor-pointer relative shrink-0 ${
         isOpen || hasRemoteActive
           ? isDark
-            ? "text-white bg-white/15 rounded-xl font-bold"
-            : "text-black bg-black/10 rounded-xl font-bold"
+            ? "text-white bg-white/15 font-bold"
+            : "text-black bg-black/10 font-bold"
           : isDark
           ? "text-zinc-400 hover:text-white"
           : "text-zinc-600 hover:text-black"
@@ -250,10 +250,10 @@ export function MusicConnectButton({
       }
       aria-label="Music Connect"
     >
-      <MusicConnectIcon className="w-5 h-5" />
+      <MusicConnectIcon className="w-5 h-5 shrink-0 translate-x-[0.5px]" />
       {(hasRemoteActive || hasOtherOnline) && (
         <span
-          className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${
+          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
             isOpen || hasRemoteActive
               ? isDark
                 ? "bg-white"
@@ -704,24 +704,6 @@ export function MusicConnectContent({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => onRefreshDevices(true)}
-            className={`p-1.5 rounded-full transition cursor-pointer ${
-              isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/10 text-zinc-600 hover:text-black"
-            }`}
-            title="Segarkan perangkat"
-            aria-label="Segarkan perangkat"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
             onClick={onClose}
             className={`p-1.5 rounded-full transition cursor-pointer ${
               isDark ? "hover:bg-white/10 text-zinc-400 hover:text-white" : "hover:bg-black/10 text-zinc-600 hover:text-black"
@@ -738,13 +720,13 @@ export function MusicConnectContent({
 
       {/* ─── SCROLLABLE BODY (DEVICE LIST ONLY) ─── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 overscroll-contain">
-        {/* Real-time Command Feedback Notification (strictly theme colors) */}
+        {/* Real-time Command Feedback Notification (strictly theme colors, borderless) */}
         {commandFeedback && (
           <div
-            className={`px-3.5 py-2.5 rounded-2xl border text-xs font-medium flex items-center justify-between gap-2 shadow-xs transition-colors duration-150 ${
+            className={`px-3.5 py-2.5 rounded-2xl text-xs font-medium flex items-center justify-between gap-2 shadow-xs transition-colors duration-150 ${
               isDark
-                ? "bg-white/10 border-white/20 text-white"
-                : "bg-black/5 border-black/15 text-zinc-900"
+                ? "bg-white/10 text-white"
+                : "bg-black/5 text-zinc-900"
             }`}
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -760,12 +742,12 @@ export function MusicConnectContent({
           </div>
         )}
 
-        {/* ─── CARD: CURRENT ACTIVE DEVICE ─── */}
+        {/* ─── CARD: CURRENT ACTIVE DEVICE (Borderless, Clean) ─── */}
         <div
-          className={`p-4 rounded-2xl border transition-all ${
+          className={`p-4 rounded-2xl transition-all ${
             isDark
-              ? "bg-[#18181f] border-white/10 text-white shadow-xs"
-              : "bg-zinc-50 border-black/10 text-zinc-900 shadow-xs"
+              ? "bg-[#18181f] text-white"
+              : "bg-zinc-100 text-zinc-900"
           }`}
         >
           {activeSessionDisplay ? (
@@ -780,10 +762,10 @@ export function MusicConnectContent({
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder="Nama perangkat"
                         maxLength={35}
-                        className={`w-full rounded-xl border px-2.5 py-1 text-xs outline-none ${
+                        className={`w-full rounded-xl px-2.5 py-1 text-xs outline-none ${
                           isDark
-                            ? "bg-zinc-950 border-zinc-700 text-white"
-                            : "bg-white border-zinc-300 text-zinc-900"
+                            ? "bg-zinc-950 text-white"
+                            : "bg-white text-zinc-900"
                         }`}
                         autoFocus
                       />
@@ -846,12 +828,12 @@ export function MusicConnectContent({
                   </p>
                 </div>
 
-                {/* Right: Device Icon */}
+                {/* Right: Device Icon (Borderless) */}
                 <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
                     isDark
-                      ? "bg-white/10 border-white/20 text-white"
-                      : "bg-black/5 border-black/15 text-zinc-900"
+                      ? "bg-white/10 text-white"
+                      : "bg-black/5 text-zinc-900"
                   }`}
                 >
                   <DeviceTypeIcon
@@ -879,7 +861,7 @@ export function MusicConnectContent({
             )}
           </div>
 
-          {/* List of switchable devices: NO separate buttons, entire row is clickable! */}
+          {/* List of switchable devices: NO separate buttons, borderless rows */}
           {switchableDevices.length > 0 ? (
             <div className="space-y-2">
               {switchableDevices.map((dev) => (
@@ -888,10 +870,10 @@ export function MusicConnectContent({
                   role="button"
                   tabIndex={0}
                   onClick={() => onTransferAppPlayback(dev.id, true)}
-                  className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
+                  className={`group p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
                     isDark
-                      ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/80 hover:border-zinc-700"
-                      : "bg-zinc-50 hover:bg-zinc-100 border-zinc-200 hover:border-zinc-300"
+                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 text-white"
+                      : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-900"
                   }`}
                   title={`Ketuk untuk memindahkan pemutaran ke ${dev.name}`}
                 >
@@ -939,10 +921,10 @@ export function MusicConnectContent({
               ))}
             </div>
           ) : (
-            /* If NO other switchable devices exist: Clean informational state */
+            /* If NO other switchable devices exist: Clean borderless informational state */
             <div
-              className={`py-8 px-4 rounded-2xl border text-center space-y-1.5 ${
-                isDark ? "bg-zinc-900/30 border-zinc-800/60" : "bg-zinc-50 border-zinc-200"
+              className={`py-8 px-4 rounded-2xl text-center space-y-1.5 ${
+                isDark ? "bg-zinc-900/40 text-zinc-400" : "bg-zinc-100 text-zinc-600"
               }`}
             >
               <div className="w-10 h-10 rounded-full mx-auto flex items-center justify-center bg-zinc-500/10 text-zinc-400">
