@@ -2324,9 +2324,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   // ─── Render Centered or Sticky Search Chat Box (Styled like Tab Chat) ───────
   const renderSearchChatBox = () => (
-    <div className="prompt-bar-glow relative w-full rounded-[24px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
+    <div className="prompt-bar-glow relative w-full rounded-[24px] sm:rounded-[28px] p-[1.5px] shadow-2xl">
       <div
-        className={`w-full rounded-[22px] sm:rounded-[26px] border transition-all relative ${
+        className={`w-full rounded-[22px] sm:rounded-[26px] border transition-colors relative ${
           isDark
             ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
             : "bg-white border-zinc-200/80 shadow-zinc-200/80"
@@ -2380,7 +2380,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 setHasSearched(false);
                 if (chatInputRef.current) chatInputRef.current.focus();
               }}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white cursor-pointer transition shrink-0"
+              className="p-1.5 rounded-full text-zinc-400 hover:text-white cursor-pointer transition-colors shrink-0"
               title="Bersihkan teks"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2393,7 +2393,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           <button
             type="submit"
             disabled={!searchQuery.trim() || isSearching}
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition cursor-pointer shadow-md shrink-0 ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer shadow-md shrink-0 ${
               searchQuery.trim() && !isSearching
                 ? isDark
                   ? "bg-white text-black hover:bg-zinc-200"
@@ -2452,7 +2452,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div
               key={`${track.id}-${idx}`}
               onClick={() => playTrack(track)}
-              className={`flex items-center gap-2.5 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl transition cursor-pointer group select-none ${
+              className={`flex items-center gap-2.5 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl transition-colors duration-150 cursor-pointer group select-none ${
                 activeMenuTrackId === track.id ? "relative z-30" : ""
               } ${
                 isCurrent
@@ -2465,7 +2465,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               }`}
             >
               {/* Index / Play animation */}
-              <div className="w-5 sm:w-6 shrink-0 flex items-center justify-center text-xs font-mono font-bold text-zinc-500">
+              <div className="relative w-5 sm:w-6 h-5 shrink-0 flex items-center justify-center text-xs font-mono font-bold text-zinc-500">
                 {isTrackPlaying ? (
                   <div className="flex items-end gap-0.5 h-3.5">
                     <span className="w-1 bg-white rounded-full animate-bounce h-3" />
@@ -2474,8 +2474,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </div>
                 ) : (
                   <>
-                    <span className="group-hover:hidden">{idx + 1}</span>
-                    <span className="hidden group-hover:block text-zinc-300">
+                    <span className="group-hover:opacity-0 transition-opacity duration-100">{idx + 1}</span>
+                    <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-100 text-zinc-300">
                       <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                         <polygon points="6 4, 18 12, 6 20" />
                       </svg>
@@ -2486,18 +2486,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Artwork */}
               <div className="relative shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-zinc-800 shadow-xs flex items-center justify-center text-zinc-500">
-                <svg className="w-4 h-4 absolute" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                </svg>
-                {track.artworkUrl && (
+                {track.artworkUrl ? (
                   <img
                     src={track.artworkUrl}
                     alt={track.title}
-                    className="relative z-1 w-full h-full object-cover"
+                    decoding="async"
+                    className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.opacity = "0";
+                      (e.target as HTMLImageElement).style.display = "none";
                     }}
                   />
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                  </svg>
                 )}
               </div>
 
@@ -3404,7 +3406,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             ) : (
             <div
-              className={`w-full max-w-4xl mx-auto flex-1 flex flex-col transition-all duration-200 ${
+              className={`w-full max-w-4xl mx-auto flex-1 flex flex-col ${
                 !searchQuery.trim()
                   ? "pt-1 pb-8 sm:pb-12"
                   : "pt-2"
@@ -3457,13 +3459,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
 
               {/* PERSISTENT SINGLE CHAT BOX (Never unmounts, preserves focus seamlessly) */}
-              <div className={`w-full max-w-2xl mx-auto ${searchQuery.trim() ? "sticky top-0 z-20 pt-1 pb-3 backdrop-blur-md" : "py-1"}`}>
+              <div className="w-full max-w-2xl mx-auto py-1">
                 {renderSearchChatBox()}
               </div>
 
               {/* Lower Section: Recommendations & Tracks (When empty) OR Results & Tracks (When typed) */}
               {!searchQuery.trim() ? (
-                <div className="space-y-6 sm:space-y-8 w-full mt-1 sm:mt-2 animate-in fade-in-0 duration-200">
+                <div className="space-y-6 sm:space-y-8 w-full mt-1 sm:mt-2">
                   {/* ─── SPOTIFY / APPLE MUSIC DISCOVER HOME (Clean One Mind Theme) ─── */}
                   <div className="space-y-3.5 pt-1">
                     {/* Clean Headline: Direkomendasikan untuk anda */}
@@ -3484,7 +3486,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                           <div
                             key={`quick-pick-${track.id}`}
                             onClick={() => playTrack(track)}
-                            className={`group relative flex items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 pr-2.5 sm:pr-3 rounded-xl sm:rounded-2xl transition cursor-pointer overflow-hidden border ${
+                            className={`group relative flex items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 pr-2.5 sm:pr-3 rounded-xl sm:rounded-2xl transition-colors cursor-pointer overflow-hidden border ${
                               isCurrent
                                 ? isDark
                                   ? "bg-white/15 border-white/25 shadow-md"
@@ -3574,7 +3576,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4 pt-2 pb-8 w-full animate-in fade-in-0 duration-200">
+                <div className="space-y-4 pt-2 pb-8 w-full">
                   {/* Results Header Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-b border-zinc-800/40 pb-3">
                     <div>
