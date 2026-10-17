@@ -151,11 +151,14 @@ async function fetchITunesFallback(
       }
     }
 
-    // Acak urutan terms agar adil bagi semua artis/lagu dalam query
-    const shuffledTerms = [...termSet].sort(() => 0.5 - Math.random());
+    // Acak urutan terms hanya untuk mode discovery
+    const shuffledTerms = isDiscovery ? [...termSet].sort(() => 0.5 - Math.random()) : [...termSet];
     const maxTerms = isDiscovery || shuffledTerms.length > 1 ? 12 : 1;
     const queriesToRun = shuffledTerms.length > 1 ? shuffledTerms.slice(0, maxTerms) : [query];
-    const perTermLimit = Math.max(5, Math.ceil(limit / Math.max(queriesToRun.length, 1)) + 2);
+    const perTermLimit =
+      queriesToRun.length === 1
+        ? Math.min(Math.max(limit, 30), 50)
+        : Math.max(5, Math.ceil(limit / Math.max(queriesToRun.length, 1)) + 2);
 
     const results = await Promise.all(
       queriesToRun.map(async (t) => {
@@ -177,10 +180,13 @@ async function fetchITunesFallback(
     const seen = new Set<string>();
     const artistCount = new Map<string, number>();
     const mapped: MusicItem[] = [];
-    const maxPerArtist = isDiscovery || queriesToRun.length > 1 ? 2 : 5;
+    // Hanya batasi 2 lagu per artis saat mode discovery (beranda/kategori).
+    // Saat pengguna mencari lagu/artis secara manual (!isDiscovery), tampilkan seluruh hasil (Infinity).
+    const maxPerArtist = isDiscovery ? 2 : Infinity;
 
-    // Acak hasil iTunes sebelum deduplikasi dan batasi max 2 lagu per artis untuk discovery
-    const allResults = results.flat().sort(() => 0.5 - Math.random());
+    const allResults = isDiscovery
+      ? results.flat().sort(() => 0.5 - Math.random())
+      : results.flat();
 
     for (const item of allResults) {
       if (!item || !item.trackName) continue;
@@ -240,11 +246,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const isDiscovery = isDefaultPool || Boolean(category);
-    const minRequiredTracks = isDiscovery ? Math.min(requestedLimit, 20) : 1;
-    const cacheKey = `${effectiveQuery.toLowerCase()}_${type}_${requestedLimit}_${category}`;
+    const isDiscovery = isDefaultPool || (!query && Boolean(category));
+    const minRequiredTracks = isDiscovery ? Math.min(requestedLimit, 20) : Math.min(requestedLimit, 15);
+    const cacheKey = `v2_${effectiveQuery.toLowerCase()}_${type}_${requestedLimit}_${category}`;
 
-    // Cek in-memory cache (pastikan jumlah lagu memenuhi batas minimum discovery)
+    // Cek in-memory cache (pastikan jumlah lagu memenuhi batas minimum)
     const cachedResult = searchCache.get(cacheKey);
     if (
       cachedResult &&
@@ -286,7 +292,8 @@ export async function GET(req: NextRequest) {
       // Fungsi pembantu untuk melakukan request pencarian dengan token tertentu
       const executeSearch = async (token: string, clientId: string) => {
         const PAGE_SIZE = 10;
-        const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), 3); // 30 item
+        const maxPages = isDiscovery ? 3 : 5;
+        const pagesToFetch = Math.min(Math.ceil(requestedLimit / PAGE_SIZE), maxPages);
 
         const pagePromises = Array.from({ length: pagesToFetch }, async (_, pageIdx) => {
           // Untuk mode discovery, bagi daftar artis ke masing-masing request paralel agar tidak didominasi 1 artis
@@ -360,11 +367,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Deduplicate & limit artist dominance (Anti-saturation: max 2 tracks per artist)
+    // Deduplicate & limit artist dominance:
+    // Hanya batasi 2 lagu per artis untuk mode Discovery/Beranda.
+    // Untuk pencarian manual oleh pengguna (!isDiscovery), tampilkan semua lagu (Infinity).
     const seenTracks = new Set<string>();
     const seenTitleArtistKeys = new Set<string>();
     const artistTrackCount = new Map<string, number>();
-    const MAX_PER_ARTIST = isDiscovery ? 2 : 5;
+    const MAX_PER_ARTIST = isDiscovery ? 2 : Infinity;
 
     // Urutkan berdasarkan popularitas Spotify
     const sortedRawTracks = rawTracks
