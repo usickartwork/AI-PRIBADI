@@ -29,9 +29,10 @@ import {
   setClientLyricsCache,
 } from "@/lib/lyrics";
 import { useMusicConnect } from "@/lib/useMusicConnect";
+import { getInterpolatedRemoteProgressSec } from "@/lib/musicConnect";
 import {
   MusicConnectButton,
-  MusicConnectRemoteBar,
+  MusicConnectIcon,
   MusicConnectModal,
   MusicConnectSidePanel,
 } from "./MusicConnectPanel";
@@ -1820,6 +1821,71 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     },
   });
   musicConnectRef.current = musicConnect;
+
+  // ─── Unified Player State (Seamless Local or Remote Connect Playback) ────────
+  const isRemoteActive = Boolean(musicConnect.enabled && musicConnect.remoteActiveSession);
+  const remoteActiveSession = musicConnect.remoteActiveSession;
+
+  const [remoteTickMs, setRemoteTickMs] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (!isRemoteActive || !remoteActiveSession?.is_playing) return;
+    setRemoteTickMs(Date.now());
+    const timer = setInterval(() => setRemoteTickMs(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [isRemoteActive, remoteActiveSession?.is_playing]);
+
+  // The active track to show in mini/desktop player
+  const activeTrack: MusicItem | null =
+    isRemoteActive && remoteActiveSession?.current_track_name
+      ? {
+          id: remoteActiveSession.current_track_id || currentTrack?.id || "remote-track",
+          provider: "spotify",
+          providerItemId: remoteActiveSession.current_track_id || "remote",
+          itemType: "track",
+          title: remoteActiveSession.current_track_name,
+          artistNames: remoteActiveSession.current_artist_name
+            ? [remoteActiveSession.current_artist_name]
+            : currentTrack?.artistNames || ["Artis"],
+          artworkUrl: remoteActiveSession.current_album_art || currentTrack?.artworkUrl || "",
+          durationMs: remoteActiveSession.duration_ms || (currentTrack?.durationMs ?? 0),
+          albumTitle: currentTrack?.albumTitle || "",
+          externalUrl: currentTrack?.externalUrl || "",
+          youtubeVideoId: currentTrack?.youtubeVideoId,
+        }
+      : currentTrack;
+
+  // The device currently listening/playing
+  const currentListeningDevice = isRemoteActive
+    ? remoteActiveSession?.device_name
+    : musicConnect.enabled && (isPlaying || currentTrack) && musicConnect.localDeviceName
+    ? musicConnect.localDeviceName
+    : null;
+
+  const effectiveCurrentTime =
+    isRemoteActive && remoteActiveSession
+      ? getInterpolatedRemoteProgressSec(remoteActiveSession, remoteTickMs)
+      : currentTime;
+
+  const effectiveDuration =
+    isRemoteActive && remoteActiveSession
+      ? Math.max(1, (remoteActiveSession.duration_ms || 0) / 1000)
+      : Math.max(1, duration);
+
+  const effectiveIsPlaying =
+    isRemoteActive && remoteActiveSession
+      ? remoteActiveSession.is_playing
+      : isPlaying;
+
+  const effectiveShuffle =
+    isRemoteActive && remoteActiveSession
+      ? Boolean(remoteActiveSession.shuffle_state)
+      : isShuffle;
+
+  const effectiveRepeat =
+    isRemoteActive && remoteActiveSession
+      ? remoteActiveSession.repeat_state || "off"
+      : repeatMode;
 
   // ─── Mobile Background Playback & MediaSession Integration ────────────────
   useEffect(() => {
@@ -4164,30 +4230,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         )}
       </div>
 
-      {/* ─── REMOTE ACTIVE PLAYBACK BAR (When another device owns active playback) ─── */}
-      {musicConnect.enabled && musicConnect.remoteActiveSession ? (
-        <div className="shrink-0 z-30 relative">
-          <MusicConnectRemoteBar
-            isDark={isDark}
-            remoteSession={musicConnect.remoteActiveSession}
-            hasLocalTrack={Boolean(currentTrack)}
-            isSendingCommand={musicConnect.isSendingCommand}
-            autoplayBlockedPrompt={musicConnect.autoplayBlockedPrompt}
-            onUnlockAutoplay={() => {
-              void musicConnect.unlockAutoplayAndConfirmTransfer();
-            }}
-            onSendCommand={musicConnect.sendAppCommand}
-            onTransferHere={() =>
-              musicConnect.transferAppPlayback(musicConnect.localInstanceId, true)
-            }
-            onOpenConnectModal={() => {
-              setShowDesktopQueue(false);
-              musicConnect.setShowConnectModal(true);
-            }}
-          />
-        </div>
-      ) : currentTrack ? (
-        /* ─── LOCAL PERSISTENT BOTTOM MINI-PLAYER (Only rendered when playing locally) ─── */
+      {/* ─── PERSISTENT BOTTOM PLAYER (Unified Local & Remote Connect) ──────── */}
+      {activeTrack && (
         <footer
           className={`shrink-0 z-30 transition-all relative border-t ${
             isDark
@@ -4195,6 +4239,80 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               : "bg-[#fafafc] border-black/10 text-zinc-900"
           } pb-[max(0.5rem,calc(env(safe-area-inset-bottom)+0.25rem))]`}
         >
+          {/* Autoplay Unlock Banner for iOS / Mobile Safari after Transfer */}
+          {musicConnect.autoplayBlockedPrompt && (
+            <div
+              className={`px-4 py-2 flex items-center justify-between gap-3 text-xs border-b ${
+                isDark
+                  ? "bg-white/10 border-white/10 text-white"
+                  : "bg-black/5 border-black/10 text-zinc-900"
+              }`}
+            >
+              <span className="font-medium truncate">
+                Browser memerlukan sentuhan untuk mulai memutar audio di perangkat ini.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void musicConnect.unlockAutoplayAndConfirmTransfer();
+                }}
+                className={`px-3 py-1 rounded-lg font-bold text-xs shrink-0 cursor-pointer transition ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                }`}
+              >
+                Aktifkan Audio
+              </button>
+            </div>
+          )}
+
+          {/* ─── TOP STRIP: "Sedang mendengarkan di [Device Name]" (Matching Image 1 & 2) ─── */}
+          {currentListeningDevice && (
+            <div
+              onClick={() => {
+                setShowDesktopQueue(false);
+                musicConnect.setShowConnectModal(true);
+              }}
+              className={`w-full px-4 sm:px-8 py-1.5 flex items-center justify-between text-xs transition cursor-pointer select-none border-b ${
+                isDark
+                  ? "bg-zinc-900/95 hover:bg-zinc-800/90 border-white/10 text-zinc-300 hover:text-white"
+                  : "bg-zinc-100 hover:bg-zinc-200/80 border-black/10 text-zinc-700 hover:text-black"
+              }`}
+              title="Klik untuk memilih perangkat (Music Connect)"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <MusicConnectIcon className="w-4 h-4 shrink-0" />
+                <span className="font-semibold truncate">
+                  Sedang mendengarkan di{" "}
+                  <span className="font-bold underline decoration-dotted">{currentListeningDevice}</span>
+                </span>
+              </div>
+
+              {isRemoteActive && remoteActiveSession ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    musicConnect.transferAppPlayback(musicConnect.localInstanceId, true);
+                  }}
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg border transition shrink-0 ${
+                    isDark
+                      ? "border-white/20 bg-white/10 hover:bg-white hover:text-black text-white"
+                      : "border-black/15 bg-black/5 hover:bg-black hover:text-white text-zinc-900"
+                  }`}
+                  title="Pindahkan pemutaran musik ke perangkat ini"
+                >
+                  Putar di Sini
+                </button>
+              ) : (
+                <span className="text-[10px] text-zinc-400 hidden sm:inline">
+                  Connect
+                </span>
+              )}
+            </div>
+          )}
+
           {/* ─── MOBILE VIEW (< sm): Sleek, Larger Bar (Click to expand, Heart + Play on right) ─ */}
           <div className="block sm:hidden">
             {/* Top Progress Bar */}
@@ -4203,12 +4321,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const pct = (e.clientX - rect.left) / rect.width;
-                handleSeek(pct * duration);
+                handleSeek(pct * effectiveDuration);
               }}
             >
               <div
                 className={`h-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
-                style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
+                style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
               />
             </div>
 
@@ -4219,10 +4337,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             >
               {/* Left: Artwork & Song Meta */}
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                {currentTrack.artworkUrl ? (
+                {activeTrack.artworkUrl ? (
                   <img
-                    src={currentTrack.artworkUrl}
-                    alt={currentTrack.title}
+                    src={activeTrack.artworkUrl}
+                    alt={activeTrack.title}
                     className="w-12 h-12 rounded-2xl object-cover shrink-0 shadow-md group-hover:opacity-90 transition-opacity"
                   />
                 ) : (
@@ -4240,10 +4358,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 )}
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-bold truncate group-hover:underline">
-                    {currentTrack.title}
+                    {activeTrack.title}
                   </h4>
                   <p className="text-xs text-zinc-400 truncate mt-0.5">
-                    {currentTrack.artistNames.join(", ")}
+                    {activeTrack.artistNames.join(", ")}
                   </p>
                 </div>
               </div>
@@ -4259,16 +4377,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     isOpen={musicConnect.showConnectModal}
                     onClick={() => musicConnect.setShowConnectModal(true)}
                     onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
-                    remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
+                    remoteActiveDeviceName={remoteActiveSession?.device_name}
                     variant="mini-player"
                   />
                 )}
 
                 <button
                   type="button"
-                  onClick={() => toggleLike(currentTrack)}
+                  onClick={() => toggleLike(activeTrack as any)}
                   className={`p-3 rounded-2xl transition cursor-pointer active:scale-90 ${
-                    isTrackLiked(currentTrack.id)
+                    isTrackLiked(activeTrack.id)
                       ? isDark
                         ? "text-white"
                         : "text-black"
@@ -4276,9 +4394,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       ? "text-zinc-400 hover:text-white"
                       : "text-zinc-500 hover:text-black"
                   }`}
-                  title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai lagu"}
+                  title={isTrackLiked(activeTrack.id) ? "Hapus dari disukai" : "Sukai lagu"}
                 >
-                  <svg className={`w-6 h-6 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-6 h-6 ${isTrackLiked(activeTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -4286,18 +4404,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={togglePlayPause}
-                  disabled={isResolvingAudio}
+                  disabled={!isRemoteActive && isResolvingAudio}
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition shadow-lg cursor-pointer active:scale-95 ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                  } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
-                  title={isResolvingAudio ? "Memuat audio..." : isPlaying ? "Jeda" : "Putar"}
+                  } ${!isRemoteActive && isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
+                  title={!isRemoteActive && isResolvingAudio ? "Memuat audio..." : effectiveIsPlaying ? "Jeda" : "Putar"}
                 >
-                  {isResolvingAudio ? (
+                  {!isRemoteActive && isResolvingAudio ? (
                     <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
-                  ) : isPlaying ? (
+                  ) : effectiveIsPlaying ? (
                     <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
                       <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                     </svg>
@@ -4317,7 +4435,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             {/* Left: Metadata */}
             <div
               onClick={() => {
-                if (currentTrack) {
+                if (isRemoteActive) {
+                  togglePlayPause();
+                } else if (currentTrack) {
                   if (loadedTrackIdRef.current !== currentTrack.id || !isPlaying) {
                     playTrack(currentTrack);
                   } else {
@@ -4326,12 +4446,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 }
               }}
               className="flex items-center gap-3 w-1/4 min-w-0 cursor-pointer select-none group"
-              title={currentTrack ? `Putar ${currentTrack.title}` : undefined}
+              title={activeTrack ? `Putar ${activeTrack.title}` : undefined}
             >
-              {currentTrack?.artworkUrl ? (
+              {activeTrack?.artworkUrl ? (
                 <img
-                  src={currentTrack.artworkUrl}
-                  alt={currentTrack.title}
+                  src={activeTrack.artworkUrl}
+                  alt={activeTrack.title}
                   className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-md group-hover:opacity-90 transition-opacity"
                 />
               ) : (
@@ -4349,11 +4469,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
               <div className="min-w-0 flex-1">
                 <h4 className="text-xs sm:text-sm font-bold truncate group-hover:underline">
-                  {currentTrack?.title || "Belum ada trek yang diputar"}
+                  {activeTrack?.title || "Belum ada trek yang diputar"}
                 </h4>
                 <p className="text-[11px] text-zinc-500 truncate">
-                  {currentTrack ? (
-                    currentTrack.artistNames.map((name, i) => (
+                  {activeTrack ? (
+                    activeTrack.artistNames.map((name, i) => (
                       <span key={`${name}-${i}`}>
                         {i > 0 && ", "}
                         <span
@@ -4373,15 +4493,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   )}
                 </p>
               </div>
-              {currentTrack && (
+              {activeTrack && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleLike(currentTrack);
+                    toggleLike(activeTrack as any);
                   }}
                   className={`p-2 rounded-lg transition cursor-pointer ${
-                    isTrackLiked(currentTrack.id)
+                    isTrackLiked(activeTrack.id)
                       ? isDark
                         ? "text-white"
                         : "text-black"
@@ -4391,7 +4511,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }`}
                   title="Sukai lagu"
                 >
-                  <svg className={`w-5 h-5 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                  <svg className={`w-5 h-5 ${isTrackLiked(activeTrack.id) ? "fill-current" : ""}`} viewBox="0 0 24 24" stroke="currentColor" fill="none">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </button>
@@ -4406,7 +4526,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={toggleShuffle}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    isShuffle
+                    effectiveShuffle
                       ? isDark
                         ? "text-white bg-white/10"
                         : "text-black bg-black/10 font-bold"
@@ -4437,18 +4557,18 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={togglePlayPause}
-                  disabled={isResolvingAudio}
+                  disabled={!isRemoteActive && isResolvingAudio}
                   className={`w-12 h-12 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg cursor-pointer ${
                     isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-                  } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
-                  title={isResolvingAudio ? "Memuat audio..." : isPlaying ? "Jeda" : "Putar"}
+                  } ${!isRemoteActive && isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
+                  title={!isRemoteActive && isResolvingAudio ? "Memuat audio..." : effectiveIsPlaying ? "Jeda" : "Putar"}
                 >
-                  {isResolvingAudio ? (
+                  {!isRemoteActive && isResolvingAudio ? (
                     <svg className="w-5.5 h-5.5 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
-                  ) : isPlaying ? (
+                  ) : effectiveIsPlaying ? (
                     <svg className="w-5.5 h-5.5 fill-current" viewBox="0 0 24 24">
                       <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                     </svg>
@@ -4476,7 +4596,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   type="button"
                   onClick={toggleRepeat}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    repeatMode !== "off"
+                    effectiveRepeat !== "off"
                       ? isDark
                         ? "text-white bg-white/10 font-bold"
                         : "text-black bg-black/10 font-bold"
@@ -4484,7 +4604,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       ? "text-zinc-500 hover:text-white"
                       : "text-zinc-500 hover:text-black"
                   }`}
-                  title={`Repeat: ${repeatMode}`}
+                  title={`Repeat: ${effectiveRepeat}`}
                 >
                   <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -4494,7 +4614,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
               {/* Progress Bar Slider (Clean White/Black Accent) */}
               <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
-                <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, "0")}</span>
+                <span>{Math.floor(effectiveCurrentTime / 60)}:{String(Math.floor(effectiveCurrentTime % 60)).padStart(2, "0")}</span>
                 <div
                   className={`flex-1 h-1.5 rounded-full relative overflow-hidden cursor-pointer ${
                     isDark ? "bg-white/10" : "bg-black/10"
@@ -4502,16 +4622,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const pct = (e.clientX - rect.left) / rect.width;
-                    const newTime = pct * duration;
+                    const newTime = pct * effectiveDuration;
                     handleSeek(newTime);
                   }}
                 >
                   <div
                     className={`h-full rounded-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
-                    style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
+                    style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
                   />
                 </div>
-                <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, "0")}</span>
+                <span>{Math.floor(effectiveDuration / 60)}:{String(Math.floor(effectiveDuration % 60)).padStart(2, "0")}</span>
               </div>
             </div>
 
@@ -4620,6 +4740,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     handleVolumeChange(val);
+                    if (isRemoteActive && remoteActiveSession) {
+                      musicConnect.sendAppCommand(remoteActiveSession.session_instance_id, "SET_VOLUME", {
+                        volumePercent: Math.round(val * 100),
+                      });
+                    }
                   }}
                   className={`w-24 sm:w-32 md:w-40 h-1.5 rounded-full cursor-pointer transition-all ${
                     isDark ? "bg-white/15 accent-white" : "bg-black/15 accent-black"
@@ -4630,10 +4755,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           </div>
         </div>
       </footer>
-      ) : null}
+      )}
 
       {/* ─── SPOTIFY-STYLE MOBILE FULL-SCREEN MUSIC PLAYER ───────────────────── */}
-      {showMobilePlayer && currentTrack && (
+      {showMobilePlayer && activeTrack && (
         <div
           ref={mobilePlayerRef}
           className={`fixed inset-0 z-50 sm:hidden flex flex-col transition-all duration-300 animate-in slide-in-from-bottom overflow-hidden overscroll-none touch-none select-none ${
@@ -4644,7 +4769,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           <div className="w-10 h-1 rounded-full bg-zinc-500/30 mx-auto mt-2 -mb-0.5 shrink-0 select-none" />
 
           {/* Top Bar: Close Chevron, Title/Context, Options */}
-          <div className="flex items-center justify-between px-5 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 shrink-0">
+          <div className="flex items-center justify-between px-5 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0">
             <button
               type="button"
               onClick={closeMobilePlayerAnimated}
@@ -4661,10 +4786,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             <div className="min-w-0 text-center flex-1 px-3">
               <p className={`text-[10px] font-semibold tracking-wider uppercase truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                {currentTrack.albumTitle || "Sedang Diputar"}
+                {activeTrack.albumTitle || "Sedang Diputar"}
               </p>
               <p className="text-xs font-bold truncate">
-                {currentTrack.title}
+                {activeTrack.title}
               </p>
             </div>
 
@@ -4697,6 +4822,23 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
             </button>
           </div>
+
+          {/* Listening device indicator pill in mobile full player */}
+          {currentListeningDevice && (
+            <div
+              onClick={() => musicConnect.setShowConnectModal(true)}
+              className={`mx-auto mb-1 px-3 py-1 rounded-full border text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition select-none max-w-fit shrink-0 ${
+                isDark
+                  ? "bg-white/10 border-white/15 text-white hover:bg-white/20"
+                  : "bg-black/5 border-black/10 text-black hover:bg-black/10"
+              }`}
+            >
+              <MusicConnectIcon className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Sedang mendengarkan di <span className="font-bold underline decoration-dotted">{currentListeningDevice}</span>
+              </span>
+            </div>
+          )}
 
           {/* Middle Body: Artwork or Synced Lyrics View or Queue View */}
           <div className="flex-1 min-h-0 flex flex-col px-6 py-2 overflow-hidden justify-center">
@@ -4971,10 +5113,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       : "bg-zinc-100 border-black/10 shadow-zinc-900/10"
                   }`}
                 >
-                  {currentTrack.artworkUrl ? (
+                  {activeTrack.artworkUrl ? (
                     <img
-                      src={currentTrack.artworkUrl}
-                      alt={currentTrack.title}
+                      src={activeTrack.artworkUrl}
+                      alt={activeTrack.title}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -4995,10 +5137,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <h2 className="text-xl sm:text-2xl font-bold truncate leading-tight">
-                  {currentTrack.title}
+                  {activeTrack.title}
                 </h2>
                 <p className={`text-sm font-medium truncate mt-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  {currentTrack.artistNames.map((name, i) => (
+                  {activeTrack.artistNames.map((name, i) => (
                     <span key={`${name}-${i}`}>
                       {i > 0 && ", "}
                       <span
@@ -5018,16 +5160,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Like Button */}
               <button
                 type="button"
-                onClick={() => toggleLike(currentTrack)}
+                onClick={() => toggleLike(activeTrack as any)}
                 className={`p-3 rounded-full transition cursor-pointer shrink-0 active:scale-90 ${
-                  isTrackLiked(currentTrack.id)
+                  isTrackLiked(activeTrack.id)
                     ? isDark ? "text-white" : "text-black"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
                 }`}
-                title={isTrackLiked(currentTrack.id) ? "Hapus dari disukai" : "Sukai"}
+                title={isTrackLiked(activeTrack.id) ? "Hapus dari disukai" : "Sukai"}
               >
                 <svg
-                  className={`w-7 h-7 ${isTrackLiked(currentTrack.id) ? "fill-current" : ""}`}
+                  className={`w-7 h-7 ${isTrackLiked(activeTrack.id) ? "fill-current" : ""}`}
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   fill="none"
@@ -5039,8 +5181,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             {/* Progress Scrubber with Circle Handle and Continuous Touch Drag */}
             {(() => {
-              const displayPlaybackTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
-              const displayProgressPct = Math.max(0, Math.min(1, displayPlaybackTime / Math.max(duration, 1)));
+              const displayPlaybackTime = isScrubbing && scrubTime !== null ? scrubTime : effectiveCurrentTime;
+              const displayProgressPct = Math.max(0, Math.min(1, displayPlaybackTime / Math.max(effectiveDuration, 1)));
               return (
                 <div className="space-y-1.5 pt-1 select-none">
                   <div
@@ -5080,7 +5222,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
                   <div className={`flex items-center justify-between text-[11px] font-mono ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
                     <span>{formatPlaybackTime(displayPlaybackTime)}</span>
-                    <span>{formatRemainingPlaybackTime(displayPlaybackTime, duration)}</span>
+                    <span>{formatRemainingPlaybackTime(displayPlaybackTime, effectiveDuration)}</span>
                   </div>
                 </div>
               );
@@ -5093,7 +5235,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 type="button"
                 onClick={toggleShuffle}
                 className={`p-3 rounded-full transition cursor-pointer active:scale-90 ${
-                  isShuffle
+                  effectiveShuffle
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
@@ -5122,20 +5264,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={togglePlayPause}
-                disabled={isResolvingAudio}
+                disabled={!isRemoteActive && isResolvingAudio}
                 className={`w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition cursor-pointer ${
                   isDark
                     ? "bg-white text-black hover:bg-zinc-200"
                     : "bg-black text-white hover:bg-zinc-800"
-                } ${isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
-                title={isResolvingAudio ? "Memuat..." : isPlaying ? "Jeda" : "Putar"}
+                } ${!isRemoteActive && isResolvingAudio ? "opacity-75 cursor-wait" : ""}`}
+                title={!isRemoteActive && isResolvingAudio ? "Memuat..." : effectiveIsPlaying ? "Jeda" : "Putar"}
               >
-                {isResolvingAudio ? (
+                {!isRemoteActive && isResolvingAudio ? (
                   <svg className="w-8 h-8 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
-                ) : isPlaying ? (
+                ) : effectiveIsPlaying ? (
                   <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
                     <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
                   </svg>
@@ -5165,11 +5307,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 type="button"
                 onClick={toggleRepeat}
                 className={`p-3 rounded-full transition cursor-pointer relative active:scale-90 ${
-                  repeatMode !== "off"
+                  effectiveRepeat !== "off"
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
-                title={`Ulang: ${repeatMode}`}
+                title={`Ulang: ${effectiveRepeat}`}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
