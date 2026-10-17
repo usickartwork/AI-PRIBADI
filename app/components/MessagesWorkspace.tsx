@@ -425,6 +425,9 @@ export default function MessagesWorkspace({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const activeRef = useRef<typeof active>(null);
+  const isVisibleRef = useRef(Boolean(isVisible));
+  isVisibleRef.current = Boolean(isVisible);
+  const prefetchedStampRef = useRef<Record<string, string>>({});
   const messagesRef = useRef<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatPaneRef = useRef<HTMLElement>(null);
@@ -460,18 +463,6 @@ export default function MessagesWorkspace({
     }
   }, [messages, active?.id]);
 
-  // Otomatis kembali ke tampilan awal (daftar percakapan) saat beralih ke tab Messages atau saat menu Messages di sidebar diklik
-  useEffect(() => {
-    if (isVisible) {
-      setActive(null);
-      setTab("chats");
-      if (chatPaneRef.current) {
-        chatPaneRef.current.style.height = "";
-        chatPaneRef.current.style.top = "";
-      }
-    }
-  }, [isVisible, resetNonce]);
-
   const showToast = useCallback((text: string, kind: "error" | "info" = "error") => {
     setToast({ text, kind });
     window.setTimeout(() => setToast(null), 3500);
@@ -479,31 +470,34 @@ export default function MessagesWorkspace({
 
   /* ─── Background Pre-fetch Messages ──────────────────────────────────── */
   const prefetchMessages = useCallback(async (convList: Conversation[]) => {
-    if (!convList || convList.length === 0) return;
+    if (!isVisibleRef.current || !convList || convList.length === 0) return;
     for (const c of convList.slice(0, 15)) {
-      if (!memoryMessagesCache[c.id] || memoryMessagesCache[c.id].length === 0) {
-        if (typeof window !== "undefined") {
-          try {
-            const raw = localStorage.getItem(`msg_cache_${c.id}`);
-            if (raw) {
-              memoryMessagesCache[c.id] = JSON.parse(raw);
-            }
-          } catch {}
-        }
+      const stamp = c.lastMessageAt ?? "__empty__";
+      if (prefetchedStampRef.current[c.id] === stamp && c.id in memoryMessagesCache) {
+        continue;
+      }
+      if (!(c.id in memoryMessagesCache) && typeof window !== "undefined") {
         try {
-          const res = await api<{ messages: ChatMessage[]; hasMore: boolean; peerLastReadAt: string | null }>(
-            `/api/messages/messages?conversationId=${c.id}`
-          );
-          if (res.messages) {
-            memoryMessagesCache[c.id] = res.messages;
-            if (typeof window !== "undefined") {
-              try {
-                localStorage.setItem(`msg_cache_${c.id}`, JSON.stringify(res.messages));
-              } catch {}
-            }
+          const raw = localStorage.getItem(`msg_cache_${c.id}`);
+          if (raw) {
+            memoryMessagesCache[c.id] = JSON.parse(raw);
           }
         } catch {}
       }
+      try {
+        const res = await api<{ messages: ChatMessage[]; hasMore: boolean; peerLastReadAt: string | null }>(
+          `/api/messages/messages?conversationId=${c.id}`
+        );
+        if (res.messages) {
+          memoryMessagesCache[c.id] = res.messages;
+          prefetchedStampRef.current[c.id] = stamp;
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(`msg_cache_${c.id}`, JSON.stringify(res.messages));
+            } catch {}
+          }
+        }
+      } catch {}
     }
   }, []);
 
@@ -541,6 +535,22 @@ export default function MessagesWorkspace({
     }
   }, [userId]);
 
+  // Otomatis kembali ke tampilan awal (daftar percakapan) saat beralih ke/dari tab Messages atau saat menu Messages di sidebar diklik
+  useEffect(() => {
+    setActive(null);
+    if (isVisible) {
+      setTab("chats");
+      if (userId) {
+        void loadConversations();
+        void loadFriends();
+      }
+    }
+    if (chatPaneRef.current) {
+      chatPaneRef.current.style.height = "";
+      chatPaneRef.current.style.top = "";
+    }
+  }, [isVisible, resetNonce, userId, loadConversations, loadFriends]);
+
   const markRead = useCallback(async (conversationId: string) => {
     try {
       await api("/api/messages/read", { method: "POST", body: JSON.stringify({ conversationId }) });
@@ -560,7 +570,7 @@ export default function MessagesWorkspace({
 
   const pollNewMessages = useCallback(async () => {
     const current = activeRef.current;
-    if (!current) return;
+    if (!current || !isVisibleRef.current) return;
     const confirmed = messagesRef.current.filter((m) => !m.pending);
     const last = confirmed[confirmed.length - 1];
     const qs = new URLSearchParams({ conversationId: current.id });
@@ -575,7 +585,7 @@ export default function MessagesWorkspace({
           const fresh = data.messages.filter((m) => !ids.has(m.id));
           return fresh.length ? [...prev, ...fresh] : prev;
         });
-        if (data.messages.some((m) => !m.fromMe) && document.visibilityState === "visible") {
+        if (data.messages.some((m) => !m.fromMe) && isVisibleRef.current && document.visibilityState === "visible") {
           void markRead(current.id);
         }
       }
@@ -587,17 +597,22 @@ export default function MessagesWorkspace({
   /* ─── Realtime Inbox & Periodic Polling ────────────────────────────────── */
   useEffect(() => {
     if (!userId) return;
+    const initialDelay = isVisibleRef.current ? 0 : 1500;
     const kick = window.setTimeout(() => {
       void loadConversations();
-      void loadFriends();
-    }, 0);
+      if (isVisibleRef.current) {
+        void loadFriends();
+      }
+    }, initialDelay);
 
     // 1. Supabase Broadcast inbox listener (instant ping when anyone sends message/request)
     const inboxChannel = supabase
       .channel(`inbox_${userId}`)
       .on("broadcast", { event: "inbox_ping" }, () => {
         void loadConversations();
-        void loadFriends();
+        if (isVisibleRef.current) {
+          void loadFriends();
+        }
       })
       .on(
         "postgres_changes",
@@ -615,17 +630,28 @@ export default function MessagesWorkspace({
       )
       .subscribe();
 
-    // 2. Fallback polling for conversations & friends
+    // 2. Fallback polling: 5s when Messages tab is visible; 30s lightweight unread sync when hidden
+    let hiddenTick = 0;
     const listTimer = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState !== "visible") return;
+      if (isVisibleRef.current) {
+        hiddenTick = 0;
         void loadConversations();
         void loadFriends();
+      } else {
+        hiddenTick += 1;
+        if (hiddenTick >= 6) {
+          hiddenTick = 0;
+          void loadConversations();
+        }
       }
     }, 5000);
 
     const onFocus = () => {
       void loadConversations();
-      void loadFriends();
+      if (isVisibleRef.current) {
+        void loadFriends();
+      }
     };
     window.addEventListener("focus", onFocus);
 
@@ -639,7 +665,7 @@ export default function MessagesWorkspace({
 
   /* ─── Active Chat Realtime (postgres_changes + Broadcast + Polling) ─── */
   useEffect(() => {
-    if (!active) return;
+    if (!active || !isVisible) return;
 
     // 1. Supabase Realtime Channel: menangkap INSERT database & broadcast
     const convChannel = supabase
@@ -677,7 +703,7 @@ export default function MessagesWorkspace({
               },
             ];
           });
-          if (row.sender_id !== userId && document.visibilityState === "visible") {
+          if (row.sender_id !== userId && isVisibleRef.current && document.visibilityState === "visible") {
             void markRead(active.id);
           }
         }
@@ -712,7 +738,7 @@ export default function MessagesWorkspace({
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, { ...msg, fromMe: false }];
           });
-          if (document.visibilityState === "visible") {
+          if (isVisibleRef.current && document.visibilityState === "visible") {
             void markRead(active.id);
           }
         }
@@ -738,11 +764,11 @@ export default function MessagesWorkspace({
 
     // 2. Polling Cepat (1.2 detik) saat di dalam ruang chat aktif sebagai jaminan
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void pollNewMessages();
+      if (isVisibleRef.current && document.visibilityState === "visible") void pollNewMessages();
     }, 1200);
 
     const onFocus = () => {
-      void pollNewMessages();
+      if (isVisibleRef.current) void pollNewMessages();
     };
     window.addEventListener("focus", onFocus);
 
@@ -751,7 +777,7 @@ export default function MessagesWorkspace({
       window.clearInterval(timer);
       void supabase.removeChannel(convChannel);
     };
-  }, [active, userId, pollNewMessages, markRead]);
+  }, [active, isVisible, userId, pollNewMessages, markRead]);
 
   /* ─── Open conversation ───────────────────────────────────────────────── */
   const openConversation = useCallback(
@@ -880,7 +906,7 @@ export default function MessagesWorkspace({
     const vv = window.visualViewport;
 
     const syncViewport = () => {
-      if (!activeRef.current) return;
+      if (!isVisibleRef.current || !activeRef.current) return;
       const isMobile = window.innerWidth < 768;
       const keyboardActive = isMobile && window.innerHeight - vv.height > 80;
       setIsKeyboardOpen(keyboardActive);

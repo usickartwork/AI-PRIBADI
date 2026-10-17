@@ -454,6 +454,31 @@ export function VoiceAssistantModal({
     }
   }, [isOpen, stopCurrentAudio]);
 
+  // Safety cleanup when component is genuinely unmounted from the tree
+  useEffect(() => {
+    return () => {
+      isOpenRef.current = false;
+      isProcessingRef.current = false;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+        recognitionRef.current = null;
+      }
+      stopCurrentAudio();
+      if (audioCtxRef.current) {
+        try {
+          void audioCtxRef.current.close();
+        } catch {}
+        audioCtxRef.current = null;
+      }
+    };
+  }, [stopCurrentAudio]);
+
   const isMicLive = isMicActive && status === "listening" && !isProcessingRef.current;
 
   const toggleMic = () => {

@@ -2122,7 +2122,7 @@ export class SurvivalEngine {
   }
 
   private frame = (now: number) => {
-    if (this.disposed) return;
+    if (this.disposed || this.hidden) return;
     this.raf = requestAnimationFrame(this.frame);
     const dt = Math.min(0.05, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
@@ -2631,6 +2631,7 @@ export class SurvivalEngine {
 
   // ═══ input ════════════════════════════════════════════════════════════════
   private onKeyDown = (e: KeyboardEvent) => {
+    if (this.hidden || this.disposed) return;
     const tgt = e.target as HTMLElement | null;
     if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
@@ -2881,10 +2882,13 @@ export class SurvivalEngine {
     this.hidden = h;
     if (h) {
       cancelAnimationFrame(this.raf);
+      this.raf = 0;
       this.clearInput();
+      this.releaseLock();
       this.audio.suspend();
     } else if (!this.disposed) {
       this.audio.resume();
+      this.resize();
       this.lastFrame = performance.now();
       cancelAnimationFrame(this.raf);
       this.raf = requestAnimationFrame(this.frame);
@@ -2920,6 +2924,7 @@ export class SurvivalEngine {
   }
 
   private resize() {
+    if (this.hidden || this.disposed) return;
     const w = Math.max(1, this.container.clientWidth);
     const h = Math.max(1, this.container.clientHeight);
     this.renderer.setSize(w, h, false);

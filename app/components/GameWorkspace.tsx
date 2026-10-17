@@ -47,6 +47,8 @@ export function GameWorkspace({
 }: GameWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<SurvivalEngine | null>(null);
+  const isVisibleRef = useRef(isVisible);
+  isVisibleRef.current = isVisible;
 
   // Game UI States
   const [inGame, setInGame] = useState(false);
@@ -128,8 +130,9 @@ export function GameWorkspace({
     return () => document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
 
-  // Auto-pause when tab is hidden or user switches away
+  // Auto-pause and suspend rendering loop when tab is hidden or user switches away
   useEffect(() => {
+    engineRef.current?.setHidden(!isVisible);
     if (!isVisible && inGame) {
       engineRef.current?.setPaused(true);
       setModalView("pause");
@@ -186,6 +189,7 @@ export function GameWorkspace({
       });
 
       engineRef.current = engine;
+      engine.setHidden(!isVisibleRef.current);
     };
 
     init();
@@ -210,9 +214,9 @@ export function GameWorkspace({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!inGame || gameOver) return;
+      if (!isVisible || !inGame || gameOver) return;
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
 
       if (e.code === "Escape") {
         e.preventDefault();
@@ -235,7 +239,7 @@ export function GameWorkspace({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [inGame, gameOver, modalView]);
+  }, [isVisible, inGame, gameOver, modalView]);
 
   // ── Actions ──
   const handleStartGame = () => {
@@ -276,6 +280,7 @@ export function GameWorkspace({
       setSaveMeta(readMeta());
     });
     engineRef.current = newEngine;
+    newEngine.setHidden(!isVisibleRef.current);
     newEngine.start();
     setInGame(true);
     setGameOver(false);

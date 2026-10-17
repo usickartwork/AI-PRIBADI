@@ -1,31 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MarkdownMessage } from "./components/MarkdownMessage";
-import { AuthModal } from "./components/AuthModal";
-import { CompleteProfileModal } from "./components/CompleteProfileModal";
-import { CodeWorkspace } from "./components/CodeWorkspace";
-import { ScheduleWorkspace } from "./components/ScheduleWorkspace";
-import { FaithWorkspace } from "./components/FaithWorkspace";
-import { ImageWorkspace } from "./components/ImageWorkspace";
-import MessagesWorkspace from "./components/MessagesWorkspace";
-import { GameWorkspace } from "./components/GameWorkspace";
-import { MusicWorkspace } from "./components/MusicWorkspace";
-import { NotebookWorkspace } from "./components/NotebookWorkspace";
-import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
-import { ShiningText } from "@/components/ui/shining-text";
+import dynamic from "next/dynamic";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
-import Footer01 from "@/components/ui/footer-01";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
-import { PricingModal } from "./components/PricingModal";
-import { UpgradePromptModal } from "./components/UpgradePromptModal";
-import { UsageHistoryModal } from "./components/UsageHistoryModal";
-import { ChatSearchModal } from "./components/ChatSearchModal";
-import { VoiceAssistantModal } from "./components/VoiceAssistantModal";
-import { ShareAIResponseModal } from "./components/ShareAIResponseModal";
-import { Pattern as SettingsSidebarAccordion } from "@/components/ui/settings-sidebar-accordion";
-import Avatar from "@/components/ui/components-primitives-avatar";
+
+const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
+const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
+const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
+const Avatar = dynamic(() => import("@/components/ui/components-primitives-avatar"));
+
+const MarkdownMessage = dynamic(() => import("./components/MarkdownMessage").then((m) => m.MarkdownMessage));
+const AuthModal = dynamic(() => import("./components/AuthModal").then((m) => m.AuthModal));
+const CompleteProfileModal = dynamic(() => import("./components/CompleteProfileModal").then((m) => m.CompleteProfileModal));
+const CodeWorkspace = dynamic(() => import("./components/CodeWorkspace").then((m) => m.CodeWorkspace));
+const ScheduleWorkspace = dynamic(() => import("./components/ScheduleWorkspace").then((m) => m.ScheduleWorkspace));
+const FaithWorkspace = dynamic(() => import("./components/FaithWorkspace").then((m) => m.FaithWorkspace));
+const ImageWorkspace = dynamic(() => import("./components/ImageWorkspace").then((m) => m.ImageWorkspace));
+const MessagesWorkspace = dynamic(() => import("./components/MessagesWorkspace"));
+const GameWorkspace = dynamic(() => import("./components/GameWorkspace").then((m) => m.GameWorkspace));
+const MusicWorkspace = dynamic(() => import("./components/MusicWorkspace").then((m) => m.MusicWorkspace));
+const NotebookWorkspace = dynamic(() => import("./components/NotebookWorkspace").then((m) => m.NotebookWorkspace));
+const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
+const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
+const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
+const ChatSearchModal = dynamic(() => import("./components/ChatSearchModal").then((m) => m.ChatSearchModal));
+const VoiceAssistantModal = dynamic(() => import("./components/VoiceAssistantModal").then((m) => m.VoiceAssistantModal));
+const ShareAIResponseModal = dynamic(() => import("./components/ShareAIResponseModal").then((m) => m.ShareAIResponseModal));
+const SettingsSidebarAccordion = dynamic(() => import("@/components/ui/settings-sidebar-accordion").then((m) => m.Pattern));
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -582,6 +585,23 @@ export default function Home() {
   const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
   const [selectedLockedModelName, setSelectedLockedModelName] = useState<string | undefined>(undefined);
 
+  // Mount-on-first-open tracker for modals: defers chunk download until first open,
+  // then preserves the mounted instance and lifecycle across close/reopen.
+  const openedModalsRef = useRef({
+    pricing: false,
+    upgrade: false,
+    usageHistory: false,
+    search: false,
+    voice: false,
+    shareAI: false,
+  });
+  if (showPricingModal) openedModalsRef.current.pricing = true;
+  if (showUpgradeModal) openedModalsRef.current.upgrade = true;
+  if (showUsageHistoryModal) openedModalsRef.current.usageHistory = true;
+  if (showSearchModal) openedModalsRef.current.search = true;
+  if (showVoiceModal) openedModalsRef.current.voice = true;
+  if (shareAIContent) openedModalsRef.current.shareAI = true;
+
   const refreshSubscription = useCallback(async () => {
     try {
       const qUserId = user?.id || "guest";
@@ -705,6 +725,36 @@ export default function Home() {
   const isInitialActiveViewSyncDone = useRef(false);
 
   const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
+
+  // Mount-on-first-visit tracker for heavy workspaces (Code, Notebook, Faith, Game):
+  // Defers chunk download and mount effects until the user actually visits the tab,
+  // then keeps the instance mounted in the background across tab switches.
+  const isProPlan = (subscription?.plan || "free") !== "free";
+  const visitedViewsRef = useRef({
+    code: false,
+    notebook: false,
+    faith: false,
+    game: false,
+  });
+  if (!user) {
+    visitedViewsRef.current.code = false;
+    visitedViewsRef.current.notebook = false;
+    visitedViewsRef.current.faith = false;
+    visitedViewsRef.current.game = false;
+  } else {
+    if (activeView === "code") visitedViewsRef.current.code = true;
+    if (activeView === "notebook") visitedViewsRef.current.notebook = true;
+    if (isProPlan && isHalamanActive && halamanSubTab === "faith") {
+      visitedViewsRef.current.faith = true;
+    }
+    if (isProPlan && isHalamanActive && halamanSubTab === "game") {
+      visitedViewsRef.current.game = true;
+    }
+    if (!isProPlan) {
+      visitedViewsRef.current.faith = false;
+      visitedViewsRef.current.game = false;
+    }
+  }
 
   useEffect(() => {
     try {
@@ -3217,12 +3267,7 @@ export default function Home() {
   // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
   return (
     <>
-      {authLoading && !user ? (
-        <div
-          className="relative min-h-screen w-full"
-          style={{ backgroundColor: isDark ? "#09090b" : "#ffffff" }}
-        />
-      ) : !user ? (
+      {!user ? (
         <div
           id="page-1-container"
           className="relative h-full min-h-full w-full overflow-y-auto overflow-x-hidden scroll-smooth"
@@ -3788,17 +3833,19 @@ export default function Home() {
 
       {/* ─── MAIN WORKSPACE ───────────────────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-transparent border-0 shadow-none">
-        {/* CodeWorkspace dijaga tetap ter-mount di latar belakang agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
-        <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
-          <CodeWorkspace
-            key="code-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            userId={user?.id}
-            userName={chatAccountName}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        </div>
+        {/* CodeWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
+        {activeView === "code" || visitedViewsRef.current.code ? (
+          <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
+            <CodeWorkspace
+              key="code-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              userId={user?.id}
+              userName={chatAccountName}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          </div>
+        ) : null}
 
         {/* MusicWorkspace dijaga tetap ter-mount di latar belakang agar audio player / Spotify embed tidak terputus saat beralih tab */}
         <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
@@ -3811,19 +3858,21 @@ export default function Home() {
           />
         </div>
 
-        {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang */}
-        <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
-          <NotebookWorkspace
-            key={user?.id || "guest-notebook"}
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            user={user}
-            setShowAuthModal={setShowAuthModal}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
-        </div>
+        {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
+        {activeView === "notebook" || visitedViewsRef.current.notebook ? (
+          <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
+            <NotebookWorkspace
+              key={user?.id || "guest-notebook"}
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              user={user}
+              setShowAuthModal={setShowAuthModal}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          </div>
+        ) : null}
 
-        {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang */}
+        {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
           {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
@@ -3836,7 +3885,7 @@ export default function Home() {
               }}
               onBack={() => setActiveView("chats")}
             />
-          ) : (
+          ) : (isHalamanActive && halamanSubTab === "faith") || visitedViewsRef.current.faith ? (
             <FaithWorkspace
               key="faith-workspace-instance"
               isDark={isDark}
@@ -3844,7 +3893,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               subTabsElement={halamanSubTabsBar}
             />
-          )}
+          ) : null}
         </div>
 
         {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
@@ -3874,7 +3923,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang agar sesi 3D game tetap aktif tanpa reload WebGL */}
+        {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama agar sesi 3D game tetap aktif tanpa reload WebGL */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
           {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
@@ -3887,7 +3936,7 @@ export default function Home() {
               }}
               onBack={() => setActiveView("chats")}
             />
-          ) : (
+          ) : (isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
             <GameWorkspace
               key="game-workspace-instance"
               isDark={isDark}
@@ -3896,7 +3945,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               subTabsElement={halamanSubTabsBar}
             />
-          )}
+          ) : null}
         </div>
 
         {activeView === "schedule" ? (
@@ -5305,75 +5354,87 @@ export default function Home() {
       ) : null}
 
       {/* ─── PRICING & SUBSCRIPTION MODALS ──────────────────────────────── */}
-      <PricingModal
-        isOpen={showPricingModal}
-        onClose={() => setShowPricingModal(false)}
-        subscription={subscription}
-        onSubscriptionUpdated={(updated) => handleSubscriptionUpdated(updated)}
-        isDark={isDark}
-        userId={user?.id || "guest"}
-        onOpenUsageHistory={() => {
-          setShowPricingModal(false);
-          setShowUsageHistoryModal(true);
-        }}
-      />
+      {showPricingModal || openedModalsRef.current.pricing ? (
+        <PricingModal
+          isOpen={showPricingModal}
+          onClose={() => setShowPricingModal(false)}
+          subscription={subscription}
+          onSubscriptionUpdated={(updated) => handleSubscriptionUpdated(updated)}
+          isDark={isDark}
+          userId={user?.id || "guest"}
+          onOpenUsageHistory={() => {
+            setShowPricingModal(false);
+            setShowUsageHistoryModal(true);
+          }}
+        />
+      ) : null}
 
-      <UpgradePromptModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        targetModelName={selectedLockedModelName}
-        userId={user?.id || "guest"}
-        isDark={isDark}
-        onUpgradeSuccess={(updated) => {
-          handleSubscriptionUpdated(updated);
-          if (selectedLockedModelName) {
-            const match = models.find((m) => cleanModelLabel(m.label) === selectedLockedModelName);
-            if (match) setModel(match.id);
-          }
-        }}
-        onOpenPricingPlans={() => {
-          setShowUpgradeModal(false);
-          setShowPricingModal(true);
-        }}
-      />
+      {showUpgradeModal || openedModalsRef.current.upgrade ? (
+        <UpgradePromptModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          targetModelName={selectedLockedModelName}
+          userId={user?.id || "guest"}
+          isDark={isDark}
+          onUpgradeSuccess={(updated) => {
+            handleSubscriptionUpdated(updated);
+            if (selectedLockedModelName) {
+              const match = models.find((m) => cleanModelLabel(m.label) === selectedLockedModelName);
+              if (match) setModel(match.id);
+            }
+          }}
+          onOpenPricingPlans={() => {
+            setShowUpgradeModal(false);
+            setShowPricingModal(true);
+          }}
+        />
+      ) : null}
 
-      <UsageHistoryModal
-        isOpen={showUsageHistoryModal}
-        onClose={() => setShowUsageHistoryModal(false)}
-        userId={user?.id || "guest"}
-        isDark={isDark}
-      />
+      {showUsageHistoryModal || openedModalsRef.current.usageHistory ? (
+        <UsageHistoryModal
+          isOpen={showUsageHistoryModal}
+          onClose={() => setShowUsageHistoryModal(false)}
+          userId={user?.id || "guest"}
+          isDark={isDark}
+        />
+      ) : null}
 
       {/* ─── CHAT SEARCH MODAL (ChatGPT-Style Search Chats) ───────────────── */}
-      <ChatSearchModal
-        isOpen={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        onSelectSession={switchSession}
-        isDark={isDark}
-      />
+      {showSearchModal || openedModalsRef.current.search ? (
+        <ChatSearchModal
+          isOpen={showSearchModal}
+          onClose={() => setShowSearchModal(false)}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={switchSession}
+          isDark={isDark}
+        />
+      ) : null}
 
       {/* ─── REALTIME VOICE ASSISTANT MODAL (Gemini Voice Powered Orb) ───── */}
-      <VoiceAssistantModal
-        isOpen={showVoiceModal}
-        onClose={() => setShowVoiceModal(false)}
-        isDark={isDark}
-      />
+      {showVoiceModal || openedModalsRef.current.voice ? (
+        <VoiceAssistantModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          isDark={isDark}
+        />
+      ) : null}
 
       {/* ─── SHARE AI RESPONSE TO MESSAGE MODAL ─────────────────────────── */}
-      <ShareAIResponseModal
-        isOpen={!!shareAIContent}
-        onClose={() => setShareAIContent(null)}
-        content={shareAIContent || ""}
-        isDark={isDark}
-        userId={user?.id}
-        onOpenMessages={() => {
-          setActiveView("messages");
-          setShareAIContent(null);
-        }}
-        onRequireAuth={() => setShowAuthModal(true)}
-      />
+      {shareAIContent || openedModalsRef.current.shareAI ? (
+        <ShareAIResponseModal
+          isOpen={!!shareAIContent}
+          onClose={() => setShareAIContent(null)}
+          content={shareAIContent || ""}
+          isDark={isDark}
+          userId={user?.id}
+          onOpenMessages={() => {
+            setActiveView("messages");
+            setShareAIContent(null);
+          }}
+          onRequireAuth={() => setShowAuthModal(true)}
+        />
+      ) : null}
 
 
       {/* ─── FULLSCREEN IMAGE PREVIEW LIGHTBOX ───────────────────────────── */}
