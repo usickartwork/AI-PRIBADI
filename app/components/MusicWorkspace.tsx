@@ -2981,22 +2981,6 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
             {/* Right: Bespoke Liquid-Glass Playlist / Musik / Lyrics Toggle Icon Button */}
             <div className="flex items-center gap-2 shrink-0">
-              {musicConnect.enabled && (
-                <MusicConnectButton
-                  isDark={isDark}
-                  isOpen={musicConnect.showConnectModal}
-                  onClick={() =>
-                    musicConnect.setShowConnectModal((prev) => {
-                      const next = !prev;
-                      if (next) setShowDesktopQueue(false);
-                      return next;
-                    })
-                  }
-                  onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
-                  remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
-                  variant="header"
-                />
-              )}
               {showLyrics ? (
                 <button
                   type="button"
@@ -4264,11 +4248,22 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               </div>
 
-              {/* Right: ONLY Heart (Like) button and Play/Pause button */}
+              {/* Right: Connect button, Heart (Like) button, and Play/Pause button */}
               <div
-                className="flex items-center gap-2.5 shrink-0"
+                className="flex items-center gap-1.5 sm:gap-2 shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
+                {musicConnect.enabled && (
+                  <MusicConnectButton
+                    isDark={isDark}
+                    isOpen={musicConnect.showConnectModal}
+                    onClick={() => musicConnect.setShowConnectModal(true)}
+                    onlineOtherDevicesCount={musicConnect.onlineOtherDevicesCount}
+                    remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
+                    variant="mini-player"
+                  />
+                )}
+
                 <button
                   type="button"
                   onClick={() => toggleLike(currentTrack)}
@@ -5185,44 +5180,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Bottom Utility Row: Icon-Only Lyrics & Queue Buttons (Enlarged) */}
+            {/* Bottom Utility Row (Matching Gambar 1): Connect on left, Lyrics & Queue on right */}
             <div className={`flex items-center justify-between pt-1 px-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              {/* Lyrics Toggle Button (Icon Only, Enlarged) */}
-              <button
-                type="button"
-                onClick={() => setMobilePlayerMode((prev) => (prev === "lyrics" ? "track" : "lyrics"))}
-                className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
-                  mobilePlayerMode === "lyrics"
-                    ? isDark
-                      ? "bg-white text-black shadow-md font-bold"
-                      : "bg-black text-white shadow-md font-bold"
-                    : isDark
-                    ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
-                    : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
-                }`}
-                title={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
-                aria-label={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
-              >
-                <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M8 9h8m-8 3.5h5m-2 7.5L6 21v-3.5H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v9.5a2 2 0 01-2 2h-7l-4 3.5z"
-                  />
-                </svg>
-                {lyricsData?.synced && (
-                  <span
-                    className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
-                      mobilePlayerMode === "lyrics"
-                        ? isDark ? "bg-black" : "bg-white"
-                        : isDark ? "bg-white" : "bg-black"
-                    }`}
-                  />
-                )}
-              </button>
-
-              {musicConnect.enabled && (
+              {/* Left: Connect Button (Matching Gambar 1) */}
+              {musicConnect.enabled ? (
                 <MusicConnectButton
                   isDark={isDark}
                   isOpen={musicConnect.showConnectModal}
@@ -5231,37 +5192,77 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   remoteActiveDeviceName={musicConnect.remoteActiveSession?.device_name}
                   variant="mobile-player"
                 />
+              ) : (
+                <div />
               )}
 
-              {/* Queue Button (Icon Only, Enlarged, Toggles Queue in Place of Cover/Lyrics) */}
-              <button
-                type="button"
-                onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
-                className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
-                  mobilePlayerMode === "queue"
-                    ? isDark
-                      ? "bg-white text-black shadow-md font-bold"
-                      : "bg-black text-white shadow-md font-bold"
-                    : isDark
-                    ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
-                    : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
-                }`}
-                title="Antrean Putar"
-                aria-label="Antrean Putar"
-              >
-                <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                {queue.length > 0 && (
-                  <span
-                    className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
-                      mobilePlayerMode === "queue"
-                        ? isDark ? "bg-black" : "bg-white"
-                        : isDark ? "bg-white" : "bg-black"
-                    }`}
-                  />
-                )}
-              </button>
+              {/* Right: Lyrics & Queue Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Lyrics Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setMobilePlayerMode((prev) => (prev === "lyrics" ? "track" : "lyrics"))}
+                  className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
+                    mobilePlayerMode === "lyrics"
+                      ? isDark
+                        ? "bg-white text-black shadow-md font-bold"
+                        : "bg-black text-white shadow-md font-bold"
+                      : isDark
+                      ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
+                      : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
+                  }`}
+                  title={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
+                  aria-label={mobilePlayerMode === "lyrics" ? "Tutup Lirik" : "Lirik Lagu"}
+                >
+                  <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M8 9h8m-8 3.5h5m-2 7.5L6 21v-3.5H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v9.5a2 2 0 01-2 2h-7l-4 3.5z"
+                    />
+                  </svg>
+                  {lyricsData?.synced && (
+                    <span
+                      className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                        mobilePlayerMode === "lyrics"
+                          ? isDark ? "bg-black" : "bg-white"
+                          : isDark ? "bg-white" : "bg-black"
+                      }`}
+                    />
+                  )}
+                </button>
+
+                {/* Queue Button */}
+                <button
+                  type="button"
+                  onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
+                  className={`p-3 rounded-2xl transition-all cursor-pointer relative active:scale-90 ${
+                    mobilePlayerMode === "queue"
+                      ? isDark
+                        ? "bg-white text-black shadow-md font-bold"
+                        : "bg-black text-white shadow-md font-bold"
+                      : isDark
+                      ? "hover:text-white hover:bg-white/10 text-zinc-300 bg-white/5"
+                      : "hover:text-black hover:bg-black/10 text-zinc-700 bg-black/5"
+                  }`}
+                  title="Antrean Putar"
+                  aria-label="Antrean Putar"
+                >
+                  <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  {queue.length > 0 && (
+                    <span
+                      className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                        mobilePlayerMode === "queue"
+                          ? isDark ? "bg-black" : "bg-white"
+                          : isDark ? "bg-white" : "bg-black"
+                      }`}
+                    />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
