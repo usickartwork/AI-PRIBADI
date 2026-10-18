@@ -6,6 +6,7 @@ import {
   RoomEvent,
   Track,
   type RemoteTrack,
+  type RemoteAudioTrack,
   type RemoteTrackPublication,
   type RemoteParticipant,
 } from "livekit-client";
@@ -155,19 +156,21 @@ class TonePlayer {
   }
 }
 
-const SILENT_AUDIO_URI =
-  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+let sharedAudioContext: AudioContext | null = null;
 
-async function unlockAudioElement(el: HTMLAudioElement | null) {
-  if (!el) return;
-  try {
-    const prevSrc = el.src;
-    el.src = SILENT_AUDIO_URI;
-    await el.play().catch(() => {});
-    if (!el.srcObject) {
-      el.src = prevSrc || "";
-    }
-  } catch {}
+function getOrCreateAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    sharedAudioContext = new AudioCtx();
+  }
+  if (sharedAudioContext.state === "suspended") {
+    sharedAudioContext.resume().catch(() => {});
+  }
+  return sharedAudioContext;
 }
 
 export default function LiveKitCallModal({
@@ -198,12 +201,16 @@ export default function LiveKitCallModal({
   const roomRef = useRef<Room | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const attachedAudiosRef = useRef<HTMLMediaElement[]>([]);
   const isSpeakerOnRef = useRef(isSpeakerOn);
   isSpeakerOnRef.current = isSpeakerOn;
   const tonePlayerRef = useRef<TonePlayer | null>(null);
   const isUnlockingRef = useRef(false);
+
+  const onConnectedRef = useRef(onConnected);
+  onConnectedRef.current = onConnected;
+  const onEndCallRef = useRef(onEndCall);
+  onEndCallRef.current = onEndCall;
 
   // Inisialisasi tone player ref
   if (!tonePlayerRef.current) {
@@ -220,33 +227,18 @@ export default function LiveKitCallModal({
 
     try {
       // 1. Resume Web Audio AudioContext jika browser menangguhkannya
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        const dummyCtx = new AudioCtx();
-        if (dummyCtx.state === "suspended") {
-          await dummyCtx.resume().catch(() => {});
-        }
+      const ctx = getOrCreateAudioContext();
+      if (ctx && ctx.state === "suspended") {
+        await ctx.resume().catch(() => {});
       }
 
-      // 2. Mainkan pre-rendered remoteAudioRef langsung
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.muted = !isSpeakerOnRef.current;
-        if (!remoteAudioRef.current.srcObject) {
-          await unlockAudioElement(remoteAudioRef.current);
-        } else {
-          await remoteAudioRef.current.play().catch(() => {});
-        }
-      }
-
-      // 3. Mainkan elemen audio remote lainnya jika ada
+      // 2. Mainkan elemen audio remote
       attachedAudiosRef.current.forEach((el) => {
         el.muted = !isSpeakerOnRef.current;
         el.play().catch(() => {});
       });
 
-      // 4. Sinkronkan dengan LiveKit Room startAudio
+      // 3. Sinkronkan dengan LiveKit Room startAudio
       if (roomRef.current) {
         try {
           await roomRef.current.startAudio();
@@ -255,7 +247,7 @@ export default function LiveKitCallModal({
         }
       }
 
-      // 5. Segera hapus status blocked pada UI
+      // 4. Segera hapus status blocked pada UI
       setAudioPlaybackBlocked(false);
     } catch (err) {
       console.warn("[livekit] handleUnlockAudio err:", err);
@@ -318,24 +310,24 @@ export default function LiveKitCallModal({
   }, [isOpen, callStatus]);
 
   // Inisialisasi dan koneksi ke LiveKit Room saat token dan URL tersedia
+  const isTerminal =
+    callStatus === "ditolak" ||
+    callStatus === "dibatalkan" ||
+    callStatus === "berakhir" ||
+    callStatus === "gagal" ||
+    callStatus === "tidak_terjawab";
+
   useEffect(() => {
-    if (!isOpen || !livekitUrl || !livekitToken) {
-      return;
-    }
-    if (
-      callStatus === "ditolak" ||
-      callStatus === "dibatalkan" ||
-      callStatus === "berakhir" ||
-      callStatus === "gagal" ||
-      callStatus === "tidak_terjawab"
-    ) {
+    if (!isOpen || !livekitUrl || !livekitToken || isTerminal) {
       return;
     }
 
     let isMounted = true;
+    const audioCtx = getOrCreateAudioContext();
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      webAudioMix: audioCtx ? { audioContext: audioCtx } : true,
       audioCaptureDefaults: {
         autoGainControl: true,
         echoCancellation: true,
@@ -345,20 +337,6 @@ export default function LiveKitCallModal({
     roomRef.current = room;
 
     const attachAudioTrack = (track: RemoteTrack) => {
-      // 1. Pasang langsung ke pre-rendered remoteAudioRef jika tersedia agar diizinkan Safari iOS
-      if (remoteAudioRef.current) {
-        try {
-          remoteAudioRef.current.src = "";
-        } catch {}
-        track.attach(remoteAudioRef.current);
-        remoteAudioRef.current.muted = !isSpeakerOnRef.current;
-        if (!attachedAudiosRef.current.includes(remoteAudioRef.current)) {
-          attachedAudiosRef.current.push(remoteAudioRef.current);
-        }
-        return;
-      }
-
-      // 2. Fallback untuk elemen dinamis
       if (track.attachedElements.length > 0) {
         track.attachedElements.forEach((el) => {
           el.muted = !isSpeakerOnRef.current;
@@ -383,16 +361,14 @@ export default function LiveKitCallModal({
       if (!attachedAudiosRef.current.includes(el)) {
         attachedAudiosRef.current.push(el);
       }
+
+      // Pastikan audio context Web Audio aktif
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
     };
 
     const detachAudioTrack = (track: RemoteTrack) => {
-      if (remoteAudioRef.current && track.attachedElements.includes(remoteAudioRef.current)) {
-        track.detach(remoteAudioRef.current);
-        try {
-          remoteAudioRef.current.pause();
-          remoteAudioRef.current.srcObject = null;
-        } catch {}
-      }
       const elements = track.detach();
       elements.forEach((el) => {
         try {
@@ -416,7 +392,7 @@ export default function LiveKitCallModal({
         // Pasang event listener ketika partisipan lain bergabung
         room.on(RoomEvent.ParticipantConnected, () => {
           if (!isMounted) return;
-          onConnected?.();
+          onConnectedRef.current?.();
         });
 
         // Pasang event listener track remote
@@ -424,7 +400,7 @@ export default function LiveKitCallModal({
           RoomEvent.TrackSubscribed,
           (track: RemoteTrack, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
             if (!isMounted) return;
-            onConnected?.();
+            onConnectedRef.current?.();
             if (track.kind === Track.Kind.Audio) {
               attachAudioTrack(track);
               if (isMounted) {
@@ -457,22 +433,18 @@ export default function LiveKitCallModal({
           attachedAudiosRef.current.forEach((el) => {
             try {
               el.pause();
-              if (el !== remoteAudioRef.current) {
-                el.remove();
-              } else {
-                el.srcObject = null;
-              }
+              el.remove();
             } catch {}
           });
           attachedAudiosRef.current = [];
-          onEndCall?.("Koneksi terputus dari room.");
+          onEndCallRef.current?.("Koneksi terputus dari room.");
         });
 
         // Hubungkan ke LiveKit Cloud
         await room.connect(livekitUrl!, livekitToken!);
         if (isMounted) {
           if (room.remoteParticipants.size > 0 || mode === "connected") {
-            onConnected?.();
+            onConnectedRef.current?.();
           }
           if (room.canPlaybackAudio) {
             setAudioPlaybackBlocked(false);
@@ -482,7 +454,7 @@ export default function LiveKitCallModal({
         // Cek dan pasang track audio/video dari partisipan yang sudah terhubung di room
         room.remoteParticipants.forEach((participant) => {
           if (isMounted) {
-            onConnected?.();
+            onConnectedRef.current?.();
           }
           participant.trackPublications.forEach((pub) => {
             if (pub.isSubscribed && pub.track) {
@@ -558,7 +530,7 @@ export default function LiveKitCallModal({
       } catch {}
       roomRef.current = null;
     };
-  }, [isOpen, livekitUrl, livekitToken, callStatus, callType, onEndCall, onConnected]);
+  }, [isOpen, livekitUrl, livekitToken, isTerminal, callType]);
 
   // Toggle Mute Mikrofon
   const handleToggleMic = useCallback(async () => {
@@ -618,8 +590,14 @@ export default function LiveKitCallModal({
   const handleToggleSpeaker = useCallback(() => {
     setIsSpeakerOn((prev) => {
       const next = !prev;
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.muted = !next;
+      if (roomRef.current) {
+        roomRef.current.remoteParticipants.forEach((p) => {
+          p.audioTrackPublications.forEach((pub) => {
+            if (pub.track) {
+              (pub.track as RemoteAudioTrack).setVolume(next ? 1.0 : 0);
+            }
+          });
+        });
       }
       attachedAudiosRef.current.forEach((el) => {
         el.muted = !next;
@@ -652,22 +630,6 @@ export default function LiveKitCallModal({
       aria-label="Panggilan Langsung"
       className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
     >
-      {/* Audio Remote Pre-rendered Element (In-DOM, 1px, 0.01 opacity agar tidak diblokir Safari iOS) */}
-      <audio
-        ref={remoteAudioRef}
-        autoPlay
-        playsInline
-        style={{
-          position: "fixed",
-          top: "0",
-          left: "0",
-          width: "1px",
-          height: "1px",
-          opacity: 0.01,
-          pointerEvents: "none",
-        }}
-      />
-
       {/* Main Call Container */}
       <div
         className={`relative w-full h-full sm:h-[90vh] sm:max-h-[820px] sm:max-w-xl sm:rounded-3xl border shadow-2xl flex flex-col justify-between overflow-hidden ${

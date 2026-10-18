@@ -1514,6 +1514,12 @@ export default function MessagesWorkspace({
     }
   }, [clearCallTimeout, sendSignal]);
 
+  const handleCallConnected = useCallback(() => {
+    setActiveCall((prev) =>
+      prev ? { ...prev, status: "tersambung", statusMessage: null } : null
+    );
+  }, []);
+
   const startCall = useCallback(
     async (type: "audio" | "video") => {
       warmUpAudio();
@@ -2482,11 +2488,7 @@ export default function MessagesWorkspace({
           onAcceptCall={acceptCall}
           onRejectCall={rejectCall}
           onEndCall={endCall}
-          onConnected={() => {
-            setActiveCall((prev) =>
-              prev ? { ...prev, status: "tersambung", statusMessage: null } : null
-            );
-          }}
+          onConnected={handleCallConnected}
         />
       )}
     </div>
