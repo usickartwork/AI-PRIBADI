@@ -25,7 +25,7 @@ export const POPULAR_RADIO_STATIONS: RadioStation[] = [
     genre: "Pop Indonesia",
     frequency: "",
     country: "Indonesia 🇮🇩",
-    streamUrl: "https://stream.denger.in/",
+    streamUrl: "https://stream.lokermusik.com/listen/lokermusik/lokermusik",
     artworkUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80",
     badge: "Indo Hits",
     listenersEstimate: "5.4k mendengarkan",

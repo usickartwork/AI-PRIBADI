@@ -85,7 +85,6 @@ function cleanAndSplitTitle(
 
 /**
  * Instant status fetcher for Icecast stations supporting /status-json.xsl
- * (e.g. Dengerin Pop Indonesia at https://stream.denger.in/status-json.xsl)
  */
 async function fetchIcecastJsonStatus(baseUrl: string): Promise<string | null> {
   const controller = new AbortController();
@@ -291,9 +290,14 @@ export async function GET(req: NextRequest) {
   try {
     // 3. Fast-path station specific status endpoints
     if (stationId === "top-hits-lagu-indo" || stationId === "dengerin-pop-indonesia") {
-      const status = await fetchIcecastJsonStatus(streamUrl);
-      if (status) {
-        rawTitle = status;
+      const icyRaw = await readIcyStreamTitle(streamUrl, 3500);
+      if (icyRaw) {
+        rawTitle = icyRaw;
+      } else {
+        const status = await fetchIcecastJsonStatus(streamUrl);
+        if (status) {
+          rawTitle = status;
+        }
       }
     } else if (stationId === "lagu-global" || stationId === "iloveradio-top-40") {
       const status = await fetchILoveMusicStatus(1);
