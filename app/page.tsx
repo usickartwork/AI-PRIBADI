@@ -144,10 +144,20 @@ function generateUUID(): string {
 
 function parseRawToSessions(data: unknown): ChatSession[] {
   if (!data) return [];
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
   if (Array.isArray(data)) {
     if (data.length === 0) return [];
     // Cek apakah data ini adalah Array of ChatSession
-    if (data[0] && typeof data[0] === "object" && "messages" in data[0] && "id" in data[0]) {
+    const isSessionArray = data.some(
+      (s) => s && typeof s === "object" && "messages" in s && "id" in s
+    );
+    if (isSessionArray) {
       return (data as ChatSession[]).filter(
         (s) => s && Array.isArray(s.messages) && s.messages.length > 0
       );
@@ -184,6 +194,43 @@ function loadSessions(userId?: string | null): ChatSession[] {
     }
   } catch {}
   return [];
+}
+
+// Gabungkan riwayat dari server dengan sesi lokal di perangkat ini.
+// - Server menjadi sumber utama (agar riwayat dari perangkat lain selalu muncul).
+// - Sesi lokal yang lebih baru dari versi server tetap dipertahankan (belum sempat tersinkron).
+// - Sesi lokal yang tidak ada di server dan lebih lama dari update terakhir server dianggap
+//   sudah dihapus di perangkat lain, jadi tidak dimunculkan kembali.
+function mergeServerAndLocalSessions(
+  serverSessions: ChatSession[],
+  localSessions: ChatSession[],
+  serverUpdatedAt: number
+): ChatSession[] {
+  const localById = new Map(localSessions.map((s) => [s.id, s]));
+  const serverIds = new Set(serverSessions.map((s) => s.id));
+
+  const merged = serverSessions.map((serverSess) => {
+    const localSess = localById.get(serverSess.id);
+    if (
+      localSess &&
+      Array.isArray(localSess.messages) &&
+      localSess.messages.length > 0 &&
+      (localSess.updatedAt || 0) > (serverSess.updatedAt || 0)
+    ) {
+      return localSess;
+    }
+    return serverSess;
+  });
+
+  const unsyncedLocal = localSessions.filter(
+    (s) =>
+      !serverIds.has(s.id) &&
+      Array.isArray(s.messages) &&
+      s.messages.length > 0 &&
+      (s.updatedAt || 0) > serverUpdatedAt
+  );
+
+  return [...unsyncedLocal, ...merged];
 }
 
 function getTimeGreeting(): string {
@@ -516,6 +563,9 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const sessionsOwnerIdRef = useRef<string | null>(null);
+  // Menandai riwayat server sudah dimuat untuk user ini, agar perangkat dengan cache lokal
+  // kosong/basi tidak menimpa riwayat di server sebelum sinkronisasi selesai.
+  const historySyncedForRef = useRef<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>(() => [createFreshSession()]);
   const [activeSessionId, setActiveSessionId] = useState<string>(() => generateUUID());
   const activeSessionIdRef = useRef(activeSessionId);
@@ -675,6 +725,12 @@ export default function Home() {
     }
     return false;
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      setSidebarOpen(true);
+    }
+  }, []);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
@@ -929,6 +985,7 @@ export default function Home() {
       }
     } catch {}
     sessionsOwnerIdRef.current = null;
+    historySyncedForRef.current = null;
     setUser(null);
     const guestSessions = loadSessions(null);
     if (guestSessions.length > 0) {
@@ -978,6 +1035,7 @@ export default function Home() {
       // Logout dari Clerk
       await clerkSignOut();
       sessionsOwnerIdRef.current = null;
+      historySyncedForRef.current = null;
       setUser(null);
       setSubscription(null);
 
@@ -1002,7 +1060,7 @@ export default function Home() {
     }
   };
 
-  // Sinkronisasi riwayat chat dari Supabase saat user login atau berganti akun
+  // Sinkronisasi riwayat chat dari server saat user login atau berganti akun
   useEffect(() => {
     if (authLoading) return;
 
@@ -1035,40 +1093,96 @@ export default function Home() {
       isInitialBootRef.current = false;
     }
 
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      historySyncedForRef.current = null;
+      return;
+    }
 
     async function fetchUserChatHistory() {
       try {
-        const { data, error } = await supabase
-          .from("chat_history")
-          .select("messages")
-          .eq("user_id", currentUserId)
-          .maybeSingle();
+        let rawMessages: unknown = null;
+        let updatedAtIso: string | null = null;
+        let fetchSuccess = false;
 
-        if (error) {
-          console.warn("[supabase] fetch history error:", error.message);
-          return;
+        // 1. Coba ambil melalui endpoint internal /api/chat/history (bebas adblock/CORS/tracking protection)
+        try {
+          const res = await fetch(`/api/chat/history?userId=${encodeURIComponent(currentUserId!)}`);
+          if (res.ok) {
+            const json = await res.json();
+            rawMessages = json.messages;
+            updatedAtIso = json.updated_at;
+            fetchSuccess = true;
+          }
+        } catch (apiErr) {
+          console.warn("[chat/history] API fetch failed, falling back to direct Supabase client:", apiErr);
         }
 
-        if (data && data.messages) {
-          const parsed = parseRawToSessions(data.messages);
-          if (parsed.length > 0 && isMounted && sessionsOwnerIdRef.current === currentUserId) {
-            setSessions(parsed);
-            // Sesuai brief: Jangan timpa activeSessionId jika pengguna sedang di obrolan baru
-            try {
-              localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(parsed));
-            } catch {}
+        // 2. Fallback ke direct Supabase client jika API internal belum mengembalikan data
+        if (!fetchSuccess) {
+          const { data, error } = await supabase
+            .from("chat_history")
+            .select("messages, updated_at")
+            .eq("user_id", currentUserId)
+            .maybeSingle();
+
+          if (error) {
+            console.warn("[supabase] fetch history error:", error.message);
+          } else {
+            rawMessages = data?.messages ?? null;
+            updatedAtIso = data?.updated_at ?? null;
+            fetchSuccess = true;
+          }
+        }
+
+        if (!isMounted || sessionsOwnerIdRef.current !== currentUserId) return;
+
+        // Tandai sinkronisasi selesai untuk user ini agar save effect aman dijalankan
+        if (fetchSuccess) {
+          historySyncedForRef.current = currentUserId;
+        }
+
+        if (rawMessages) {
+          const serverSessions = parseRawToSessions(rawMessages);
+          const serverUpdatedAt = updatedAtIso ? new Date(updatedAtIso).getTime() : 0;
+
+          if (serverSessions.length > 0) {
+            setSessions((prevSessions) => {
+              const merged = mergeServerAndLocalSessions(serverSessions, prevSessions, serverUpdatedAt);
+              try {
+                localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(merged));
+              } catch {}
+              return merged.length > 0 ? merged : prevSessions;
+            });
           }
         }
       } catch (err) {
-        console.warn("[supabase] sync error:", err);
+        console.warn("[chat-sync] error:", err);
       }
     }
 
     fetchUserChatHistory();
 
+    // Re-sinkronisasi otomatis saat pengguna kembali ke tab browser / fokus jendela
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchUserChatHistory();
+      }
+    };
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    // Polling ringan setiap 25 detik saat tab aktif untuk memastikan multi-device sync
+    const intervalId = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchUserChatHistory();
+      }
+    }, 25000);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      clearInterval(intervalId);
     };
   }, [user?.id, authLoading]);
 
@@ -1633,20 +1747,43 @@ export default function Home() {
 
       // Simpan dan sinkronkan ke database Supabase HANYA jika:
       // 1. Pengguna sedang login (ada currentUserId)
-      // 2. Ada pesan riwayat di dalam sessions
-      if (currentUserId && sessionsToSave.length > 0 && sessionsToSave.some((s) => s.messages && s.messages.length > 0)) {
-        const timer = setTimeout(() => {
-          if (sessionsOwnerIdRef.current === currentUserId) {
-            supabase
-              .from("chat_history")
-              .upsert({
-                user_id: currentUserId,
-                messages: sessionsToSave,
-                updated_at: new Date().toISOString(),
-              })
-              .then(({ error }) => {
-                if (error) console.warn("[supabase] save chat_history error:", error.message);
+      // 2. Sesi server sudah selesai dimuat pertama kali (Mencegah cache desktop kosong/basi menimpa riwayat server)
+      // 3. Ada pesan riwayat di dalam sessions
+      if (
+        currentUserId &&
+        historySyncedForRef.current === currentUserId &&
+        sessionsToSave.length > 0 &&
+        sessionsToSave.some((s) => s.messages && s.messages.length > 0)
+      ) {
+        const timer = setTimeout(async () => {
+          if (
+            sessionsOwnerIdRef.current === currentUserId &&
+            historySyncedForRef.current === currentUserId
+          ) {
+            // 1. Coba simpan via endpoint internal /api/chat/history
+            let apiSaved = false;
+            try {
+              const res = await fetch("/api/chat/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: currentUserId, messages: sessionsToSave }),
               });
+              if (res.ok) apiSaved = true;
+            } catch {}
+
+            // 2. Fallback ke direct Supabase client jika API gagal
+            if (!apiSaved) {
+              supabase
+                .from("chat_history")
+                .upsert({
+                  user_id: currentUserId,
+                  messages: sessionsToSave,
+                  updated_at: new Date().toISOString(),
+                })
+                .then(({ error }) => {
+                  if (error) console.warn("[supabase] save chat_history error:", error.message);
+                });
+            }
           }
         }, 1000);
 
@@ -2420,6 +2557,8 @@ export default function Home() {
       localStorage.removeItem(getSessionsStorageKey(currentUserId));
       localStorage.removeItem(getActiveSessionStorageKey(currentUserId));
       if (currentUserId) {
+        // Hapus melalui API endpoint dan Supabase
+        fetch(`/api/chat/history?userId=${encodeURIComponent(currentUserId)}`, { method: "DELETE" }).catch(() => {});
         supabase
           .from("chat_history")
           .upsert({
