@@ -226,8 +226,19 @@ export default function LiveKitCallModal({
   const [isMinimized, setIsMinimized] = useState(false);
 
   // Floating Minimized Widget Drag & Move State
-  const [minimizedPos, setMinimizedPos] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{
+  const [minimizedPos, setMinimizedPos] = useState<{ x: number; y: number }>(() => {
+    if (typeof window !== "undefined") {
+      const widgetWidth = 280;
+      const widgetHeight = 60;
+      return {
+        x: Math.max(16, window.innerWidth - widgetWidth - 24),
+        y: Math.max(16, window.innerHeight - widgetHeight - 32),
+      };
+    }
+    return { x: 24, y: 120 };
+  });
+
+  const dragInfoRef = useRef<{
     isDragging: boolean;
     startX: number;
     startY: number;
@@ -242,96 +253,101 @@ export default function LiveKitCallModal({
     initialY: 0,
     hasMoved: false,
   });
+
   const widgetRef = useRef<HTMLDivElement | null>(null);
 
-  // Inisialisasi posisi awal mini widget ke pojok kanan bawah saat pertama minimize
-  useEffect(() => {
-    if (isMinimized && typeof window !== "undefined" && !minimizedPos) {
-      const widgetWidth = callType === "video" ? 220 : 280;
-      const widgetHeight = callType === "video" ? 130 : 60;
-      const x = Math.max(16, window.innerWidth - widgetWidth - 24);
-      const y = Math.max(16, window.innerHeight - widgetHeight - 32);
-      setMinimizedPos({ x, y });
-    }
-  }, [isMinimized, minimizedPos, callType]);
-
-  // Jaga posisi mini widget tetap dalam batas layar saat ukuran jendela browser berubah
+  // Batasi posisi widget agar tetap di dalam layar saat ukuran jendela browser berubah
   useEffect(() => {
     const handleResize = () => {
-      if (!minimizedPos || typeof window === "undefined") return;
+      if (typeof window === "undefined") return;
       const el = widgetRef.current;
-      const width = el?.offsetWidth || (callType === "video" ? 220 : 280);
-      const height = el?.offsetHeight || (callType === "video" ? 130 : 60);
+      const width = el?.offsetWidth || 280;
+      const height = el?.offsetHeight || 60;
       const maxX = Math.max(12, window.innerWidth - width - 12);
       const maxY = Math.max(12, window.innerHeight - height - 12);
-      setMinimizedPos((prev) => {
-        if (!prev) return prev;
-        return {
-          x: Math.min(Math.max(12, prev.x), maxX),
-          y: Math.min(Math.max(12, prev.y), maxY),
-        };
-      });
+      setMinimizedPos((prev) => ({
+        x: Math.min(Math.max(12, prev.x), maxX),
+        y: Math.min(Math.max(12, prev.y), maxY),
+      }));
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [minimizedPos, callType]);
+  }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 && e.pointerType === "mouse") return;
     const target = e.target as HTMLElement;
+    // Jangan drag jika yang ditekan adalah tombol
     if (target.closest("button")) return;
+
+    // Cegah text selection & default image drag
+    e.preventDefault();
 
     const el = widgetRef.current;
     if (!el) return;
 
-    const rect = el.getBoundingClientRect();
-    dragRef.current = {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialX = minimizedPos.x;
+    const initialY = minimizedPos.y;
+
+    dragInfoRef.current = {
       isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      initialX: rect.left,
-      initialY: rect.top,
+      startX,
+      startY,
+      initialX,
+      initialY,
       hasMoved: false,
     };
 
-    try {
-      el.setPointerCapture(e.pointerId);
-    } catch {}
-  };
+    let currentX = initialX;
+    let currentY = initialY;
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current.isDragging) return;
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      if (!dragInfoRef.current.isDragging) return;
 
-    const deltaX = e.clientX - dragRef.current.startX;
-    const deltaY = e.clientY - dragRef.current.startY;
+      const deltaX = moveEvt.clientX - dragInfoRef.current.startX;
+      const deltaY = moveEvt.clientY - dragInfoRef.current.startY;
 
-    if (!dragRef.current.hasMoved && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
-      dragRef.current.hasMoved = true;
-    }
+      if (!dragInfoRef.current.hasMoved && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
+        dragInfoRef.current.hasMoved = true;
+      }
 
-    if (dragRef.current.hasMoved) {
-      const el = widgetRef.current;
-      const width = el?.offsetWidth || (callType === "video" ? 220 : 280);
-      const height = el?.offsetHeight || (callType === "video" ? 130 : 60);
-      const maxX = Math.max(8, window.innerWidth - width - 8);
-      const maxY = Math.max(8, window.innerHeight - height - 8);
+      if (dragInfoRef.current.hasMoved) {
+        const width = el.offsetWidth || 280;
+        const height = el.offsetHeight || 60;
+        const maxX = Math.max(8, window.innerWidth - width - 8);
+        const maxY = Math.max(8, window.innerHeight - height - 8);
 
-      const newX = Math.min(Math.max(8, dragRef.current.initialX + deltaX), maxX);
-      const newY = Math.min(Math.max(8, dragRef.current.initialY + deltaY), maxY);
+        currentX = Math.min(Math.max(8, dragInfoRef.current.initialX + deltaX), maxX);
+        currentY = Math.min(Math.max(8, dragInfoRef.current.initialY + deltaY), maxY);
 
-      setMinimizedPos({ x: newX, y: newY });
-    }
-  };
+        // Update transform langsung di DOM untuk performa 60fps/120fps tanpa render lag
+        el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+      }
+    };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!dragRef.current.isDragging) return;
-    const el = widgetRef.current;
-    if (el) {
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch {}
-    }
-    dragRef.current.isDragging = false;
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+
+      if (!dragInfoRef.current.isDragging) return;
+      dragInfoRef.current.isDragging = false;
+
+      if (dragInfoRef.current.hasMoved) {
+        // Simpan posisi koordinat akhir
+        setMinimizedPos({ x: currentX, y: currentY });
+      } else {
+        // Ketukan murni: perbesar modal panggilan
+        if (audioPlaybackBlocked) void handleUnlockAudio();
+        setIsMinimized(false);
+      }
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
   };
 
   useEffect(() => {
@@ -921,27 +937,16 @@ export default function LiveKitCallModal({
       <div
         ref={widgetRef}
         onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={
-          minimizedPos
-            ? { left: `${minimizedPos.x}px`, top: `${minimizedPos.y}px` }
-            : { bottom: "1.5rem", right: "1.5rem" }
-        }
-        className="fixed z-[9999] select-none touch-none cursor-grab active:cursor-grabbing animate-in fade-in-0 duration-200"
-        onClick={() => {
-          if (audioPlaybackBlocked) void handleUnlockAudio();
-          if (dragRef.current.hasMoved) {
-            dragRef.current.hasMoved = false;
-            return;
-          }
-          setIsMinimized(false);
+        style={{
+          transform: `translate3d(${minimizedPos.x}px, ${minimizedPos.y}px, 0)`,
+          touchAction: "none",
         }}
+        className="fixed top-0 left-0 z-[9999] select-none touch-none cursor-grab active:cursor-grabbing"
       >
         {callType === "video" ? (
           /* Mini Video PiP Widget (Bisa digeser ke mana saja) */
           <div
+            style={{ touchAction: "none" }}
             className="group relative w-44 h-28 sm:w-52 sm:h-32 rounded-2xl overflow-hidden border border-black/10 dark:border-white/20 shadow-2xl bg-zinc-950 backdrop-blur-md transition-shadow hover:shadow-black/50"
           >
             <video
@@ -954,7 +959,12 @@ export default function LiveKitCallModal({
               <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-white font-bold text-lg pointer-events-none">
                 {peerUser.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={peerUser.avatarUrl} alt={peerUser.name} className="w-10 h-10 rounded-full object-cover" />
+                  <img
+                    draggable={false}
+                    src={peerUser.avatarUrl}
+                    alt={peerUser.name}
+                    className="w-10 h-10 rounded-full object-cover pointer-events-none"
+                  />
                 ) : (
                   <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
                 )}
@@ -973,7 +983,7 @@ export default function LiveKitCallModal({
                   setIsMinimized(false);
                 }}
                 title="Perbesar Panggilan"
-                className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white hover:text-white pointer-events-auto transition-transform hover:scale-110 active:scale-95"
+                className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white hover:text-white pointer-events-auto transition-transform hover:scale-110 active:scale-95 cursor-pointer"
               >
                 <Maximize2 size={12} />
               </button>
@@ -992,7 +1002,7 @@ export default function LiveKitCallModal({
                     void handleToggleMic();
                   }}
                   title={isMicMuted ? "Unmute" : "Mute"}
-                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 transition-transform active:scale-90"
+                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 transition-transform active:scale-90 cursor-pointer"
                 >
                   {isMicMuted ? <MicOff size={12} /> : <Mic size={12} />}
                 </button>
@@ -1003,7 +1013,7 @@ export default function LiveKitCallModal({
                     onEndCall?.("Panggilan diakhiri oleh pengguna.");
                   }}
                   title="Akhiri Panggilan"
-                  className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-zinc-200 transition-transform active:scale-90 shadow-md font-bold"
+                  className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:bg-zinc-200 transition-transform active:scale-90 shadow-md font-bold cursor-pointer"
                 >
                   <PhoneOff size={12} />
                 </button>
@@ -1013,23 +1023,29 @@ export default function LiveKitCallModal({
         ) : (
           /* Mini Audio Call Pill Widget (Bisa digeser ke mana saja) */
           <div
-            className={`group flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-full border shadow-2xl backdrop-blur-2xl transition-all ${
+            style={{ touchAction: "none" }}
+            className={`group flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-full border shadow-2xl backdrop-blur-2xl transition-colors ${
               isDark
                 ? "bg-zinc-900/90 hover:bg-zinc-800/90 border-white/15 text-white shadow-black/60"
                 : "bg-white/90 hover:bg-white/95 border-black/10 text-zinc-900 shadow-zinc-900/15"
             }`}
           >
             {/* Grip handle visual indicator */}
-            <div className="opacity-30 group-hover:opacity-75 transition-opacity -mr-1">
+            <div className="opacity-30 group-hover:opacity-75 transition-opacity -mr-1 pointer-events-none">
               <GripVertical size={14} />
             </div>
 
             {/* Avatar dengan pulsating ring */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 pointer-events-none">
               <div className="w-8 h-8 rounded-full overflow-hidden border border-black/10 dark:border-white/20 bg-zinc-800 flex items-center justify-center font-bold text-xs text-white">
                 {peerUser.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={peerUser.avatarUrl} alt={peerUser.name} className="w-full h-full object-cover" />
+                  <img
+                    draggable={false}
+                    src={peerUser.avatarUrl}
+                    alt={peerUser.name}
+                    className="w-full h-full object-cover pointer-events-none"
+                  />
                 ) : (
                   <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
                 )}
@@ -1042,7 +1058,7 @@ export default function LiveKitCallModal({
             </div>
 
             {/* Nama & Durasi Live */}
-            <div className="flex flex-col text-left min-w-[70px]">
+            <div className="flex flex-col text-left min-w-[70px] pointer-events-none">
               <span className="text-xs font-semibold max-w-[120px] truncate leading-tight">
                 {peerUser.name}
               </span>
@@ -1059,7 +1075,7 @@ export default function LiveKitCallModal({
                 void handleToggleMic();
               }}
               title={isMicMuted ? "Nyalakan Mikrofon" : "Matikan Mikrofon"}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                 isMicMuted
                   ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
                   : isDark
@@ -1078,7 +1094,7 @@ export default function LiveKitCallModal({
                 onEndCall?.("Panggilan diakhiri oleh pengguna.");
               }}
               title="Akhiri Panggilan"
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                 isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
               }`}
             >
@@ -1093,7 +1109,7 @@ export default function LiveKitCallModal({
                 setIsMinimized(false);
               }}
               title="Perbesar Panggilan"
-              className="pl-1 border-l border-current/15 opacity-60 hover:opacity-100 transition-opacity"
+              className="pl-1 border-l border-current/15 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
             >
               <Maximize2 size={13} />
             </button>
