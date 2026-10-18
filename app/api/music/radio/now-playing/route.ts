@@ -290,18 +290,18 @@ export async function GET(req: NextRequest) {
 
   try {
     // 3. Fast-path station specific status endpoints
-    if (stationId === "dengerin-pop-indonesia") {
+    if (stationId === "top-hits-lagu-indo" || stationId === "dengerin-pop-indonesia") {
       const status = await fetchIcecastJsonStatus(streamUrl);
       if (status) {
         rawTitle = status;
       }
-    } else if (stationId === "iloveradio-top-40") {
+    } else if (stationId === "lagu-global" || stationId === "iloveradio-top-40") {
       const status = await fetchILoveMusicStatus(1);
       if (status) {
         extractedArtist = status.artist;
         extractedTitle = status.title;
       }
-    } else if (stationId === "iloveradio-chillhop-lofi") {
+    } else if (stationId === "lagu-chill" || stationId === "iloveradio-chillhop-lofi") {
       const status = await fetchILoveMusicStatus(17);
       if (status) {
         extractedArtist = status.artist;
@@ -358,3 +358,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(fallback);
   }
 }
+

@@ -3367,9 +3367,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                       <span>LIVE</span>
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/50 backdrop-blur-md text-white/90 border border-white/10">
-                      {station.frequency}
-                    </span>
+                    {station.genre && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/50 backdrop-blur-md text-white/90 border border-white/10">
+                        {station.genre}
+                      </span>
+                    )}
                   </div>
 
                   {/* Center Play Button Overlay */}
@@ -3390,7 +3392,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {/* Bottom Info over Image */}
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-end justify-between text-white">
                     <span className="text-[11px] font-medium text-white/80">
-                      {station.country} • {station.genre}
+                      {station.genre}
                     </span>
                     {isStationPlaying && (
                       <span className="flex items-end gap-0.5 h-3.5 px-2 py-1 rounded bg-black/70 backdrop-blur-md border border-white/10">
@@ -3751,7 +3753,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                                 {station.name}
                               </p>
                               <p className={`text-[10px] truncate mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                                {station.genre} • {station.country}
+                                {station.genre}
                               </p>
                             </div>
 
@@ -4188,7 +4190,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                                 {station.name}
                               </p>
                               <p className="text-[10px] sm:text-xs text-zinc-400 truncate mt-0.5">
-                                {station.frequency} • {station.genre}
+                                {station.genre}
                               </p>
                             </div>
 
@@ -5147,7 +5149,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <p className="text-xs text-zinc-400 truncate mt-0.5">
                     {activeTrack.isLiveRadio ? (
                       <span className={`font-semibold ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
-                        LIVE • {activeTrack.albumTitle || activeTrack.artistNames.join(", ")}
+                        {activeTrack.artistNames && activeTrack.artistNames.length > 0 && activeTrack.artistNames[0] !== activeTrack.albumTitle ? `${activeTrack.artistNames.join(", ")} • ` : ""}{activeTrack.albumTitle || "Radio"}
                       </span>
                     ) : (
                       activeTrack.artistNames.join(", ")
@@ -5266,7 +5268,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     activeTrack.isLiveRadio ? (
                       <span className={`font-semibold flex items-center gap-1.5 ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
                         <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? "bg-white" : "bg-black"}`} />
-                        <span>LIVE • {activeTrack.albumTitle || activeTrack.artistNames.join(", ")}</span>
+                        <span>{activeTrack.artistNames && activeTrack.artistNames.length > 0 && activeTrack.artistNames[0] !== activeTrack.albumTitle ? `${activeTrack.artistNames.join(", ")} • ` : ""}{activeTrack.albumTitle || "Radio"}</span>
                       </span>
                     ) : (
                       activeTrack.artistNames.map((name, i) => (
@@ -5437,7 +5439,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     <span>SIARAN LANGSUNG 24/7</span>
                   </span>
                   <span className="text-[11px] text-zinc-500 font-mono tracking-wide">
-                    {activeTrack.radioFrequency || "LIVE ON AIR"}
+                    {activeTrack.radioFrequency || activeTrack.albumTitle || "RADIO"}
                   </span>
                   <span className="flex items-end gap-0.5 h-3">
                     <span className={`w-0.5 rounded-full animate-bounce h-3 ${isDark ? "bg-white" : "bg-black"}`} />
@@ -5627,7 +5629,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <div className="flex items-center justify-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full animate-pulse ${isDark ? "bg-white" : "bg-black"}`} />
                   <p className={`text-[10px] font-bold tracking-wider uppercase truncate ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
-                    SIARAN RADIO LIVE 24/7
+                    RADIO 24/7
                   </p>
                 </div>
               ) : (
@@ -5984,7 +5986,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       <div className="flex items-center justify-between">
                         <span className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/20 text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1.5 shadow-md">
                           <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                          <span>LIVE ON AIR</span>
+                          <span>ON AIR</span>
                         </span>
                         <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold tracking-wide">
                           {activeTrack.radioFrequency || "24/7 RADIO"}
@@ -6071,7 +6073,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
                   <span className={`text-xs font-bold tracking-wider uppercase ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
-                    LIVE BROADCAST 24/7
+                    RADIO 24/7
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -6081,7 +6083,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     <span className={`w-0.5 rounded-full animate-bounce h-3.5 ${isDark ? "bg-white" : "bg-black"}`} style={{ animationDelay: "0.3s" }} />
                   </span>
                   <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/10 text-zinc-700"}`}>
-                    {activeTrack.radioFrequency || "ON AIR"}
+                    {activeTrack.radioFrequency || "24/7"}
                   </span>
                 </div>
               </div>
