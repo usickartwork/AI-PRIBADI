@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
-import { useSession } from "@clerk/nextjs";
+import { useSession, useUser } from "@clerk/nextjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import {
@@ -12,6 +12,7 @@ import {
   Copy,
   Inbox,
   MessageCircle,
+  Phone,
   Reply,
   Search,
   Send,
@@ -19,9 +20,11 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  Video,
   X,
 } from "lucide-react";
 
+import LiveKitCallModal, { type CallStatus } from "./LiveKitCallModal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -424,6 +427,26 @@ export default function MessagesWorkspace({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const { user: clerkUser } = useUser();
+
+  interface ActiveCallState {
+    callId: string;
+    callType: "audio" | "video";
+    mode: "outgoing" | "incoming" | "connected";
+    peerUser: PublicUser;
+    conversationId: string;
+    roomName: string;
+    status: CallStatus;
+    statusMessage?: string | null;
+    livekitUrl?: string | null;
+    livekitToken?: string | null;
+  }
+
+  const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
+  const activeCallRef = useRef<ActiveCallState | null>(null);
+  activeCallRef.current = activeCall;
+  const callTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const activeRef = useRef<typeof active>(null);
   const isVisibleRef = useRef(Boolean(isVisible));
   isVisibleRef.current = Boolean(isVisible);
@@ -594,6 +617,27 @@ export default function MessagesWorkspace({
     }
   }, [markRead]);
 
+  /* ─── Call Signaling Helpers ────────────────────────────────────────────── */
+  const clearCallTimeout = useCallback(() => {
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+  }, []);
+
+  const sendSignal = useCallback((targetUserId: string, event: string, payload: unknown) => {
+    try {
+      const ch = supabase.channel(`inbox_${targetUserId}`);
+      void ch.send({
+        type: "broadcast",
+        event,
+        payload,
+      });
+    } catch (err) {
+      console.error("Failed to send call signal", err);
+    }
+  }, []);
+
   /* ─── Realtime Inbox & Periodic Polling ────────────────────────────────── */
   useEffect(() => {
     if (!userId) return;
@@ -605,13 +649,121 @@ export default function MessagesWorkspace({
       }
     }, initialDelay);
 
-    // 1. Supabase Broadcast inbox listener (instant ping when anyone sends message/request)
+    // 1. Supabase Broadcast inbox listener (instant ping when anyone sends message/request/call)
     const inboxChannel = supabase
       .channel(`inbox_${userId}`)
       .on("broadcast", { event: "inbox_ping" }, () => {
         void loadConversations();
         if (isVisibleRef.current) {
           void loadFriends();
+        }
+      })
+      .on("broadcast", { event: "call_invite" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current) {
+          sendSignal(payload.callerUser.id, "call_busy", { callId: payload.callId });
+          return;
+        }
+        clearCallTimeout();
+        setActiveCall({
+          callId: payload.callId,
+          callType: payload.callType || "audio",
+          mode: "incoming",
+          peerUser: {
+            id: payload.callerUser.id,
+            name: payload.callerUser.name || "Teman",
+            username: payload.callerUser.username || null,
+            avatarUrl: payload.callerUser.avatarUrl || payload.callerUser.avatar_url || null,
+          },
+          conversationId: payload.conversationId,
+          roomName: payload.roomName,
+          status: "memanggil",
+          statusMessage: "Panggilan masuk...",
+        });
+
+        callTimeoutRef.current = setTimeout(() => {
+          if (activeCallRef.current?.callId === payload.callId && activeCallRef.current?.status === "memanggil") {
+            setActiveCall((prev) =>
+              prev && prev.callId === payload.callId
+                ? { ...prev, status: "tidak_terjawab", statusMessage: "Panggilan tidak terjawab" }
+                : prev
+            );
+            setTimeout(() => {
+              setActiveCall((prev) => (prev?.callId === payload.callId ? null : prev));
+            }, 3000);
+          }
+        }, 35000);
+      })
+      .on("broadcast", { event: "call_accept" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current?.callId === payload.callId) {
+          clearCallTimeout();
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? {
+                  ...prev,
+                  status: "menghubungkan",
+                  mode: "connected",
+                  statusMessage: "Menghubungkan...",
+                }
+              : prev
+          );
+        }
+      })
+      .on("broadcast", { event: "call_reject" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current?.callId === payload.callId) {
+          clearCallTimeout();
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? { ...prev, status: "ditolak", statusMessage: "Panggilan ditolak" }
+              : prev
+          );
+          setTimeout(() => {
+            setActiveCall((prev) => (prev?.callId === payload.callId ? null : prev));
+          }, 2500);
+        }
+      })
+      .on("broadcast", { event: "call_cancel" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current?.callId === payload.callId) {
+          clearCallTimeout();
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? { ...prev, status: "dibatalkan", statusMessage: "Panggilan dibatalkan oleh pemanggil" }
+              : prev
+          );
+          setTimeout(() => {
+            setActiveCall((prev) => (prev?.callId === payload.callId ? null : prev));
+          }, 2500);
+        }
+      })
+      .on("broadcast", { event: "call_busy" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current?.callId === payload.callId) {
+          clearCallTimeout();
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? { ...prev, status: "gagal", statusMessage: "Pengguna sedang dalam panggilan lain" }
+              : prev
+          );
+          setTimeout(() => {
+            setActiveCall((prev) => (prev?.callId === payload.callId ? null : prev));
+          }, 3000);
+        }
+      })
+      .on("broadcast", { event: "call_end" }, ({ payload }: { payload: any }) => {
+        if (!payload || !payload.callId) return;
+        if (activeCallRef.current?.callId === payload.callId) {
+          clearCallTimeout();
+          setActiveCall((prev) =>
+            prev && prev.callId === payload.callId
+              ? { ...prev, status: "berakhir", statusMessage: "Panggilan diakhiri oleh lawan bicara" }
+              : prev
+          );
+          setTimeout(() => {
+            setActiveCall((prev) => (prev?.callId === payload.callId ? null : prev));
+          }, 2000);
         }
       })
       .on(
@@ -656,12 +808,13 @@ export default function MessagesWorkspace({
     window.addEventListener("focus", onFocus);
 
     return () => {
+      clearCallTimeout();
       window.removeEventListener("focus", onFocus);
       window.clearTimeout(kick);
       window.clearInterval(listTimer);
       void supabase.removeChannel(inboxChannel);
     };
-  }, [userId, loadConversations, loadFriends]);
+  }, [userId, loadConversations, loadFriends, sendSignal, clearCallTimeout]);
 
   /* ─── Active Chat Realtime (postgres_changes + Broadcast + Polling) ─── */
   useEffect(() => {
@@ -1244,6 +1397,214 @@ export default function MessagesWorkspace({
     return -1;
   }, [messages, peerLastReadAt]);
 
+  /* ─── Call Handlers (LiveKit Audio & Video) ────────────────────────────── */
+  const rejectCall = useCallback(() => {
+    const current = activeCallRef.current;
+    if (!current) return;
+    clearCallTimeout();
+    sendSignal(current.peerUser.id, "call_reject", { callId: current.callId });
+    setActiveCall(null);
+  }, [clearCallTimeout, sendSignal]);
+
+  const endCall = useCallback(
+    (reason?: string) => {
+      const current = activeCallRef.current;
+      if (!current) return;
+      clearCallTimeout();
+
+      if (current.status === "memanggil") {
+        if (current.mode === "outgoing") {
+          sendSignal(current.peerUser.id, "call_cancel", { callId: current.callId });
+          setActiveCall((prev) =>
+            prev && prev.callId === current.callId
+              ? { ...prev, status: "dibatalkan", statusMessage: "Panggilan dibatalkan" }
+              : prev
+          );
+        } else {
+          sendSignal(current.peerUser.id, "call_reject", { callId: current.callId });
+          setActiveCall(null);
+          return;
+        }
+      } else {
+        sendSignal(current.peerUser.id, "call_end", { callId: current.callId });
+        setActiveCall((prev) =>
+          prev && prev.callId === current.callId
+            ? { ...prev, status: "berakhir", statusMessage: reason || "Panggilan berakhir" }
+            : prev
+        );
+      }
+
+      setTimeout(() => {
+        setActiveCall((prev) => (prev?.callId === current.callId ? null : prev));
+      }, 1500);
+    },
+    [clearCallTimeout, sendSignal]
+  );
+
+  const acceptCall = useCallback(async () => {
+    const current = activeCallRef.current;
+    if (!current) return;
+    clearCallTimeout();
+
+    setActiveCall((prev) =>
+      prev && prev.callId === current.callId
+        ? { ...prev, status: "menghubungkan", statusMessage: "Menghubungkan..." }
+        : prev
+    );
+
+    try {
+      const data = await api<{
+        token: string;
+        livekitUrl: string;
+        roomName: string;
+        callType: "audio" | "video";
+      }>("/api/messages/calls", {
+        method: "POST",
+        body: JSON.stringify({
+          peerId: current.peerUser.id,
+          conversationId: current.conversationId,
+          callType: current.callType,
+        }),
+      });
+
+      setActiveCall((prev) =>
+        prev && prev.callId === current.callId
+          ? {
+              ...prev,
+              livekitUrl: data.livekitUrl,
+              livekitToken: data.token,
+              roomName: data.roomName,
+              status: "menghubungkan",
+              mode: "connected",
+            }
+          : prev
+      );
+
+      sendSignal(current.peerUser.id, "call_accept", { callId: current.callId });
+    } catch (err) {
+      setActiveCall((prev) =>
+        prev && prev.callId === current.callId
+          ? {
+              ...prev,
+              status: "gagal",
+              statusMessage: err instanceof Error ? err.message : "Gagal menyambungkan panggilan",
+            }
+          : prev
+      );
+      setTimeout(() => {
+        setActiveCall((prev) => (prev?.callId === current.callId ? null : prev));
+      }, 3000);
+    }
+  }, [clearCallTimeout, sendSignal]);
+
+  const startCall = useCallback(
+    async (type: "audio" | "video") => {
+      if (activeCallRef.current) {
+        showToast("Anda sedang dalam panggilan.");
+        return;
+      }
+      if (!active) {
+        showToast("Pilih percakapan terlebih dahulu.");
+        return;
+      }
+      if (!isActivePeerFriend) {
+        showToast("Hanya teman yang dapat ditelepon.");
+        return;
+      }
+
+      const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      clearCallTimeout();
+
+      setActiveCall({
+        callId,
+        callType: type,
+        mode: "outgoing",
+        peerUser: active.peer,
+        conversationId: active.id,
+        roomName: "",
+        status: "memanggil",
+        statusMessage: "Memanggil...",
+      });
+
+      try {
+        const data = await api<{
+          token: string;
+          livekitUrl: string;
+          roomName: string;
+          callType: "audio" | "video";
+        }>("/api/messages/calls", {
+          method: "POST",
+          body: JSON.stringify({
+            peerId: active.peer.id,
+            conversationId: active.id,
+            callType: type,
+          }),
+        });
+
+        setActiveCall((prev) =>
+          prev && prev.callId === callId
+            ? {
+                ...prev,
+                roomName: data.roomName,
+                livekitUrl: data.livekitUrl,
+                livekitToken: data.token,
+              }
+            : prev
+        );
+
+        const callerName =
+          clerkUser?.fullName ||
+          clerkUser?.firstName ||
+          clerkUser?.username ||
+          "Teman";
+
+        sendSignal(active.peer.id, "call_invite", {
+          callId,
+          callType: type,
+          callerUser: {
+            id: userId,
+            name: callerName,
+            username: clerkUser?.username || null,
+            avatarUrl: clerkUser?.imageUrl || null,
+          },
+          conversationId: active.id,
+          roomName: data.roomName,
+        });
+
+        callTimeoutRef.current = setTimeout(() => {
+          if (
+            activeCallRef.current?.callId === callId &&
+            activeCallRef.current?.status === "memanggil"
+          ) {
+            sendSignal(active.peer.id, "call_cancel", { callId });
+            setActiveCall((prev) =>
+              prev && prev.callId === callId
+                ? { ...prev, status: "tidak_terjawab", statusMessage: "Tidak ada jawaban" }
+                : prev
+            );
+            setTimeout(() => {
+              setActiveCall((prev) => (prev?.callId === callId ? null : prev));
+            }, 3000);
+          }
+        }, 35000);
+      } catch (err) {
+        setActiveCall((prev) =>
+          prev && prev.callId === callId
+            ? {
+                ...prev,
+                status: "gagal",
+                statusMessage: err instanceof Error ? err.message : "Panggilan gagal dimulai",
+              }
+            : prev
+        );
+        setTimeout(() => {
+          setActiveCall((prev) => (prev?.callId === callId ? null : prev));
+        }, 3000);
+      }
+    },
+    [active, isActivePeerFriend, clearCallTimeout, sendSignal, clerkUser, userId, showToast]
+  );
+
   /* ─── Style tokens (selaras tema One Mind, transparan ke background web) ─── */
   const panel = isDark
     ? "bg-transparent border border-white/10"
@@ -1623,6 +1984,33 @@ export default function MessagesWorkspace({
         </button>
         <Avatar user={active.peer} isDark={isDark} size={38} />
         {userLine(active.peer)}
+        {/* Panggilan Audio & Video */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => void startCall("audio")}
+            disabled={!isActivePeerFriend}
+            title={isActivePeerFriend ? "Panggilan Suara (Audio Call)" : "Hanya teman yang dapat ditelepon"}
+            aria-label="Panggilan Suara"
+            className={`p-2 rounded-lg cursor-pointer transition ${
+              isActivePeerFriend ? hoverRow : "opacity-35 cursor-not-allowed text-zinc-500"
+            }`}
+          >
+            <Phone size={17} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void startCall("video")}
+            disabled={!isActivePeerFriend}
+            title={isActivePeerFriend ? "Panggilan Video (Video Call)" : "Hanya teman yang dapat ditelepon"}
+            aria-label="Panggilan Video"
+            className={`p-2 rounded-lg cursor-pointer transition ${
+              isActivePeerFriend ? hoverRow : "opacity-35 cursor-not-allowed text-zinc-500"
+            }`}
+          >
+            <Video size={18} />
+          </button>
+        </div>
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
@@ -2050,6 +2438,29 @@ export default function MessagesWorkspace({
             {toast.text}
           </div>
         </div>
+      )}
+
+      {activeCall && (
+        <LiveKitCallModal
+          isDark={isDark}
+          isOpen={true}
+          callType={activeCall.callType}
+          mode={activeCall.mode}
+          peerUser={activeCall.peerUser}
+          callStatus={activeCall.status}
+          statusMessage={activeCall.statusMessage}
+          livekitUrl={activeCall.livekitUrl}
+          livekitToken={activeCall.livekitToken}
+          roomName={activeCall.roomName}
+          onAcceptCall={acceptCall}
+          onRejectCall={rejectCall}
+          onEndCall={endCall}
+          onConnected={() => {
+            setActiveCall((prev) =>
+              prev ? { ...prev, status: "tersambung", statusMessage: null } : null
+            );
+          }}
+        />
       )}
     </div>
   );
