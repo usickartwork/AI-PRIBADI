@@ -81,6 +81,9 @@ class TonePlayer {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
       this.ctx = new AudioCtx();
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
       const playTone = () => {
         if (!this.ctx || this.ctx.state === "closed") return;
         const now = this.ctx.currentTime;
@@ -110,6 +113,9 @@ class TonePlayer {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
       this.ctx = new AudioCtx();
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
       const playChime = () => {
         if (!this.ctx || this.ctx.state === "closed") return;
         const now = this.ctx.currentTime;
@@ -140,7 +146,9 @@ class TonePlayer {
     }
     if (this.ctx) {
       try {
-        this.ctx.close();
+        if (this.ctx.state !== "closed") {
+          this.ctx.close().catch(() => {});
+        }
       } catch {}
       this.ctx = null;
     }
@@ -170,17 +178,51 @@ export default function LiveKitCallModal({
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [remoteHasVideo, setRemoteHasVideo] = useState(false);
+  const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const attachedAudiosRef = useRef<HTMLMediaElement[]>([]);
+  const isSpeakerOnRef = useRef(isSpeakerOn);
+  isSpeakerOnRef.current = isSpeakerOn;
   const tonePlayerRef = useRef<TonePlayer | null>(null);
 
   // Inisialisasi tone player ref
   if (!tonePlayerRef.current) {
     tonePlayerRef.current = new TonePlayer();
   }
+
+  // Buka blokir audio secara otomatis saat pengguna berinteraksi / mengetuk layar
+  const handleUnlockAudio = useCallback(() => {
+    if (roomRef.current) {
+      roomRef.current
+        .startAudio()
+        .then(() => {
+          setAudioPlaybackBlocked(false);
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = () => {
+      if (roomRef.current && !roomRef.current.canPlaybackAudio) {
+        roomRef.current
+          .startAudio()
+          .then(() => {
+            setAudioPlaybackBlocked(false);
+          })
+          .catch(() => {});
+      }
+    };
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [isOpen]);
 
   // Cek apakah perangkat memiliki lebih dari 1 kamera (depan & belakang)
   useEffect(() => {
@@ -242,12 +284,67 @@ export default function LiveKitCallModal({
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      audioCaptureDefaults: {
+        autoGainControl: true,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
     });
     roomRef.current = room;
+
+    const attachAudioTrack = (track: RemoteTrack) => {
+      if (track.attachedElements.length > 0) {
+        track.attachedElements.forEach((el) => {
+          el.muted = !isSpeakerOnRef.current;
+          el.play().catch(() => {});
+        });
+        return;
+      }
+      const el = track.attach();
+      el.style.position = "fixed";
+      el.style.top = "-9999px";
+      el.style.left = "-9999px";
+      el.style.width = "1px";
+      el.style.height = "1px";
+      el.style.opacity = "0.01";
+      el.style.pointerEvents = "none";
+      el.setAttribute("autoplay", "true");
+      el.setAttribute("playsinline", "true");
+      el.muted = !isSpeakerOnRef.current;
+      if (!el.parentElement) {
+        document.body.appendChild(el);
+      }
+      if (!attachedAudiosRef.current.includes(el)) {
+        attachedAudiosRef.current.push(el);
+      }
+      el.play().catch((err) => {
+        console.warn("[livekit] audio play blocked by autoplay policy:", err);
+        if (isMounted) {
+          setAudioPlaybackBlocked(true);
+        }
+      });
+    };
+
+    const detachAudioTrack = (track: RemoteTrack) => {
+      const elements = track.detach();
+      elements.forEach((el) => {
+        try {
+          el.pause();
+          el.remove();
+        } catch {}
+        attachedAudiosRef.current = attachedAudiosRef.current.filter((e) => e !== el);
+      });
+    };
 
     async function connectLiveKit() {
       try {
         setDeviceError(null);
+
+        // Pantau status pemutaran audio browser (Autoplay Policy)
+        room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          if (!isMounted) return;
+          setAudioPlaybackBlocked(!room.canPlaybackAudio);
+        });
 
         // Pasang event listener track remote
         room.on(
@@ -255,9 +352,7 @@ export default function LiveKitCallModal({
           (track: RemoteTrack, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
             if (!isMounted) return;
             if (track.kind === Track.Kind.Audio) {
-              if (remoteAudioRef.current) {
-                track.attach(remoteAudioRef.current);
-              }
+              attachAudioTrack(track);
             } else if (track.kind === Track.Kind.Video) {
               setRemoteHasVideo(true);
               if (remoteVideoRef.current) {
@@ -271,15 +366,24 @@ export default function LiveKitCallModal({
           RoomEvent.TrackUnsubscribed,
           (track: RemoteTrack) => {
             if (!isMounted) return;
-            if (track.kind === Track.Kind.Video) {
+            if (track.kind === Track.Kind.Audio) {
+              detachAudioTrack(track);
+            } else if (track.kind === Track.Kind.Video) {
               setRemoteHasVideo(false);
+              track.detach();
             }
-            track.detach();
           }
         );
 
         room.on(RoomEvent.Disconnected, () => {
           if (!isMounted) return;
+          attachedAudiosRef.current.forEach((el) => {
+            try {
+              el.pause();
+              el.remove();
+            } catch {}
+          });
+          attachedAudiosRef.current = [];
           onEndCall?.("Koneksi terputus dari room.");
         });
 
@@ -289,13 +393,45 @@ export default function LiveKitCallModal({
           onConnected?.();
         }
 
+        // Buka blokir audio segera setelah koneksi tersambung
+        if (!room.canPlaybackAudio) {
+          room.startAudio().then(() => {
+            if (isMounted) setAudioPlaybackBlocked(false);
+          }).catch(() => {
+            if (isMounted) setAudioPlaybackBlocked(true);
+          });
+        } else {
+          if (isMounted) setAudioPlaybackBlocked(false);
+        }
+
+        // Cek dan pasang track audio/video dari partisipan yang sudah terhubung di room
+        room.remoteParticipants.forEach((participant) => {
+          participant.trackPublications.forEach((pub) => {
+            if (pub.isSubscribed && pub.track) {
+              if (pub.track.kind === Track.Kind.Audio) {
+                attachAudioTrack(pub.track as RemoteTrack);
+              } else if (pub.track.kind === Track.Kind.Video) {
+                setRemoteHasVideo(true);
+                if (remoteVideoRef.current) {
+                  pub.track.attach(remoteVideoRef.current);
+                }
+              }
+            }
+          });
+        });
+
         // Aktifkan mikrofon
         try {
-          await room.localParticipant.setMicrophoneEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true, {
+            autoGainControl: true,
+            echoCancellation: true,
+            noiseSuppression: true,
+          });
           setIsMicMuted(false);
         } catch (micErr: any) {
           console.warn("[livekit] mic error:", micErr);
-          setDeviceError("Izin mikrofon tidak diizinkan oleh peramban.");
+          const isDenied = micErr?.name === "NotAllowedError" || micErr?.name === "PermissionDeniedError";
+          setDeviceError(isDenied ? "Izin mikrofon belum diberikan pada browser ini." : "Mikrofon tidak dapat diakses.");
         }
 
         // Aktifkan kamera jika ini adalah Video Call
@@ -326,7 +462,13 @@ export default function LiveKitCallModal({
 
     return () => {
       isMounted = false;
-      // Hentikan semua local track secara aman
+      attachedAudiosRef.current.forEach((el) => {
+        try {
+          el.pause();
+          el.remove();
+        } catch {}
+      });
+      attachedAudiosRef.current = [];
       try {
         room.localParticipant?.trackPublications.forEach((pub) => {
           if (pub.track) {
@@ -338,7 +480,7 @@ export default function LiveKitCallModal({
       } catch {}
       roomRef.current = null;
     };
-  }, [isOpen, livekitUrl, livekitToken, callStatus, callType, onEndCall]);
+  }, [isOpen, livekitUrl, livekitToken, callStatus, callType, onEndCall, onConnected]);
 
   // Toggle Mute Mikrofon
   const handleToggleMic = useCallback(async () => {
@@ -398,9 +540,9 @@ export default function LiveKitCallModal({
   const handleToggleSpeaker = useCallback(() => {
     setIsSpeakerOn((prev) => {
       const next = !prev;
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.muted = !next;
-      }
+      attachedAudiosRef.current.forEach((el) => {
+        el.muted = !next;
+      });
       return next;
     });
   }, []);
@@ -427,10 +569,24 @@ export default function LiveKitCallModal({
       role="dialog"
       aria-modal="true"
       aria-label="Panggilan Langsung"
+      onClick={handleUnlockAudio}
       className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
     >
-      {/* Audio Remote Element (Tersembunyi, selalu memainkan audio dua arah) */}
-      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+      {/* Audio Remote Fallback Element (Off-screen, tidak display: none agar tidak tertahan browser) */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{
+          position: "fixed",
+          top: "-9999px",
+          left: "-9999px",
+          width: "1px",
+          height: "1px",
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
 
       {/* Main Call Container */}
       <div
@@ -509,6 +665,20 @@ export default function LiveKitCallModal({
             {callStatus === "tersambung" ? formatDuration(duration) : displayStatus}
           </div>
         </header>
+
+        {/* Banner Pemutaran Audio Tertahan Autoplay Browser */}
+        {audioPlaybackBlocked && (
+          <div className="relative z-30 px-4 pt-1 pb-2 flex justify-center animate-in fade-in-0 duration-200">
+            <button
+              type="button"
+              onClick={handleUnlockAudio}
+              className="px-4 py-2 rounded-2xl bg-white text-black font-semibold text-xs flex items-center gap-2 shadow-2xl cursor-pointer hover:bg-zinc-200 transition-all border border-black/10 active:scale-95"
+            >
+              <Volume2 size={15} className="text-black shrink-0 animate-pulse" />
+              <span>Suara tertahan oleh browser. Klik di sini untuk mengaktifkan suara</span>
+            </button>
+          </div>
+        )}
 
         {/* ─── CENTER BODY (Khusus Audio Call atau Saat Masih Berdering) ─── */}
         {(callType === "audio" || !isCallActive) && (
