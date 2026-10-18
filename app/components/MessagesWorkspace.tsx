@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import LiveKitCallModal, { type CallStatus } from "./LiveKitCallModal";
+import { createLocalAudioTrack, type LocalAudioTrack } from "livekit-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -357,15 +358,19 @@ const memoryFriendsCache: Record<string, FriendsData> = {};
 const memoryMessagesCache: Record<string, ChatMessage[]> = {};
 
 /* ─── Web Audio Warm Up ──────────────────────────────────────────────────── */
+let sharedAudioContext: AudioContext | null = null;
+
 function warmUpAudio() {
   try {
     const AudioCtx =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioCtx) {
-      const ctx = new AudioCtx();
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
+      if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+        sharedAudioContext = new AudioCtx();
+      }
+      if (sharedAudioContext.state === "suspended") {
+        sharedAudioContext.resume().catch(() => {});
       }
     }
   } catch {}
@@ -455,6 +460,7 @@ export default function MessagesWorkspace({
     statusMessage?: string | null;
     livekitUrl?: string | null;
     livekitToken?: string | null;
+    preAcquiredAudioTrack?: LocalAudioTrack | null;
   }
 
   const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
@@ -1416,6 +1422,11 @@ export default function MessagesWorkspace({
   const rejectCall = useCallback(() => {
     const current = activeCallRef.current;
     if (!current) return;
+    if (current.preAcquiredAudioTrack) {
+      try {
+        current.preAcquiredAudioTrack.stop();
+      } catch {}
+    }
     clearCallTimeout();
     sendSignal(current.peerUser.id, "call_reject", { callId: current.callId });
     setActiveCall(null);
@@ -1425,6 +1436,11 @@ export default function MessagesWorkspace({
     (reason?: string) => {
       const current = activeCallRef.current;
       if (!current) return;
+      if (current.preAcquiredAudioTrack) {
+        try {
+          current.preAcquiredAudioTrack.stop();
+        } catch {}
+      }
       clearCallTimeout();
 
       if (current.status === "memanggil") {
@@ -1456,63 +1472,77 @@ export default function MessagesWorkspace({
     [clearCallTimeout, sendSignal]
   );
 
-  const acceptCall = useCallback(async () => {
-    warmUpAudio();
-    const current = activeCallRef.current;
-    if (!current) return;
-    clearCallTimeout();
-
-    setActiveCall((prev) =>
-      prev && prev.callId === current.callId
-        ? { ...prev, status: "menghubungkan", statusMessage: "Menghubungkan..." }
-        : prev
-    );
-
-    try {
-      const data = await api<{
-        token: string;
-        livekitUrl: string;
-        roomName: string;
-        callType: "audio" | "video";
-      }>("/api/messages/calls", {
-        method: "POST",
-        body: JSON.stringify({
-          peerId: current.peerUser.id,
-          conversationId: current.conversationId,
-          callType: current.callType,
-          roomName: current.roomName,
-        }),
-      });
+  const acceptCall = useCallback(
+    async (preAcquiredTrack?: LocalAudioTrack | null) => {
+      warmUpAudio();
+      const current = activeCallRef.current;
+      if (!current) {
+        if (preAcquiredTrack) preAcquiredTrack.stop();
+        return;
+      }
+      clearCallTimeout();
 
       setActiveCall((prev) =>
         prev && prev.callId === current.callId
           ? {
               ...prev,
-              livekitUrl: data.livekitUrl,
-              livekitToken: data.token,
-              roomName: data.roomName,
               status: "menghubungkan",
-              mode: "connected",
+              statusMessage: "Menghubungkan...",
+              preAcquiredAudioTrack: preAcquiredTrack || prev.preAcquiredAudioTrack,
             }
           : prev
       );
 
-      sendSignal(current.peerUser.id, "call_accept", { callId: current.callId });
-    } catch (err) {
-      setActiveCall((prev) =>
-        prev && prev.callId === current.callId
-          ? {
-              ...prev,
-              status: "gagal",
-              statusMessage: err instanceof Error ? err.message : "Gagal menyambungkan panggilan",
-            }
-          : prev
-      );
-      setTimeout(() => {
-        setActiveCall((prev) => (prev?.callId === current.callId ? null : prev));
-      }, 3000);
-    }
-  }, [clearCallTimeout, sendSignal]);
+      try {
+        const data = await api<{
+          token: string;
+          livekitUrl: string;
+          roomName: string;
+          callType: "audio" | "video";
+        }>("/api/messages/calls", {
+          method: "POST",
+          body: JSON.stringify({
+            peerId: current.peerUser.id,
+            conversationId: current.conversationId,
+            callType: current.callType,
+            roomName: current.roomName,
+          }),
+        });
+
+        setActiveCall((prev) =>
+          prev && prev.callId === current.callId
+            ? {
+                ...prev,
+                livekitUrl: data.livekitUrl,
+                livekitToken: data.token,
+                roomName: data.roomName,
+                status: "menghubungkan",
+                mode: "connected",
+              }
+            : prev
+        );
+
+        sendSignal(current.peerUser.id, "call_accept", { callId: current.callId });
+      } catch (err) {
+        if (preAcquiredTrack) {
+          preAcquiredTrack.stop();
+        }
+        setActiveCall((prev) =>
+          prev && prev.callId === current.callId
+            ? {
+                ...prev,
+                status: "gagal",
+                statusMessage: err instanceof Error ? err.message : "Gagal menyambungkan panggilan",
+              }
+            : prev
+        );
+        setTimeout(() => {
+          setActiveCall((prev) => (prev?.callId === current.callId ? null : prev));
+        }, 3000);
+      }
+    },
+    [clearCallTimeout, sendSignal]
+  );
 
   const handleCallConnected = useCallback(() => {
     setActiveCall((prev) =>
@@ -1521,17 +1551,20 @@ export default function MessagesWorkspace({
   }, []);
 
   const startCall = useCallback(
-    async (type: "audio" | "video") => {
+    async (type: "audio" | "video", preAcquiredTrack?: LocalAudioTrack | null) => {
       warmUpAudio();
       if (activeCallRef.current) {
+        if (preAcquiredTrack) preAcquiredTrack.stop();
         showToast("Anda sedang dalam panggilan.");
         return;
       }
       if (!active) {
+        if (preAcquiredTrack) preAcquiredTrack.stop();
         showToast("Pilih percakapan terlebih dahulu.");
         return;
       }
       if (!isActivePeerFriend) {
+        if (preAcquiredTrack) preAcquiredTrack.stop();
         showToast("Hanya teman yang dapat ditelepon.");
         return;
       }
@@ -1550,6 +1583,7 @@ export default function MessagesWorkspace({
         roomName: callerRoomName,
         status: "memanggil",
         statusMessage: "Memanggil...",
+        preAcquiredAudioTrack: preAcquiredTrack || null,
       });
 
       try {
@@ -1615,6 +1649,9 @@ export default function MessagesWorkspace({
           }
         }, 35000);
       } catch (err) {
+        if (preAcquiredTrack) {
+          preAcquiredTrack.stop();
+        }
         setActiveCall((prev) =>
           prev && prev.callId === callId
             ? {
@@ -2015,9 +2052,15 @@ export default function MessagesWorkspace({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               warmUpAudio();
-              void startCall("audio");
+              let track: LocalAudioTrack | null = null;
+              try {
+                track = await createLocalAudioTrack({ echoCancellation: true });
+              } catch (e) {
+                console.warn("Could not pre-acquire audio track:", e);
+              }
+              void startCall("audio", track);
             }}
             disabled={!isActivePeerFriend}
             title={isActivePeerFriend ? "Panggilan Suara (Audio Call)" : "Hanya teman yang dapat ditelepon"}
@@ -2030,9 +2073,15 @@ export default function MessagesWorkspace({
           </button>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               warmUpAudio();
-              void startCall("video");
+              let track: LocalAudioTrack | null = null;
+              try {
+                track = await createLocalAudioTrack({ echoCancellation: true });
+              } catch (e) {
+                console.warn("Could not pre-acquire audio track:", e);
+              }
+              void startCall("video", track);
             }}
             disabled={!isActivePeerFriend}
             title={isActivePeerFriend ? "Panggilan Video (Video Call)" : "Hanya teman yang dapat ditelepon"}
@@ -2485,6 +2534,7 @@ export default function MessagesWorkspace({
           livekitUrl={activeCall.livekitUrl}
           livekitToken={activeCall.livekitToken}
           roomName={activeCall.roomName}
+          preAcquiredAudioTrack={activeCall.preAcquiredAudioTrack}
           onAcceptCall={acceptCall}
           onRejectCall={rejectCall}
           onEndCall={endCall}

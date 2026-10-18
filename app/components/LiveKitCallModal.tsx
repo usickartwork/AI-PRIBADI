@@ -5,6 +5,8 @@ import {
   Room,
   RoomEvent,
   Track,
+  createLocalAudioTrack,
+  type LocalAudioTrack,
   type RemoteTrack,
   type RemoteAudioTrack,
   type RemoteTrackPublication,
@@ -52,7 +54,8 @@ interface LiveKitCallModalProps {
   livekitUrl?: string | null;
   livekitToken?: string | null;
   roomName?: string | null;
-  onAcceptCall?: () => void;
+  preAcquiredAudioTrack?: LocalAudioTrack | null;
+  onAcceptCall?: (preAcquiredTrack?: LocalAudioTrack | null) => void;
   onRejectCall?: () => void;
   onEndCall?: (reason?: string) => void;
   onConnected?: () => void;
@@ -79,9 +82,13 @@ class TonePlayer {
   startOutgoingRing() {
     this.stop();
     try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
-      this.ctx = new AudioCtx();
+      if (!this.ctx || this.ctx.state === "closed") {
+        this.ctx = new AudioCtx();
+      }
       if (this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});
       }
@@ -111,9 +118,13 @@ class TonePlayer {
   startIncomingRing() {
     this.stop();
     try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
-      this.ctx = new AudioCtx();
+      if (!this.ctx || this.ctx.state === "closed") {
+        this.ctx = new AudioCtx();
+      }
       if (this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});
       }
@@ -183,6 +194,7 @@ export default function LiveKitCallModal({
   statusMessage,
   livekitUrl,
   livekitToken,
+  preAcquiredAudioTrack,
   onAcceptCall,
   onRejectCall,
   onEndCall,
@@ -206,6 +218,10 @@ export default function LiveKitCallModal({
   isSpeakerOnRef.current = isSpeakerOn;
   const tonePlayerRef = useRef<TonePlayer | null>(null);
   const isUnlockingRef = useRef(false);
+  const preAcquiredAudioTrackRef = useRef<LocalAudioTrack | null>(preAcquiredAudioTrack || null);
+  if (preAcquiredAudioTrack && !preAcquiredAudioTrackRef.current) {
+    preAcquiredAudioTrackRef.current = preAcquiredAudioTrack;
+  }
 
   const onConnectedRef = useRef(onConnected);
   onConnectedRef.current = onConnected;
@@ -323,26 +339,21 @@ export default function LiveKitCallModal({
     }
 
     let isMounted = true;
-    const audioCtx = getOrCreateAudioContext();
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
-      webAudioMix: audioCtx ? { audioContext: audioCtx } : true,
       audioCaptureDefaults: {
-        autoGainControl: true,
         echoCancellation: true,
-        noiseSuppression: true,
       },
     });
     roomRef.current = room;
 
     const attachAudioTrack = (track: RemoteTrack) => {
-      if (track.attachedElements.length > 0) {
-        track.attachedElements.forEach((el) => {
-          el.muted = !isSpeakerOnRef.current;
-        });
-        return;
-      }
+      track.attachedElements.forEach((el) => {
+        el.muted = !isSpeakerOnRef.current;
+        el.volume = isSpeakerOnRef.current ? 1.0 : 0;
+        el.play().catch(() => {});
+      });
 
       const el = track.attach();
       el.style.position = "fixed";
@@ -355,6 +366,7 @@ export default function LiveKitCallModal({
       el.setAttribute("autoplay", "true");
       el.setAttribute("playsinline", "true");
       el.muted = !isSpeakerOnRef.current;
+      el.volume = isSpeakerOnRef.current ? 1.0 : 0;
       if (!el.parentElement) {
         document.body.appendChild(el);
       }
@@ -362,10 +374,18 @@ export default function LiveKitCallModal({
         attachedAudiosRef.current.push(el);
       }
 
-      // Pastikan audio context Web Audio aktif
-      if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume().catch(() => {});
-      }
+      el.play()
+        .then(() => {
+          if (isMounted) {
+            setAudioPlaybackBlocked(false);
+          }
+        })
+        .catch((playErr) => {
+          console.warn("[livekit] audio play blocked by autoplay:", playErr);
+          if (isMounted) {
+            setAudioPlaybackBlocked(!room.canPlaybackAudio);
+          }
+        });
     };
 
     const detachAudioTrack = (track: RemoteTrack) => {
@@ -373,10 +393,11 @@ export default function LiveKitCallModal({
       elements.forEach((el) => {
         try {
           el.pause();
+          el.srcObject = null;
           el.remove();
         } catch {}
       });
-      attachedAudiosRef.current = [];
+      attachedAudiosRef.current = attachedAudiosRef.current.filter((el) => !elements.includes(el));
     };
 
     async function connectLiveKit() {
@@ -403,6 +424,7 @@ export default function LiveKitCallModal({
             onConnectedRef.current?.();
             if (track.kind === Track.Kind.Audio) {
               attachAudioTrack(track);
+              room.startAudio().catch(() => {});
               if (isMounted) {
                 setAudioPlaybackBlocked(!room.canPlaybackAudio);
               }
@@ -433,6 +455,7 @@ export default function LiveKitCallModal({
           attachedAudiosRef.current.forEach((el) => {
             try {
               el.pause();
+              el.srcObject = null;
               el.remove();
             } catch {}
           });
@@ -469,19 +492,43 @@ export default function LiveKitCallModal({
             }
           });
         });
+        room.startAudio().catch(() => {});
 
         // Aktifkan mikrofon
-        try {
-          await room.localParticipant.setMicrophoneEnabled(true, {
-            autoGainControl: true,
-            echoCancellation: true,
-            noiseSuppression: true,
-          });
-          setIsMicMuted(false);
-        } catch (micErr: any) {
-          console.warn("[livekit] mic error:", micErr);
-          const isDenied = micErr?.name === "NotAllowedError" || micErr?.name === "PermissionDeniedError";
-          setDeviceError(isDenied ? "Izin mikrofon belum diberikan pada browser ini." : "Mikrofon tidak dapat diakses.");
+        async function enableMicFallback() {
+          try {
+            await room.localParticipant.setMicrophoneEnabled(true, {
+              echoCancellation: true,
+            });
+            setIsMicMuted(false);
+          } catch (micErr: any) {
+            console.warn("[livekit] primary mic options failed, trying plain setMicrophoneEnabled(true):", micErr);
+            try {
+              await room.localParticipant.setMicrophoneEnabled(true);
+              setIsMicMuted(false);
+            } catch (fallbackErr: any) {
+              console.error("[livekit] mic fallback failed:", fallbackErr);
+              const isDenied = fallbackErr?.name === "NotAllowedError" || fallbackErr?.name === "PermissionDeniedError";
+              setDeviceError(isDenied ? "Izin mikrofon belum diberikan pada browser ini." : "Mikrofon tidak dapat diakses.");
+            }
+          }
+        }
+
+        const trackToPublish = preAcquiredAudioTrack || preAcquiredAudioTrackRef.current;
+        if (
+          trackToPublish &&
+          trackToPublish.mediaStreamTrack &&
+          trackToPublish.mediaStreamTrack.readyState === "live"
+        ) {
+          try {
+            await room.localParticipant.publishTrack(trackToPublish);
+            setIsMicMuted(false);
+          } catch (pubErr) {
+            console.warn("[livekit] publish pre-acquired track failed, falling back to setMicrophoneEnabled:", pubErr);
+            await enableMicFallback();
+          }
+        } else {
+          await enableMicFallback();
         }
 
         // Aktifkan kamera jika ini adalah Video Call
@@ -515,10 +562,22 @@ export default function LiveKitCallModal({
       attachedAudiosRef.current.forEach((el) => {
         try {
           el.pause();
+          el.srcObject = null;
           el.remove();
         } catch {}
       });
       attachedAudiosRef.current = [];
+      if (preAcquiredAudioTrack) {
+        try {
+          preAcquiredAudioTrack.stop();
+        } catch {}
+      }
+      if (preAcquiredAudioTrackRef.current) {
+        try {
+          preAcquiredAudioTrackRef.current.stop();
+          preAcquiredAudioTrackRef.current = null;
+        } catch {}
+      }
       try {
         room.localParticipant?.trackPublications.forEach((pub) => {
           if (pub.track) {
@@ -628,6 +687,11 @@ export default function LiveKitCallModal({
       role="dialog"
       aria-modal="true"
       aria-label="Panggilan Langsung"
+      onClick={() => {
+        if (audioPlaybackBlocked) {
+          void handleUnlockAudio();
+        }
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
     >
       {/* Main Call Container */}
@@ -800,8 +864,15 @@ export default function LiveKitCallModal({
                   type="button"
                   onClick={async (e) => {
                     e.stopPropagation();
+                    let preTrack: LocalAudioTrack | null = null;
+                    try {
+                      preTrack = await createLocalAudioTrack({ echoCancellation: true });
+                      preAcquiredAudioTrackRef.current = preTrack;
+                    } catch (err) {
+                      console.warn("[livekit] pre-acquire audio track error:", err);
+                    }
                     await handleUnlockAudio();
-                    onAcceptCall?.();
+                    onAcceptCall?.(preTrack);
                   }}
                   title="Terima Panggilan"
                   className="w-16 h-16 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center shadow-xl transition-transform active:scale-95 cursor-pointer"
