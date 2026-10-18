@@ -2432,9 +2432,17 @@ export default function Home() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Shortcut desktop: Ctrl+Enter atau Cmd+Enter untuk kirim pesan cepat
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       sendMessage();
+      return;
+    }
+
+    // Sesuai brief: Enter di keyboard (terutama mobile) digunakan untuk turun ke bawah / baris baru,
+    // BUKAN untuk mengirim pesan. Pengiriman pesan dilakukan dengan mengklik tombol panah ke kanan.
+    if (e.key === "Enter") {
+      setTimeout(autoResize, 0);
     }
   };
 
@@ -3177,7 +3185,7 @@ export default function Home() {
                     ? "bg-white hover:bg-zinc-200 text-black shadow-xs"
                     : "bg-black hover:bg-zinc-800 text-white shadow-xs"
                 }`}
-                title="Kirim pesan (Enter)"
+                title="Kirim pesan"
               >
                 <svg className="w-5 h-5 sm:w-4 sm:h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
