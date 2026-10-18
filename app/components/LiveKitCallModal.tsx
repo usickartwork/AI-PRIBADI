@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
+
+const MeshDriftBackground = dynamic(
+  () => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground),
+  { ssr: false }
+);
 import {
   Room,
   RoomEvent,
@@ -962,7 +968,7 @@ export default function LiveKitCallModal({
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
-     2. FULL CALL VIEW (Bersih, Selaras Tema Tab Chat, Transparan ke Background App)
+     2. FULL CALL VIEW (Bersih, Selaras Tema Tab Chat, Background Mesh, Tanpa Garis Kotak Frame)
      ───────────────────────────────────────────────────────────────────────── */
   return createPortal(
     <div
@@ -974,163 +980,134 @@ export default function LiveKitCallModal({
           void handleUnlockAudio();
         }
       }}
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-6 backdrop-blur-2xl animate-in fade-in-0 duration-200 select-none overflow-hidden ${
+      className={`fixed inset-0 z-[9999] flex flex-col justify-between select-none overflow-hidden animate-in fade-in-0 duration-200 ${
         callType === "video"
-          ? "bg-black/60 dark:bg-black/75 text-white"
+          ? "bg-black text-white"
           : isDark
-            ? "bg-[#121215]/85 text-white"
-            : "bg-[#fafafc]/85 text-zinc-900"
+            ? "bg-[#121215] text-white"
+            : "bg-[#fafafc] text-zinc-900"
       }`}
     >
-      {/* Main Call Container (Clean glassmorphic card selaras dengan tab Chat) */}
-      <div
-        className={`relative w-full h-full sm:h-[88vh] sm:max-h-[820px] sm:max-w-md sm:rounded-3xl border shadow-2xl flex flex-col justify-between overflow-hidden select-none transition-all ${
-          callType === "video"
-            ? "bg-zinc-950/80 border-white/15 text-white shadow-2xl"
-            : isDark
-              ? "bg-zinc-900/40 border-white/10 text-white shadow-black/40 backdrop-blur-xl"
-              : "bg-white/70 border-black/10 text-zinc-900 shadow-zinc-900/10 backdrop-blur-xl"
-        }`}
-      >
-        {/* ─── VIDEO CANVAS (Khusus Video Call) ─── */}
-        {callType === "video" && (
-          <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
-            {/* Remote Video Stream Lawan Bicara */}
-            <video
-              ref={setRemoteVideoRef}
-              autoPlay
-              playsInline
-              className={`w-full h-full object-cover transition-opacity duration-300 ${
-                remoteHasVideo ? "opacity-100" : "opacity-0"
-              }`}
-            />
+      {/* ─── Background Mesh Drift Shader (100% Identik dengan background tab Chat) ─── */}
+      {callType === "audio" && (
+        <MeshDriftBackground isDark={isDark} />
+      )}
 
-            {/* Fallback jika lawan bicara belum menyalakan kamera / belum tersambung */}
-            {!remoteHasVideo && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950 text-center p-6 z-0">
-                <div className="relative mb-2">
-                  {(callStatus === "memanggil" || callStatus === "menghubungkan") && (
-                    <>
-                      <div className="absolute -inset-4 rounded-full border border-white/20 animate-ping opacity-30" />
-                      <div className="absolute -inset-8 rounded-full border border-white/10 animate-pulse" />
-                    </>
+      {/* ─── VIDEO CANVAS (Khusus Video Call) ─── */}
+      {callType === "video" && (
+        <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
+          {/* Remote Video Stream Lawan Bicara */}
+          <video
+            ref={setRemoteVideoRef}
+            autoPlay
+            playsInline
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
+              remoteHasVideo ? "opacity-100" : "opacity-0"
+            }`}
+          />
+
+          {/* Fallback jika lawan bicara belum menyalakan kamera / belum tersambung */}
+          {!remoteHasVideo && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950 text-center p-6 z-0">
+              <div className="relative mb-3">
+                {(callStatus === "memanggil" || callStatus === "menghubungkan") && (
+                  <>
+                    <div className="absolute -inset-4 rounded-full border border-white/20 animate-ping opacity-30" />
+                    <div className="absolute -inset-8 rounded-full border border-white/10 animate-pulse" />
+                  </>
+                )}
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 border-white/20 bg-zinc-900 flex items-center justify-center text-3xl font-bold shadow-2xl overflow-hidden">
+                  {peerUser.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={peerUser.avatarUrl}
+                      alt={peerUser.name}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
                   )}
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 border-white/20 bg-zinc-900 flex items-center justify-center text-3xl font-bold shadow-2xl overflow-hidden">
-                    {peerUser.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={peerUser.avatarUrl}
-                        alt={peerUser.name}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white">{peerUser.name}</h3>
-                  <p className="text-xs text-zinc-400 mt-1 font-medium">
-                    {callStatus === "memanggil"
-                      ? mode === "incoming"
-                        ? "Panggilan video masuk..."
-                        : "Memanggil..."
-                      : callStatus === "menghubungkan"
-                      ? "Menghubungkan..."
-                      : "Kamera lawan bicara dinonaktifkan"}
-                  </p>
                 </div>
               </div>
-            )}
-
-            {/* Floating Picture-in-Picture Preview Kamera Sendiri */}
-            <div className="absolute top-18 right-5 z-20 w-28 h-38 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-zinc-950/80 backdrop-blur-md">
-              <video
-                ref={setLocalVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${cameraFacing === "user" ? "-scale-x-100" : ""} ${
-                  isCameraOff ? "hidden" : "block"
-                }`}
-              />
-              {isCameraOff && (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 p-2 text-center">
-                  <VideoOff size={18} className="mb-1 text-zinc-400" />
-                  <span className="text-[10px] font-medium tracking-tight">Kamera Mati</span>
-                </div>
-              )}
+              <div className="flex flex-col items-center">
+                {/* Status tulisan di atas username tanpa blok */}
+                <p className="text-xs font-mono text-zinc-400 mb-1.5 font-medium">
+                  {callStatus === "memanggil"
+                    ? mode === "incoming"
+                      ? "Panggilan video masuk..."
+                      : "Memanggil..."
+                    : callStatus === "menghubungkan"
+                    ? "Menghubungkan..."
+                    : "Kamera lawan bicara dinonaktifkan"}
+                </p>
+                <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white">{peerUser.name}</h3>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
+          {/* Floating Picture-in-Picture Preview Kamera Sendiri */}
+          <div className="absolute top-20 right-5 z-20 w-28 h-38 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-zinc-950/80 backdrop-blur-md">
+            <video
+              ref={setLocalVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover ${cameraFacing === "user" ? "-scale-x-100" : ""} ${
+                isCameraOff ? "hidden" : "block"
+              }`}
+            />
+            {isCameraOff && (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 p-2 text-center">
+                <VideoOff size={18} className="mb-1 text-zinc-400" />
+                <span className="text-[10px] font-medium tracking-tight">Kamera Mati</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area (Borderless, No Card, No Stroke Outline) */}
+      <div className="relative z-10 flex flex-col justify-between h-full w-full max-w-lg mx-auto pointer-events-auto">
         {/* ─── TOP BAR (Header Bersih dengan Tombol Minimize) ─── */}
-        <header className="relative z-10 flex items-center justify-between px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] bg-transparent">
+        <header className="flex items-center justify-between px-6 py-5 pt-[max(1.25rem,env(safe-area-inset-top))] bg-transparent">
           {/* Tombol Minimize di kiri atas (Sesuai liquid glass circle tombol chat/menu) */}
           <button
             type="button"
             onClick={() => setIsMinimized(true)}
-            title="Minimize ke latar belakang (Buka tab lain)"
-            className={`flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+            title="Minimize panggilan (Buka tab lain)"
+            className={`flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
               callType === "video" || isDark
                 ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                 : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
             }`}
           >
-            <ChevronDown size={20} />
+            <ChevronDown size={22} />
           </button>
 
-          {/* Header Tengah */}
-          <div className="flex flex-col items-center text-center">
-            {callType === "video" ? (
-              <>
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white drop-shadow-md">
-                  {peerUser.name}
-                </h2>
-                <span className="text-xs font-mono text-white/80 drop-shadow-sm">
-                  {callStatus === "tersambung" ? formatDuration(duration) : displayStatus}
-                </span>
-              </>
-            ) : (
-              <>
-                <span
-                  className={`text-[11px] font-mono uppercase tracking-widest font-semibold ${
-                    isDark ? "text-zinc-400" : "text-zinc-500"
-                  }`}
-                >
-                  Voice Call
-                </span>
-                <span className="text-xs font-mono font-medium opacity-70">
-                  {callStatus === "tersambung" ? formatDuration(duration) : displayStatus}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Sisi Kanan: Switch Camera jika video call, atau spacer simetris */}
-          <div className="w-10 h-10 flex items-center justify-center">
+          {/* Sisi Kanan: Switch Camera jika video call */}
+          <div className="w-11 h-11 flex items-center justify-center">
             {callType === "video" && hasMultipleCameras && !isCameraOff ? (
               <button
                 type="button"
                 onClick={handleSwitchCamera}
                 title="Ganti Kamera Depan / Belakang"
-                className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-sm"
+                className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-sm"
               >
-                <SwitchCamera size={18} />
+                <SwitchCamera size={19} />
               </button>
             ) : (
-              <div className="w-10 h-10 pointer-events-none" />
+              <div className="w-11 h-11 pointer-events-none" />
             )}
           </div>
         </header>
 
         {/* Banner Pemutaran Audio Tertahan Autoplay Browser */}
         {audioPlaybackBlocked && (
-          <div className="relative z-30 px-4 pt-1 pb-2 flex justify-center animate-in fade-in-0 duration-200">
+          <div className="px-4 pt-1 pb-2 flex justify-center animate-in fade-in-0 duration-200">
             <button
               type="button"
               onClick={handleUnlockAudio}
-              className={`px-4 py-2 rounded-full border backdrop-blur-xl font-medium text-xs flex items-center gap-2 shadow-2xl cursor-pointer transition-all active:scale-95 ${
+              className={`px-4 py-2 rounded-full border backdrop-blur-xl font-medium text-xs flex items-center gap-2 shadow-lg cursor-pointer transition-all active:scale-95 ${
                 isDark
                   ? "bg-white/10 hover:bg-white/20 border-white/20 text-white"
                   : "bg-black/5 hover:bg-black/10 border-black/15 text-zinc-900"
@@ -1144,13 +1121,13 @@ export default function LiveKitCallModal({
 
         {/* ─── CENTER BODY (Khusus Voice Call - Bersih & Selaras Tema) ─── */}
         {callType === "audio" && (
-          <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-4">
             {/* Avatar Lingkaran Besar dengan Ring Border Halus */}
-            <div className="relative mb-3">
+            <div className="relative mb-6">
               {(callStatus === "memanggil" || callStatus === "menghubungkan") && (
                 <>
                   <div
-                    className={`absolute -inset-4 rounded-full border animate-ping opacity-30 ${
+                    className={`absolute -inset-4 rounded-full border animate-ping opacity-25 ${
                       isDark ? "border-white/20" : "border-black/15"
                     }`}
                   />
@@ -1177,92 +1154,81 @@ export default function LiveKitCallModal({
               </div>
             </div>
 
+            {/* Status di ATAS username, CUMA tulisan saja tanpa ada blok di belakangnya */}
+            <p
+              className={`text-sm sm:text-base font-mono tracking-wide font-medium mb-1.5 ${
+                callStatus === "tersambung"
+                  ? isDark
+                    ? "text-zinc-300"
+                    : "text-zinc-600"
+                  : isDark
+                    ? "text-zinc-400"
+                    : "text-zinc-500"
+              }`}
+            >
+              {callStatus === "tersambung" ? formatDuration(duration) : displayStatus}
+            </p>
+
             {/* Nama Kontak */}
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 drop-shadow-sm">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight drop-shadow-sm">
               {peerUser.name}
             </h2>
             {peerUser.username && (
-              <p className={`text-xs mb-4 font-medium ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              <p className={`text-xs mt-1 font-medium ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
                 @{peerUser.username}
               </p>
             )}
 
-            {/* Live Duration Pill Badge */}
-            <div
-              className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-mono tracking-wider shadow-sm ${
-                isDark
-                  ? "bg-white/10 border border-white/15 text-white"
-                  : "bg-black/5 border border-black/10 text-zinc-800"
-              }`}
-            >
-              {callStatus === "tersambung" && (
-                <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-              )}
-              <span className="tabular-nums">
-                {callStatus === "tersambung" ? formatDuration(duration) : displayStatus}
-              </span>
-            </div>
-
-            {/* Alert saat Mikrofon Dibisukan */}
+            {/* Alert saat Mikrofon Dibisukan (Teks Bersih) */}
             {isMicMuted && (
-              <div
-                className={`mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs shadow-sm animate-in fade-in-0 ${
-                  isDark
-                    ? "bg-white/5 border border-white/10 text-zinc-300"
-                    : "bg-black/5 border border-black/10 text-zinc-700"
+              <p
+                className={`mt-4 inline-flex items-center gap-1.5 text-xs font-medium ${
+                  isDark ? "text-zinc-400" : "text-zinc-500"
                 }`}
               >
                 <MicOff size={13} className="shrink-0" />
                 <span>Mikrofon Anda sedang dinonaktifkan</span>
-              </div>
+              </p>
             )}
 
             {/* Device Error Notification */}
             {deviceError && (
-              <div
-                className={`mt-4 flex items-center gap-2 max-w-xs px-3.5 py-2 rounded-2xl border text-xs backdrop-blur-md ${
-                  isDark
-                    ? "border-white/15 bg-black/60 text-zinc-300"
-                    : "border-black/10 bg-white/80 text-zinc-800"
+              <p
+                className={`mt-4 inline-flex items-center gap-1.5 text-xs font-medium ${
+                  isDark ? "text-zinc-400" : "text-zinc-500"
                 }`}
               >
                 <AlertCircle size={14} className="shrink-0" />
                 <span>{deviceError}</span>
-              </div>
+              </p>
             )}
           </div>
         )}
 
-        {/* ─── BOTTOM CONTROLS (Floating Frosted Glass Dock) ─── */}
-        <footer className="relative z-10 p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col items-center">
-          {/* Mode 1: Panggilan Masuk */}
+        {/* ─── BOTTOM CONTROLS (Tombol sejajar tanpa background persegi panjang) ─── */}
+        <footer className="p-6 pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+1.5rem))] flex items-center justify-center">
           {mode === "incoming" && callStatus === "memanggil" ? (
-            <div
-              className={`w-full max-w-sm mx-auto p-5 rounded-3xl backdrop-blur-2xl border shadow-xl flex items-center justify-around gap-6 ${
-                callType === "video" || isDark
-                  ? "bg-zinc-900/80 border-white/15 text-white shadow-black/50"
-                  : "bg-white/80 border-black/10 text-zinc-900 shadow-zinc-900/10"
-              }`}
-            >
+            /* Mode 1: Panggilan Masuk - Tolak & Terima Sejajar */
+            <div className="flex items-center justify-center gap-10 sm:gap-14">
               {/* Tombol Tolak */}
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center gap-2">
                 <button
                   type="button"
                   onClick={onRejectCall}
                   title="Tolak Panggilan"
-                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer backdrop-blur-md ${
+                  className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-lg ${
                     callType === "video" || isDark
                       ? "bg-white/10 hover:bg-white/20 border border-white/20 text-white"
                       : "bg-black/5 hover:bg-black/10 border border-black/10 text-zinc-800"
                   }`}
                 >
-                  <PhoneOff size={22} />
+                  <PhoneOff size={24} />
                 </button>
                 <span className="text-xs font-medium opacity-70">Tolak</span>
               </div>
 
               {/* Tombol Terima */}
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center gap-2">
                 <button
                   type="button"
                   onClick={async (e) => {
@@ -1278,86 +1244,72 @@ export default function LiveKitCallModal({
                     onAcceptCall?.(preTrack);
                   }}
                   title="Terima Panggilan"
-                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all cursor-pointer font-bold ${
+                  className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xl font-bold ${
                     callType === "video" || isDark
                       ? "bg-white hover:bg-zinc-200 text-black shadow-white/20"
                       : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
                   }`}
                 >
-                  {callType === "video" ? <Video size={24} /> : <Phone size={22} />}
+                  {callType === "video" ? <Video size={24} /> : <Phone size={24} />}
                 </button>
                 <span className="text-xs font-semibold">Terima</span>
               </div>
             </div>
           ) : (
-            /* Mode 2: Panggilan Aktif / Berlangsung */
-            <div
-              className={`w-full max-w-[340px] mx-auto p-4 sm:p-5 rounded-3xl backdrop-blur-2xl border shadow-xl flex flex-col items-center gap-3.5 transition-all ${
-                callType === "video" || isDark
-                  ? "bg-zinc-900/80 border-white/15 text-white shadow-black/50"
-                  : "bg-white/80 border-black/10 text-zinc-900 shadow-zinc-900/10"
-              }`}
-            >
-              {/* Center Top: Tombol Akhiri Panggilan Utama */}
+            /* Mode 2: Panggilan Berlangsung - 3 Tombol SEJAJAR tanpa persegi panjang dock */
+            <div className="flex items-center justify-center gap-6 sm:gap-8">
+              {/* 1. Tombol Mikrofon */}
+              <button
+                type="button"
+                onClick={handleToggleMic}
+                title={isMicMuted ? "Nyalakan Mikrofon" : "Matikan Mikrofon"}
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-md border ${
+                  isMicMuted
+                    ? isDark
+                      ? "bg-zinc-800 border-zinc-700 text-zinc-400"
+                      : "bg-zinc-200 border-zinc-300 text-zinc-600"
+                    : isDark
+                      ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
+                      : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
+                }`}
+              >
+                {isMicMuted ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+
+              {/* 2. Tombol Akhiri Panggilan Utama */}
               <button
                 type="button"
                 onClick={() => onEndCall?.("Panggilan diakhiri oleh pengguna.")}
                 title="Akhiri Panggilan"
-                className={`w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-all shadow-xl cursor-pointer ${
+                className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-xl ${
                   callType === "video" || isDark
                     ? "bg-white text-black hover:bg-zinc-200 shadow-white/20"
                     : "bg-black text-white hover:bg-zinc-800 shadow-black/20"
                 }`}
               >
-                <PhoneOff size={22} />
+                <PhoneOff size={24} />
               </button>
 
-              {/* Baris Tombol Kontrol */}
-              <div className="flex items-center justify-center gap-3 sm:gap-4 w-full">
-                {/* 1. Mic Button */}
+              {/* 3. Tombol Speaker (Voice Call) / Kamera (Video Call) */}
+              {callType === "video" ? (
                 <button
                   type="button"
-                  onClick={handleToggleMic}
-                  title={isMicMuted ? "Nyalakan Mikrofon" : "Matikan Mikrofon"}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 border ${
-                    isMicMuted
-                      ? isDark
-                        ? "bg-zinc-800 border-zinc-700 text-zinc-400"
-                        : "bg-zinc-200 border-zinc-300 text-zinc-600"
-                      : isDark
-                        ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
-                        : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
+                  onClick={handleToggleCamera}
+                  title={isCameraOff ? "Nyalakan Kamera" : "Matikan Kamera"}
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-md border ${
+                    isCameraOff
+                      ? "bg-zinc-800 border-zinc-700 text-zinc-400"
+                      : "bg-white/10 hover:bg-white/20 border-white/15 text-white"
                   }`}
                 >
-                  {isMicMuted ? <MicOff size={19} /> : <Mic size={19} />}
+                  {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
                 </button>
-
-                {/* 2. Video Toggle Button (Khusus Video Call) */}
-                {callType === "video" && (
-                  <button
-                    type="button"
-                    onClick={handleToggleCamera}
-                    title={isCameraOff ? "Nyalakan Kamera" : "Matikan Kamera"}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 border ${
-                      isCameraOff
-                        ? isDark
-                          ? "bg-zinc-800 border-zinc-700 text-zinc-400"
-                          : "bg-zinc-200 border-zinc-300 text-zinc-600"
-                        : isDark
-                          ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
-                          : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
-                    }`}
-                  >
-                    {isCameraOff ? <VideoOff size={19} /> : <Video size={19} />}
-                  </button>
-                )}
-
-                {/* 3. Speaker Output Button */}
+              ) : (
                 <button
                   type="button"
                   onClick={handleToggleSpeaker}
                   title={isSpeakerOn ? "Matikan Speaker" : "Nyalakan Speaker"}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 border ${
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-md border ${
                     !isSpeakerOn
                       ? isDark
                         ? "bg-zinc-800 border-zinc-700 text-zinc-400"
@@ -1367,25 +1319,9 @@ export default function LiveKitCallModal({
                         : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
                   }`}
                 >
-                  {isSpeakerOn ? <Volume2 size={19} /> : <VolumeX size={19} />}
+                  {isSpeakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
                 </button>
-
-                {/* 4. Switch Camera Button (Khusus Video Call jika didukung) */}
-                {callType === "video" && hasMultipleCameras && (
-                  <button
-                    type="button"
-                    onClick={handleSwitchCamera}
-                    title="Ganti Kamera Depan / Belakang"
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 border ${
-                      isDark
-                        ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
-                        : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
-                    }`}
-                  >
-                    <SwitchCamera size={19} />
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           )}
         </footer>
