@@ -1464,6 +1464,7 @@ export default function MessagesWorkspace({
           peerId: current.peerUser.id,
           conversationId: current.conversationId,
           callType: current.callType,
+          roomName: current.roomName,
         }),
       });
 
@@ -1513,6 +1514,8 @@ export default function MessagesWorkspace({
       }
 
       const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const cleanPair = [userId, active.peer.id].sort().join("_");
+      const callerRoomName = `call_${cleanPair}_${Date.now()}`;
       clearCallTimeout();
 
       setActiveCall({
@@ -1521,7 +1524,7 @@ export default function MessagesWorkspace({
         mode: "outgoing",
         peerUser: active.peer,
         conversationId: active.id,
-        roomName: "",
+        roomName: callerRoomName,
         status: "memanggil",
         statusMessage: "Memanggil...",
       });
@@ -1538,6 +1541,7 @@ export default function MessagesWorkspace({
             peerId: active.peer.id,
             conversationId: active.id,
             callType: type,
+            roomName: callerRoomName,
           }),
         });
 

@@ -276,7 +276,16 @@ export default function LiveKitCallModal({
 
   // Inisialisasi dan koneksi ke LiveKit Room saat token dan URL tersedia
   useEffect(() => {
-    if (!isOpen || !livekitUrl || !livekitToken || (callStatus !== "tersambung" && callStatus !== "menghubungkan")) {
+    if (!isOpen || !livekitUrl || !livekitToken) {
+      return;
+    }
+    if (
+      callStatus === "ditolak" ||
+      callStatus === "dibatalkan" ||
+      callStatus === "berakhir" ||
+      callStatus === "gagal" ||
+      callStatus === "tidak_terjawab"
+    ) {
       return;
     }
 
@@ -346,13 +355,25 @@ export default function LiveKitCallModal({
           setAudioPlaybackBlocked(!room.canPlaybackAudio);
         });
 
+        // Pasang event listener ketika partisipan lain bergabung
+        room.on(RoomEvent.ParticipantConnected, () => {
+          if (!isMounted) return;
+          onConnected?.();
+        });
+
         // Pasang event listener track remote
         room.on(
           RoomEvent.TrackSubscribed,
           (track: RemoteTrack, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
             if (!isMounted) return;
+            onConnected?.();
             if (track.kind === Track.Kind.Audio) {
               attachAudioTrack(track);
+              if (!room.canPlaybackAudio) {
+                room.startAudio().then(() => {
+                  if (isMounted) setAudioPlaybackBlocked(false);
+                }).catch(() => {});
+              }
             } else if (track.kind === Track.Kind.Video) {
               setRemoteHasVideo(true);
               if (remoteVideoRef.current) {
@@ -390,7 +411,9 @@ export default function LiveKitCallModal({
         // Hubungkan ke LiveKit Cloud
         await room.connect(livekitUrl!, livekitToken!);
         if (isMounted) {
-          onConnected?.();
+          if (room.remoteParticipants.size > 0 || mode === "connected") {
+            onConnected?.();
+          }
         }
 
         // Buka blokir audio segera setelah koneksi tersambung
@@ -406,6 +429,9 @@ export default function LiveKitCallModal({
 
         // Cek dan pasang track audio/video dari partisipan yang sudah terhubung di room
         room.remoteParticipants.forEach((participant) => {
+          if (isMounted) {
+            onConnected?.();
+          }
           participant.trackPublications.forEach((pub) => {
             if (pub.isSubscribed && pub.track) {
               if (pub.track.kind === Track.Kind.Audio) {

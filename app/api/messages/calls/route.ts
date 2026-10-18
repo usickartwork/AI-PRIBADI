@@ -61,9 +61,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Nama Room LiveKit: Unik per sesi percakapan & pasangan pengguna
-    const cleanPair = pairKey(userId, peerId);
+    const cleanPair = [userId, peerId].sort().join("_");
     let roomName = reqRoomName;
-    if (!roomName || typeof roomName !== "string" || !roomName.startsWith(`call_${cleanPair}`)) {
+    if (
+      !roomName ||
+      typeof roomName !== "string" ||
+      (!roomName.startsWith(`call_${cleanPair}`) && !roomName.includes(cleanPair))
+    ) {
       roomName = `call_${cleanPair}_${Date.now()}`;
     }
 
