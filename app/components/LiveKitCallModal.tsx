@@ -36,6 +36,7 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
+  GripVertical,
 } from "lucide-react";
 
 export type CallStatus =
@@ -223,6 +224,115 @@ export default function LiveKitCallModal({
   const [remoteHasVideo, setRemoteHasVideo] = useState(false);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // Floating Minimized Widget Drag & Move State
+  const [minimizedPos, setMinimizedPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{
+    isDragging: boolean;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    hasMoved: boolean;
+  }>({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    initialX: 0,
+    initialY: 0,
+    hasMoved: false,
+  });
+  const widgetRef = useRef<HTMLDivElement | null>(null);
+
+  // Inisialisasi posisi awal mini widget ke pojok kanan bawah saat pertama minimize
+  useEffect(() => {
+    if (isMinimized && typeof window !== "undefined" && !minimizedPos) {
+      const widgetWidth = callType === "video" ? 220 : 280;
+      const widgetHeight = callType === "video" ? 130 : 60;
+      const x = Math.max(16, window.innerWidth - widgetWidth - 24);
+      const y = Math.max(16, window.innerHeight - widgetHeight - 32);
+      setMinimizedPos({ x, y });
+    }
+  }, [isMinimized, minimizedPos, callType]);
+
+  // Jaga posisi mini widget tetap dalam batas layar saat ukuran jendela browser berubah
+  useEffect(() => {
+    const handleResize = () => {
+      if (!minimizedPos || typeof window === "undefined") return;
+      const el = widgetRef.current;
+      const width = el?.offsetWidth || (callType === "video" ? 220 : 280);
+      const height = el?.offsetHeight || (callType === "video" ? 130 : 60);
+      const maxX = Math.max(12, window.innerWidth - width - 12);
+      const maxY = Math.max(12, window.innerHeight - height - 12);
+      setMinimizedPos((prev) => {
+        if (!prev) return prev;
+        return {
+          x: Math.min(Math.max(12, prev.x), maxX),
+          y: Math.min(Math.max(12, prev.y), maxY),
+        };
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [minimizedPos, callType]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button")) return;
+
+    const el = widgetRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: rect.left,
+      initialY: rect.top,
+      hasMoved: false,
+    };
+
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current.isDragging) return;
+
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+
+    if (!dragRef.current.hasMoved && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
+      dragRef.current.hasMoved = true;
+    }
+
+    if (dragRef.current.hasMoved) {
+      const el = widgetRef.current;
+      const width = el?.offsetWidth || (callType === "video" ? 220 : 280);
+      const height = el?.offsetHeight || (callType === "video" ? 130 : 60);
+      const maxX = Math.max(8, window.innerWidth - width - 8);
+      const maxY = Math.max(8, window.innerHeight - height - 8);
+
+      const newX = Math.min(Math.max(8, dragRef.current.initialX + deltaX), maxX);
+      const newY = Math.min(Math.max(8, dragRef.current.initialY + deltaY), maxY);
+
+      setMinimizedPos({ x: newX, y: newY });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current.isDragging) return;
+    const el = widgetRef.current;
+    if (el) {
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {}
+    }
+    dragRef.current.isDragging = false;
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -802,31 +912,46 @@ export default function LiveKitCallModal({
   if (!isOpen || !mounted) return null;
 
   /* ─────────────────────────────────────────────────────────────────────────
-     1. MODE MINIMIZED (Floating Mini PiP / Call Pill Widget)
+     1. MODE MINIMIZED (Floating Draggable Mini PiP / Call Pill Widget)
      Memungkinkan pengguna bebas bernavigasi ke tab Chat, Faith, Music, Notes, dll.
+     Widget dapat digeser/dipindahkan ke posisi mana saja di layar secara fleksibel.
      ───────────────────────────────────────────────────────────────────────── */
   if (isMinimized) {
     return createPortal(
       <div
-        className="fixed bottom-6 right-6 z-[9999] select-none animate-in fade-in-0 slide-in-from-bottom-4 duration-200"
+        ref={widgetRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={
+          minimizedPos
+            ? { left: `${minimizedPos.x}px`, top: `${minimizedPos.y}px` }
+            : { bottom: "1.5rem", right: "1.5rem" }
+        }
+        className="fixed z-[9999] select-none touch-none cursor-grab active:cursor-grabbing animate-in fade-in-0 duration-200"
         onClick={() => {
           if (audioPlaybackBlocked) void handleUnlockAudio();
+          if (dragRef.current.hasMoved) {
+            dragRef.current.hasMoved = false;
+            return;
+          }
+          setIsMinimized(false);
         }}
       >
         {callType === "video" ? (
-          /* Mini Video PiP Widget */
+          /* Mini Video PiP Widget (Bisa digeser ke mana saja) */
           <div
-            onClick={() => setIsMinimized(false)}
-            className="group relative w-44 h-28 sm:w-52 sm:h-32 rounded-2xl overflow-hidden border border-black/10 dark:border-white/20 shadow-2xl bg-zinc-950 backdrop-blur-md cursor-pointer hover:scale-105 active:scale-95 transition-all"
+            className="group relative w-44 h-28 sm:w-52 sm:h-32 rounded-2xl overflow-hidden border border-black/10 dark:border-white/20 shadow-2xl bg-zinc-950 backdrop-blur-md transition-shadow hover:shadow-black/50"
           >
             <video
               ref={setMiniRemoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover pointer-events-none"
             />
             {!remoteHasVideo && (
-              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-white font-bold text-lg">
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-white font-bold text-lg pointer-events-none">
                 {peerUser.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={peerUser.avatarUrl} alt={peerUser.name} className="w-10 h-10 rounded-full object-cover" />
@@ -886,15 +1011,19 @@ export default function LiveKitCallModal({
             </div>
           </div>
         ) : (
-          /* Mini Audio Call Pill Widget */
+          /* Mini Audio Call Pill Widget (Bisa digeser ke mana saja) */
           <div
-            onClick={() => setIsMinimized(false)}
-            className={`group flex items-center gap-3 pl-3 pr-4 py-2 rounded-full border shadow-2xl backdrop-blur-2xl cursor-pointer hover:scale-105 active:scale-95 transition-all ${
+            className={`group flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-full border shadow-2xl backdrop-blur-2xl transition-all ${
               isDark
                 ? "bg-zinc-900/90 hover:bg-zinc-800/90 border-white/15 text-white shadow-black/60"
                 : "bg-white/90 hover:bg-white/95 border-black/10 text-zinc-900 shadow-zinc-900/15"
             }`}
           >
+            {/* Grip handle visual indicator */}
+            <div className="opacity-30 group-hover:opacity-75 transition-opacity -mr-1">
+              <GripVertical size={14} />
+            </div>
+
             {/* Avatar dengan pulsating ring */}
             <div className="relative shrink-0">
               <div className="w-8 h-8 rounded-full overflow-hidden border border-black/10 dark:border-white/20 bg-zinc-800 flex items-center justify-center font-bold text-xs text-white">
@@ -957,9 +1086,17 @@ export default function LiveKitCallModal({
             </button>
 
             {/* Tombol Perbesar / Maximize */}
-            <div className="pl-1 border-l border-current/15 opacity-60 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMinimized(false);
+              }}
+              title="Perbesar Panggilan"
+              className="pl-1 border-l border-current/15 opacity-60 hover:opacity-100 transition-opacity"
+            >
               <Maximize2 size={13} />
-            </div>
+            </button>
           </div>
         )}
       </div>,
