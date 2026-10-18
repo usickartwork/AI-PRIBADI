@@ -4394,6 +4394,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               onRequireAuth={() => setShowAuthModal(true)}
               onUnreadCountChange={setUnreadMessagesCount}
+              onNavigateToMessages={() => setActiveView("messages")}
             />
           )}
         </div>

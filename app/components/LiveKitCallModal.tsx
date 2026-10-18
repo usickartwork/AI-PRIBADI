@@ -5,13 +5,16 @@ import {
   Room,
   RoomEvent,
   Track,
+  ParticipantEvent,
   createLocalAudioTrack,
   type LocalAudioTrack,
+  type LocalVideoTrack,
   type RemoteTrack,
   type RemoteAudioTrack,
   type RemoteTrackPublication,
   type RemoteParticipant,
 } from "livekit-client";
+import { createPortal } from "react-dom";
 import {
   Mic,
   MicOff,
@@ -200,6 +203,7 @@ export default function LiveKitCallModal({
   onEndCall,
   onConnected,
 }: LiveKitCallModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -210,9 +214,79 @@ export default function LiveKitCallModal({
   const [remoteHasVideo, setRemoteHasVideo] = useState(false);
   const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const roomRef = useRef<Room | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const attachLocalCameraTrack = useCallback(() => {
+    const el = localVideoRef.current;
+    const room = roomRef.current;
+    if (!el || !room) return;
+    const camPub =
+      room.localParticipant.getTrackPublication(Track.Source.Camera) ||
+      Array.from(room.localParticipant.videoTrackPublications.values())[0];
+    const camTrack = (camPub?.videoTrack || camPub?.track) as LocalVideoTrack | undefined;
+    if (camTrack && !isCameraOff) {
+      try {
+        camTrack.attach(el);
+        el.play().catch(() => {});
+      } catch (err) {
+        console.warn("[livekit] attach local camera err:", err);
+      }
+    }
+  }, [isCameraOff]);
+
+  const setLocalVideoRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      localVideoRef.current = node;
+      if (node) {
+        attachLocalCameraTrack();
+      }
+    },
+    [attachLocalCameraTrack]
+  );
+
+  const attachRemoteVideoTrack = useCallback(() => {
+    const el = remoteVideoRef.current;
+    const room = roomRef.current;
+    if (!el || !room) return;
+    room.remoteParticipants.forEach((p) => {
+      p.trackPublications.forEach((pub) => {
+        if (pub.isSubscribed && pub.track && pub.track.kind === Track.Kind.Video) {
+          setRemoteHasVideo(true);
+          try {
+            pub.track.attach(el);
+            el.play().catch(() => {});
+          } catch (err) {
+            console.warn("[livekit] attach remote video err:", err);
+          }
+        }
+      });
+    });
+  }, []);
+
+  const setRemoteVideoRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      remoteVideoRef.current = node;
+      if (node) {
+        attachRemoteVideoTrack();
+      }
+    },
+    [attachRemoteVideoTrack]
+  );
+
+  // Pastikan preview kamera lokal dan video remote terpasang jika status berubah
+  useEffect(() => {
+    if (callType === "video") {
+      attachLocalCameraTrack();
+      attachRemoteVideoTrack();
+    }
+  }, [callType, callStatus, isCameraOff, attachLocalCameraTrack, attachRemoteVideoTrack]);
+
   const attachedAudiosRef = useRef<HTMLMediaElement[]>([]);
   const isSpeakerOnRef = useRef(isSpeakerOn);
   isSpeakerOnRef.current = isSpeakerOn;
@@ -432,10 +506,19 @@ export default function LiveKitCallModal({
               setRemoteHasVideo(true);
               if (remoteVideoRef.current) {
                 track.attach(remoteVideoRef.current);
+                remoteVideoRef.current.play().catch(() => {});
               }
             }
           }
         );
+
+        // Pasang listener jika track lokal berhasil dipublish (termasuk kamera)
+        room.localParticipant.on(ParticipantEvent.LocalTrackPublished, (pub) => {
+          if (!isMounted) return;
+          if (pub.track?.kind === Track.Kind.Video) {
+            attachLocalCameraTrack();
+          }
+        });
 
         room.on(
           RoomEvent.TrackUnsubscribed,
@@ -487,6 +570,7 @@ export default function LiveKitCallModal({
                 setRemoteHasVideo(true);
                 if (remoteVideoRef.current) {
                   pub.track.attach(remoteVideoRef.current);
+                  remoteVideoRef.current.play().catch(() => {});
                 }
               }
             }
@@ -536,12 +620,7 @@ export default function LiveKitCallModal({
           try {
             await room.localParticipant.setCameraEnabled(true);
             setIsCameraOff(false);
-
-            // Pasang local video track ke preview kamera sendiri
-            const camTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
-            if (camTrack && localVideoRef.current) {
-              camTrack.attach(localVideoRef.current);
-            }
+            attachLocalCameraTrack();
           } catch (camErr: any) {
             console.warn("[livekit] camera error:", camErr);
             setDeviceError("Izin kamera tidak diizinkan atau kamera tidak tersedia.");
@@ -612,16 +691,12 @@ export default function LiveKitCallModal({
       setIsCameraOff(nextOff);
 
       if (!nextOff) {
-        // Pasang kembali track jika kamera dinyalakan
         setTimeout(() => {
-          const camTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
-          if (camTrack && localVideoRef.current) {
-            camTrack.attach(localVideoRef.current);
-          }
+          attachLocalCameraTrack();
         }, 100);
       }
     } catch {}
-  }, [isCameraOff, callType]);
+  }, [isCameraOff, callType, attachLocalCameraTrack]);
 
   // Ganti Kamera Depan/Belakang
   const handleSwitchCamera = useCallback(async () => {
@@ -640,10 +715,13 @@ export default function LiveKitCallModal({
         const nextDevice = videoDevices.find((d) => d.deviceId !== currentDeviceId) || videoDevices[0];
         if (nextDevice) {
           await room.switchActiveDevice("videoinput", nextDevice.deviceId);
+          setTimeout(() => {
+            attachLocalCameraTrack();
+          }, 150);
         }
       }
     } catch {}
-  }, [cameraFacing, callType]);
+  }, [cameraFacing, callType, attachLocalCameraTrack]);
 
   // Toggle Speaker (Audio Output)
   const handleToggleSpeaker = useCallback(() => {
@@ -682,7 +760,9 @@ export default function LiveKitCallModal({
   const isCallActive = callStatus === "tersambung" || callStatus === "menghubungkan";
   const displayStatus = statusMessage || statusLabels[callStatus] || "Memanggil...";
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -692,7 +772,7 @@ export default function LiveKitCallModal({
           void handleUnlockAudio();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
     >
       {/* Main Call Container */}
       <div
@@ -703,11 +783,11 @@ export default function LiveKitCallModal({
         }`}
       >
         {/* ─── VIDEO CANVAS (Untuk Video Call) ─── */}
-        {callType === "video" && isCallActive && (
+        {callType === "video" && (
           <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
             {/* Remote Video Stream Lawan Bicara */}
             <video
-              ref={remoteVideoRef}
+              ref={setRemoteVideoRef}
               autoPlay
               playsInline
               className={`w-full h-full object-cover transition-opacity duration-300 ${
@@ -715,24 +795,40 @@ export default function LiveKitCallModal({
               }`}
             />
 
-            {/* Fallback jika lawan bicara mematikan kamera */}
+            {/* Fallback jika lawan bicara mematikan kamera atau belum tersambung */}
             {!remoteHasVideo && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950 text-center p-6">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-zinc-700 bg-zinc-900 flex items-center justify-center text-3xl font-bold shadow-xl">
-                  {peerUser.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={peerUser.avatarUrl}
-                      alt={peerUser.name}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950 text-center p-6 z-0">
+                <div className="relative mb-2">
+                  {(callStatus === "memanggil" || callStatus === "menghubungkan") && (
+                    <>
+                      <div className="absolute -inset-4 rounded-full border border-zinc-500/30 animate-ping opacity-60" />
+                      <div className="absolute -inset-8 rounded-full border border-zinc-500/20 animate-pulse" />
+                    </>
                   )}
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-zinc-700 bg-zinc-900 flex items-center justify-center text-3xl font-bold shadow-xl overflow-hidden">
+                    {peerUser.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={peerUser.avatarUrl}
+                        alt={peerUser.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <span>{(peerUser.name || "?").charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-white">{peerUser.name}</h3>
-                  <p className="text-xs text-zinc-400 mt-1">Kamera lawan bicara sedang dinonaktifkan</p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {callStatus === "memanggil"
+                      ? mode === "incoming"
+                        ? "Panggilan video masuk..."
+                        : "Memanggil..."
+                      : callStatus === "menghubungkan"
+                      ? "Menghubungkan..."
+                      : "Kamera lawan bicara sedang dinonaktifkan"}
+                  </p>
                 </div>
               </div>
             )}
@@ -740,7 +836,7 @@ export default function LiveKitCallModal({
             {/* Floating Picture-in-Picture Preview Kamera Sendiri */}
             <div className="absolute top-4 right-4 z-20 w-28 h-40 sm:w-36 sm:h-48 rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-zinc-900">
               <video
-                ref={localVideoRef}
+                ref={setLocalVideoRef}
                 autoPlay
                 playsInline
                 muted
@@ -786,8 +882,8 @@ export default function LiveKitCallModal({
           </div>
         )}
 
-        {/* ─── CENTER BODY (Khusus Audio Call atau Saat Masih Berdering) ─── */}
-        {(callType === "audio" || !isCallActive) && (
+        {/* ─── CENTER BODY (Khusus Audio Call) ─── */}
+        {callType === "audio" && (
           <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
             {/* Animated Avatar Circle */}
             <div className="relative mb-6">
@@ -956,6 +1052,7 @@ export default function LiveKitCallModal({
           )}
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

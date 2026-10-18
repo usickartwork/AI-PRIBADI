@@ -154,6 +154,7 @@ interface MessagesWorkspaceProps {
   onTogglePanel?: () => void;
   onRequireAuth?: () => void;
   onUnreadCountChange?: (count: number) => void;
+  onNavigateToMessages?: () => void;
 }
 
 const EMPTY_FRIENDS: FriendsData = { friends: [], incoming: [], outgoing: [], blocked: [] };
@@ -385,6 +386,7 @@ export default function MessagesWorkspace({
   onTogglePanel,
   onRequireAuth,
   onUnreadCountChange,
+  onNavigateToMessages,
 }: MessagesWorkspaceProps) {
   const { session } = useSession();
 
@@ -506,6 +508,40 @@ export default function MessagesWorkspace({
       memoryMessagesCache[active.id] = messages;
     }
   }, [messages, active?.id]);
+
+  // Minta izin Web Notification secara graceful saat MessagesWorkspace aktif/mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  // Flash document.title ketika ada panggilan masuk agar pengguna sadar meskipun di tab lain
+  useEffect(() => {
+    if (!activeCall || activeCall.mode !== "incoming" || activeCall.status !== "memanggil") {
+      return;
+    }
+    const originalTitle = typeof document !== "undefined" ? document.title : "Usick One";
+    const callerName = activeCall.peerUser?.name || "Teman";
+    const callIcon = activeCall.callType === "video" ? "📹" : "📞";
+    let toggle = false;
+
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined") {
+        document.title = toggle
+          ? `${callIcon} Panggilan Masuk dari ${callerName}!`
+          : `Usick One - Panggilan Masuk`;
+        toggle = !toggle;
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== "undefined") {
+        document.title = originalTitle;
+      }
+    };
+  }, [activeCall]);
 
   const showToast = useCallback((text: string, kind: "error" | "info" = "error") => {
     setToast({ text, kind });
@@ -701,6 +737,29 @@ export default function MessagesWorkspace({
           status: "memanggil",
           statusMessage: "Panggilan masuk...",
         });
+
+        // Tampilkan Desktop Browser Notification jika diizinkan
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          try {
+            const isVid = payload.callType === "video";
+            const notifTitle = isVid ? "📹 Panggilan Video Masuk" : "📞 Panggilan Suara Masuk";
+            const callerName = payload.callerUser?.name || "Teman";
+            const notifBody = `${callerName} memanggil Anda di Usick One...`;
+            const notif = new Notification(notifTitle, {
+              body: notifBody,
+              icon: payload.callerUser?.avatarUrl || payload.callerUser?.avatar_url || "/favicon.ico",
+              tag: `call_${payload.callId}`,
+              requireInteraction: true,
+            });
+            notif.onclick = () => {
+              window.focus();
+              onNavigateToMessages?.();
+              notif.close();
+            };
+          } catch (notifErr) {
+            console.warn("[call notification] error:", notifErr);
+          }
+        }
 
         callTimeoutRef.current = setTimeout(() => {
           if (activeCallRef.current?.callId === payload.callId && activeCallRef.current?.status === "memanggil") {
@@ -1481,6 +1540,10 @@ export default function MessagesWorkspace({
         return;
       }
       clearCallTimeout();
+      onNavigateToMessages?.();
+      if (current.conversationId && current.peerUser) {
+        void openConversation({ id: current.conversationId, peer: current.peerUser });
+      }
 
       setActiveCall((prev) =>
         prev && prev.callId === current.callId
@@ -1541,7 +1604,7 @@ export default function MessagesWorkspace({
         }, 3000);
       }
     },
-    [clearCallTimeout, sendSignal]
+    [clearCallTimeout, sendSignal, onNavigateToMessages, openConversation]
   );
 
   const handleCallConnected = useCallback(() => {
