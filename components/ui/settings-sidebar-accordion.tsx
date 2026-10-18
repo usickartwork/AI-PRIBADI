@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCardIcon, PaletteIcon, ShieldIcon, SparklesIcon, UserIcon } from "lucide-react";
+import { CreditCardIcon, MonitorSmartphone, PaletteIcon, ShieldIcon, SparklesIcon, UserIcon } from "lucide-react";
 
 export interface SettingsNavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -13,6 +13,11 @@ export const defaultNavItems: SettingsNavItem[] = [
     icon: UserIcon,
     label: "Account",
     value: "account",
+  },
+  {
+    icon: MonitorSmartphone,
+    label: "Devices",
+    value: "devices",
   },
   {
     icon: PaletteIcon,

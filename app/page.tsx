@@ -917,7 +917,24 @@ export default function Home() {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"account" | "appearance" | "billing" | "pricing" | "security">("account");
+  const [settingsTab, setSettingsTab] = useState<"account" | "devices" | "appearance" | "billing" | "pricing" | "security">("account");
+  const [deviceSessions, setDeviceSessions] = useState<{
+    id: string;
+    isCurrent: boolean;
+    isMobile: boolean;
+    deviceType: string;
+    browserName: string;
+    browserVersion: string;
+    city: string;
+    country: string;
+    ipAddress: string;
+    lastActiveAt: string | null;
+    expireAt: string | null;
+    status: string;
+  }[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [revokingAllOthers, setRevokingAllOthers] = useState(false);
   const [sessionMenuId, setSessionMenuId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -1057,6 +1074,77 @@ export default function Home() {
       alert(err?.message || "Gagal menghapus akun.");
     } finally {
       setIsDeletingAccount(false);
+    }
+  };
+
+  const fetchDeviceSessions = useCallback(async () => {
+    if (!user) return;
+    setLoadingSessions(true);
+    try {
+      const res = await fetch("/api/auth/sessions");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.sessions)) {
+          setDeviceSessions(data.sessions);
+        }
+      }
+    } catch (err) {
+      console.warn("[sessions] fetch error:", err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (
+      settingsOpen &&
+      user &&
+      (settingsTab === "devices" || settingsTab === "security" || settingsTab === "account")
+    ) {
+      fetchDeviceSessions();
+    }
+  }, [settingsOpen, user, settingsTab, fetchDeviceSessions]);
+
+  const handleRevokeSession = async (sessionId: string, isCurrent: boolean) => {
+    if (revokingSessionId || revokingAllOthers) return;
+    setRevokingSessionId(sessionId);
+    try {
+      const res = await fetch("/api/auth/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionIdToRevoke: sessionId }),
+      });
+      if (res.ok) {
+        if (isCurrent) {
+          setSettingsOpen(false);
+          await handleSignOut();
+        } else {
+          setDeviceSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        }
+      }
+    } catch (err) {
+      console.warn("[sessions] revoke error:", err);
+    } finally {
+      setRevokingSessionId(null);
+    }
+  };
+
+  const handleRevokeAllOthers = async () => {
+    if (revokingSessionId || revokingAllOthers) return;
+    setRevokingAllOthers(true);
+    try {
+      const res = await fetch("/api/auth/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revokeAllOthers: true }),
+      });
+      if (res.ok) {
+        setDeviceSessions((prev) => prev.filter((s) => s.isCurrent));
+      }
+    } catch (err) {
+      console.warn("[sessions] revoke all error:", err);
+    } finally {
+      setRevokingAllOthers(false);
     }
   };
 
@@ -3443,6 +3531,180 @@ export default function Home() {
     </div>
   );
 
+  const renderDeviceSessionsList = (showTitle: boolean = true) => {
+    return (
+      <div className="space-y-4">
+        {showTitle && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold tracking-tight">Perangkat Masuk</h2>
+              <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                Kelola perangkat mobile dan desktop yang sedang login ke akun Anda
+              </p>
+            </div>
+
+            {user && deviceSessions.filter((s) => !s.isCurrent).length > 0 && (
+              <button
+                type="button"
+                disabled={revokingAllOthers || Boolean(revokingSessionId)}
+                onClick={handleRevokeAllOthers}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer shrink-0 flex items-center gap-2 ${
+                  isDark
+                    ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white"
+                    : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+                }`}
+              >
+                {revokingAllOthers ? (
+                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                )}
+                <span>Keluarkan Perangkat Lain</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {!user ? (
+          <div className={`p-5 rounded-2xl border text-center space-y-3 ${
+            isDark ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50/50 border-zinc-200"
+          }`}>
+            <p className={`text-xs ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              Anda sedang menggunakan aplikasi sebagai tamu. Silakan masuk untuk melihat daftar perangkat.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsOpen(false);
+                setShowAuthModal(true);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+              }`}
+            >
+              Masuk ke Akun
+            </button>
+          </div>
+        ) : loadingSessions && deviceSessions.length === 0 ? (
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className={`p-4 rounded-2xl border animate-pulse flex items-center justify-between ${
+                  isDark ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50/50 border-zinc-200"
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-10 h-10 rounded-xl ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`} />
+                  <div className="space-y-1.5">
+                    <div className={`w-28 h-3.5 rounded ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`} />
+                    <div className={`w-40 h-2.5 rounded ${isDark ? "bg-zinc-800/60" : "bg-zinc-200/60"}`} />
+                  </div>
+                </div>
+                <div className={`w-16 h-7 rounded-xl ${isDark ? "bg-zinc-800" : "bg-zinc-200"}`} />
+              </div>
+            ))}
+          </div>
+        ) : deviceSessions.length === 0 ? (
+          <div className={`p-6 rounded-2xl border text-center ${
+            isDark ? "bg-zinc-900/30 border-zinc-800 text-zinc-400" : "bg-zinc-50/50 border-zinc-200 text-zinc-600"
+          }`}>
+            <p className="text-xs">Tidak ada data perangkat yang terhubung.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {deviceSessions.map((sess) => {
+              const isRevoking = revokingSessionId === sess.id;
+              return (
+                <div
+                  key={sess.id}
+                  className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition ${
+                    isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                  }`}
+                >
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 sm:mt-0 ${
+                      isDark ? "bg-zinc-800/80 border-zinc-700/80 text-zinc-200" : "bg-zinc-100 border-zinc-200 text-zinc-800"
+                    }`}>
+                      {sess.isMobile ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <rect x="5" y="2" width="14" height="20" rx="3" />
+                          <line x1="12" y1="18" x2="12.01" y2="18" strokeWidth={2.5} strokeLinecap="round" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <rect x="3" y="4" width="18" height="12" rx="2" />
+                          <path d="M2 20h20" strokeLinecap="round" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`text-sm font-bold truncate ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>
+                          {sess.deviceType} · {sess.browserName}
+                        </h3>
+                        {sess.isCurrent && (
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            isDark ? "bg-zinc-800 text-zinc-200 border-zinc-700" : "bg-zinc-200 text-zinc-800 border-zinc-300"
+                          }`}>
+                            Perangkat Ini
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`text-xs mt-1 flex items-center gap-2 flex-wrap ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        {(sess.city || sess.country) && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>{[sess.city, sess.country].filter(Boolean).join(", ")}</span>
+                          </span>
+                        )}
+                        {sess.ipAddress && (
+                          <span>· {sess.ipAddress.includes(":") ? `${sess.ipAddress.slice(0, 16)}...` : sess.ipAddress}</span>
+                        )}
+                        <span>
+                          · {sess.isCurrent ? "Aktif sekarang" : sess.lastActiveAt ? `Aktif ${new Date(sess.lastActiveAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : "Aktif"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center sm:self-center self-end mt-2 sm:mt-0">
+                    <button
+                      type="button"
+                      disabled={isRevoking || revokingAllOthers}
+                      onClick={() => handleRevokeSession(sess.id, sess.isCurrent)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                        isDark
+                          ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white"
+                          : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+                      }`}
+                    >
+                      {isRevoking ? (
+                        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                      )}
+                      <span>{sess.isCurrent ? "Keluar" : "Keluarkan"}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ─── STEP 1 & 2: UNREGISTERED / UNAUTHENTICATED VISITORS ──────────────────
   // Menampilkan Page 1 (halaman perkenalan murni tanpa panel dashboard sebelah kiri)
   // dan modal Sign Up / Sign In hanya ketika tombol Get Started / Sign In diklik.
@@ -4909,6 +5171,40 @@ export default function Home() {
                         </div>
                       </div>
                     )}
+
+                    {/* Perangkat Masuk Quick Card */}
+                    {user && (
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                        isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                      }`}>
+                        <div className="min-w-0">
+                          <span className={`text-xs font-bold block ${isDark ? "text-zinc-200" : "text-zinc-800"}`}>
+                            Perangkat Masuk {deviceSessions.length > 0 ? `(${deviceSessions.length} perangkat)` : ""}
+                          </span>
+                          <span className={`text-[11px] mt-0.5 block ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                            Kelola perangkat mobile dan desktop yang sedang aktif
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsTab("devices")}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer shrink-0 ${
+                            isDark
+                              ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white"
+                              : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+                          }`}
+                        >
+                          Lihat Perangkat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ─── TAB: DEVICES ─── */}
+                {settingsTab === "devices" && (
+                  <div className="space-y-6 animate-in fade-in-0 duration-150">
+                    {renderDeviceSessionsList(true)}
                   </div>
                 )}
 
@@ -5411,6 +5707,9 @@ export default function Home() {
 
                     {user ? (
                       <>
+                        {/* Daftar Perangkat Terhubung */}
+                        {renderDeviceSessionsList(true)}
+
                         {/* Sesi Akun: Keluar (Logout) */}
                         <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
                           isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
