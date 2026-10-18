@@ -155,6 +155,21 @@ class TonePlayer {
   }
 }
 
+const SILENT_AUDIO_URI =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+
+async function unlockAudioElement(el: HTMLAudioElement | null) {
+  if (!el) return;
+  try {
+    const prevSrc = el.src;
+    el.src = SILENT_AUDIO_URI;
+    await el.play().catch(() => {});
+    if (!el.srcObject) {
+      el.src = prevSrc || "";
+    }
+  } catch {}
+}
+
 export default function LiveKitCallModal({
   isDark,
   isOpen,
@@ -188,41 +203,69 @@ export default function LiveKitCallModal({
   const isSpeakerOnRef = useRef(isSpeakerOn);
   isSpeakerOnRef.current = isSpeakerOn;
   const tonePlayerRef = useRef<TonePlayer | null>(null);
+  const isUnlockingRef = useRef(false);
 
   // Inisialisasi tone player ref
   if (!tonePlayerRef.current) {
     tonePlayerRef.current = new TonePlayer();
   }
 
-  // Buka blokir audio secara otomatis saat pengguna berinteraksi / mengetuk layar
-  const handleUnlockAudio = useCallback(() => {
-    if (roomRef.current) {
-      roomRef.current
-        .startAudio()
-        .then(() => {
-          setAudioPlaybackBlocked(false);
-        })
-        .catch(() => {});
+  // Buka blokir audio secara aman dengan proteksi race condition / debounce
+  const handleUnlockAudio = useCallback(async (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (isUnlockingRef.current) return;
+    isUnlockingRef.current = true;
+
+    try {
+      // 1. Resume Web Audio AudioContext jika browser menangguhkannya
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        const dummyCtx = new AudioCtx();
+        if (dummyCtx.state === "suspended") {
+          await dummyCtx.resume().catch(() => {});
+        }
+      }
+
+      // 2. Mainkan pre-rendered remoteAudioRef langsung
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.muted = !isSpeakerOnRef.current;
+        if (!remoteAudioRef.current.srcObject) {
+          await unlockAudioElement(remoteAudioRef.current);
+        } else {
+          await remoteAudioRef.current.play().catch(() => {});
+        }
+      }
+
+      // 3. Mainkan elemen audio remote lainnya jika ada
+      attachedAudiosRef.current.forEach((el) => {
+        el.muted = !isSpeakerOnRef.current;
+        el.play().catch(() => {});
+      });
+
+      // 4. Sinkronkan dengan LiveKit Room startAudio
+      if (roomRef.current) {
+        try {
+          await roomRef.current.startAudio();
+        } catch (startErr) {
+          console.warn("[livekit] startAudio warning:", startErr);
+        }
+      }
+
+      // 5. Segera hapus status blocked pada UI
+      setAudioPlaybackBlocked(false);
+    } catch (err) {
+      console.warn("[livekit] handleUnlockAudio err:", err);
+      setAudioPlaybackBlocked(false);
+    } finally {
+      setTimeout(() => {
+        isUnlockingRef.current = false;
+      }, 300);
     }
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onPointerDown = () => {
-      if (roomRef.current && !roomRef.current.canPlaybackAudio) {
-        roomRef.current
-          .startAudio()
-          .then(() => {
-            setAudioPlaybackBlocked(false);
-          })
-          .catch(() => {});
-      }
-    };
-    window.addEventListener("pointerdown", onPointerDown, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, [isOpen]);
 
   // Cek apakah perangkat memiliki lebih dari 1 kamera (depan & belakang)
   useEffect(() => {
@@ -302,17 +345,31 @@ export default function LiveKitCallModal({
     roomRef.current = room;
 
     const attachAudioTrack = (track: RemoteTrack) => {
+      // 1. Pasang langsung ke pre-rendered remoteAudioRef jika tersedia agar diizinkan Safari iOS
+      if (remoteAudioRef.current) {
+        try {
+          remoteAudioRef.current.src = "";
+        } catch {}
+        track.attach(remoteAudioRef.current);
+        remoteAudioRef.current.muted = !isSpeakerOnRef.current;
+        if (!attachedAudiosRef.current.includes(remoteAudioRef.current)) {
+          attachedAudiosRef.current.push(remoteAudioRef.current);
+        }
+        return;
+      }
+
+      // 2. Fallback untuk elemen dinamis
       if (track.attachedElements.length > 0) {
         track.attachedElements.forEach((el) => {
           el.muted = !isSpeakerOnRef.current;
-          el.play().catch(() => {});
         });
         return;
       }
+
       const el = track.attach();
       el.style.position = "fixed";
-      el.style.top = "-9999px";
-      el.style.left = "-9999px";
+      el.style.top = "0";
+      el.style.left = "0";
       el.style.width = "1px";
       el.style.height = "1px";
       el.style.opacity = "0.01";
@@ -326,23 +383,24 @@ export default function LiveKitCallModal({
       if (!attachedAudiosRef.current.includes(el)) {
         attachedAudiosRef.current.push(el);
       }
-      el.play().catch((err) => {
-        console.warn("[livekit] audio play blocked by autoplay policy:", err);
-        if (isMounted) {
-          setAudioPlaybackBlocked(true);
-        }
-      });
     };
 
     const detachAudioTrack = (track: RemoteTrack) => {
+      if (remoteAudioRef.current && track.attachedElements.includes(remoteAudioRef.current)) {
+        track.detach(remoteAudioRef.current);
+        try {
+          remoteAudioRef.current.pause();
+          remoteAudioRef.current.srcObject = null;
+        } catch {}
+      }
       const elements = track.detach();
       elements.forEach((el) => {
         try {
           el.pause();
           el.remove();
         } catch {}
-        attachedAudiosRef.current = attachedAudiosRef.current.filter((e) => e !== el);
       });
+      attachedAudiosRef.current = [];
     };
 
     async function connectLiveKit() {
@@ -369,10 +427,8 @@ export default function LiveKitCallModal({
             onConnected?.();
             if (track.kind === Track.Kind.Audio) {
               attachAudioTrack(track);
-              if (!room.canPlaybackAudio) {
-                room.startAudio().then(() => {
-                  if (isMounted) setAudioPlaybackBlocked(false);
-                }).catch(() => {});
+              if (isMounted) {
+                setAudioPlaybackBlocked(!room.canPlaybackAudio);
               }
             } else if (track.kind === Track.Kind.Video) {
               setRemoteHasVideo(true);
@@ -401,7 +457,11 @@ export default function LiveKitCallModal({
           attachedAudiosRef.current.forEach((el) => {
             try {
               el.pause();
-              el.remove();
+              if (el !== remoteAudioRef.current) {
+                el.remove();
+              } else {
+                el.srcObject = null;
+              }
             } catch {}
           });
           attachedAudiosRef.current = [];
@@ -414,17 +474,9 @@ export default function LiveKitCallModal({
           if (room.remoteParticipants.size > 0 || mode === "connected") {
             onConnected?.();
           }
-        }
-
-        // Buka blokir audio segera setelah koneksi tersambung
-        if (!room.canPlaybackAudio) {
-          room.startAudio().then(() => {
-            if (isMounted) setAudioPlaybackBlocked(false);
-          }).catch(() => {
-            if (isMounted) setAudioPlaybackBlocked(true);
-          });
-        } else {
-          if (isMounted) setAudioPlaybackBlocked(false);
+          if (room.canPlaybackAudio) {
+            setAudioPlaybackBlocked(false);
+          }
         }
 
         // Cek dan pasang track audio/video dari partisipan yang sudah terhubung di room
@@ -566,6 +618,9 @@ export default function LiveKitCallModal({
   const handleToggleSpeaker = useCallback(() => {
     setIsSpeakerOn((prev) => {
       const next = !prev;
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.muted = !next;
+      }
       attachedAudiosRef.current.forEach((el) => {
         el.muted = !next;
       });
@@ -595,21 +650,20 @@ export default function LiveKitCallModal({
       role="dialog"
       aria-modal="true"
       aria-label="Panggilan Langsung"
-      onClick={handleUnlockAudio}
       className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in-0 duration-200 select-none overflow-hidden"
     >
-      {/* Audio Remote Fallback Element (Off-screen, tidak display: none agar tidak tertahan browser) */}
+      {/* Audio Remote Pre-rendered Element (In-DOM, 1px, 0.01 opacity agar tidak diblokir Safari iOS) */}
       <audio
         ref={remoteAudioRef}
         autoPlay
         playsInline
         style={{
           position: "fixed",
-          top: "-9999px",
-          left: "-9999px",
+          top: "0",
+          left: "0",
           width: "1px",
           height: "1px",
-          opacity: 0,
+          opacity: 0.01,
           pointerEvents: "none",
         }}
       />
@@ -782,7 +836,11 @@ export default function LiveKitCallModal({
               <div className="flex flex-col items-center gap-2">
                 <button
                   type="button"
-                  onClick={onAcceptCall}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleUnlockAudio();
+                    onAcceptCall?.();
+                  }}
                   title="Terima Panggilan"
                   className="w-16 h-16 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center shadow-xl transition-transform active:scale-95 cursor-pointer"
                 >

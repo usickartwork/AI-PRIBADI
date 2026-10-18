@@ -356,6 +356,21 @@ const memoryConversationsCache: Record<string, Conversation[]> = {};
 const memoryFriendsCache: Record<string, FriendsData> = {};
 const memoryMessagesCache: Record<string, ChatMessage[]> = {};
 
+/* ─── Web Audio Warm Up ──────────────────────────────────────────────────── */
+function warmUpAudio() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+    }
+  } catch {}
+}
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 export default function MessagesWorkspace({
   isDark,
@@ -1442,6 +1457,7 @@ export default function MessagesWorkspace({
   );
 
   const acceptCall = useCallback(async () => {
+    warmUpAudio();
     const current = activeCallRef.current;
     if (!current) return;
     clearCallTimeout();
@@ -1500,6 +1516,7 @@ export default function MessagesWorkspace({
 
   const startCall = useCallback(
     async (type: "audio" | "video") => {
+      warmUpAudio();
       if (activeCallRef.current) {
         showToast("Anda sedang dalam panggilan.");
         return;
@@ -1992,7 +2009,10 @@ export default function MessagesWorkspace({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={() => void startCall("audio")}
+            onClick={() => {
+              warmUpAudio();
+              void startCall("audio");
+            }}
             disabled={!isActivePeerFriend}
             title={isActivePeerFriend ? "Panggilan Suara (Audio Call)" : "Hanya teman yang dapat ditelepon"}
             aria-label="Panggilan Suara"
@@ -2004,7 +2024,10 @@ export default function MessagesWorkspace({
           </button>
           <button
             type="button"
-            onClick={() => void startCall("video")}
+            onClick={() => {
+              warmUpAudio();
+              void startCall("video");
+            }}
             disabled={!isActivePeerFriend}
             title={isActivePeerFriend ? "Panggilan Video (Video Call)" : "Hanya teman yang dapat ditelepon"}
             aria-label="Panggilan Video"
