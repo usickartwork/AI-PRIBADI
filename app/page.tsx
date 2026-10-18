@@ -33,6 +33,7 @@ import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useUser, useClerk } from "@clerk/nextjs";
+import { AnimatePresence, motion } from "framer-motion";
 
 type Role = "user" | "assistant";
 
@@ -2771,47 +2772,54 @@ export default function Home() {
               </button>
 
               {/* Popup Menu: Kamera & File */}
-              {showAttachMenu && (
-                <div
-                  className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 animate-in fade-in-0 zoom-in-95 duration-150 ${
-                    isDark
-                      ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
-                      : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAttachMenu(false);
-                      cameraInputRef.current?.click();
-                    }}
-                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                      isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+              <AnimatePresence>
+                {showAttachMenu && (
+                  <motion.div
+                    key="attach-menu-popup"
+                    initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 8 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 origin-bottom-left ${
+                      isDark
+                        ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
+                        : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
                     }`}
                   >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>Kamera</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAttachMenu(false);
-                      fileInputRef.current?.click();
-                    }}
-                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                      isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
-                    }`}
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>File</span>
-                  </button>
-                </div>
-              )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        cameraInputRef.current?.click();
+                      }}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span>Kamera</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        fileInputRef.current?.click();
+                      }}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>File</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* LLM Selector Button */}
@@ -2838,21 +2846,39 @@ export default function Home() {
               </button>
 
               {/* Popover backdrop mobile */}
-              {modelDropdownOpen && (
-                <div
-                  className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
-                  onClick={() => setModelDropdownOpen(false)}
-                  aria-hidden="true"
-                />
-              )}
+              <AnimatePresence>
+                {modelDropdownOpen && (
+                  <motion.div
+                    key="model-backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.16 }}
+                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                    onClick={() => {
+                      setModelDropdownOpen(false);
+                      setEffortMenuOpen(false);
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+              </AnimatePresence>
 
               {/* Popover list */}
-              {modelDropdownOpen && (
-                <div className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 animate-in fade-in-0 zoom-95 ${
-                  isDark
-                    ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
-                    : "bg-white border-zinc-200 text-black shadow-2xl"
-                }`}>
+              <AnimatePresence>
+                {modelDropdownOpen && (
+                  <motion.div
+                    key="model-popover"
+                    initial={{ opacity: 0, scale: 0.94, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.94, y: 8 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 origin-bottom-left ${
+                      isDark
+                        ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
+                        : "bg-white border-zinc-200 text-black shadow-2xl"
+                    }`}
+                  >
                   <div className={`flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
                     isDark ? "border-zinc-800 text-zinc-400" : "border-zinc-100 text-black"
                   }`}>
@@ -3029,18 +3055,25 @@ export default function Home() {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Sub-panel Upaya (Floating beside model menu on desktop, or popup on mobile) */}
-              {modelDropdownOpen && effortMenuOpen && (
-                <div
-                  className={`fixed inset-x-3 bottom-[80px] z-50 rounded-2xl border p-3 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 sm:fixed-none sm:absolute sm:bottom-full sm:left-[calc(100%+8px)] sm:inset-x-auto sm:mb-2 sm:w-80 ${
-                    isDark
-                      ? "bg-[#212121] border-zinc-800/90 text-zinc-100 shadow-black/80"
-                      : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
-                  }`}
-                >
+              <AnimatePresence>
+                {modelDropdownOpen && effortMenuOpen && (
+                  <motion.div
+                    key="effort-popover"
+                    initial={{ opacity: 0, scale: 0.94, y: 6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.94, y: 6 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className={`fixed inset-x-3 bottom-[80px] z-50 rounded-2xl border p-3 shadow-2xl sm:fixed-none sm:absolute sm:bottom-full sm:left-[calc(100%+8px)] sm:inset-x-auto sm:mb-2 sm:w-80 origin-bottom-left ${
+                      isDark
+                        ? "bg-[#212121] border-zinc-800/90 text-zinc-100 shadow-black/80"
+                        : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
+                    }`}
+                  >
                   {/* Options List: 3 Categories (Faster -> Balanced -> Max) */}
                   <div className="space-y-1">
                     {[
@@ -3131,8 +3164,9 @@ export default function Home() {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Browse Toggle Switch */}
