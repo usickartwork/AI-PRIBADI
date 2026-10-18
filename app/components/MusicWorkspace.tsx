@@ -23,6 +23,11 @@ import {
   generatePlaylistId,
 } from "@/lib/music";
 import {
+  RadioStation,
+  POPULAR_RADIO_STATIONS,
+  radioStationToMusicItem,
+} from "@/lib/radioStations";
+import {
   LyricsData,
   findActiveLyricIndex,
   getClientLyricsCache,
@@ -44,7 +49,7 @@ interface MusicWorkspaceProps {
   userName?: string;
 }
 
-type SubTab = "home" | "search" | "playlists";
+type SubTab = "home" | "search" | "playlists" | "radio";
 
 // Valid 0.1s 8kHz 8-bit mono PCM silent WAV loop for holding mobile background audio session
 const SILENT_AUDIO_URI =
@@ -435,6 +440,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   // Playback & Queue State (Queue starts empty on load/refresh as requested)
   const [currentTrack, setCurrentTrack] = useState<MusicItem | null>(null);
+  const [activeRadioStation, setActiveRadioStation] = useState<RadioStation | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(30);
@@ -1175,8 +1181,100 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     setAlbumError(null);
   }, []);
 
+  // ─── 24/7 Live Radio Streaming Logic (Zero API rate limits, non-stop popular songs) ─
+  const playRadioStation = useCallback((station: RadioStation) => {
+    // If user tapped on the same station that is already active, toggle playback
+    if (currentTrack?.isLiveRadio && (currentTrack.id === `radio:${station.id}` || currentTrack.streamUrl === station.streamUrl)) {
+      if (isPlayingRef.current) {
+        userRequestedPauseRef.current = true;
+        if (audioRef.current) {
+          try { audioRef.current.pause(); } catch {}
+        }
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      } else {
+        userRequestedPauseRef.current = false;
+        if (audioRef.current) {
+          try {
+            if (currentTrack.streamUrl && audioRef.current.src !== currentTrack.streamUrl) {
+              audioRef.current.src = currentTrack.streamUrl;
+            }
+            audioRef.current.volume = isMuted ? 0 : volume;
+            audioRef.current.muted = isMuted;
+            audioRef.current.play().catch(() => {});
+          } catch {}
+        }
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+      }
+      return;
+    }
+
+    // 1. Pause YouTube playback if any
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
+      try {
+        ytPlayerRef.current.pauseVideo();
+      } catch {}
+    }
+
+    // 2. Convert station to MusicItem and set state
+    const radioItem = radioStationToMusicItem(station);
+    setActiveRadioStation(station);
+    setCurrentTrack(radioItem);
+    loadedTrackIdRef.current = radioItem.id;
+    setIsResolvingAudio(false);
+    setLyricsData(null);
+    setShowLyrics(false);
+    setCurrentTime(0);
+    setDuration(0);
+    playbackClockRef.current = {
+      positionSeconds: 0,
+      snapshotPerfTime: performance.now(),
+      isPlaying: true,
+      duration: 0,
+      trackId: radioItem.id,
+    };
+
+    // 3. Play stream via HTML5 audioRef directly
+    if (audioRef.current) {
+      try {
+        audioRef.current.src = station.streamUrl;
+        audioRef.current.loop = false;
+        audioRef.current.volume = isMuted ? 0 : volume;
+        audioRef.current.muted = isMuted;
+        audioRef.current.play().catch((err) => {
+          console.warn("Live radio stream play error:", err);
+        });
+      } catch (err) {
+        console.warn("Audio element configuration error:", err);
+      }
+    }
+
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    userRequestedPauseRef.current = false;
+  }, [currentTrack, isMuted, volume]);
+
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
   const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean; forceLocal?: boolean }) => {
+    if (track.isLiveRadio) {
+      const match = POPULAR_RADIO_STATIONS.find((s) => `radio:${s.id}` === track.id || s.streamUrl === track.streamUrl);
+      if (match) {
+        playRadioStation(match);
+        return;
+      }
+    }
+
+    // Stop active live radio stream when switching to standard track
+    if (audioRef.current && (activeRadioStation || currentTrack?.isLiveRadio)) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.src = SILENT_AUDIO_URI;
+        audioRef.current.loop = true;
+      } catch {}
+    }
+    setActiveRadioStation(null);
+
     const mc = musicConnectRef.current;
     if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(
@@ -1368,6 +1466,33 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
+    // Live Radio Toggle Play/Pause
+    if (currentTrack?.isLiveRadio) {
+      if (isPlaying) {
+        userRequestedPauseRef.current = true;
+        if (audioRef.current) {
+          try { audioRef.current.pause(); } catch {}
+        }
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      } else {
+        userRequestedPauseRef.current = false;
+        if (audioRef.current) {
+          try {
+            if (currentTrack.streamUrl && audioRef.current.src !== currentTrack.streamUrl) {
+              audioRef.current.src = currentTrack.streamUrl;
+            }
+            audioRef.current.volume = isMuted ? 0 : volume;
+            audioRef.current.muted = isMuted;
+            audioRef.current.play().catch(() => {});
+          } catch {}
+        }
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+      }
+      return;
+    }
+
     // If the displayed track hasn't been loaded into the YouTube engine yet
     // (e.g. restored from saved queue when opening the tab), load and play it directly!
     if (loadedTrackIdRef.current !== currentTrack.id) {
@@ -1408,6 +1533,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const handleSeek = (newTime: number) => {
+    if (currentTrack?.isLiveRadio) return; // Disallow seek on live radio
     setCurrentTime(newTime);
     playbackClockRef.current = {
       positionSeconds: newTime,
@@ -1660,6 +1786,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const handleVolumeChange = (val: number) => {
     setVolume(val);
     setIsMuted(val === 0);
+    if (audioRef.current && currentTrack?.isLiveRadio) {
+      try {
+        audioRef.current.volume = val;
+        audioRef.current.muted = val === 0;
+      } catch {}
+    }
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(
@@ -1680,6 +1812,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
+    if (audioRef.current && currentTrack?.isLiveRadio) {
+      try {
+        audioRef.current.muted = nextMuted;
+        if (!nextMuted) audioRef.current.volume = volume || 0.8;
+      } catch {}
+    }
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(
@@ -1701,6 +1839,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const toggleShuffle = () => {
+    if (currentTrack?.isLiveRadio) return; // Disallow shuffle on live radio
     const nextShuffle = !isShuffle;
     setIsShuffle(nextShuffle);
     const mc = musicConnectRef.current;
@@ -1712,6 +1851,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const toggleRepeat = () => {
+    if (currentTrack?.isLiveRadio) return; // Disallow repeat on live radio
     const nextMode = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
     setRepeatMode(nextMode);
     const mc = musicConnectRef.current;
@@ -1723,6 +1863,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const playNext = (): MusicItem | null => {
+    if (currentTrack?.isLiveRadio) return null; // Disallow skip on live radio
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "NEXT");
@@ -1754,6 +1895,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const playPrevious = (): MusicItem | null => {
+    if (currentTrack?.isLiveRadio) return null; // Disallow skip on live radio
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "PREVIOUS");
@@ -2000,6 +2142,19 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     const handlePlay = () => {
       userRequestedPauseRef.current = false;
+      if (currentTrack?.isLiveRadio) {
+        if (audioRef.current) {
+          try {
+            if (currentTrack.streamUrl && audioRef.current.src !== currentTrack.streamUrl) {
+              audioRef.current.src = currentTrack.streamUrl;
+            }
+            audioRef.current.play().catch(() => {});
+          } catch {}
+        }
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+        return;
+      }
       if (currentTrack && loadedTrackIdRef.current !== currentTrack.id) {
         playTrack(currentTrack);
         return;
@@ -2017,10 +2172,19 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         } catch {}
       }
       setIsPlaying(true);
+      isPlayingRef.current = true;
     };
 
     const handlePause = () => {
       userRequestedPauseRef.current = true;
+      if (currentTrack?.isLiveRadio) {
+        if (audioRef.current) {
+          try { audioRef.current.pause(); } catch {}
+        }
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+        return;
+      }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
         ytPlayerRef.current.pauseVideo();
       }
@@ -2028,17 +2192,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         try { audioRef.current.pause(); } catch {}
       }
       setIsPlaying(false);
+      isPlayingRef.current = false;
     };
 
     const handlePrev = () => {
+      if (currentTrack?.isLiveRadio) return;
       playPrevious();
     };
 
     const handleNext = () => {
+      if (currentTrack?.isLiveRadio) return;
       playNext();
     };
 
     const handleSeekTo = (details: any) => {
+      if (currentTrack?.isLiveRadio) return;
       if (details.seekTime !== undefined && details.seekTime !== null) {
         handleSeek(details.seekTime);
       }
@@ -2047,9 +2215,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     try {
       navigator.mediaSession.setActionHandler("play", handlePlay);
       navigator.mediaSession.setActionHandler("pause", handlePause);
-      navigator.mediaSession.setActionHandler("previoustrack", handlePrev);
-      navigator.mediaSession.setActionHandler("nexttrack", handleNext);
-      navigator.mediaSession.setActionHandler("seekto", handleSeekTo);
+      if (currentTrack?.isLiveRadio) {
+        navigator.mediaSession.setActionHandler("previoustrack", null);
+        navigator.mediaSession.setActionHandler("nexttrack", null);
+        navigator.mediaSession.setActionHandler("seekto", null);
+      } else {
+        navigator.mediaSession.setActionHandler("previoustrack", handlePrev);
+        navigator.mediaSession.setActionHandler("nexttrack", handleNext);
+        navigator.mediaSession.setActionHandler("seekto", handleSeekTo);
+      }
     } catch (err) {
       console.warn("MediaSession action handler error:", err);
     }
@@ -2073,6 +2247,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       typeof window !== "undefined" &&
       "mediaSession" in navigator &&
       "setPositionState" in navigator.mediaSession &&
+      !currentTrack?.isLiveRadio &&
       duration > 0 &&
       currentTime >= 0 &&
       currentTime <= duration
@@ -3070,6 +3245,158 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     );
   };
 
+  // ─── 24/7 Live Popular Radio Station View Renderer ─────────────────────────
+  const renderRadioView = () => {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col pt-1 pb-10 space-y-6 animate-in fade-in-0 duration-200">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5 dark:border-white/5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+              </span>
+              <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight">
+                Radio Siaran Live 24/7
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm mt-1 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              Siaran musik populer & hits trending non-stop secara langsung. Bebas kuota API dan tanpa rate-limit.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSubTab("home")}
+            className={`self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Kembali ke Musik</span>
+          </button>
+        </div>
+
+        {/* Stations Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+          {POPULAR_RADIO_STATIONS.map((station) => {
+            const isCurrent = currentTrack?.id === `radio:${station.id}`;
+            const isStationPlaying = isCurrent && isPlaying;
+
+            return (
+              <div
+                key={`station-${station.id}`}
+                onClick={() => playRadioStation(station)}
+                className={`group relative flex flex-col rounded-2xl overflow-hidden border transition-all duration-200 cursor-pointer ${
+                  isCurrent
+                    ? isDark
+                      ? "bg-white/10 border-white/30 shadow-lg ring-1 ring-white/20"
+                      : "bg-black/5 border-black/25 shadow-md ring-1 ring-black/10"
+                    : isDark
+                    ? "bg-zinc-900/60 hover:bg-zinc-800/80 border-white/5 hover:border-white/15"
+                    : "bg-white hover:bg-zinc-50 border-black/5 hover:border-black/15 shadow-xs"
+                }`}
+              >
+                {/* Station Cover Artwork */}
+                <div className="relative aspect-video w-full overflow-hidden bg-zinc-950">
+                  <img
+                    src={station.artworkUrl}
+                    alt={station.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
+
+                  {/* Top Badges */}
+                  <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      <span>LIVE</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-black/50 backdrop-blur-md text-white/90 border border-white/10">
+                      {station.frequency}
+                    </span>
+                  </div>
+
+                  {/* Center Play Button Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                      {isStationPlaying ? (
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 fill-current ml-0.5" viewBox="0 0 24 24">
+                          <polygon points="6 4, 18 12, 6 20" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Info over Image */}
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-end justify-between text-white">
+                    <span className="text-[11px] font-medium text-white/80">
+                      {station.country} • {station.genre}
+                    </span>
+                    {isStationPlaying && (
+                      <span className="flex items-end gap-0.5 h-3.5 px-2 py-1 rounded bg-red-600/90 backdrop-blur-md">
+                        <span className="w-0.5 bg-white rounded-full animate-bounce h-3" />
+                        <span className="w-0.5 bg-white rounded-full animate-bounce h-2" style={{ animationDelay: "0.15s" }} />
+                        <span className="w-0.5 bg-white rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.3s" }} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Station Meta Info */}
+                <div className="p-3.5 flex flex-col justify-between flex-1 space-y-2">
+                  <div>
+                    <h4 className={`text-sm sm:text-base font-bold truncate ${
+                      isCurrent ? "text-red-500 font-extrabold" : isDark ? "text-white" : "text-zinc-900"
+                    }`}>
+                      {station.name}
+                    </h4>
+                    <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">
+                      {station.tagline}
+                    </p>
+                    <p className="text-[11px] text-zinc-500 line-clamp-2 mt-1.5">
+                      {station.description}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5 dark:border-white/5 text-[11px]">
+                    <span className="text-zinc-500 font-mono">
+                      {station.listenersEstimate || "Siaran Aktif"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playRadioStation(station);
+                      }}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                        isStationPlaying
+                          ? "bg-red-500 text-white"
+                          : isDark
+                          ? "bg-white/10 hover:bg-white text-zinc-200 hover:text-black"
+                          : "bg-black/10 hover:bg-black text-zinc-800 hover:text-white"
+                      }`}
+                    >
+                      {isStationPlaying ? "Jeda" : "Putar Siaran"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className={`relative w-full h-full flex flex-col overflow-hidden select-none font-sans bg-transparent overscroll-none touch-pan-y ${
@@ -3082,18 +3409,35 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         playsInline
         onTimeUpdate={() => {
           if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
-            setCurrentTime(audioRef.current.currentTime);
-            setDuration(audioRef.current.duration || 30);
+            if (!currentTrack?.isLiveRadio) {
+              setCurrentTime(audioRef.current.currentTime);
+              setDuration(audioRef.current.duration || 30);
+            }
           }
         }}
         onEnded={() => {
           if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
-            if (repeatMode === "one") {
+            if (currentTrack?.isLiveRadio) {
+              if (currentTrack.streamUrl && isPlayingRef.current) {
+                audioRef.current.src = currentTrack.streamUrl;
+                audioRef.current.play().catch(() => {});
+              }
+            } else if (repeatMode === "one") {
               audioRef.current.currentTime = 0;
               audioRef.current.play().catch(() => {});
             } else {
               playNext();
             }
+          }
+        }}
+        onError={() => {
+          if (currentTrack?.isLiveRadio && isPlayingRef.current) {
+            setTimeout(() => {
+              if (audioRef.current && currentTrack?.streamUrl && isPlayingRef.current) {
+                audioRef.current.src = currentTrack.streamUrl;
+                audioRef.current.play().catch(() => {});
+              }
+            }, 2500);
           }
         }}
       />
@@ -3187,33 +3531,63 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </svg>
                 </button>
               ) : subTab === "home" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubTab("playlists");
-                    setSelectedLocalPlaylist(null);
-                    setIsViewingLiked(false);
-                  }}
-                  title="Playlist & Koleksi"
-                  aria-label="Buka Playlist"
-                  className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                    isDark
-                      ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                      : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-                  }`}
-                >
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Live Radio Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubTab("radio");
+                      setSelectedLocalPlaylist(null);
+                      setIsViewingLiked(false);
+                      setSelectedArtist(null);
+                      setSelectedAlbum(null);
+                    }}
+                    title="Radio Siaran Populer 24/7"
+                    aria-label="Radio Siaran Populer 24/7"
+                    className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                      isDark
+                        ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                        : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                    }`}
+                  >
+                    <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.828a5 5 0 010-7.072m7.072 0a5 5 0 010 7.072M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+                    </svg>
+                    {currentTrack?.isLiveRadio && isPlaying ? (
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border-2 border-black" />
+                    ) : (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500/80" />
+                    )}
+                  </button>
+
                   {/* Clean Double Musical Notes / Playlist Icon (Replacing old 3-lines icon) */}
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                  </svg>
-                  {likedSongs.length > 0 && (
-                    <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
-                      isDark ? "bg-white text-black" : "bg-black text-white"
-                    }`}>
-                      {likedSongs.length}
-                    </span>
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubTab("playlists");
+                      setSelectedLocalPlaylist(null);
+                      setIsViewingLiked(false);
+                    }}
+                    title="Playlist & Koleksi"
+                    aria-label="Buka Playlist"
+                    className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                      isDark
+                        ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                        : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                    }`}
+                  >
+                    <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                    </svg>
+                    {likedSongs.length > 0 && (
+                      <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
+                        isDark ? "bg-white text-black" : "bg-black text-white"
+                      }`}>
+                        {likedSongs.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -3241,7 +3615,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           {/* ─── MAIN FULL-WIDTH CONTENT AREA ─────────────────────────────────── */}
           <main
             className={`flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain bg-transparent ${
-              searchQuery.trim() || subTab === "playlists" || selectedArtist || selectedAlbum || showLyrics
+              searchQuery.trim() || subTab === "playlists" || subTab === "radio" || selectedArtist || selectedAlbum || showLyrics
                 ? "pb-8 sm:pb-10"
                 : "pb-0"
             }`}
@@ -3536,6 +3910,128 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Lower Section: Recommendations & Tracks (When empty) OR Results & Tracks (When typed) */}
               {!searchQuery.trim() ? (
                 <div className="space-y-6 sm:space-y-8 w-full mt-1 sm:mt-2">
+                  {/* ─── 24/7 LIVE RADIO SHOWCASE (Zero API Rate Limit) ─── */}
+                  <div className="space-y-3.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                        </span>
+                        <h3 className={`text-base sm:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
+                          Radio Siaran Populer 24/7
+                        </h3>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          isDark ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-red-50 text-red-600 border border-red-200"
+                        }`}>
+                          Live
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubTab("radio");
+                          setSelectedLocalPlaylist(null);
+                          setIsViewingLiked(false);
+                          setSelectedArtist(null);
+                          setSelectedAlbum(null);
+                        }}
+                        className={`text-xs font-semibold hover:underline transition cursor-pointer ${
+                          isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                        }`}
+                      >
+                        Lihat Semua ({POPULAR_RADIO_STATIONS.length}) →
+                      </button>
+                    </div>
+
+                    {/* Quick Radio Station Cards Grid (2 cols mobile, 3 cols desktop) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                      {POPULAR_RADIO_STATIONS.slice(0, 6).map((station) => {
+                        const isCurrent = currentTrack?.id === `radio:${station.id}`;
+                        const isStationPlaying = isCurrent && isPlaying;
+
+                        return (
+                          <div
+                            key={`home-radio-${station.id}`}
+                            onClick={() => playRadioStation(station)}
+                            className={`group relative flex items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 pr-2.5 sm:pr-3 rounded-xl sm:rounded-2xl transition-colors cursor-pointer overflow-hidden border ${
+                              isCurrent
+                                ? isDark
+                                  ? "bg-red-500/15 border-red-500/30 shadow-md ring-1 ring-red-500/20"
+                                  : "bg-red-50 border-red-200 shadow-xs ring-1 ring-red-500/20"
+                                : isDark
+                                ? "bg-zinc-900/50 hover:bg-zinc-800/80 border-white/5 hover:border-white/10"
+                                : "bg-white/80 hover:bg-white border-black/5 hover:border-black/10 shadow-xs"
+                            }`}
+                          >
+                            {/* Artwork with Live Dot */}
+                            <div className="relative w-11 h-11 sm:w-13 sm:h-13 rounded-lg sm:rounded-xl overflow-hidden shrink-0 bg-zinc-900 shadow-xs">
+                              <img
+                                src={station.artworkUrl}
+                                alt={station.name}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-black/20" />
+                              <span className="absolute top-1 left-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                              {isStationPlaying && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-xs">
+                                  <span className="flex items-end gap-0.5 h-3">
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-3" />
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-2" style={{ animationDelay: "0.15s" }} />
+                                    <span className="w-0.5 bg-white rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.3s" }} />
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Meta */}
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-xs sm:text-sm font-semibold truncate ${
+                                isCurrent
+                                  ? "text-red-500 font-bold"
+                                  : isDark ? "text-zinc-100" : "text-zinc-900"
+                              }`}>
+                                {station.name}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-zinc-400 truncate mt-0.5">
+                                {station.frequency} • {station.genre}
+                              </p>
+                            </div>
+
+                            {/* Play / Pause button icon on hover/tap */}
+                            <div className="shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playRadioStation(station);
+                                }}
+                                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition active:scale-90 ${
+                                  isStationPlaying
+                                    ? "bg-red-500 text-white"
+                                    : isDark
+                                    ? "bg-white/10 hover:bg-white text-white hover:text-black"
+                                    : "bg-black/10 hover:bg-black text-black hover:text-white"
+                                }`}
+                                title={isStationPlaying ? "Jeda siaran" : "Putar siaran langsung"}
+                              >
+                                {isStationPlaying ? (
+                                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                    <path d="M6 4h4v16H6z M14 4h4v16h-4z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                                    <polygon points="6 4, 18 12, 6 20" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* ─── SPOTIFY / APPLE MUSIC DISCOVER HOME (Clean One Mind Theme) ─── */}
                   <div className="space-y-3.5 pt-1">
                     {/* Clean Headline: Direkomendasikan untuk anda */}
@@ -4011,6 +4507,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               )}
             </div>
           )}
+
+          {/* ─── TAB 4: LIVE RADIO EXPLORER ─────────────────────────────────── */}
+          {subTab === "radio" && renderRadioView()}
         </div>
         )}
       </main>
@@ -4392,19 +4891,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           {/* ─── MOBILE VIEW (< sm): Sleek, Larger Bar (Click to expand, Heart + Play on right) ─ */}
           <div className="block sm:hidden">
             {/* Top Progress Bar */}
-            <div
-              className={`w-full h-1.5 cursor-pointer overflow-hidden relative ${isDark ? "bg-white/10" : "bg-black/10"}`}
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pct = (e.clientX - rect.left) / rect.width;
-                handleSeek(pct * effectiveDuration);
-              }}
-            >
+            {activeTrack.isLiveRadio ? (
+              <div className="w-full h-1 relative overflow-hidden bg-red-500/20 select-none">
+                <div className="h-full w-full bg-gradient-to-r from-red-500 via-rose-400 to-red-500 animate-pulse" />
+              </div>
+            ) : (
               <div
-                className={`h-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
-                style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
-              />
-            </div>
+                className={`w-full h-1.5 cursor-pointer overflow-hidden relative ${isDark ? "bg-white/10" : "bg-black/10"}`}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  handleSeek(pct * effectiveDuration);
+                }}
+              >
+                <div
+                  className={`h-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
+                  style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
+                />
+              </div>
+            )}
 
             <div
               onClick={() => setShowMobilePlayer(true)}
@@ -4433,11 +4938,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-bold truncate group-hover:underline">
-                    {activeTrack.title}
+                  <h4 className="text-sm font-bold truncate group-hover:underline flex items-center gap-1.5">
+                    {activeTrack.isLiveRadio && (
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    )}
+                    <span className="truncate">{activeTrack.title}</span>
                   </h4>
                   <p className="text-xs text-zinc-400 truncate mt-0.5">
-                    {activeTrack.artistNames.join(", ")}
+                    {activeTrack.isLiveRadio ? (
+                      <span className="text-red-400 font-semibold">
+                        LIVE • {activeTrack.albumTitle || activeTrack.artistNames.join(", ")}
+                      </span>
+                    ) : (
+                      activeTrack.artistNames.join(", ")
+                    )}
                   </p>
                 </div>
               </div>
@@ -4549,21 +5063,28 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </h4>
                 <p className="text-[11px] text-zinc-500 truncate">
                   {activeTrack ? (
-                    activeTrack.artistNames.map((name, i) => (
-                      <span key={`${name}-${i}`}>
-                        {i > 0 && ", "}
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openArtistProfile(name);
-                          }}
-                          className="hover:underline hover:text-white transition cursor-pointer"
-                          title={`Lihat profil ${name}`}
-                        >
-                          {name}
-                        </span>
+                    activeTrack.isLiveRadio ? (
+                      <span className="text-red-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        <span>LIVE • {activeTrack.albumTitle || activeTrack.artistNames.join(", ")}</span>
                       </span>
-                    ))
+                    ) : (
+                      activeTrack.artistNames.map((name, i) => (
+                        <span key={`${name}-${i}`}>
+                          {i > 0 && ", "}
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openArtistProfile(name);
+                            }}
+                            className="hover:underline hover:text-white transition cursor-pointer"
+                            title={`Lihat profil ${name}`}
+                          >
+                            {name}
+                          </span>
+                        </span>
+                      ))
+                    )
                   ) : (
                     "Pilih lagu untuk memulai"
                   )}
@@ -4601,8 +5122,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={toggleShuffle}
+                  disabled={activeTrack?.isLiveRadio}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    effectiveShuffle
+                    activeTrack?.isLiveRadio
+                      ? "opacity-25 cursor-not-allowed"
+                      : effectiveShuffle
                       ? isDark
                         ? "text-white bg-white/10"
                         : "text-black bg-black/10 font-bold"
@@ -4610,7 +5134,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       ? "text-zinc-500 hover:text-white"
                       : "text-zinc-500 hover:text-black"
                   }`}
-                  title="Shuffle"
+                  title={activeTrack?.isLiveRadio ? "Siaran radio live tidak dapat diacak" : "Shuffle"}
                 >
                   <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -4621,8 +5145,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playPrevious}
-                  className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
-                  title="Sebelumnya"
+                  disabled={activeTrack?.isLiveRadio}
+                  className={`p-2 transition cursor-pointer ${
+                    activeTrack?.isLiveRadio
+                      ? "opacity-25 cursor-not-allowed"
+                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
+                  title={activeTrack?.isLiveRadio ? "Siaran radio live tidak dapat di-skip" : "Sebelumnya"}
                 >
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -4659,8 +5188,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={playNext}
-                  className={`p-2 transition cursor-pointer ${isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"}`}
-                  title="Berikutnya"
+                  disabled={activeTrack?.isLiveRadio}
+                  className={`p-2 transition cursor-pointer ${
+                    activeTrack?.isLiveRadio
+                      ? "opacity-25 cursor-not-allowed"
+                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
+                  title={activeTrack?.isLiveRadio ? "Siaran radio live tidak dapat di-skip" : "Berikutnya"}
                 >
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -4671,8 +5205,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={toggleRepeat}
+                  disabled={activeTrack?.isLiveRadio}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    effectiveRepeat !== "off"
+                    activeTrack?.isLiveRadio
+                      ? "opacity-25 cursor-not-allowed"
+                      : effectiveRepeat !== "off"
                       ? isDark
                         ? "text-white bg-white/10 font-bold"
                         : "text-black bg-black/10 font-bold"
@@ -4680,7 +5217,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       ? "text-zinc-500 hover:text-white"
                       : "text-zinc-500 hover:text-black"
                   }`}
-                  title={`Repeat: ${effectiveRepeat}`}
+                  title={activeTrack?.isLiveRadio ? "Siaran radio live tidak dapat diulang" : `Repeat: ${effectiveRepeat}`}
                 >
                   <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -4688,27 +5225,44 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </button>
               </div>
 
-              {/* Progress Bar Slider (Clean White/Black Accent) */}
-              <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
-                <span>{Math.floor(effectiveCurrentTime / 60)}:{String(Math.floor(effectiveCurrentTime % 60)).padStart(2, "0")}</span>
-                <div
-                  className={`flex-1 h-1.5 rounded-full relative overflow-hidden cursor-pointer ${
-                    isDark ? "bg-white/10" : "bg-black/10"
-                  }`}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const pct = (e.clientX - rect.left) / rect.width;
-                    const newTime = pct * effectiveDuration;
-                    handleSeek(newTime);
-                  }}
-                >
-                  <div
-                    className={`h-full rounded-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
-                    style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
-                  />
+              {/* Progress Bar Slider or Live Radio On-Air Badge */}
+              {activeTrack?.isLiveRadio ? (
+                <div className="w-full flex items-center justify-center gap-3 py-1 select-none">
+                  <span className="flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-red-500/15 text-red-500 border border-red-500/30 shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span>SIARAN LANGSUNG 24/7</span>
+                  </span>
+                  <span className="text-[11px] text-zinc-500 font-mono tracking-wide">
+                    {activeTrack.radioFrequency || "LIVE ON AIR"}
+                  </span>
+                  <span className="flex items-end gap-0.5 h-3">
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-3" />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-2" style={{ animationDelay: "0.15s" }} />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.3s" }} />
+                  </span>
                 </div>
-                <span>{Math.floor(effectiveDuration / 60)}:{String(Math.floor(effectiveDuration % 60)).padStart(2, "0")}</span>
-              </div>
+              ) : (
+                <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-zinc-500">
+                  <span>{Math.floor(effectiveCurrentTime / 60)}:{String(Math.floor(effectiveCurrentTime % 60)).padStart(2, "0")}</span>
+                  <div
+                    className={`flex-1 h-1.5 rounded-full relative overflow-hidden cursor-pointer ${
+                      isDark ? "bg-white/10" : "bg-black/10"
+                    }`}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pct = (e.clientX - rect.left) / rect.width;
+                      const newTime = pct * effectiveDuration;
+                      handleSeek(newTime);
+                    }}
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all ${isDark ? "bg-white" : "bg-zinc-900"}`}
+                      style={{ width: `${(effectiveCurrentTime / Math.max(effectiveDuration, 1)) * 100}%` }}
+                    />
+                  </div>
+                  <span>{Math.floor(effectiveDuration / 60)}:{String(Math.floor(effectiveDuration % 60)).padStart(2, "0")}</span>
+                </div>
+              )}
             </div>
 
             {/* Right: Lyrics, Queue, Connect & Volume Control (Symmetrically spaced) */}
@@ -4865,42 +5419,55 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </button>
 
             <div className="min-w-0 text-center flex-1 px-3">
-              <p className={`text-[10px] font-semibold tracking-wider uppercase truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                {activeTrack.albumTitle || "Sedang Diputar"}
-              </p>
+              {activeTrack.isLiveRadio ? (
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <p className="text-[10px] font-bold tracking-wider uppercase text-red-500 truncate">
+                    SIARAN RADIO LIVE 24/7
+                  </p>
+                </div>
+              ) : (
+                <p className={`text-[10px] font-semibold tracking-wider uppercase truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  {activeTrack.albumTitle || "Sedang Diputar"}
+                </p>
+              )}
               <p className="text-xs font-bold truncate">
                 {activeTrack.title}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
-              className={`p-3 -mr-2 rounded-full transition cursor-pointer active:scale-90 relative ${
-                mobilePlayerMode === "queue"
-                  ? isDark
-                    ? "bg-white text-black font-bold shadow-sm"
-                    : "bg-black text-white font-bold shadow-sm"
-                  : isDark
-                  ? "text-zinc-400 hover:text-white"
-                  : "text-zinc-500 hover:text-black"
-              }`}
-              title="Antrean Putar"
-              aria-label="Antrean Putar"
-            >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="5" cy="12" r="2.2" />
-                <circle cx="12" cy="12" r="2.2" />
-                <circle cx="19" cy="12" r="2.2" />
-              </svg>
-              {queue.length > 0 && (
-                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
+            {!activeTrack.isLiveRadio ? (
+              <button
+                type="button"
+                onClick={() => setMobilePlayerMode((prev) => (prev === "queue" ? "track" : "queue"))}
+                className={`p-3 -mr-2 rounded-full transition cursor-pointer active:scale-90 relative ${
                   mobilePlayerMode === "queue"
-                    ? isDark ? "bg-black" : "bg-white"
-                    : isDark ? "bg-white" : "bg-black"
-                }`} />
-              )}
-            </button>
+                    ? isDark
+                      ? "bg-white text-black font-bold shadow-sm"
+                      : "bg-black text-white font-bold shadow-sm"
+                    : isDark
+                    ? "text-zinc-400 hover:text-white"
+                    : "text-zinc-500 hover:text-black"
+                }`}
+                title="Antrean Putar"
+                aria-label="Antrean Putar"
+              >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="2.2" />
+                  <circle cx="12" cy="12" r="2.2" />
+                  <circle cx="19" cy="12" r="2.2" />
+                </svg>
+                {queue.length > 0 && (
+                  <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
+                    mobilePlayerMode === "queue"
+                      ? isDark ? "bg-black" : "bg-white"
+                      : isDark ? "bg-white" : "bg-black"
+                  }`} />
+                )}
+              </button>
+            ) : (
+              <div className="w-10 h-10" />
+            )}
           </div>
 
           {/* Listening device indicator pill in mobile full player */}
@@ -5185,7 +5752,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </div>
             ) : (
               /* Artwork View */
-              <div className="w-full flex items-center justify-center py-2">
+              <div className="w-full flex items-center justify-center py-2 relative">
                 <div
                   className={`w-full max-w-[320px] aspect-square rounded-3xl overflow-hidden relative mx-auto border shadow-xl ${
                     isDark
@@ -5206,6 +5773,34 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       </svg>
                     </div>
                   )}
+
+                  {/* Live Radio Badge Overlay on Artwork */}
+                  {activeTrack.isLiveRadio && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/35 flex flex-col justify-between p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-full bg-red-600 text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1.5 shadow-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                          <span>LIVE ON AIR</span>
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold tracking-wide">
+                          {activeTrack.radioFrequency || "24/7 RADIO"}
+                        </span>
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <div className="min-w-0 pr-2">
+                          <p className="text-[11px] font-medium text-white/80">Stasiun Radio</p>
+                          <p className="text-sm font-bold text-white drop-shadow-sm truncate">{activeTrack.title}</p>
+                        </div>
+                        {effectiveIsPlaying && (
+                          <div className="flex items-end gap-1 h-5 px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md shrink-0">
+                            <span className="w-1 bg-white rounded-full animate-bounce h-5" />
+                            <span className="w-1 bg-white rounded-full animate-bounce h-3" style={{ animationDelay: "0.15s" }} />
+                            <span className="w-1 bg-white rounded-full animate-bounce h-4.5" style={{ animationDelay: "0.3s" }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -5220,20 +5815,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   {activeTrack.title}
                 </h2>
                 <p className={`text-sm font-medium truncate mt-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                  {activeTrack.artistNames.map((name, i) => (
-                    <span key={`${name}-${i}`}>
-                      {i > 0 && ", "}
-                      <span
-                        onClick={() => {
-                          setShowMobilePlayer(false);
-                          openArtistProfile(name);
-                        }}
-                        className={`hover:underline cursor-pointer ${isDark ? "hover:text-white" : "hover:text-black"}`}
-                      >
-                        {name}
-                      </span>
+                  {activeTrack.isLiveRadio ? (
+                    <span className="text-red-400 font-semibold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span>{activeTrack.albumTitle || activeTrack.artistNames.join(", ")}</span>
                     </span>
-                  ))}
+                  ) : (
+                    activeTrack.artistNames.map((name, i) => (
+                      <span key={`${name}-${i}`}>
+                        {i > 0 && ", "}
+                        <span
+                          onClick={() => {
+                            setShowMobilePlayer(false);
+                            openArtistProfile(name);
+                          }}
+                          className={`hover:underline cursor-pointer ${isDark ? "hover:text-white" : "hover:text-black"}`}
+                        >
+                          {name}
+                        </span>
+                      </span>
+                    ))
+                  )}
                 </p>
               </div>
 
@@ -5259,54 +5861,75 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               </button>
             </div>
 
-            {/* Progress Scrubber with Circle Handle and Continuous Touch Drag */}
-            {(() => {
-              const displayPlaybackTime = isScrubbing && scrubTime !== null ? scrubTime : effectiveCurrentTime;
-              const displayProgressPct = Math.max(0, Math.min(1, displayPlaybackTime / Math.max(effectiveDuration, 1)));
-              return (
-                <div className="space-y-1.5 pt-1 select-none">
-                  <div
-                    data-scrubber="true"
-                    onPointerDown={handleScrubberPointerDown}
-                    onPointerMove={handleScrubberPointerMove}
-                    onPointerUp={handleScrubberPointerUp}
-                    onPointerCancel={handleScrubberPointerCancel}
-                    className="w-full py-2.5 cursor-pointer relative flex items-center select-none touch-none group"
-                  >
-                    {/* Background Track Bar */}
+            {/* Progress Scrubber with Circle Handle and Continuous Touch Drag or Live Indicator */}
+            {activeTrack.isLiveRadio ? (
+              <div className="py-2.5 flex items-center justify-between px-1 select-none">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                  <span className="text-xs font-bold tracking-wider text-red-500 uppercase">
+                    LIVE BROADCAST 24/7
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-end gap-0.5 h-3">
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-3" />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-2" style={{ animationDelay: "0.15s" }} />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-bounce h-3.5" style={{ animationDelay: "0.3s" }} />
+                  </span>
+                  <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${isDark ? "bg-white/10 text-zinc-300" : "bg-black/10 text-zinc-700"}`}>
+                    {activeTrack.radioFrequency || "ON AIR"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              (() => {
+                const displayPlaybackTime = isScrubbing && scrubTime !== null ? scrubTime : effectiveCurrentTime;
+                const displayProgressPct = Math.max(0, Math.min(1, displayPlaybackTime / Math.max(effectiveDuration, 1)));
+                return (
+                  <div className="space-y-1.5 pt-1 select-none">
                     <div
-                      className={`w-full h-1.5 sm:h-2 rounded-full relative overflow-visible ${
-                        isDark ? "bg-white/20" : "bg-black/15"
-                      }`}
+                      data-scrubber="true"
+                      onPointerDown={handleScrubberPointerDown}
+                      onPointerMove={handleScrubberPointerMove}
+                      onPointerUp={handleScrubberPointerUp}
+                      onPointerCancel={handleScrubberPointerCancel}
+                      className="w-full py-2.5 cursor-pointer relative flex items-center select-none touch-none group"
                     >
-                      {/* Active Progress Fill */}
+                      {/* Background Track Bar */}
                       <div
-                        className={`h-full rounded-full transition-[width] ${isScrubbing ? "duration-0" : "duration-75"} ${
-                          isDark ? "bg-white" : "bg-zinc-950"
+                        className={`w-full h-1.5 sm:h-2 rounded-full relative overflow-visible ${
+                          isDark ? "bg-white/20" : "bg-black/15"
                         }`}
-                        style={{ width: `${displayProgressPct * 100}%` }}
-                      />
-                      {/* Draggable Circle (Lingkaran Thumb) */}
-                      <div
-                        className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-md transition-transform pointer-events-none ${
-                          isScrubbing ? "scale-125 ring-2 ring-white/50" : "scale-100 group-hover:scale-110"
-                        } ${
-                          isDark
-                            ? "bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.45)]"
-                            : "bg-zinc-900 text-white shadow-[0_0_10px_rgba(0,0,0,0.35)]"
-                        }`}
-                        style={{ left: `${displayProgressPct * 100}%` }}
-                      />
+                      >
+                        {/* Active Progress Fill */}
+                        <div
+                          className={`h-full rounded-full transition-[width] ${isScrubbing ? "duration-0" : "duration-75"} ${
+                            isDark ? "bg-white" : "bg-zinc-950"
+                          }`}
+                          style={{ width: `${displayProgressPct * 100}%` }}
+                        />
+                        {/* Draggable Circle (Lingkaran Thumb) */}
+                        <div
+                          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-md transition-transform pointer-events-none ${
+                            isScrubbing ? "scale-125 ring-2 ring-white/50" : "scale-100 group-hover:scale-110"
+                          } ${
+                            isDark
+                              ? "bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.45)]"
+                              : "bg-zinc-900 text-white shadow-[0_0_10px_rgba(0,0,0,0.35)]"
+                          }`}
+                          style={{ left: `${displayProgressPct * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={`flex items-center justify-between text-[11px] font-mono ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      <span>{formatPlaybackTime(displayPlaybackTime)}</span>
+                      <span>{formatRemainingPlaybackTime(displayPlaybackTime, effectiveDuration)}</span>
                     </div>
                   </div>
-
-                  <div className={`flex items-center justify-between text-[11px] font-mono ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
-                    <span>{formatPlaybackTime(displayPlaybackTime)}</span>
-                    <span>{formatRemainingPlaybackTime(displayPlaybackTime, effectiveDuration)}</span>
-                  </div>
-                </div>
-              );
-            })()}
+                );
+              })()
+            )}
 
             {/* Main Playback Control Row */}
             <div className="flex items-center justify-between pt-1">
@@ -5314,12 +5937,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={toggleShuffle}
+                disabled={activeTrack.isLiveRadio}
                 className={`p-3 rounded-full transition cursor-pointer active:scale-90 ${
-                  effectiveShuffle
+                  activeTrack.isLiveRadio
+                    ? "opacity-25 pointer-events-none"
+                    : effectiveShuffle
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
-                title="Acak"
+                title={activeTrack.isLiveRadio ? "Siaran radio live tidak dapat diacak" : "Acak"}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H8m0 0l4 4m-4-4l4-4" />
@@ -5330,10 +5956,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playPrevious}
+                disabled={activeTrack.isLiveRadio}
                 className={`p-3 rounded-full active:scale-90 transition cursor-pointer ${
-                  isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
+                  activeTrack.isLiveRadio
+                    ? "opacity-25 pointer-events-none"
+                    : isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
                 }`}
-                title="Sebelumnya"
+                title={activeTrack.isLiveRadio ? "Siaran radio live tidak dapat di-skip" : "Sebelumnya"}
               >
                 <svg className="w-9 h-9 fill-current" viewBox="0 0 24 24">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -5372,10 +6001,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={playNext}
+                disabled={activeTrack.isLiveRadio}
                 className={`p-3 rounded-full active:scale-90 transition cursor-pointer ${
-                  isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
+                  activeTrack.isLiveRadio
+                    ? "opacity-25 pointer-events-none"
+                    : isDark ? "text-white hover:text-zinc-200" : "text-black hover:text-zinc-800"
                 }`}
-                title="Berikutnya"
+                title={activeTrack.isLiveRadio ? "Siaran radio live tidak dapat di-skip" : "Berikutnya"}
               >
                 <svg className="w-9 h-9 fill-current" viewBox="0 0 24 24">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -5386,12 +6018,15 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               <button
                 type="button"
                 onClick={toggleRepeat}
+                disabled={activeTrack.isLiveRadio}
                 className={`p-3 rounded-full transition cursor-pointer relative active:scale-90 ${
-                  effectiveRepeat !== "off"
+                  activeTrack.isLiveRadio
+                    ? "opacity-25 pointer-events-none"
+                    : effectiveRepeat !== "off"
                     ? isDark ? "text-white" : "text-black font-bold"
                     : isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-700"
                 }`}
-                title={`Ulang: ${effectiveRepeat}`}
+                title={activeTrack.isLiveRadio ? "Siaran radio live tidak dapat diulang" : `Ulang: ${effectiveRepeat}`}
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

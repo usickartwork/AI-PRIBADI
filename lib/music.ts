@@ -6,7 +6,7 @@ export type MusicItemType = "track" | "artist" | "album" | "playlist";
 
 export interface MusicItem {
   id: string;
-  provider: "spotify";
+  provider: "spotify" | "radio";
   providerItemId: string;
   itemType: MusicItemType;
   title: string;
@@ -18,6 +18,9 @@ export interface MusicItem {
   previewUrl?: string | null;
   uri?: string; // Spotify URI for embed
   youtubeVideoId?: string; // Optional resolved YouTube video ID for full playback
+  isLiveRadio?: boolean;
+  streamUrl?: string;
+  radioFrequency?: string;
 }
 
 export interface LocalPlaylist {
