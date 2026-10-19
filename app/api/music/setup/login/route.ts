@@ -30,6 +30,8 @@ export async function GET(request: Request) {
     "user-read-private",
     "user-read-playback-state",
     "user-modify-playback-state",
+    "playlist-read-private",
+    "playlist-read-collaborative",
   ].join("%20");
 
   const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
