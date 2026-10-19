@@ -176,6 +176,22 @@ const USICK_ONE_TRAINING_RULES =
   "4. Disiplin Output: Langsung berikan jawaban akhir yang matang. DILARANG mengeluarkan monolog berpikir internal dalam bahasa Inggris seperti 'Thinking Process:', '1. Analyze the Request:', '<think>', atau '<thought>'.\n" +
   "5. Konteks Multi-Turn: Selalu ingat dan hubungkan konteks dari pesan-pesan sebelumnya dalam percakapan ini secara koheren.";
 
+const MATH_NOTATION_INSTRUCTIONS =
+  "\n\n[Standar Notasi Matematika (KaTeX / LaTeX)]:\n" +
+  "Ketika menjawab pertanyaan matematika atau sains, gunakan notasi matematika standar yang dapat dirender oleh sistem Markdown dan KaTeX:\n" +
+  "1. Gunakan LaTeX inline dengan delimiter $...$ untuk ekspresi pendek di dalam kalimat (contoh: $\\sqrt{25}$, $x^2$, $a_1$).\n" +
+  "2. Gunakan delimiter $$...$$ pada baris tersendiri untuk rumus panjang, perhitungan bertahap, dan persamaan yang perlu ditonjolkan.\n" +
+  "3. Gunakan \\sqrt{x} untuk akar kuadrat, \\sqrt[n]{x} untuk akar pangkat n, \\frac{a}{b} untuk pecahan, serta x^{2} dan x_{1} untuk pangkat dan indeks.\n" +
+  "4. Untuk persamaan panjang atau multibaris, gunakan lingkungan yang didukung seperti `aligned` di dalam blok matematika ($$\\begin{aligned} ... \\end{aligned}$$).\n" +
+  "5. Jelaskan proses penyelesaian secara bertahap. Jangan hanya memberikan hasil akhir apabila pengguna meminta cara pengerjaan.\n" +
+  "6. Pastikan setiap variabel, tanda operasi, satuan, dan hasil akhir benar secara matematis.\n" +
+  "7. Jangan membungkus seluruh jawaban dalam satu blok matematika. Narasi tetap menggunakan teks biasa, sedangkan ekspresi matematika menggunakan notasi matematika.\n" +
+  "8. Jangan menghasilkan sintaks LaTeX yang rusak atau menggunakan delimiter pembuka tanpa delimiter penutup.\n" +
+  "9. Hindari menulis rumus sebagai teks biasa ketika notasi matematika dapat digunakan.\n" +
+  "10. Untuk pertanyaan nonmatematika, pertahankan format jawaban normal. Jangan memaksakan LaTeX ke dalam percakapan biasa.\n" +
+  "11. Jika pengguna meminta jawaban sederhana, tetap berikan jawaban ringkas dengan notasi yang benar.\n" +
+  "12. Jika model tidak yakin terhadap suatu hasil, jangan mengarang hasil atau mengklaim sudah memverifikasinya.";
+
 
 function resolveProvider(modelId: string): {
   provider: ProviderConfig;
@@ -413,7 +429,7 @@ export async function POST(request: Request) {
     lowerModelId.includes("apodex") ||
     lowerModelId.includes("usick");
 
-  // Inject effort instruction, real-time temporal context & Usick One training rules into system message
+  // Inject effort instruction, real-time temporal context, math rules & Usick One training rules into system message
   const systemMsgIdx = messages.findIndex((m) => m.role === "system");
   if (systemMsgIdx >= 0) {
     messages[systemMsgIdx] = {
@@ -421,6 +437,7 @@ export async function POST(request: Request) {
       content:
         messages[systemMsgIdx].content +
         (isUsick ? USICK_ONE_TRAINING_RULES : "") +
+        MATH_NOTATION_INSTRUCTIONS +
         temporalInstruction +
         effortInstruction,
     };
@@ -435,6 +452,7 @@ export async function POST(request: Request) {
         defaultIdentity +
         " Selalu berikan respons dalam bahasa Indonesia yang baik dan terstruktur." +
         (isUsick ? USICK_ONE_TRAINING_RULES : "") +
+        MATH_NOTATION_INSTRUCTIONS +
         temporalInstruction +
         effortInstruction,
     });

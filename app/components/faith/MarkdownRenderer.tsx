@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { Check, Copy } from 'lucide-react';
 
 interface MarkdownRendererProps {
@@ -61,7 +63,8 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
   return (
     <div className="markdown-content text-[13.5px] leading-relaxed text-[#111113] space-y-2">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
         components={{
           // Headings (Unified clean sans-serif)
           h1: ({ children }) => (

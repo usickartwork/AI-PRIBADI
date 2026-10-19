@@ -5,6 +5,8 @@ import { Check, Loader2, MessageCircle, Send, UserPlus, Users, X } from "lucide-
 import { supabase } from "@/lib/supabase";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 type PublicUser = { id: string; username: string | null; name: string; avatarUrl: string | null };
 type FriendItem = { friendshipId: string; user: PublicUser; since: string };
@@ -241,7 +243,8 @@ export function ShareAIResponseModal({
               </div>
               <div className="line-clamp-3 leading-relaxed text-[11.5px] opacity-90 break-words">
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
                   components={{
                     p: ({ children }) => <span className="inline leading-relaxed">{children} </span>,
                     strong: ({ children }) => <strong className="font-bold">{children}</strong>,
