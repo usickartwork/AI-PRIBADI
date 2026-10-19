@@ -64,7 +64,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
     <div className="markdown-content text-[13.5px] leading-relaxed text-[#111113] space-y-2">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
+        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false, errorColor: 'currentColor' }]]}
         components={{
           // Headings (Unified clean sans-serif)
           h1: ({ children }) => (

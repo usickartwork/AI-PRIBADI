@@ -244,7 +244,7 @@ export function ShareAIResponseModal({
               <div className="line-clamp-3 leading-relaxed text-[11.5px] opacity-90 break-words">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
+                  rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false, errorColor: "currentColor" }]]}
                   components={{
                     p: ({ children }) => <span className="inline leading-relaxed">{children} </span>,
                     strong: ({ children }) => <strong className="font-bold">{children}</strong>,

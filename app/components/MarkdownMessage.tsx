@@ -29,6 +29,7 @@ function LatexBlock({ codeString, isDark }: { codeString: string; isDark?: boole
       displayMode: true,
       throwOnError: false,
       strict: false,
+      errorColor: "currentColor",
     });
   } catch {
     hasError = true;
@@ -225,7 +226,7 @@ export function MarkdownMessage({ content, isDark = false }: MarkdownMessageProp
     <div className={`prose max-w-none text-[14.5px] leading-relaxed ${textClr}`} style={{ color: inlineTextColor }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
+        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false, errorColor: "currentColor" }]]}
         components={{
           code({ className, children, ...props }) {
             const isInline = !className && typeof children === "string" && !children.includes("\n");

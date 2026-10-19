@@ -503,8 +503,9 @@ textarea:focus {
 }
 
 .katex-error {
-  color: #ef4444;
-  font-family: var(--font-mono), monospace;
-  font-size: 0.9em;
+  color: inherit !important;
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
 }
 

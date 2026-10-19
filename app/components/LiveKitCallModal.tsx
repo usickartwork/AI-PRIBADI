@@ -458,6 +458,8 @@ export default function LiveKitCallModal({
   const attachedAudiosRef = useRef<HTMLMediaElement[]>([]);
   const isSpeakerOnRef = useRef(isSpeakerOn);
   isSpeakerOnRef.current = isSpeakerOn;
+  const isMicMutedRef = useRef(isMicMuted);
+  isMicMutedRef.current = isMicMuted;
   const tonePlayerRef = useRef<TonePlayer | null>(null);
   const isUnlockingRef = useRef(false);
   const preAcquiredAudioTrackRef = useRef<LocalAudioTrack | null>(preAcquiredAudioTrack || null);
@@ -584,8 +586,12 @@ export default function LiveKitCallModal({
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      disconnectOnPageLeave: false,
+      stopLocalTrackOnUnpublish: false,
       audioCaptureDefaults: {
         echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
       },
     });
     roomRef.current = room;
@@ -751,6 +757,8 @@ export default function LiveKitCallModal({
           try {
             await room.localParticipant.setMicrophoneEnabled(true, {
               echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
             });
             setIsMicMuted(false);
           } catch (micErr: any) {
@@ -910,6 +918,147 @@ export default function LiveKitCallModal({
       return next;
     });
   }, []);
+
+  // ─── 1. Screen Wake Lock: Jaga layar HP tidak otomatis sleep/mati saat panggilan tersambung ───
+  useEffect(() => {
+    if (!isOpen || callStatus !== "tersambung") return;
+    let wakeLockSentinel: any = null;
+
+    const requestWakeLock = async () => {
+      if (
+        typeof navigator !== "undefined" &&
+        "wakeLock" in navigator &&
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible"
+      ) {
+        try {
+          wakeLockSentinel = await (navigator as any).wakeLock.request("screen");
+        } catch {}
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (wakeLockSentinel) {
+        try {
+          wakeLockSentinel.release();
+        } catch {}
+      }
+    };
+  }, [isOpen, callStatus]);
+
+  // ─── 2. Media Session API: Daftarkan ke OS agar proses audio/VoIP diprioritaskan di background ───
+  useEffect(() => {
+    if (
+      !isOpen ||
+      callStatus !== "tersambung" ||
+      typeof navigator === "undefined" ||
+      !("mediaSession" in navigator)
+    ) {
+      return;
+    }
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `Panggilan dengan ${peerUser.name || "Teman"}`,
+        artist: "Usick One",
+        album: callType === "video" ? "Video Call" : "Voice Call",
+        artwork: peerUser.avatarUrl
+          ? [{ src: peerUser.avatarUrl, sizes: "192x192", type: "image/jpeg" }]
+          : [],
+      });
+      navigator.mediaSession.playbackState = "playing";
+
+      try {
+        navigator.mediaSession.setActionHandler("hangup" as any, () => {
+          onEndCallRef.current?.("Panggilan diakhiri dari media session.");
+        });
+      } catch {}
+
+      try {
+        navigator.mediaSession.setActionHandler("togglemicrophone" as any, () => {
+          void handleToggleMic();
+        });
+      } catch {}
+    } catch {}
+
+    return () => {
+      try {
+        navigator.mediaSession.playbackState = "none";
+        try {
+          navigator.mediaSession.setActionHandler("hangup" as any, null);
+        } catch {}
+        try {
+          navigator.mediaSession.setActionHandler("togglemicrophone" as any, null);
+        } catch {}
+      } catch {}
+    };
+  }, [isOpen, callStatus, peerUser.name, peerUser.avatarUrl, callType, handleToggleMic]);
+
+  // ─── 3. Auto-Recovery: Otomatis pulihkan mic dan audio saat user kembali ke web / fokus kembali ───
+  useEffect(() => {
+    if (!isOpen || callStatus !== "tersambung") return;
+
+    const handleVisibilityRecovery = async () => {
+      const room = roomRef.current;
+      if (!room || typeof document === "undefined" || document.visibilityState !== "visible") return;
+
+      // Jika mikrofon tidak sengaja di-mute oleh user di UI, pastikan hardware track hidup
+      if (!isMicMutedRef.current) {
+        try {
+          const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+          const track = micPub?.track;
+          if (track) {
+            if (track.isMuted) {
+              await track.unmute();
+            }
+            if (
+              track.mediaStreamTrack &&
+              (track.mediaStreamTrack.muted || track.mediaStreamTrack.readyState !== "live")
+            ) {
+              await room.localParticipant.setMicrophoneEnabled(true, {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              });
+            }
+          } else {
+            await room.localParticipant.setMicrophoneEnabled(true, {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            });
+          }
+        } catch (err) {
+          console.warn("[livekit] auto-recover mic failed:", err);
+        }
+      }
+
+      // Pastikan audio remote (speaker) langsung berbunyi kembali
+      attachedAudiosRef.current.forEach((el) => {
+        el.muted = !isSpeakerOnRef.current;
+        el.play().catch(() => {});
+      });
+      room.startAudio().catch(() => {});
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityRecovery);
+    window.addEventListener("focus", handleVisibilityRecovery);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityRecovery);
+      window.removeEventListener("focus", handleVisibilityRecovery);
+    };
+  }, [isOpen, callStatus]);
 
   // Label Status Panggilan
   const statusLabels: Record<CallStatus, string> = {
@@ -1388,7 +1537,11 @@ export default function LiveKitCallModal({
                     e.stopPropagation();
                     let preTrack: LocalAudioTrack | null = null;
                     try {
-                      preTrack = await createLocalAudioTrack({ echoCancellation: true });
+                      preTrack = await createLocalAudioTrack({
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                      });
                       preAcquiredAudioTrackRef.current = preTrack;
                     } catch (err) {
                       console.warn("[livekit] pre-acquire audio track error:", err);
