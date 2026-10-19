@@ -87,14 +87,45 @@ async function fetchPlaylistFromSpotifyEmbed(playlistId: string): Promise<{
       entity.coverArt?.sources?.[1]?.url ||
       null;
 
-    const rawList = Array.isArray(entity.trackList) ? entity.trackList : [];
+    const rawList = Array.isArray(entity.trackList) ? entity.trackList.slice(0, 100) : [];
+
+    // Ambil cover album spesifik untuk masing-masing lagu secara paralel (chunked)
+    const trackArtworks = new Map<string, string>();
+    const trackIds = rawList
+      .map((t: any) => (t.uri ? t.uri.replace("spotify:track:", "").trim() : t.id))
+      .filter(Boolean);
+
+    const chunkSize = 8;
+    for (let i = 0; i < trackIds.length; i += chunkSize) {
+      const chunk = trackIds.slice(i, i + chunkSize);
+      await Promise.all(
+        chunk.map(async (id: string) => {
+          try {
+            const trackOembed = await fetch(
+              `https://open.spotify.com/oembed?url=https://open.spotify.com/track/${encodeURIComponent(id)}`,
+              {
+                signal: AbortSignal.timeout(2500),
+                cache: "no-store",
+              }
+            );
+            if (trackOembed.ok) {
+              const oembedData = await trackOembed.json();
+              if (oembedData.thumbnail_url) {
+                trackArtworks.set(id, oembedData.thumbnail_url);
+              }
+            }
+          } catch {}
+        })
+      );
+    }
+
     const validTracks: MusicItem[] = rawList
-      .slice(0, 100)
       .map((t: any) => {
         const trackId = t.uri ? t.uri.replace("spotify:track:", "").trim() : (t.id || "");
         const artistNames = t.subtitle
           ? t.subtitle.split(",").map((s: string) => s.trim()).filter(Boolean)
           : ["Spotify Artist"];
+        const individualArtwork = trackArtworks.get(trackId) || coverUrl || undefined;
 
         return {
           id: t.uri || `spotify:track:${trackId}`,
@@ -104,7 +135,7 @@ async function fetchPlaylistFromSpotifyEmbed(playlistId: string): Promise<{
           title: t.title || "Unknown Track",
           artistNames: artistNames.length > 0 ? artistNames : ["Spotify Artist"],
           albumTitle: t.albumTitle || undefined,
-          artworkUrl: coverUrl || undefined,
+          artworkUrl: individualArtwork,
           durationMs: typeof t.duration === "number" ? t.duration : undefined,
           externalUrl: `https://open.spotify.com/track/${trackId}`,
           previewUrl: t.audioPreview?.url || null,

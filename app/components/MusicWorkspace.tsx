@@ -2751,15 +2751,29 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     syncLibraryToCloud(likedSongs, updated);
   };
 
-  const deletePlaylist = (playlistId: string) => {
+  const deletePlaylist = async (playlistId: string) => {
     if (!confirm("Hapus playlist ini?")) return;
     const updated = localPlaylists.filter((pl) => pl.id !== playlistId);
     setLocalPlaylists(updated);
     saveLocalPlaylists(updated);
-    syncLibraryToCloud(likedSongs, updated);
     if (selectedLocalPlaylist?.id === playlistId) {
       setSelectedLocalPlaylist(null);
     }
+    // Langsung hapus dari cloud database tanpa debounce
+    if (cloudSyncTimeoutRef.current) clearTimeout(cloudSyncTimeoutRef.current);
+    try {
+      await fetch("/api/music/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          likedSongs,
+          playlists: updated,
+        }),
+      });
+    } catch (err) {
+      console.warn("[music] Cloud delete playlist error:", err);
+    }
+    showQueueToast("Playlist berhasil dihapus.");
   };
 
   // ─── Render Centered or Sticky Search Chat Box (Styled like Tab Chat) ───────
@@ -4647,20 +4661,21 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowImportPlaylistModal(true)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                        className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
                           isDark
                             ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
                             : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
                         }`}
+                        title="Import Playlist Spotify"
+                        aria-label="Import Playlist Spotify"
                       >
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
-                        <span>Import Playlist</span>
                       </button>
 
                       {likedSongs.length > 0 && (
@@ -4750,50 +4765,54 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               {/* Mode C: Main Playlist Cards Overview */}
               {!isViewingLiked && !selectedLocalPlaylist && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                  <div className="flex items-center justify-between gap-3 pb-2 border-b border-zinc-800/60">
+                    <div className="min-w-0 flex-1">
                       <h2 className="text-base sm:text-lg font-bold tracking-tight">Koleksi & Playlist</h2>
-                      <p className="text-xs text-zinc-500">Daftar putar pribadi yang kamu simpan</p>
+                      <p className="text-xs text-zinc-500 truncate">Daftar putar pribadi yang kamu simpan</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => setSubTab("home")}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                        className={`p-2.5 rounded-xl border transition cursor-pointer ${
                           isDark
                             ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
                             : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
                         }`}
+                        title="Kembali ke Musik"
+                        aria-label="Kembali ke Musik"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
-                        <span>Kembali ke Musik</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setShowImportPlaylistModal(true)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                        className={`p-2.5 rounded-xl border transition cursor-pointer ${
                           isDark
                             ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
                             : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
                         }`}
+                        title="Import Playlist Spotify"
+                        aria-label="Import Playlist Spotify"
                       >
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-4 h-4 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
-                        <span>Import Playlist</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => setShowCreatePlaylistModal(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                        className="p-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 transition cursor-pointer shadow-md"
+                        title="Buat Playlist Baru"
+                        aria-label="Buat Playlist Baru"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span>Buat Playlist</span>
                       </button>
                     </div>
                   </div>
