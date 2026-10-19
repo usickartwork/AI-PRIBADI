@@ -4655,13 +4655,14 @@ export default function Home() {
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center text-center animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-5 sm:-translate-y-3">
                 
-                {/* Usick One Animated Avatar Icon (Pure White, No Glow) */}
+                {/* Usick One Animated Avatar Icon (Pure White in Dark Mode, Obsidian in Light Mode) */}
                 <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center">
                   <Avatar
                     size="md"
                     shape="circle"
                     blinking={true}
-                    color="white"
+                    isDark={isDark}
+                    color="theme"
                     className="hover:scale-105 transition-transform"
                   />
                 </div>

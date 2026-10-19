@@ -78,19 +78,21 @@ const PRESETS: Record<
   },
   dark: {
     gradient:
-      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
-    boxShadow: "none",
-    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
+      "radial-gradient(circle at 50% 38%, #27272a 0%, #18181b 45%, #121215 75%, #09090b 100%)",
+    boxShadow:
+      "0 4px 16px -2px rgba(0,0,0,0.22), 0 2px 6px -1px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255,255,255,0.08)",
+    iris: "linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 45%, transparent 68%)",
   },
   light: {
     gradient:
-      "radial-gradient(circle at 50% 38%, #ffffff 0%, #fafafa 45%, #f4f4f5 75%, #e4e4e7 100%)",
-    boxShadow: "none",
-    iris: "linear-gradient(135deg, #09090b 0%, #18181b 100%)",
+      "radial-gradient(circle at 50% 38%, #27272a 0%, #18181b 45%, #121215 75%, #09090b 100%)",
+    boxShadow:
+      "0 4px 16px -2px rgba(0,0,0,0.22), 0 2px 6px -1px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(255,255,255,0.08)",
+    iris: "linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%)",
     shine:
-      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,1) 0%, rgba(255,255,255,0.35) 45%, transparent 68%)",
+      "radial-gradient(ellipse at 30% 24%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 45%, transparent 68%)",
   },
   blue: {
     gradient:
@@ -273,7 +275,7 @@ function Eye({ blinking, delayMs = 0, irisGradient, sizeClass }: EyeProps) {
 
 export function Avatar({
   blinking = true,
-  color = "white",
+  color = "theme",
   size = "md",
   shape = "circle",
   className = "",
@@ -285,8 +287,17 @@ export function Avatar({
   const avatarRef = useRef<HTMLDivElement>(null);
   const eyesRef = useRef<HTMLDivElement>(null);
 
-  const resolvedColor: AvatarColor = color || "white";
-  const preset = PRESETS[resolvedColor] ?? PRESETS.white;
+  // Dynamic Theme Resolution:
+  // - Dark Mode (isDark = true): Pure white avatar with crisp dark eyes (clean, no glow)
+  // - Light Mode (isDark = false): Sleek obsidian avatar with luminous white eyes (high contrast, doesn't clash with light bg)
+  let preset = PRESETS.white;
+  if (!color || color === "theme" || color === "mono" || color === "white") {
+    preset = isDark ? PRESETS.white : PRESETS.dark;
+  } else if (color === "dark" || color === "light") {
+    preset = PRESETS.dark;
+  } else {
+    preset = PRESETS[color] ?? PRESETS.white;
+  }
   const dims = SIZE[size] ?? SIZE.md;
 
   useEffect(() => {
