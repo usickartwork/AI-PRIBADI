@@ -6,6 +6,7 @@ import { searchWeb, SearchResult } from "@/lib/search";
 import { isModelAllowedForPlan, calculateCreditUsage } from "@/lib/pricing";
 import { getUserSubscription, deductCredits } from "@/lib/subscriptionServer";
 import { supabase } from "@/lib/supabase";
+import { getUsickOneKnowledgeContext } from "@/lib/usickKnowledge";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
 type ProviderConfig = {
@@ -429,6 +430,11 @@ export async function POST(request: Request) {
     lowerModelId.includes("apodex") ||
     lowerModelId.includes("usick");
 
+  // Context Usick One Knowledge: hanya ditambahkan secara aditif jika pertanyaan user relevan dengan produk Usick One
+  const lastUserPrompt =
+    [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  const usickKnowledgeInstruction = getUsickOneKnowledgeContext(lastUserPrompt) || "";
+
   // Inject effort instruction, real-time temporal context, math rules & Usick One training rules into system message
   const systemMsgIdx = messages.findIndex((m) => m.role === "system");
   if (systemMsgIdx >= 0) {
@@ -439,7 +445,8 @@ export async function POST(request: Request) {
         (isUsick ? USICK_ONE_TRAINING_RULES : "") +
         MATH_NOTATION_INSTRUCTIONS +
         temporalInstruction +
-        effortInstruction,
+        effortInstruction +
+        usickKnowledgeInstruction,
     };
   } else {
     const defaultIdentity = isUsick
@@ -454,7 +461,8 @@ export async function POST(request: Request) {
         (isUsick ? USICK_ONE_TRAINING_RULES : "") +
         MATH_NOTATION_INSTRUCTIONS +
         temporalInstruction +
-        effortInstruction,
+        effortInstruction +
+        usickKnowledgeInstruction,
     });
   }
 
@@ -692,7 +700,8 @@ export async function POST(request: Request) {
               ...m,
               content:
                 "Kamu adalah asisten AI yang cerdas dan ramah. Selalu berikan jawaban dalam bahasa Indonesia yang baik, rapi, dan terstruktur." +
-                temporalInstruction,
+                temporalInstruction +
+                (usickKnowledgeInstruction ? "\n" + usickKnowledgeInstruction : ""),
             };
           }
           return m;
