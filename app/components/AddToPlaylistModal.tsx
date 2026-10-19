@@ -45,6 +45,16 @@ export function AddToPlaylistModal({
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
   const [isDesktop, setIsDesktop] = useState(false);
 
+  const sheetRef = React.useRef<HTMLDivElement>(null);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const touchStartYRef = React.useRef(0);
+  const touchStartXRef = React.useRef(0);
+  const touchStartTimeRef = React.useRef(0);
+  const isTrackingTouchRef = React.useRef(false);
+  const isDraggingDownRef = React.useRef(false);
+  const animFrameIdRef = React.useRef<number | null>(null);
+  const isClosingRef = React.useRef(false);
+
   React.useEffect(() => {
     const handleResize = () => {
       setIsDesktop(typeof window !== "undefined" && window.innerWidth >= 640);
@@ -53,6 +63,136 @@ export function AddToPlaylistModal({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Native non-passive touch controller for mobile slide-down to dismiss
+  React.useEffect(() => {
+    if (!isOpen || isDesktop) return;
+    const el = sheetRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        isTrackingTouchRef.current = false;
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, form, button")) {
+        isTrackingTouchRef.current = false;
+        return;
+      }
+
+      if (scrollContainerRef.current && scrollContainerRef.current.scrollTop > 5) {
+        isTrackingTouchRef.current = false;
+        return;
+      }
+
+      touchStartYRef.current = e.touches[0].clientY;
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartTimeRef.current = Date.now();
+      isTrackingTouchRef.current = true;
+      isDraggingDownRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isTrackingTouchRef.current) return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - touchStartYRef.current;
+      const deltaX = Math.abs(touch.clientX - touchStartXRef.current);
+
+      if (!isDraggingDownRef.current) {
+        if (deltaY < 0 || deltaX > deltaY) {
+          isTrackingTouchRef.current = false;
+          return;
+        }
+        if (deltaY > 6) {
+          isDraggingDownRef.current = true;
+        }
+      }
+
+      if (isDraggingDownRef.current) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = requestAnimationFrame(() => {
+          if (!el) return;
+          el.style.transition = "none";
+          el.style.transform = `translateY(${Math.max(0, deltaY)}px)`;
+          const windowH = typeof window !== "undefined" ? window.innerHeight : 800;
+          const opacity = Math.max(0.4, 1 - deltaY / (windowH * 0.75));
+          el.style.opacity = String(opacity);
+        });
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isTrackingTouchRef.current || !isDraggingDownRef.current) {
+        isTrackingTouchRef.current = false;
+        isDraggingDownRef.current = false;
+        return;
+      }
+      isTrackingTouchRef.current = false;
+      isDraggingDownRef.current = false;
+
+      if (animFrameIdRef.current) {
+        cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = null;
+      }
+
+      const touch = e.changedTouches[0];
+      const deltaY = touch.clientY - touchStartYRef.current;
+      const durationMs = Math.max(1, Date.now() - touchStartTimeRef.current);
+      const velocityY = deltaY / durationMs;
+
+      if (deltaY > 80 || velocityY > 0.25) {
+        if (isClosingRef.current) return;
+        isClosingRef.current = true;
+        const animDuration = 220;
+        el.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
+        el.style.transform = "translateY(100%)";
+        el.style.opacity = "0";
+        setTimeout(() => {
+          onClose();
+          isClosingRef.current = false;
+          if (el) {
+            el.style.transition = "";
+            el.style.transform = "";
+            el.style.opacity = "";
+          }
+        }, animDuration);
+      } else {
+        const animDuration = 200;
+        el.style.transition = `transform ${animDuration}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${animDuration}ms ease`;
+        el.style.transform = "translateY(0px)";
+        el.style.opacity = "1";
+        setTimeout(() => {
+          if (el) {
+            el.style.transition = "";
+            el.style.transform = "";
+            el.style.opacity = "";
+          }
+        }, animDuration + 20);
+      }
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+      if (animFrameIdRef.current) {
+        cancelAnimationFrame(animFrameIdRef.current);
+      }
+    };
+  }, [isOpen, isDesktop, onClose]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -128,6 +268,7 @@ export function AddToPlaylistModal({
       onClick={onClose}
     >
       <div
+        ref={sheetRef}
         style={isDesktop ? popoverStyle : undefined}
         className={`w-full max-h-[85vh] rounded-t-[28px] sm:rounded-2xl border-t sm:border p-4.5 sm:p-5 shadow-2xl flex flex-col gap-3.5 overflow-hidden animate-in ${
           isDesktop
@@ -141,7 +282,9 @@ export function AddToPlaylistModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Mobile Swipe Grab Handle */}
-        <div className="w-12 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-1 sm:hidden shrink-0" />
+        <div className="w-12 h-1 rounded-full bg-zinc-600/70 mx-auto -mt-1 mb-1 sm:hidden shrink-0 touch-none py-1 flex items-center justify-center">
+          <div className="w-10 h-1 rounded-full bg-zinc-500/80" />
+        </div>
 
         {/* Header */}
         <div className="flex items-center justify-between shrink-0">
@@ -241,7 +384,7 @@ export function AddToPlaylistModal({
         </div>
 
         {/* Scrollable List Body */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto space-y-4 pr-1">
           {/* Section: Saved in (Liked Songs) */}
           <div className="space-y-1.5">
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
