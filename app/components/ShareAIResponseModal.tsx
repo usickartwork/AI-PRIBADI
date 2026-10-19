@@ -365,7 +365,7 @@ export function ShareAIResponseModal({
 
             {/* Error Message if any */}
             {errorMessage && (
-              <p className="text-xs text-center text-red-400 font-medium animate-in fade-in-0">
+              <p className={`text-xs text-center font-medium animate-in fade-in-0 ${isDark ? "text-zinc-300" : "text-zinc-700"}`}>
                 {errorMessage}
               </p>
             )}

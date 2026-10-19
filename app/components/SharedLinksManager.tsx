@@ -137,7 +137,13 @@ function getShareOrigin(): string {
 
       {/* Error state */}
       {error && (
-        <div className="rounded-2xl p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-start justify-between gap-3">
+        <div
+          className={`rounded-2xl p-4 border text-xs flex items-start justify-between gap-3 ${
+            isDark
+              ? "bg-zinc-900 border-zinc-700/80 text-zinc-300"
+              : "bg-zinc-100 border-zinc-300 text-zinc-800"
+          }`}
+        >
           <span>{error}</span>
           <button
             type="button"
@@ -221,13 +227,9 @@ function getShareOrigin(): string {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
-                          link.content_type === "chat"
-                            ? isDark
-                              ? "bg-zinc-800 text-zinc-300 border-zinc-700"
-                              : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                            : isDark
-                            ? "bg-purple-950/40 text-purple-300 border-purple-800/50"
-                            : "bg-purple-100 text-purple-800 border-purple-200"
+                          isDark
+                            ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-300"
                         }`}
                       >
                         {link.content_type === "chat" ? "Chat AI" : link.content_type}
@@ -275,7 +277,9 @@ function getShareOrigin(): string {
                       onClick={() => handleCopy(link.public_token, link.id)}
                       className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                         isCopied
-                          ? "bg-emerald-600 text-white border-emerald-600"
+                          ? isDark
+                            ? "bg-zinc-200 text-black border-zinc-200"
+                            : "bg-zinc-800 text-white border-zinc-800"
                           : isDark
                           ? "border-zinc-800 bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
                           : "border-zinc-200 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
@@ -298,7 +302,11 @@ function getShareOrigin(): string {
                     <button
                       type="button"
                       onClick={() => setLinkToDelete(link)}
-                      className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+                      className={`p-2 rounded-xl border transition cursor-pointer ${
+                        isDark
+                          ? "border-zinc-800 bg-zinc-800/40 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-black hover:bg-zinc-100"
+                      }`}
                       title="Cabut / Hapus tautan"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -328,7 +336,13 @@ function getShareOrigin(): string {
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+              <div
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                  isDark
+                    ? "bg-zinc-800/80 border-zinc-700 text-zinc-200"
+                    : "bg-zinc-100 border-zinc-300 text-zinc-800"
+                }`}
+              >
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold">Hapus Tautan Bersama?</h3>
@@ -354,7 +368,11 @@ function getShareOrigin(): string {
                 type="button"
                 disabled={Boolean(deletingId)}
                 onClick={handleDelete}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition cursor-pointer shadow-xs disabled:opacity-50"
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs disabled:opacity-50 ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                }`}
               >
                 {deletingId ? "Menghapus..." : "Ya, Hapus Tautan"}
               </button>

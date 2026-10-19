@@ -271,7 +271,13 @@ export function ShareProjectModal({
 
           {/* Error Message */}
           {error && (
-            <div className="rounded-xl p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs">
+            <div
+              className={`rounded-xl p-3 border text-xs ${
+                isDark
+                  ? "bg-zinc-900 border-zinc-700/80 text-zinc-300"
+                  : "bg-zinc-100 border-zinc-300 text-zinc-800"
+              }`}
+            >
               {error}
             </div>
           )}
@@ -318,7 +324,9 @@ export function ShareProjectModal({
                   onClick={handleCopy}
                   className={`absolute right-1 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
                     copied
-                      ? "bg-emerald-600 text-white"
+                      ? isDark
+                        ? "bg-zinc-200 text-black border border-white/20"
+                        : "bg-zinc-800 text-white border border-black/20"
                       : isDark
                       ? "bg-white text-black hover:bg-zinc-200"
                       : "bg-black text-white hover:bg-zinc-800"
@@ -373,7 +381,11 @@ export function ShareProjectModal({
                   <button
                     type="button"
                     onClick={() => setShowRevokeConfirm(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition cursor-pointer ml-auto"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ml-auto ${
+                      isDark
+                        ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                        : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 hover:text-black"
+                    }`}
                     title="Cabut akses tautan publik ini"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -381,12 +393,18 @@ export function ShareProjectModal({
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5 ml-auto animate-in fade-in-0 duration-150">
-                    <span className="text-[11px] text-red-400 font-medium">Yakin cabut?</span>
+                    <span className={`text-[11px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Yakin cabut?
+                    </span>
                     <button
                       type="button"
                       disabled={isRevoking}
                       onClick={handleRevoke}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 transition cursor-pointer"
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer shadow-xs ${
+                        isDark
+                          ? "bg-white text-black hover:bg-zinc-200"
+                          : "bg-black text-white hover:bg-zinc-800"
+                      }`}
                     >
                       {isRevoking ? "Mencabut..." : "Ya, Cabut"}
                     </button>

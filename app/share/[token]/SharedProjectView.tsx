@@ -161,7 +161,9 @@ export function SharedProjectView({
             onClick={handleCopyLink}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-xs ${
               copiedLink
-                ? "bg-emerald-600 text-white border-emerald-600"
+                ? isDark
+                  ? "bg-zinc-200 text-black border-zinc-200"
+                  : "bg-zinc-800 text-white border-zinc-800"
                 : isDark
                 ? "border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 hover:text-white"
                 : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-800 hover:text-black"
@@ -283,7 +285,7 @@ export function SharedProjectView({
                         isDark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-600"
                       }`}
                     >
-                      {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                      {isCopied ? <Check className="w-3 h-3 text-zinc-200 dark:text-zinc-300" /> : <Copy className="w-3 h-3" />}
                       <span>{isCopied ? "Tersalin" : "Salin"}</span>
                     </button>
                   </div>
@@ -352,7 +354,9 @@ export function SharedProjectView({
                           onClick={() => handleCopyMessage(msg.id, msg.content)}
                           className={`text-xs px-2.5 py-1 rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
                             isCopied
-                              ? "bg-emerald-600/10 border-emerald-600/30 text-emerald-500"
+                              ? isDark
+                                ? "bg-zinc-800 border-zinc-700 text-zinc-200"
+                                : "bg-zinc-200 border-zinc-300 text-zinc-800"
                               : isDark
                               ? "border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800"
                               : "border-zinc-200 text-zinc-600 hover:text-black hover:bg-zinc-100"
