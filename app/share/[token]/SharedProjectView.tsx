@@ -252,7 +252,7 @@ export function SharedProjectView({
                   /* User message bubble */
                   <div className="flex flex-col items-end gap-1 max-w-[90%] sm:max-w-[80%]">
                     <div
-                      className={`relative w-full rounded-[22px] px-4 py-3 text-[14px] sm:text-[14.5px] leading-relaxed ${
+                      className={`relative w-fit max-w-full rounded-[22px] px-4 py-3 text-[14px] sm:text-[14.5px] leading-relaxed ${
                         isDark
                           ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm"
                           : "bg-zinc-900 border border-zinc-800 text-white shadow-sm"

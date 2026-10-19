@@ -4689,7 +4689,7 @@ export default function Home() {
                     /* User Message: Tetap pakai bubble */
                     <div className="flex flex-col items-end gap-1 max-w-[85%] sm:max-w-[75%]">
                       <div
-                        className={`relative w-full rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
+                        className={`relative w-fit max-w-full rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
                           isDark
                             ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm font-normal"
                             : "bg-zinc-900 border border-zinc-800 text-white shadow-sm font-normal"
