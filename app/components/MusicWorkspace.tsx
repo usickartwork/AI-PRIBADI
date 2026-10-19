@@ -494,13 +494,20 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }, 1100);
   }, []);
 
-  // Spotify-style Recommendations (derived from trending discover catalog, excluding currently playing and queued songs)
+  // Spotify-style Recommendations (derived from trending discover catalog, prioritizing same artist as current track)
   const recommendedTracks = useMemo(() => {
     const sourcePool = discoverTracks.length > 0 ? discoverTracks : FEATURED_STARTER_TRACKS;
-    return sourcePool.filter(
+    const currentArtists = (currentTrack?.artistNames || []).map((a) => a.toLowerCase().trim());
+    const candidates = sourcePool.filter(
       (t) => t.id !== currentTrack?.id && !queue.some((q) => q.id === t.id)
-    ).slice(0, 8);
-  }, [discoverTracks, currentTrack?.id, queue]);
+    );
+    candidates.sort((a, b) => {
+      const aMatch = a.artistNames.some((an) => currentArtists.includes(an.toLowerCase().trim())) ? 1 : 0;
+      const bMatch = b.artistNames.some((bn) => currentArtists.includes(bn.toLowerCase().trim())) ? 1 : 0;
+      return bMatch - aMatch;
+    });
+    return candidates.slice(0, 8);
+  }, [discoverTracks, currentTrack, queue]);
 
   // Interactive Continuous Scrubber State
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -595,10 +602,16 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const repeatModeRef = useRef<"off" | "all" | "one">(repeatMode);
   const isShuffleRef = useRef<boolean>(isShuffle);
 
+  const discoverTracksRef = useRef<MusicItem[]>(discoverTracks);
+  const tracksRef = useRef<MusicItem[]>(tracks);
+  const recentlyPlayedIdsRef = useRef<string[]>([]);
+
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
   useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
   useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { discoverTracksRef.current = discoverTracks; }, [discoverTracks]);
+  useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
   // Audio Ref (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1349,6 +1362,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     userRequestedPauseRef.current = !shouldAutoPlay;
     setCurrentTime(startSec);
     loadedTrackIdRef.current = track.id;
+    if (track.id) {
+      recentlyPlayedIdsRef.current = [
+        track.id,
+        ...recentlyPlayedIdsRef.current.filter((id) => id !== track.id),
+      ].slice(0, 30);
+    }
 
     // Reset clock snapshot and lyric index immediately to prevent stale interpolation
     playbackClockRef.current = {
@@ -1930,7 +1949,56 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
     const currentQueue = queueRef.current;
     const currentIndex = queueIndexRef.current;
-    if (currentQueue.length === 0) return null;
+
+    // Helper untuk memilih lagu rekomendasi jika antrean di panel kosong atau telah selesai
+    const getNextRecommendation = (): MusicItem | null => {
+      const lastTrack = currentTrackRef.current;
+      const sourcePool =
+        discoverTracksRef.current.length > 0
+          ? discoverTracksRef.current
+          : tracksRef.current.length > 0
+          ? tracksRef.current
+          : FEATURED_STARTER_TRACKS;
+
+      const currentArtists = (lastTrack?.artistNames || []).map((a) => a.toLowerCase().trim());
+      const recentIds = recentlyPlayedIdsRef.current;
+
+      // 1. Prioritaskan lagu yang belum baru saja diputar dan tidak ada di antrean
+      let candidates = sourcePool.filter(
+        (t) => t.id !== lastTrack?.id && !currentQueue.some((q) => q.id === t.id) && !recentIds.includes(t.id)
+      );
+
+      // 2. Jika semua lagu sudah pernah diputar, izinkan lagu apa saja kecuali lagu yang sedang aktif
+      if (candidates.length === 0) {
+        candidates = sourcePool.filter(
+          (t) => t.id !== lastTrack?.id && !currentQueue.some((q) => q.id === t.id)
+        );
+      }
+
+      if (candidates.length === 0) {
+        candidates = sourcePool.filter((t) => t.id !== lastTrack?.id);
+      }
+
+      if (candidates.length === 0) return null;
+
+      // Urutkan: lagu dari artis yang sama dengan lagu terakhir diputar mendapat prioritas paling atas
+      candidates.sort((a, b) => {
+        const aArtistMatch = a.artistNames.some((an) => currentArtists.includes(an.toLowerCase().trim())) ? 1 : 0;
+        const bArtistMatch = b.artistNames.some((bn) => currentArtists.includes(bn.toLowerCase().trim())) ? 1 : 0;
+        return bArtistMatch - aArtistMatch;
+      });
+
+      return candidates[0] || null;
+    };
+
+    if (currentQueue.length === 0) {
+      const rec = getNextRecommendation();
+      if (rec) {
+        playTrack(rec);
+        return rec;
+      }
+      return null;
+    }
 
     let nextIdx = 0;
     if (isShuffleRef.current) {
@@ -1943,6 +2011,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         if (repeatModeRef.current === "all") {
           nextIdx = 0;
         } else {
+          // Antrean habis: otomatis lanjutkan ke lagu rekomendasi agar musik tidak berhenti
+          const rec = getNextRecommendation();
+          if (rec) {
+            playTrack(rec);
+            return rec;
+          }
           return null;
         }
       }
