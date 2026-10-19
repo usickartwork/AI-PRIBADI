@@ -3802,8 +3802,8 @@ export default function Home() {
           id="page-1-container"
           className="relative h-full min-h-full w-full overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{
-            backgroundColor: isDark ? "#09090b" : "#ffffff",
-            color: isDark ? "#ffffff" : "#09090b",
+            backgroundColor: isDark ? "#050505" : "#ffffff",
+            color: isDark ? "#F5F5F5" : "#09090b",
           }}
         >
           <GradientBarHeroSection
@@ -3812,6 +3812,7 @@ export default function Home() {
               setAuthModalMode(targetMode || "signup");
               setShowAuthModal(true);
             }}
+            onOpenPricing={() => setShowPricingModal(true)}
           />
 
           <Footer01

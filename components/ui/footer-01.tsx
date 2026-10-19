@@ -203,7 +203,7 @@ export default function Footer01({
         className={cn(
           "relative overflow-hidden border-t transition-colors select-none",
           isDark
-            ? "border-zinc-800 bg-[#09090b] text-zinc-100"
+            ? "border-white/[0.08] bg-[#050505] text-[#F5F5F5]"
             : "border-zinc-200 bg-white text-zinc-900"
         )}
       >
@@ -223,7 +223,7 @@ export default function Footer01({
                   isDark ? "text-white" : "text-black"
                 )}
               >
-                <span>One Mind</span>
+                <span>Usick One</span>
               </a>
 
               <p
