@@ -4615,16 +4615,16 @@ export default function Home() {
             messages.length > 0
               ? {
                   maskImage:
-                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.75rem), transparent 100%)",
+                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.5rem), transparent 100%)",
                   WebkitMaskImage:
-                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.75rem), transparent 100%)",
+                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.5rem), transparent 100%)",
                 }
               : undefined
           }
-          className={`flex-1 overflow-y-auto min-h-0 w-full px-3.5 sm:px-6 flex flex-col ${
+          className={`h-full w-full overflow-y-auto min-h-0 px-3.5 sm:px-6 flex flex-col ${
             messages.length === 0
-              ? "pt-3 sm:pt-4 pb-3 sm:pb-5"
-              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] pb-8 sm:pb-10"
+              ? "pt-3 sm:pt-4 pb-32 sm:pb-36"
+              : "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] pb-36 sm:pb-40"
           }`}
         >
           <div className={`mx-auto max-w-3xl w-full ${messages.length === 0 ? "flex-1 flex flex-col items-center justify-center my-auto" : "space-y-4 sm:space-y-6"}`}>
@@ -5091,33 +5091,33 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Floating pop-up saat user scroll ke atas sementara AI masih generate */}
-        {isStreaming && isUserScrolledUp && (
-          <div className="flex justify-center -mb-2 px-4 relative z-30 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-            <button
-              type="button"
-              onClick={() => {
-                setIsUserScrolledUp(false);
-                bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className={`group flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold shadow-xl backdrop-blur-md border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-                isDark
-                  ? "bg-[#18181c]/95 border-zinc-700 text-white shadow-black/80"
-                  : "bg-white/95 border-zinc-200 text-black shadow-zinc-900/15"
-              }`}
-            >
-              <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
-              <span>Sedang merumuskan jawaban...</span>
-              <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* ─── FLOATING ELEVATED INPUT BAR (Melayang di atas bagian bawah chat) ─── */}
+        <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none px-2.5 sm:px-6 pb-[max(1.75rem,calc(env(safe-area-inset-bottom)+1rem))] bg-transparent flex flex-col items-center">
+          {/* Floating pop-up saat user scroll ke atas sementara AI masih generate */}
+          {isStreaming && isUserScrolledUp && (
+            <div className="pointer-events-auto mb-2 px-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUserScrolledUp(false);
+                  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className={`group flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold shadow-xl backdrop-blur-md border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                  isDark
+                    ? "bg-[#18181c]/95 border-zinc-700 text-white shadow-black/80"
+                    : "bg-white/95 border-zinc-200 text-black shadow-zinc-900/15"
+                }`}
+              >
+                <div className={`h-2 w-2 rounded-full animate-ping ${isDark ? "bg-white" : "bg-black"}`} />
+                <span>Sedang merumuskan jawaban...</span>
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </button>
+            </div>
+          )}
 
-        {/* ─── FLOATING ELEVATED INPUT BAR (Selalu berada di bawah) ─── */}
-        <div className="shrink-0 w-full z-20 px-2.5 sm:px-6 pt-2 pb-[max(1.75rem,calc(env(safe-area-inset-bottom)+1rem))] bg-transparent">
-          <div className="mx-auto max-w-3xl w-full">
+          <div className="mx-auto max-w-3xl w-full pointer-events-auto">
             {renderChatInputCard()}
           </div>
         </div>
