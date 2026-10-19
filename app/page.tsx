@@ -4614,8 +4614,10 @@ export default function Home() {
           style={
             messages.length > 0
               ? {
-                  maskImage: "linear-gradient(to bottom, transparent 0%, black 2.75rem, black 100%)",
-                  WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 2.75rem, black 100%)",
+                  maskImage:
+                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.75rem), transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, transparent 0%, black 2.75rem, black calc(100% - 2.75rem), transparent 100%)",
                 }
               : undefined
           }
