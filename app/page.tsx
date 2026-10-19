@@ -4606,21 +4606,19 @@ export default function Home() {
               </div>
             </header>
 
-            {/* Top short fade overlay (intensitas pendek, adaptif tema: putih saat light mode, hitam saat dark mode) */}
-            {messages.length > 0 && (
-              <div
-                className={`pointer-events-none absolute top-0 inset-x-0 h-6 sm:h-8 z-10 ${
-                  isDark
-                    ? "bg-gradient-to-b from-black via-black/50 to-transparent"
-                    : "bg-gradient-to-b from-white via-white/50 to-transparent"
-                }`}
-              />
-            )}
-
+            {/* Top fade: gradasi ke transparan murni menggunakan mask-image (tanpa warna hitam/putih) */}
         {/* ─── SCROLLABLE CHAT CONTENT ─── */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
+          style={
+            messages.length > 0
+              ? {
+                  maskImage: "linear-gradient(to bottom, transparent 0%, black 2.75rem, black 100%)",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 2.75rem, black 100%)",
+                }
+              : undefined
+          }
           className={`flex-1 overflow-y-auto min-h-0 w-full px-3.5 sm:px-6 flex flex-col ${
             messages.length === 0
               ? "pt-3 sm:pt-4 pb-3 sm:pb-5"
