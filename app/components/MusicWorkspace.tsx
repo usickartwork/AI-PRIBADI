@@ -440,7 +440,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
   // Playback & Queue State (Queue starts empty on load/refresh as requested)
   const [currentTrack, setCurrentTrack] = useState<MusicItem | null>(null);
+  const currentTrackRef = useRef<MusicItem | null>(null);
+  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
   const [activeRadioStation, setActiveRadioStation] = useState<RadioStation | null>(null);
+  const activeRadioStationRef = useRef<RadioStation | null>(null);
+  useEffect(() => { activeRadioStationRef.current = activeRadioStation; }, [activeRadioStation]);
   const [isRadioMenuOpen, setIsRadioMenuOpen] = useState(false);
   const radioMenuRef = useRef<HTMLDivElement>(null);
   const [radioNowPlaying, setRadioNowPlaying] = useState<{
@@ -799,6 +803,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   };
                 } catch {}
               } else if (event.data === 2) {
+                // If Live Radio is currently active, YouTube player must stay paused/stopped and never auto-resume!
+                if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) {
+                  return;
+                }
                 // Background playback protection: if browser/OS paused playback due to tab switch or app minimize, keep playing!
                 if (typeof document !== "undefined" && document.hidden && !userRequestedPauseRef.current) {
                   try {
@@ -815,6 +823,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   setIsPlaying(false);
                 }
               } else if (event.data === 0) {
+                // If Live Radio is active, ignore YouTube track ended!
+                if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) {
+                  return;
+                }
                 playbackClockRef.current.isPlaying = false;
                 setIsPlaying(false);
                 handleTrackEnded();
@@ -834,18 +846,30 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const handleVisibilityChange = () => {
       if (typeof document === "undefined") return;
 
+      const isRadio = Boolean(currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current);
+
       if (!document.hidden) {
-        // User returned to the app! If playback was active and not paused by user, resume immediately!
+        // User returned to the app! If playback was active and not paused by user, resume only the active engine!
         if (isPlayingRef.current && !userRequestedPauseRef.current) {
-          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
-            try {
-              ytPlayerRef.current.playVideo();
-            } catch {}
-          }
-          if (audioRef.current) {
-            try {
-              audioRef.current.play().catch(() => {});
-            } catch {}
+          if (isRadio) {
+            // Live Radio mode: ONLY resume HTML5 audioRef, NEVER touch YouTube player!
+            if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+              try {
+                audioRef.current.play().catch(() => {});
+              } catch {}
+            }
+          } else {
+            // Standard song mode: ONLY resume YouTube player!
+            if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+              try {
+                ytPlayerRef.current.playVideo();
+              } catch {}
+            }
+            if (audioRef.current && audioRef.current.src && audioRef.current.src.startsWith("data:audio")) {
+              try {
+                audioRef.current.play().catch(() => {});
+              } catch {}
+            }
           }
           playbackClockRef.current.snapshotPerfTime = performance.now();
           playbackClockRef.current.isPlaying = true;
@@ -853,15 +877,25 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       } else {
         // App minimized or user switched away to another app (e.g. WhatsApp)
         if (isPlayingRef.current && !userRequestedPauseRef.current) {
-          if (audioRef.current) {
-            try {
-              audioRef.current.play().catch(() => {});
-            } catch {}
-          }
-          if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
-            try {
-              ytPlayerRef.current.playVideo();
-            } catch {}
+          if (isRadio) {
+            // Live Radio mode: maintain HTML5 audio stream only
+            if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+              try {
+                audioRef.current.play().catch(() => {});
+              } catch {}
+            }
+          } else {
+            // Standard song mode: maintain silent keepalive & YouTube
+            if (audioRef.current && audioRef.current.src && audioRef.current.src.startsWith("data:audio")) {
+              try {
+                audioRef.current.play().catch(() => {});
+              } catch {}
+            }
+            if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+              try {
+                ytPlayerRef.current.playVideo();
+              } catch {}
+            }
           }
           if ("mediaSession" in navigator) {
             navigator.mediaSession.playbackState = "playing";
@@ -1217,18 +1251,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       return;
     }
 
-    // 1. Pause YouTube playback if any
-    if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
+    // 1. Stop YouTube playback so it NEVER clashes with live radio
+    if (ytPlayerRef.current) {
       try {
-        ytPlayerRef.current.pauseVideo();
+        if (typeof ytPlayerRef.current.stopVideo === "function") {
+          ytPlayerRef.current.stopVideo();
+        } else if (typeof ytPlayerRef.current.pauseVideo === "function") {
+          ytPlayerRef.current.pauseVideo();
+        }
       } catch {}
     }
 
     // 2. Convert station to MusicItem and set state
     const radioItem = radioStationToMusicItem(station);
     setActiveRadioStation(station);
+    activeRadioStationRef.current = station;
     setRadioNowPlaying(null);
     setCurrentTrack(radioItem);
+    currentTrackRef.current = radioItem;
     loadedTrackIdRef.current = radioItem.id;
     setIsResolvingAudio(false);
     setLyricsData(null);
@@ -1273,8 +1313,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       }
     }
 
-    // Stop active live radio stream when switching to standard track
-    if (audioRef.current && (activeRadioStation || currentTrack?.isLiveRadio)) {
+    // Stop active live radio stream immediately when switching to standard track
+    if (audioRef.current) {
       try {
         audioRef.current.pause();
         audioRef.current.src = SILENT_AUDIO_URI;
@@ -1282,6 +1322,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       } catch {}
     }
     setActiveRadioStation(null);
+    activeRadioStationRef.current = null;
+    currentTrackRef.current = track;
 
     const mc = musicConnectRef.current;
     if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
@@ -1475,7 +1517,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     }
 
     // Live Radio Toggle Play/Pause
-    if (currentTrack?.isLiveRadio) {
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) {
       if (isPlaying) {
         userRequestedPauseRef.current = true;
         if (audioRef.current) {
@@ -1487,8 +1529,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         userRequestedPauseRef.current = false;
         if (audioRef.current) {
           try {
-            if (currentTrack.streamUrl && audioRef.current.src !== currentTrack.streamUrl) {
-              audioRef.current.src = currentTrack.streamUrl;
+            const stream = currentTrackRef.current?.streamUrl || activeRadioStationRef.current?.streamUrl;
+            if (stream && audioRef.current.src !== stream) {
+              audioRef.current.src = stream;
             }
             audioRef.current.volume = isMuted ? 0 : volume;
             audioRef.current.muted = isMuted;
@@ -1519,6 +1562,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           setIsPlaying(false);
         } else {
           userRequestedPauseRef.current = false;
+          // Ensure audioRef is not playing radio stream
+          if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+            try {
+              audioRef.current.pause();
+              audioRef.current.src = SILENT_AUDIO_URI;
+              audioRef.current.loop = true;
+            } catch {}
+          }
           ytPlayerRef.current.playVideo();
           if (audioRef.current) {
             try {
@@ -1541,7 +1592,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const handleSeek = (newTime: number) => {
-    if (currentTrack?.isLiveRadio) return; // Disallow seek on live radio
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return; // Disallow seek on live radio
     setCurrentTime(newTime);
     playbackClockRef.current = {
       positionSeconds: newTime,
@@ -1794,7 +1845,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const handleVolumeChange = (val: number) => {
     setVolume(val);
     setIsMuted(val === 0);
-    if (audioRef.current && currentTrack?.isLiveRadio) {
+    if (audioRef.current && (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current)) {
       try {
         audioRef.current.volume = val;
         audioRef.current.muted = val === 0;
@@ -1820,7 +1871,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    if (audioRef.current && currentTrack?.isLiveRadio) {
+    if (audioRef.current && (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current)) {
       try {
         audioRef.current.muted = nextMuted;
         if (!nextMuted) audioRef.current.volume = volume || 0.8;
@@ -1847,7 +1898,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const toggleShuffle = () => {
-    if (currentTrack?.isLiveRadio) return; // Disallow shuffle on live radio
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return; // Disallow shuffle on live radio
     const nextShuffle = !isShuffle;
     setIsShuffle(nextShuffle);
     const mc = musicConnectRef.current;
@@ -1859,7 +1910,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const toggleRepeat = () => {
-    if (currentTrack?.isLiveRadio) return; // Disallow repeat on live radio
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return; // Disallow repeat on live radio
     const nextMode = repeatMode === "off" ? "all" : repeatMode === "all" ? "one" : "off";
     setRepeatMode(nextMode);
     const mc = musicConnectRef.current;
@@ -1871,7 +1922,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const playNext = (): MusicItem | null => {
-    if (currentTrack?.isLiveRadio) return null; // Disallow skip on live radio
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return null; // Disallow skip on live radio
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "NEXT");
@@ -1903,7 +1954,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const playPrevious = (): MusicItem | null => {
-    if (currentTrack?.isLiveRadio) return null; // Disallow skip on live radio
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return null; // Disallow skip on live radio
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "PREVIOUS");
@@ -1930,6 +1981,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   };
 
   const handleTrackEnded = () => {
+    if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return;
     if (repeatModeRef.current === "one") {
       handleSeek(0);
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
@@ -2193,11 +2245,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     const handlePlay = () => {
       userRequestedPauseRef.current = false;
-      if (currentTrack?.isLiveRadio) {
+      const isRadio = Boolean(currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current);
+      if (isRadio) {
         if (audioRef.current) {
           try {
-            if (currentTrack.streamUrl && audioRef.current.src !== currentTrack.streamUrl) {
-              audioRef.current.src = currentTrack.streamUrl;
+            const stream = currentTrackRef.current?.streamUrl || activeRadioStationRef.current?.streamUrl;
+            if (stream && audioRef.current.src !== stream) {
+              audioRef.current.src = stream;
             }
             audioRef.current.play().catch(() => {});
           } catch {}
@@ -2209,6 +2263,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       if (currentTrack && loadedTrackIdRef.current !== currentTrack.id) {
         playTrack(currentTrack);
         return;
+      }
+      // Ensure audioRef is not playing radio stream
+      if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
+        try {
+          audioRef.current.pause();
+          audioRef.current.src = SILENT_AUDIO_URI;
+          audioRef.current.loop = true;
+        } catch {}
       }
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         ytPlayerRef.current.playVideo();
@@ -2228,7 +2290,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     const handlePause = () => {
       userRequestedPauseRef.current = true;
-      if (currentTrack?.isLiveRadio) {
+      const isRadio = Boolean(currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current);
+      if (isRadio) {
         if (audioRef.current) {
           try { audioRef.current.pause(); } catch {}
         }
@@ -2247,17 +2310,17 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
 
     const handlePrev = () => {
-      if (currentTrack?.isLiveRadio) return;
+      if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return;
       playPrevious();
     };
 
     const handleNext = () => {
-      if (currentTrack?.isLiveRadio) return;
+      if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return;
       playNext();
     };
 
     const handleSeekTo = (details: any) => {
-      if (currentTrack?.isLiveRadio) return;
+      if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return;
       if (details.seekTime !== undefined && details.seekTime !== null) {
         handleSeek(details.seekTime);
       }
@@ -2266,7 +2329,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     try {
       navigator.mediaSession.setActionHandler("play", handlePlay);
       navigator.mediaSession.setActionHandler("pause", handlePause);
-      if (currentTrack?.isLiveRadio) {
+      if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) {
         navigator.mediaSession.setActionHandler("previoustrack", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
         navigator.mediaSession.setActionHandler("seekto", null);
@@ -3478,9 +3541,10 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
         }}
         onEnded={() => {
           if (audioRef.current && audioRef.current.src && !audioRef.current.src.startsWith("data:audio")) {
-            if (currentTrack?.isLiveRadio) {
-              if (currentTrack.streamUrl && isPlayingRef.current) {
-                audioRef.current.src = currentTrack.streamUrl;
+            if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) {
+              const stream = currentTrackRef.current?.streamUrl || activeRadioStationRef.current?.streamUrl;
+              if (stream && isPlayingRef.current) {
+                audioRef.current.src = stream;
                 audioRef.current.play().catch(() => {});
               }
             } else if (repeatMode === "one") {
@@ -3492,10 +3556,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
           }
         }}
         onError={() => {
-          if (currentTrack?.isLiveRadio && isPlayingRef.current) {
+          if ((currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) && isPlayingRef.current) {
             setTimeout(() => {
-              if (audioRef.current && currentTrack?.streamUrl && isPlayingRef.current) {
-                audioRef.current.src = currentTrack.streamUrl;
+              const stream = currentTrackRef.current?.streamUrl || activeRadioStationRef.current?.streamUrl;
+              if (audioRef.current && stream && isPlayingRef.current) {
+                audioRef.current.src = stream;
                 audioRef.current.play().catch(() => {});
               }
             }, 2500);
