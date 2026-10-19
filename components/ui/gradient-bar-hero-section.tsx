@@ -7,8 +7,6 @@ import { cn } from "@/lib/utils";
 
 
 const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
-  const numBars = 15;
-
   const calculateHeight = (index: number, total: number) => {
     const position = index / (total - 1);
     const maxHeight = 100;
@@ -21,42 +19,48 @@ const GradientBars: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
     return minHeight + (maxHeight - minHeight) * heightPercentage;
   };
 
+  const renderBarGroup = (count: number, className: string) => (
+    <div
+      className={cn("h-full w-full", className)}
+      style={{
+        transform: "translateZ(0)",
+        backfaceVisibility: "hidden",
+        WebkitFontSmoothing: "antialiased",
+      }}
+    >
+      {Array.from({ length: count }).map((_, index) => {
+        const height = calculateHeight(index, count);
+        const barScale = height / 100;
+        return (
+          <div
+            key={index}
+            style={{
+              flex: `1 0 calc(100% / ${count})`,
+              maxWidth: `calc(100% / ${count})`,
+              height: "100%",
+              background: isDark
+                ? "linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.72) 25%, rgba(255, 255, 255, 0.22) 55%, transparent 100%)"
+                : "linear-gradient(to top, #000000 0%, rgba(0, 0, 0, 0.65) 25%, rgba(0, 0, 0, 0.18) 55%, transparent 100%)",
+              transform: `scaleY(${barScale})`,
+              transformOrigin: "bottom",
+              transition: "transform 0.5s ease-in-out",
+              animation: "pulseBar 2s ease-in-out infinite alternate",
+              animationDelay: `${index * 0.1}s`,
+              outline: "1px solid rgba(0, 0, 0, 0)",
+              boxSizing: "border-box",
+              ["--bar-scale" as string]: barScale,
+            } as React.CSSProperties}
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
-      <div
-        className="flex h-full w-full"
-        style={{
-          transform: "translateZ(0)",
-          backfaceVisibility: "hidden",
-          WebkitFontSmoothing: "antialiased",
-        }}
-      >
-        {Array.from({ length: numBars }).map((_, index) => {
-          const height = calculateHeight(index, numBars);
-          const barScale = height / 100;
-          return (
-            <div
-              key={index}
-              style={{
-                flex: "1 0 calc(100% / 15)",
-                maxWidth: "calc(100% / 15)",
-                height: "100%",
-                background: isDark
-                  ? "linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.72) 25%, rgba(255, 255, 255, 0.22) 55%, transparent 100%)"
-                  : "linear-gradient(to top, #000000 0%, rgba(0, 0, 0, 0.65) 25%, rgba(0, 0, 0, 0.18) 55%, transparent 100%)",
-                transform: `scaleY(${barScale})`,
-                transformOrigin: "bottom",
-                transition: "transform 0.5s ease-in-out",
-                animation: "pulseBar 2s ease-in-out infinite alternate",
-                animationDelay: `${index * 0.1}s`,
-                outline: "1px solid rgba(0, 0, 0, 0)",
-                boxSizing: "border-box",
-                ["--bar-scale" as string]: barScale,
-              } as React.CSSProperties}
-            />
-          );
-        })}
-      </div>
+      {renderBarGroup(5, "flex sm:hidden")}
+      {renderBarGroup(9, "hidden sm:flex lg:hidden")}
+      {renderBarGroup(15, "hidden lg:flex")}
     </div>
   );
 };
