@@ -53,8 +53,17 @@ export function SharedLinksManager({ isDark, onNavigateToChat }: SharedLinksMana
     fetchLinks();
   }, [fetchLinks]);
 
+function getShareOrigin(): string {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return window.location.origin;
+    }
+  }
+  return "https://onemind.web.id";
+}
+
   const handleCopy = async (token: string, id: string) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const origin = getShareOrigin();
     const url = `${origin}/share/${token}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -103,7 +112,7 @@ export function SharedLinksManager({ isDark, onNavigateToChat }: SharedLinksMana
     }
   };
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const origin = getShareOrigin();
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-150">

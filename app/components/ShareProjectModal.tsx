@@ -76,7 +76,11 @@ export function ShareProjectModal({
 
   if (!isOpen || !session) return null;
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const origin =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ? window.location.origin
+      : "https://onemind.web.id";
   const shareUrl = existingToken ? `${origin}/share/${existingToken}` : "";
 
   const handleCreateOrUpdate = async (isUpdate = false) => {

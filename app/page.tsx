@@ -1168,8 +1168,49 @@ export default function Home() {
     const cached = loadSessions(currentUserId);
     const activeKey = getActiveSessionStorageKey(currentUserId);
     const savedActiveId = typeof window !== "undefined" ? localStorage.getItem(activeKey) : null;
+    const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const shareToken = urlParams?.get("share");
 
-    if (cached.length > 0) {
+    if (shareToken) {
+      // Bersihkan parameter query dari URL agar tidak terulang saat refresh
+      window.history.replaceState({}, "", window.location.pathname);
+      (async () => {
+        try {
+          const res = await fetch(`/api/share/${encodeURIComponent(shareToken)}`, {
+            cache: "no-store",
+          });
+          const data = await res.json();
+          if (data?.success && data?.link) {
+            const shared = data.link;
+            const newSessionId = `shared-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            const forkedSession: ChatSession = {
+              id: newSessionId,
+              title: shared.title || "Proyek Bersama",
+              messages: Array.isArray(shared.messages) ? shared.messages : [],
+              updatedAt: Date.now(),
+              pinned: false,
+            };
+
+            if (!isMounted) return;
+
+            setSessions((prev) => {
+              const updated = [forkedSession, ...prev.filter((s) => s.id !== newSessionId)];
+              try {
+                localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(updated));
+                localStorage.setItem(getActiveSessionStorageKey(currentUserId), newSessionId);
+              } catch {}
+              return updated;
+            });
+
+            setActiveSessionId(newSessionId);
+            setActiveView("chats");
+            isInitialBootRef.current = false;
+          }
+        } catch (err) {
+          console.error("[app] fetch shared project error:", err);
+        }
+      })();
+    } else if (cached.length > 0) {
       setSessions(cached);
       // Sesuai brief: Setiap refresh / masuk web, selalu mulai dengan obrolan baru
       if (isInitialBootRef.current) {

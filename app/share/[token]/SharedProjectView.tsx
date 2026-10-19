@@ -55,9 +55,13 @@ export function SharedProjectView({
   };
 
   const handleCopyLink = async () => {
-    if (typeof window === "undefined") return;
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const url =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+          ? `${window.location.origin}/share/${token}`
+          : `https://onemind.web.id/share/${token}`;
+      await navigator.clipboard.writeText(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
     } catch {
@@ -178,7 +182,7 @@ export function SharedProjectView({
 
           {/* CTA: Chat in Usick One */}
           <Link
-            href="/"
+            href={`/?share=${encodeURIComponent(token)}`}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
               isDark
                 ? "bg-white text-black hover:bg-zinc-200"
@@ -186,7 +190,7 @@ export function SharedProjectView({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Coba Usick One</span>
+            <span>Lanjutkan di Chat AI</span>
           </Link>
         </div>
       </header>
@@ -384,12 +388,12 @@ export function SharedProjectView({
             Usick One hadir dengan dukungan model cerdas, visualisasi rumus matematika, eksekusi kode, pencarian web langsung, dan sinkronisasi antar perangkat.
           </p>
           <Link
-            href="/"
+            href={`/?share=${encodeURIComponent(token)}`}
             className={`mt-4 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-sm cursor-pointer ${
               isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
             }`}
           >
-            Mulai Percakapan di Usick One
+            Lanjutkan Percakapan Ini di Chat AI
           </Link>
         </div>
       </main>

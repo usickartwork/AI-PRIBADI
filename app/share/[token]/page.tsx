@@ -3,12 +3,14 @@ export const dynamic = "force-dynamic";
 
 import { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getPublicSharedLink } from "@/lib/shareServer";
 import { SharedProjectView } from "./SharedProjectView";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ token: string }>;
+  searchParams?: Promise<{ preview?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -21,12 +23,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!link) {
     return {
       title: "Tautan Tidak Ditemukan atau Telah Dicabut - Usick One",
-      description: "Tautan percakapan ini tidak tersedia atau telah dicabut oleh pemiliknya.",
+      description: "Tautan percakapan proyek ini tidak tersedia atau telah dicabut oleh pemiliknya.",
     };
   }
 
   const title = `${link.title_snapshot || "Percakapan"} | Usick One`;
-  const description = `Lihat percakapan proyek "${link.title_snapshot || "Percakapan"}" yang dibagikan melalui Usick One.`;
+  const description = `Lihat dan lanjutkan percakapan proyek "${link.title_snapshot || "Percakapan"}" di Usick One.`;
 
   return {
     title,
@@ -35,6 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       type: "article",
+      url: `https://onemind.web.id/share/${token}`,
     },
     twitter: {
       card: "summary",
@@ -44,8 +47,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function SharedProjectPage({ params }: PageProps) {
+export default async function SharedProjectPage({ params, searchParams }: PageProps) {
   const { token } = await params;
+  const sParams = searchParams ? await searchParams : {};
 
   if (!token) {
     return <NotFoundView />;
@@ -57,14 +61,21 @@ export default async function SharedProjectPage({ params }: PageProps) {
     return <NotFoundView />;
   }
 
-  return (
-    <SharedProjectView
-      initialTitle={link.title_snapshot || "Untitled Project"}
-      initialMessages={Array.isArray(link.messages_snapshot) ? link.messages_snapshot : []}
-      createdAt={link.created_at}
-      token={link.public_token}
-    />
-  );
+  // Jika menyertakan ?preview=1, tampilkan tampilan statis
+  if (sParams.preview === "1" || sParams.preview === "true") {
+    return (
+      <SharedProjectView
+        initialTitle={link.title_snapshot || "Untitled Project"}
+        initialMessages={Array.isArray(link.messages_snapshot) ? link.messages_snapshot : []}
+        createdAt={link.created_at}
+        token={link.public_token}
+      />
+    );
+  }
+
+  // Secara default: langsung arahkan ke aplikasi utama dengan parameter share
+  // agar proyek langsung masuk ke panel Recent dan percakapan dapat langsung dilanjutkan
+  redirect(`/?share=${encodeURIComponent(token)}`);
 }
 
 function NotFoundView() {
@@ -94,4 +105,3 @@ function NotFoundView() {
     </div>
   );
 }
-
