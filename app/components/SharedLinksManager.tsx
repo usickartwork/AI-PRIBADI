@@ -54,11 +54,6 @@ export function SharedLinksManager({ isDark, onNavigateToChat }: SharedLinksMana
   }, [fetchLinks]);
 
 function getShareOrigin(): string {
-  if (typeof window !== "undefined") {
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      return window.location.origin;
-    }
-  }
   return "https://onemind.web.id";
 }
 

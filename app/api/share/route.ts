@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
       messages,
     });
 
-    return NextResponse.json({ success: true, link });
+    return NextResponse.json({
+      success: true,
+      link,
+      shareUrl: `https://onemind.web.id/share/${link.public_token}`,
+    });
   } catch (err: any) {
     if (err instanceof ShareError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -55,7 +59,11 @@ export async function GET(req: NextRequest) {
     if (contentId) {
       // Ambil link aktif untuk project ini jika ada
       const existing = await getExistingSharedLink(userId, contentId);
-      return NextResponse.json({ success: true, link: existing });
+      return NextResponse.json({
+        success: true,
+        link: existing,
+        shareUrl: existing ? `https://onemind.web.id/share/${existing.public_token}` : null,
+      });
     }
 
     // Ambil semua daftar link

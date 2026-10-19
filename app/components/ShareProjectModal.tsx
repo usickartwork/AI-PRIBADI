@@ -76,12 +76,8 @@ export function ShareProjectModal({
 
   if (!isOpen || !session) return null;
 
-  const origin =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-      ? window.location.origin
-      : "https://onemind.web.id";
-  const shareUrl = existingToken ? `${origin}/share/${existingToken}` : "";
+  const shareBase = "https://onemind.web.id";
+  const shareUrl = existingToken ? `${shareBase}/share/${existingToken}` : "";
 
   const handleCreateOrUpdate = async (isUpdate = false) => {
     if (!session || isCreating || isUpdating) return;
@@ -111,7 +107,7 @@ export function ShareProjectModal({
 
       // Auto copy on initial creation for instant UX
       if (!isUpdate && data.link.public_token) {
-        const url = `${origin}/share/${data.link.public_token}`;
+        const url = `${shareBase}/share/${data.link.public_token}`;
         try {
           await navigator.clipboard.writeText(url);
           setCopied(true);

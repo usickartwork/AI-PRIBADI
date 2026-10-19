@@ -8,6 +8,13 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
   const { pathname } = req.nextUrl;
   const isTargetMethod = req.method === "GET" || req.method === "HEAD";
 
+  // Redirect domain default Vercel filius-ai.vercel.app ke domain produksi utama onemind.web.id
+  const host = req.headers.get("host") || "";
+  if (host.includes("filius-ai.vercel.app")) {
+    const targetUrl = new URL(req.nextUrl.pathname + req.nextUrl.search, "https://onemind.web.id");
+    return NextResponse.redirect(targetUrl, 308);
+  }
+
   // Halaman publik & SEO: langsung bypass tanpa handshake redirect
   const isPublicPage =
     pathname === "/" ||
