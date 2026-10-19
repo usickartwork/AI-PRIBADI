@@ -918,8 +918,8 @@ export default function Home() {
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
     sessionsReady: !user || sessions.length > 0,
-    minDurationMs: 4500, // ±4.5s agar animasi One Mind dan deretan model LLM terlihat lengkap dan elegan
-    safetyTimeoutMs: 7500, // 7.5s maximum fallback in case network hangs
+    minDurationMs: 2000, // Dipercepat menjadi ~2.0s agar animasi masuk web lebih cepat dan responsif
+    safetyTimeoutMs: 4500, // 4.5s maximum fallback in case network hangs
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);

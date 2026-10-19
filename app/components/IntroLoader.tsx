@@ -55,7 +55,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
           dashGap={2}
           specks={15}
           sweep={true}
-          speed={2.8}
+          speed={3.6}
           draggable={true}
         />
       </div>
@@ -211,8 +211,8 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 export function useAppInitializer({
   authLoading,
   sessionsReady,
-  minDurationMs = 4500,
-  safetyTimeoutMs = 7500,
+  minDurationMs = 2000,
+  safetyTimeoutMs = 4500,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;
