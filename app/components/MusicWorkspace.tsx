@@ -510,6 +510,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
   const [isLibrarySearchOpen, setIsLibrarySearchOpen] = useState(false);
   const [showLibraryCreateMenu, setShowLibraryCreateMenu] = useState(false);
 
+  // Khusus desktop: pastikan "Koleksi Kamu" hanya ada 1 di panel kanan, tidak ganda di halaman utama
+  useEffect(() => {
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 640;
+    if (isDesktop && subTab === "playlists" && !isViewingLiked && !selectedLocalPlaylist) {
+      setSubTab("home");
+    }
+  }, [subTab, isViewingLiked, selectedLocalPlaylist]);
+
   // Floating Queue Toast State (Snappy 1100ms duration with smooth fade-in/fade-out)
   const [queueToast, setQueueToast] = useState<string | null>(null);
   const [isQueueToastVisible, setIsQueueToastVisible] = useState(false);
@@ -4435,7 +4443,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   type="button"
                   onClick={() => {
-                    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                    if (typeof window !== "undefined" && window.innerWidth < 640) {
                       setSubTab("playlists");
                       setSelectedLocalPlaylist(null);
                       setIsViewingLiked(false);
@@ -4476,6 +4484,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     setSubTab("home");
                     setSelectedArtist(null);
                     setSelectedAlbum(null);
+                    setIsViewingLiked(false);
+                    setSelectedLocalPlaylist(null);
                   }}
                   title="Kembali ke Musik"
                   aria-label="Kembali ke Musik"
@@ -5293,9 +5303,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setIsViewingLiked(false)}
+                        onClick={() => {
+                          setIsViewingLiked(false);
+                          if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                            setSubTab("home");
+                          }
+                        }}
                         className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
-                        title="Kembali ke Daftar Playlist"
+                        title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali ke Daftar Playlist"}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -5357,9 +5372,14 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setSelectedLocalPlaylist(null)}
+                        onClick={() => {
+                          setSelectedLocalPlaylist(null);
+                          if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                            setSubTab("home");
+                          }
+                        }}
                         className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
-                        title="Kembali ke Daftar Playlist"
+                        title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali ke Daftar Playlist"}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -5415,9 +5435,9 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 </div>
               )}
 
-              {/* Mode C: Mobile / Main Playlist Overview (Image 2 Design) */}
+              {/* Mode C: Mobile / Main Playlist Overview (Image 2 Design) - Khusus Mobile */}
               {!isViewingLiked && !selectedLocalPlaylist && (
-                <div className="space-y-4 max-w-2xl mx-auto">
+                <div className="space-y-4 max-w-2xl mx-auto block sm:hidden">
                   {/* Top Bar matching Image 2 */}
                   <div className="flex items-center justify-between gap-3 pt-1 pb-1">
                     <div className="flex items-center gap-3 min-w-0">
