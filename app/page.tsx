@@ -630,7 +630,21 @@ export default function Home() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [shareAIContent, setShareAIContent] = useState<string | null>(null);
-  const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscriptionInfo | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-user-subscription");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object" && parsed.plan) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
+  const [subscriptionReady, setSubscriptionReady] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
@@ -660,21 +674,36 @@ export default function Home() {
   if (showShareModal) openedModalsRef.current.shareProject = true;
 
   const refreshSubscription = useCallback(async () => {
+    if (!isClerkLoaded) return;
     try {
-      const qUserId = user?.id || "guest";
-      const res = await fetch(`/api/subscription?userId=${encodeURIComponent(qUserId)}`);
+      const targetUserId = isClerkSignedIn ? (user?.id || clerkUser?.id || "") : "guest";
+      if (isClerkSignedIn && !targetUserId) {
+        return;
+      }
+      const res = await fetch(`/api/subscription?userId=${encodeURIComponent(targetUserId)}`);
       if (res.ok) {
-        const data = await res.json();
+        const data: UserSubscriptionInfo = await res.json();
         setSubscription(data);
+        try {
+          if (isClerkSignedIn) {
+            localStorage.setItem("usick-user-subscription", JSON.stringify(data));
+          } else {
+            localStorage.removeItem("usick-user-subscription");
+          }
+        } catch {}
       }
     } catch (err) {
       console.warn("Failed to load subscription:", err);
+    } finally {
+      setSubscriptionReady(true);
     }
-  }, [user?.id]);
+  }, [isClerkLoaded, isClerkSignedIn, user?.id, clerkUser?.id]);
 
   useEffect(() => {
-    refreshSubscription();
-  }, [refreshSubscription]);
+    if (isClerkLoaded) {
+      void refreshSubscription();
+    }
+  }, [isClerkLoaded, refreshSubscription]);
 
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -846,6 +875,11 @@ export default function Home() {
 
   const handleSubscriptionUpdated = useCallback((updated: UserSubscriptionInfo) => {
     setSubscription(updated);
+    try {
+      if (updated.userId && updated.userId !== "guest") {
+        localStorage.setItem("usick-user-subscription", JSON.stringify(updated));
+      }
+    } catch {}
     if (updated.plan === "free") {
       setActiveView((prev) => {
         if (prev === "image" || prev === "halaman" || prev === "game" || prev === "faith" || prev === "messages") {
@@ -918,6 +952,7 @@ export default function Home() {
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
     sessionsReady: !user || sessions.length > 0,
+    subscriptionReady,
     minDurationMs: 2000, // Dipercepat menjadi ~2.0s agar animasi masuk web lebih cepat dan responsif
     safetyTimeoutMs: 4500, // 4.5s maximum fallback in case network hangs
   });
@@ -1010,6 +1045,10 @@ export default function Home() {
     sessionsOwnerIdRef.current = null;
     historySyncedForRef.current = null;
     setUser(null);
+    setSubscription(null);
+    try {
+      localStorage.removeItem("usick-user-subscription");
+    } catch {}
     const guestSessions = loadSessions(null);
     if (guestSessions.length > 0) {
       setSessions(guestSessions);
@@ -1052,6 +1091,7 @@ export default function Home() {
           localStorage.removeItem(`usick-code-blueprint-${user.id}`);
           localStorage.removeItem(`usick-image-history-${user.id}`);
           localStorage.removeItem("usick-active-view");
+          localStorage.removeItem("usick-user-subscription");
         } catch {}
       }
 

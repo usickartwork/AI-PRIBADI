@@ -211,11 +211,13 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 export function useAppInitializer({
   authLoading,
   sessionsReady,
+  subscriptionReady = true,
   minDurationMs = 2000,
   safetyTimeoutMs = 4500,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;
+  subscriptionReady?: boolean;
   minDurationMs?: number;
   safetyTimeoutMs?: number;
 }) {
@@ -233,10 +235,10 @@ export function useAppInitializer({
 
   // 2. Track actual readiness
   useEffect(() => {
-    if (!authLoading && sessionsReady) {
+    if (!authLoading && sessionsReady && subscriptionReady) {
       setAppReady(true);
     }
-  }, [authLoading, sessionsReady]);
+  }, [authLoading, sessionsReady, subscriptionReady]);
 
   // 3. Safety fallback timer to prevent infinite stuck loader
   useEffect(() => {
