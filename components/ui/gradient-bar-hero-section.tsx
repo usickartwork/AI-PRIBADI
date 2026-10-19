@@ -5,26 +5,26 @@ import {
   ArrowRight,
   Menu,
   X,
-  Hexagon,
+  ChevronDown,
   Sparkles,
-  Bot,
-  Terminal,
-  Calendar,
+  Zap,
   Layers,
-  Cpu,
   Shield,
   Activity,
   Code2,
+  Calendar,
   Send,
-  Zap,
-  Globe,
-  Music,
-  FileText,
-  Eye,
   CheckCircle2,
+  Lock,
+  Star,
+  Globe,
+  Bot,
+  Laptop,
+  Smartphone,
+  Tablet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MonochromeWaves3D } from "@/components/ui/monochrome-waves-3d";
+import { OneMindLogo, OneMindGlyph } from "@/components/ui/one-mind-logo";
 
 export interface GradientBarHeroSectionProps {
   onGetStarted?: (mode?: "signin" | "signup") => void;
@@ -32,198 +32,18 @@ export interface GradientBarHeroSectionProps {
   isDark?: boolean;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Brand Star Glyph (The authentic Usick living star mark)
-───────────────────────────────────────────────────────────────────────────── */
-function UsickStarGlyph({ className = "w-5 h-5", glow = true }: { className?: string; glow?: boolean }) {
-  return (
-    <div className={cn("relative inline-flex items-center justify-center shrink-0", className)}>
-      {glow && (
-        <span
-          className="absolute inset-0 rounded-full blur-[10px] bg-white/40 pointer-events-none"
-          aria-hidden="true"
-        />
-      )}
-      <svg className="w-full h-full relative z-10" viewBox="0 0 24 24" fill="none">
-        <defs>
-          <linearGradient id="usickStarGleam" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="50%" stopColor="#f4f4f5" />
-            <stop offset="100%" stopColor="#a1a1aa" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"
-          fill="url(#usickStarGleam)"
-        />
-        <circle cx="12" cy="12" r="2" fill="#ffffff" opacity="0.9" />
-      </svg>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   Top Navigation Bar (Minimalist, dark futuristic)
-───────────────────────────────────────────────────────────────────────────── */
-function HeroNavbar({
+export const Component: React.FC<GradientBarHeroSectionProps> = ({
   onGetStarted,
   onOpenPricing,
-}: {
-  onGetStarted?: (mode?: "signin" | "signup") => void;
-  onOpenPricing?: () => void;
-}) {
+}) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#050505]/80 backdrop-blur-md border-b border-white/[0.08] transition-colors select-none">
-      <div className="max-w-[1240px] mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            const container = document.getElementById("page-1-container") || window;
-            container.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          className="flex items-center gap-2.5 group cursor-pointer"
-        >
-          <div className="w-8 h-8 rounded-lg bg-[#111111] border border-white/15 flex items-center justify-center transition-all group-hover:border-white/30 shadow-[0_0_14px_rgba(255,255,255,0.06)]">
-            <UsickStarGlyph className="w-4 h-4" glow={false} />
-          </div>
-          <span className="font-bold text-[15px] sm:text-base tracking-tight text-[#F5F5F5] group-hover:text-white transition-colors">
-            Usick One
-          </span>
-        </a>
+  const toggleFaq = (idx: number) => {
+    setOpenFaqIndex((prev) => (prev === idx ? null : idx));
+  };
 
-        {/* Center Links (Desktop) */}
-        <nav className="hidden md:flex items-center gap-7 text-[13px] font-medium text-[#A0A0A0]">
-          <a
-            href="#what-is-usick"
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            Introduction
-          </a>
-          <a
-            href="#how-it-works"
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            How it Works
-          </a>
-          <a
-            href="#features-bento"
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            Capabilities
-          </a>
-          {onOpenPricing && (
-            <button
-              type="button"
-              onClick={onOpenPricing}
-              className="hover:text-white transition-colors cursor-pointer"
-            >
-              Pricing
-            </button>
-          )}
-        </nav>
-
-        {/* Desktop CTA */}
-        <div className="hidden md:flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onGetStarted?.("signin")}
-            className="text-[13px] font-medium text-[#A0A0A0] hover:text-white px-3.5 py-1.5 transition-colors cursor-pointer"
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => onGetStarted?.("signup")}
-            className="px-4 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.02] cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.18)]"
-          >
-            Get Started
-          </button>
-        </div>
-
-        {/* Mobile Hamburger */}
-        <button
-          type="button"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden p-2 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-          aria-label="Toggle navigation"
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
-
-      {/* Mobile Menu Dropdown */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-[#0A0A0A] border-b border-white/10 px-6 py-5 flex flex-col gap-4 animate-in fade-in-0 slide-in-from-top-2">
-          <a
-            href="#what-is-usick"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="text-sm text-zinc-300 hover:text-white transition-colors"
-          >
-            Introduction
-          </a>
-          <a
-            href="#how-it-works"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="text-sm text-zinc-300 hover:text-white transition-colors"
-          >
-            How it Works
-          </a>
-          <a
-            href="#features-bento"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="text-sm text-zinc-300 hover:text-white transition-colors"
-          >
-            Capabilities
-          </a>
-          {onOpenPricing && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onOpenPricing();
-              }}
-              className="text-left text-sm text-zinc-300 hover:text-white transition-colors"
-            >
-              Pricing
-            </button>
-          )}
-          <div className="pt-2 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onGetStarted?.("signin");
-              }}
-              className="w-full py-2.5 rounded-full text-sm font-medium border border-white/15 text-white hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onGetStarted?.("signup");
-              }}
-              className="w-full py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer"
-            >
-              Get Started
-            </button>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   Partner / AI Model Technology Logos Bar (Monochrome, Horizon line)
-───────────────────────────────────────────────────────────────────────────── */
-function HorizonLogoBar() {
-  const logos = [
+  const partnerLogos = [
     {
       name: "Google Gemini",
       icon: (
@@ -241,7 +61,7 @@ function HorizonLogoBar() {
       ),
     },
     {
-      name: "Anthropic Claude",
+      name: "Claude",
       icon: (
         <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
           <path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v3.08a1.5 1.5 0 0 1-3 0V3.5A1.5 1.5 0 0 1 12 2Zm7.07 3.93a1.5 1.5 0 0 1 0 2.12l-2.18 2.18a1.5 1.5 0 1 1-2.12-2.12l2.18-2.18a1.5 1.5 0 0 1 2.12 0ZM22 12a1.5 1.5 0 0 1-1.5 1.5h-3.08a1.5 1.5 0 0 1 0-3h3.08A1.5 1.5 0 0 1 22 12Zm-3.93 7.07a1.5 1.5 0 0 1-2.12 0l-2.18-2.18a1.5 1.5 0 1 1 2.12-2.12l2.18 2.18a1.5 1.5 0 0 1 0 2.12ZM12 22a1.5 1.5 0 0 1-1.5-1.5v-3.08a1.5 1.5 0 0 1 3 0v3.08A1.5 1.5 0 0 1 12 22Zm-7.07-3.93a1.5 1.5 0 0 1 0-2.12l2.18-2.18a1.5 1.5 0 1 1 2.12 2.12l-2.18 2.18a1.5 1.5 0 0 1 2.12 0ZM2 12a1.5 1.5 0 0 1 1.5-1.5h3.08a1.5 1.5 0 0 1 0 3H3.5A1.5 1.5 0 0 1 2 12Zm3.93-7.07a1.5 1.5 0 0 1 2.12 0l2.18 2.18a1.5 1.5 0 1 1-2.12 2.12L6.05 7.05a1.5 1.5 0 0 1 0-2.12Z" />
@@ -274,524 +94,850 @@ function HorizonLogoBar() {
       ),
     },
     {
-      name: "Groq",
+      name: "Usick One Engine",
       icon: (
-        <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
-          <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z" />
-        </svg>
+        <OneMindGlyph size={16} />
       ),
     },
   ];
 
-  return (
-    <div className="w-full max-w-[1050px] mx-auto px-4 py-6 border-t border-b border-white/[0.08] backdrop-blur-sm bg-[#050505]/40 select-none">
-      <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 md:gap-12">
-        {logos.map((logo) => (
-          <div
-            key={logo.name}
-            className="flex items-center gap-2 text-zinc-500 hover:text-zinc-200 transition-colors duration-200"
-          >
-            {logo.icon}
-            <span className="text-xs sm:text-[13px] font-medium tracking-wide">
-              {logo.name}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  const faqs = [
+    {
+      q: "How does One Mind compare to separate AI subscriptions?",
+      a: "One Mind brings world-class AI models (Usick One Flagship, GPT-4o, Claude 3.5, Gemini 2.0, DeepSeek R1) together with Code PRD studio, Google Calendar sync, and notes into one subscription. You don't need to pay for 4-5 separate services.",
+    },
+    {
+      q: "What is the Usick One AI model inside One Mind?",
+      a: "Usick One is our flagship AI reasoning engine based on Apodex. It is available with zero wait times for all users, supporting deep reasoning, live web search, and fast conversational intelligence.",
+    },
+    {
+      q: "Can I build web apps with Code PRD without technical experience?",
+      a: "Absolutely. You can describe your product idea in everyday language. One Mind generates the structured PRD, designs code files, and provides an instant live interactive preview directly in your browser.",
+    },
+    {
+      q: "How does the smart schedule integration work?",
+      a: "You can write or speak natural phrases like 'Meeting tomorrow at 2 PM with marketing'. One Mind extracts the date, time, and title, saving it to your schedule with two-way Google Calendar synchronization.",
+    },
+    {
+      q: "Is my data and chat history secure?",
+      a: "Yes. Your sessions and files are encrypted and stored privately. We do not sell your personal data or use your private conversations to train third-party models.",
+    },
+  ];
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Main Landing Component (Replacing old generic bars)
-───────────────────────────────────────────────────────────────────────────── */
-export const Component: React.FC<GradientBarHeroSectionProps> = ({
-  onGetStarted,
-  onOpenPricing,
-}) => {
   return (
     <div className="relative w-full bg-[#050505] text-[#F5F5F5] selection:bg-white/20 selection:text-white overflow-hidden">
-      {/* Top Navbar */}
-      <HeroNavbar onGetStarted={onGetStarted} onOpenPricing={onOpenPricing} />
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          1. TOP NAVBAR (Floating pill, matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#050505]/85 backdrop-blur-md border-b border-white/[0.08] transition-colors select-none">
+        <div className="max-w-[1240px] mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+          {/* Brand with concentric dashed logo */}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              const container = document.getElementById("page-1-container") || window;
+              container.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center gap-2 group cursor-pointer"
+          >
+            <OneMindLogo iconSize={24} textClassName="font-bold text-lg tracking-tight text-white" />
+          </a>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 1: HERO WITH 3D MONOCHROME WAVES
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="relative min-h-[96vh] sm:min-h-screen flex flex-col justify-between pt-28 sm:pt-36 pb-8 overflow-hidden">
-        {/* 3D Monochrome Waves Canvas Background */}
-        <MonochromeWaves3D emblemYPercent={50} />
+          {/* Nav Links */}
+          <nav className="hidden md:flex items-center gap-7 text-[13px] font-medium text-[#A0A0A0]">
+            <a href="#why-one-mind" className="hover:text-white transition-colors cursor-pointer">
+              Why One Mind
+            </a>
+            <a href="#how-it-works" className="hover:text-white transition-colors cursor-pointer">
+              How it Works
+            </a>
+            <a href="#features" className="hover:text-white transition-colors cursor-pointer">
+              Features
+            </a>
+            <a href="#testimonials" className="hover:text-white transition-colors cursor-pointer">
+              Testimonials
+            </a>
+            <a
+              href="#pricing"
+              onClick={(e) => {
+                if (onOpenPricing) {
+                  e.preventDefault();
+                  onOpenPricing();
+                }
+              }}
+              className="hover:text-white transition-colors cursor-pointer"
+            >
+              Plans
+            </a>
+          </nav>
 
-        {/* Hero Top Content */}
-        <div className="relative z-10 max-w-[960px] mx-auto text-center px-5 sm:px-8 flex flex-col items-center">
-          {/* Main Headline */}
-          <h1 className="text-[clamp(2.35rem,5.8vw,4.4rem)] font-bold tracking-tight text-white leading-[1.08] max-w-[850px] mx-auto mb-4 animate-in fade-in-0 duration-700">
-            Unified Intelligence
-            <br />
-            <span className="text-white">Powered By Usick One Engine.</span>
-          </h1>
-
-          {/* Subheadline Tagline */}
-          <p className="text-[clamp(0.95rem,2.1vw,1.15rem)] text-[#A0A0A0] max-w-[620px] mx-auto leading-relaxed mb-7 font-normal animate-in fade-in-0 duration-800">
-            Voice-triggered. Multi-model. Built to scale.
-          </p>
-
-          {/* Primary Pill Button CTA */}
-          <div className="mb-9 sm:mb-11 animate-in fade-in-0 duration-900">
+          {/* Nav Actions */}
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onGetStarted?.("signin")}
+              className="text-[13px] font-medium text-[#A0A0A0] hover:text-white px-3.5 py-1.5 transition-colors cursor-pointer"
+            >
+              Sign In
+            </button>
             <button
               type="button"
               onClick={() => onGetStarted?.("signup")}
-              className="inline-flex items-center gap-2.5 px-7 sm:px-9 py-3 sm:py-3.5 rounded-full font-semibold text-sm sm:text-[15px] bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.03] active:scale-[0.98] cursor-pointer shadow-[0_0_35px_rgba(255,255,255,0.22)]"
+              className="px-4 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.02] cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.18)]"
             >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              Start Now
             </button>
           </div>
 
-          {/* Central Glowing Object (Matching Reference Image) */}
-          <div className="relative flex flex-col items-center justify-center animate-in fade-in-0 duration-1000">
-            {/* Volumetric glow aura */}
-            <div
-              className="absolute -inset-4 rounded-3xl bg-white/[0.08] blur-xl pointer-events-none"
-              aria-hidden="true"
-            />
-            {/* Glossy Dark Box Badge */}
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#111111]/90 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-[0_12px_40px_rgba(0,0,0,0.8)]">
-              <UsickStarGlyph className="w-8 h-8 sm:w-10 sm:h-10" glow={true} />
-            </div>
-            {/* Vertical light beam indicator */}
-            <div className="w-[1px] h-16 sm:h-24 bg-gradient-to-b from-white/40 via-white/10 to-transparent mt-2" />
-          </div>
+          {/* Mobile Menu Button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+            aria-label="Toggle navigation"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
 
-        {/* Technology Logos Bar at the Horizon */}
-        <div className="relative z-10 w-full mt-6 sm:mt-10">
-          <HorizonLogoBar />
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 2: INTRODUCTION ("What is Usick One ?")
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section id="what-is-usick" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
-          {/* Section Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
-            <Hexagon className="w-3.5 h-3.5 text-zinc-400" />
-            <span>INTRODUCTION</span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
-            What is Usick One ?
-          </h2>
-
-          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-2xl mx-auto">
-            A unified multimodal AI workspace built on Usick Core — bridging smart reasoning, code development, and daily productivity in one seamless canvas.
-          </p>
-        </div>
-
-        {/* 3 Horizontal Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Card 1 */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex items-start gap-4 transition-all duration-300 hover:bg-[#151515] hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 text-white group-hover:border-white/25 transition-colors">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-[17px] font-semibold text-white mb-2 tracking-tight">
-                Unified Model Hub
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Access flagship models like GPT-4o, Claude 3.5, Gemini, DeepSeek, and Usick Flagship in one cohesive interface.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex items-start gap-4 transition-all duration-300 hover:bg-[#151515] hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 text-white group-hover:border-white/25 transition-colors">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-[17px] font-semibold text-white mb-2 tracking-tight">
-                Real-Time, Voice-Driven Execution
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Instant voice commands, realtime web search with verified sources, and adaptive reasoning depth.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex items-start gap-4 transition-all duration-300 hover:bg-[#151515] hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 text-white group-hover:border-white/25 transition-colors">
-              <Layers className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-[17px] font-semibold text-white mb-2 tracking-tight">
-                Integrated Studio & Productivity Layer
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Native Code PRD studio with live preview, smart schedule parser, cloud notes, and synced media right out of the box.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 3: HOW IT WORKS (4 Cards matching reference)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section id="how-it-works" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
-        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
-          {/* Section Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
-            <Hexagon className="w-3.5 h-3.5 text-zinc-400" />
-            <span>CHOOSE • CREATE • DEPLOY • SYNC</span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
-            How it Works
-          </h2>
-
-          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-2xl mx-auto">
-            Select your workspace, converse with intelligent AI, or build software from idea to code:
-          </p>
-        </div>
-
-        {/* 4 Cards in Horizontal Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Choose Node / Model */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/22 p-6 flex flex-col justify-between min-h-[380px] transition-all duration-300 hover:bg-[#151515]">
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 tracking-tight">
-                Choose Model
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Select a model from our curated engine or bring your preferred reasoning depth.
-              </p>
-            </div>
-
-            {/* Visual: Ambient Radar Disc with Centered Glowing Star */}
-            <div className="relative w-full aspect-square max-h-[170px] rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent border border-white/10 flex items-center justify-center overflow-hidden mt-6">
-              <div className="absolute inset-4 rounded-full border border-white/[0.08] animate-pulse" />
-              <div className="absolute inset-10 rounded-full border border-white/[0.12]" />
-              <div className="w-12 h-12 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center shadow-[0_0_24px_rgba(255,255,255,0.15)]">
-                <UsickStarGlyph className="w-6 h-6" glow={true} />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Deploy to CORA / Code PRD */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/22 p-6 flex flex-col justify-between min-h-[380px] transition-all duration-300 hover:bg-[#151515]">
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 tracking-tight">
-                Deploy to Code PRD
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Architect blueprints, generate project files, and preview frontend code in live sandbox.
-              </p>
-            </div>
-
-            {/* Visual: Stacked Status Items List */}
-            <div className="w-full rounded-2xl bg-[#0A0A0A] border border-white/10 p-3 flex flex-col gap-2 mt-6">
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/80 border border-white/5 text-xs text-zinc-300">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  Usick Flagship
-                </span>
-                <span className="text-[10px] text-zinc-500 font-mono">v1.1</span>
-              </div>
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 text-xs text-zinc-400">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                  Claude 3.5 & GPT-4o
-                </span>
-                <span className="text-[10px] text-zinc-500 font-mono">PRO</span>
-              </div>
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 text-xs text-zinc-400">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                  Live Sandbox
-                </span>
-                <span className="text-[10px] text-zinc-500 font-mono">HTML/JS</span>
-              </div>
-              <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 text-xs text-zinc-400">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  Web Search
-                </span>
-                <span className="text-[10px] text-zinc-500 font-mono">Citations</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Command & Schedule */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/22 p-6 flex flex-col justify-between min-h-[380px] transition-all duration-300 hover:bg-[#151515]">
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 tracking-tight">
-                Command & Schedule
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Natural language schedule parsing with 2-way Google Calendar sync and browser reminders.
-              </p>
-            </div>
-
-            {/* Visual: Floating Wireframe Cube + Interactive Command Input Bar */}
-            <div className="flex flex-col items-center justify-end w-full mt-6">
-              {/* Wireframe geometric graphic */}
-              <div className="w-20 h-20 mb-3 relative flex items-center justify-center">
-                <div className="absolute inset-0 border border-white/20 rotate-45 rounded-lg animate-pulse" />
-                <div className="absolute inset-2 border border-white/30 -rotate-12 rounded-lg" />
-                <UsickStarGlyph className="w-5 h-5 relative z-10" glow={false} />
-              </div>
-
-              {/* Command Prompt Mockup */}
-              <div
-                onClick={() => onGetStarted?.("signup")}
-                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#0A0A0A] border border-white/15 text-xs text-zinc-400 hover:text-white cursor-pointer transition-colors"
+        {/* Mobile Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-[#0A0A0A] border-b border-white/10 px-6 py-5 flex flex-col gap-4 animate-in fade-in-0 slide-in-from-top-2">
+            <a
+              href="#why-one-mind"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-sm text-zinc-300 hover:text-white transition-colors"
+            >
+              Why One Mind
+            </a>
+            <a
+              href="#how-it-works"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-sm text-zinc-300 hover:text-white transition-colors"
+            >
+              How it Works
+            </a>
+            <a
+              href="#features"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-sm text-zinc-300 hover:text-white transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="#testimonials"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-sm text-zinc-300 hover:text-white transition-colors"
+            >
+              Testimonials
+            </a>
+            <a
+              href="#pricing"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                if (onOpenPricing) onOpenPricing();
+              }}
+              className="text-sm text-zinc-300 hover:text-white transition-colors"
+            >
+              Plans
+            </a>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onGetStarted?.("signin");
+                }}
+                className="w-full py-2.5 rounded-full text-sm font-medium border border-white/15 text-white hover:bg-white/5 transition-colors cursor-pointer"
               >
-                <span className="truncate">Give any command...!</span>
-                <div className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white shrink-0">
-                  <Send className="w-3 h-3" />
-                </div>
-              </div>
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onGetStarted?.("signup");
+                }}
+                className="w-full py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                Start Now
+              </button>
             </div>
           </div>
+        )}
+      </header>
 
-          {/* Card 4: Playground & Live Preview */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/22 p-6 flex flex-col justify-between min-h-[380px] transition-all duration-300 hover:bg-[#151515]">
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-2 tracking-tight">
-                Playground Mode
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Simulate, refine, and iterate responses or live code previews in a safe, instant sandbox.
-              </p>
-            </div>
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          2. HERO SECTION (Matching reference structure with silver/white metallic glow)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[92vh] sm:min-h-screen flex flex-col justify-between pt-28 sm:pt-36 pb-12 overflow-hidden">
+        {/* Subtle radial ambient spotlight at the top */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] h-[350px] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.09)_0%,rgba(255,255,255,0.02)_40%,transparent_70%)] pointer-events-none"
+          aria-hidden="true"
+        />
 
-            {/* Visual: Dark IDE Code Terminal Window */}
-            <div className="w-full rounded-2xl bg-[#0A0A0A] border border-white/10 p-3 mt-6 font-mono text-[11px] leading-relaxed text-zinc-400 overflow-hidden">
-              <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/5">
-                <span className="w-2 h-2 rounded-full bg-red-500/80" />
-                <span className="w-2 h-2 rounded-full bg-yellow-500/80" />
-                <span className="w-2 h-2 rounded-full bg-green-500/80" />
-                <span className="text-[10px] text-zinc-500 ml-2">sandbox.json</span>
-              </div>
-              <p className="text-zinc-500">{"{"}</p>
-              <p className="pl-2">
-                <span className="text-zinc-300">&quot;engine&quot;</span>: <span className="text-emerald-400">&quot;usick-1.1&quot;</span>,
-              </p>
-              <p className="pl-2">
-                <span className="text-zinc-300">&quot;effort&quot;</span>: <span className="text-sky-400">&quot;max&quot;</span>,
-              </p>
-              <p className="pl-2">
-                <span className="text-zinc-300">&quot;streaming&quot;</span>: <span className="text-amber-400">true</span>
-              </p>
-              <p className="text-zinc-500">{"}"}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 4: WHAT WE PROVIDE? (Bento Grid matching reference)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section id="features-bento" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
-        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
-          {/* Section Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
-            <Hexagon className="w-3.5 h-3.5 text-zinc-400" />
-            <span>ALL-IN-ONE WORKSPACE</span>
+        <div className="relative z-10 max-w-[960px] mx-auto text-center px-5 sm:px-8 flex flex-col items-center">
+          {/* Onboarding Pill Badge */}
+          <div
+            onClick={() => onGetStarted?.("signup")}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#111111] border border-white/10 hover:border-white/20 text-[#A0A0A0] hover:text-white mb-6 sm:mb-8 cursor-pointer transition-all hover:scale-[1.02]"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
+            <span>All-in-One AI Workspace 2026</span>
+            <ArrowRight className="w-3 h-3 text-zinc-400" />
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
-            What we provide?
-          </h2>
+          {/* Main Headline (2 lines, tight line height, large bold) */}
+          <h1 className="text-[clamp(2.5rem,6.8vw,4.8rem)] font-bold tracking-tight text-white leading-[1.08] mb-4 sm:mb-5">
+            Think faster.
+            <br />
+            Convert better.
+          </h1>
 
-          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-2xl mx-auto">
-            Usick One brings together intelligent reasoning, full-stack dev tools, and daily productivity through a unified runtime.
+          {/* Subheadline Tagline */}
+          <p className="text-[clamp(0.95rem,2.1vw,1.15rem)] text-[#A0A0A0] max-w-[620px] mx-auto leading-relaxed mb-8 font-normal">
+            The Unified AI Workspace that helps creators, developers, and thinkers launch faster and build smarter.
           </p>
-        </div>
 
-        {/* Bento Grid Row 1 (3 Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-          {/* Bento Card 1: CORA / Usick Core Engine (Keyboard Key Visual) */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 flex flex-col justify-between min-h-[320px] transition-all duration-300 hover:bg-[#151515]">
-            {/* Visual: Tactile Keycaps with Center Glowing Key */}
-            <div className="w-full h-36 rounded-xl bg-gradient-to-b from-[#181818] to-[#0d0d0d] border border-white/10 flex items-center justify-center gap-2 p-4 mb-6 shadow-inner">
-              <div className="w-12 h-12 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-500 text-xs font-mono">
-                ⌘
-              </div>
-              <div className="w-14 h-14 rounded-xl bg-[#1f1f22] border border-white/30 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.2)]">
-                <UsickStarGlyph className="w-7 h-7" glow={true} />
-              </div>
-              <div className="w-12 h-12 rounded-lg bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-500 text-xs font-mono">
-                ⌥
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
-                Usick Core Engine
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                State-of-the-art multimodal reasoning with adaptive effort levels (Faster, Balanced, Max).
-              </p>
-            </div>
+          {/* Two Pill CTA Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16">
+            <button
+              type="button"
+              onClick={() => onGetStarted?.("signup")}
+              className="inline-flex items-center gap-2 px-7 sm:px-9 py-3 sm:py-3.5 rounded-full font-semibold text-sm sm:text-[15px] bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.02] cursor-pointer shadow-[0_0_35px_rgba(255,255,255,0.22)]"
+            >
+              <span>Get Started Now</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <a
+              href="#why-one-mind"
+              className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 rounded-full font-medium text-sm sm:text-[15px] bg-[#111111] text-zinc-300 hover:text-white border border-white/10 hover:border-white/25 transition-all cursor-pointer"
+            >
+              <span>See Features</span>
+            </a>
           </div>
 
-          {/* Bento Card 2: Edge-Synced Execution (Telemetry Dashboard Preview) */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 flex flex-col justify-between min-h-[320px] transition-all duration-300 hover:bg-[#151515]">
-            {/* Visual: Live Telemetry Preview Panel */}
-            <div className="w-full h-36 rounded-xl bg-[#09090b] border border-white/10 p-3 flex flex-col justify-between mb-6 font-mono text-[11px]">
-              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                <span className="text-zinc-400">Sync Pipeline</span>
-                <span className="flex items-center gap-1.5 text-emerald-400 text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  CONNECTED
-                </span>
-              </div>
-              <div className="space-y-1.5 text-[10px] text-zinc-500">
-                <div className="flex justify-between">
-                  <span>Chat Stream Latency</span>
-                  <span className="text-zinc-300">~18ms</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Code Sandbox Bridge</span>
-                  <span className="text-zinc-300">Active</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Google Calendar 2-Way</span>
-                  <span className="text-zinc-300">Synced</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
-                Edge-Synced Execution
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Realtime streaming responses, persistent sessions, and seamless cross-device synchronization.
-              </p>
-            </div>
-          </div>
-
-          {/* Bento Card 3: PlugStack Dev Tools (Tool Grid) */}
-          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 flex flex-col justify-between min-h-[320px] transition-all duration-300 hover:bg-[#151515]">
-            {/* Visual: Grid of 6 Integrated Tool Icons */}
-            <div className="w-full h-36 rounded-xl bg-[#0c0c0e] border border-white/10 grid grid-cols-3 gap-2 p-3 mb-6">
-              {[
-                { icon: Globe, label: "Search" },
-                { icon: Code2, label: "PRD" },
-                { icon: Calendar, label: "Calendar" },
-                { icon: Eye, label: "Vision" },
-                { icon: Music, label: "Music" },
-                { icon: FileText, label: "Notes" },
-              ].map((tool) => (
+          {/* Social Proof / Partner Logos Strip */}
+          <div className="w-full flex flex-col items-center gap-3 select-none">
+            <p className="text-[11px] sm:text-xs uppercase tracking-widest text-[#707070] font-medium">
+              Trusted by 10,000+ creators & developers worldwide
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 pt-1">
+              {partnerLogos.map((item) => (
                 <div
-                  key={tool.label}
-                  className="rounded-lg bg-zinc-900/80 border border-white/5 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  key={item.name}
+                  className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-200 transition-colors"
                 >
-                  <tool.icon className="w-4 h-4 text-zinc-300" />
-                  <span className="text-[10px] font-sans font-medium">{tool.label}</span>
+                  {item.icon}
+                  <span className="text-xs font-medium">{item.name}</span>
                 </div>
               ))}
             </div>
-
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
-                Integrated Tool Suite
-              </h3>
-              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Native tools for internet search, image generation, voice chat, and calendar scheduling.
-              </p>
-            </div>
           </div>
         </div>
 
-        {/* Bento Grid Row 2 (2 Wide Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-          {/* Card 4 (Span 5): Cinematic Metallic Architecture */}
-          <div className="md:col-span-5 group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 flex flex-col justify-between min-h-[290px] transition-all duration-300 hover:bg-[#151515]">
-            {/* Visual: Metallic Ribbon Illustration */}
-            <div className="relative w-full h-36 rounded-xl bg-gradient-to-br from-zinc-800/40 via-zinc-900 to-black border border-white/10 flex items-center justify-center overflow-hidden mb-6">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.15),transparent_70%)]" />
-              <svg className="w-3/4 h-24 stroke-white/40 fill-none" viewBox="0 0 100 50">
-                <path d="M 0 40 Q 25 5, 50 25 T 100 10" strokeWidth="1.5" />
-                <path d="M 0 45 Q 25 10, 50 30 T 100 15" strokeWidth="1" strokeOpacity="0.4" />
-                <path d="M 0 50 Q 25 15, 50 35 T 100 20" strokeWidth="0.8" strokeOpacity="0.2" />
-              </svg>
+        {/* Hero Bottom Curved Luminous Horizon Banner (Monochrome Silver/White Glow) */}
+        <div className="relative w-full max-w-[1240px] mx-auto px-5 sm:px-8 mt-12 sm:mt-16">
+          <div className="relative w-full h-32 sm:h-44 rounded-3xl bg-gradient-to-t from-white/[0.12] via-white/[0.04] to-transparent border border-white/[0.12] overflow-hidden flex items-end justify-center p-6 shadow-[0_0_60px_rgba(255,255,255,0.05)]">
+            {/* Luminous Horizon Arch */}
+            <div
+              className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-[85%] h-36 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.06)_40%,transparent_75%)] pointer-events-none"
+              aria-hidden="true"
+            />
+            {/* Ambient center beam */}
+            <div className="relative z-10 flex flex-col items-center gap-2">
+              <OneMindGlyph size={32} className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]" />
+              <span className="text-xs tracking-wider uppercase font-semibold text-white/80">
+                One Mind Architecture
+              </span>
             </div>
+          </div>
+        </div>
+      </section>
 
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          3. SECTION: WHY CREATORS CHOOSE ONE MIND (2x2 Grid, matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="why-one-mind" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span>WHY US?</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+            Why Creators Stick With Us
+          </h2>
+          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-xl mx-auto">
+            We combine clarity, intelligent reasoning, and high-performance tools to deliver results that actually matter.
+          </p>
+        </div>
+
+        {/* 2x2 Feature Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+          {/* Card 1: Implementation and tools */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-8 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
-                Cinematic Dark Interface
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 tracking-tight">
+                Implementation and tools
               </h3>
               <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Carefully calibrated typography, smooth transitions, and distraction-free dark futuristic aesthetics.
+                Streamlined multi-model AI chat with Usick One Flagship, Claude, GPT-4o, and Gemini in one unified prompt.
+              </p>
+            </div>
+            {/* Visual: Ambient Glowing Radar with Logo */}
+            <div className="relative w-full h-36 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mt-6">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.15)_0%,transparent_60%)]" />
+              <div className="relative w-16 h-16 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.15)]">
+                <OneMindGlyph size={28} className="text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: High-converting Code & PRD Studio */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-8 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            <div>
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 tracking-tight">
+                High-converting Code PRD
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
+                Architect blueprints, generate multi-file projects, and preview frontend code in an isolated live browser sandbox.
+              </p>
+            </div>
+            {/* Visual: Circuit trace with lightning icon */}
+            <div className="relative w-full h-36 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mt-6">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.15)_0%,transparent_60%)]" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/20 flex items-center justify-center text-white shadow-lg">
+                  <Zap className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex flex-col gap-1 text-[11px] font-mono text-zinc-400">
+                  <span className="text-emerald-400">● Live Preview Active</span>
+                  <span>HTML / JS / CSS Engine</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Maximum Return on ROI / Productivity */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-8 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            <div>
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 tracking-tight">
+                Maximum Return on Productivity
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
+                Real-time voice commands, web search with verified citations, and intelligent schedule parsing with Google Calendar.
+              </p>
+            </div>
+            {/* Visual: Metric Graph Badge (120% Productivity) */}
+            <div className="relative w-full h-36 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mt-6 p-4">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.12)_0%,transparent_60%)]" />
+              <div className="relative z-10 text-center">
+                <span className="text-xs font-mono uppercase tracking-wider text-zinc-500 block mb-1">
+                  Productivity Velocity
+                </span>
+                <span className="text-3xl font-bold font-mono text-white tracking-tight">
+                  120%{" "}
+                  <span className="text-sm font-normal text-emerald-400">▲ Faster</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Clear steps and trust */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-8 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            <div>
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 tracking-tight">
+                Clear steps and trust
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
+                Private chat sessions, end-to-end security, and seamless cross-device cloud synchronization.
+              </p>
+            </div>
+            {/* Visual: Layered pedestal with glowing top emblem */}
+            <div className="relative w-full h-36 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mt-6">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(255,255,255,0.15)_0%,transparent_60%)]" />
+              <div className="flex flex-col items-center gap-1 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-white/20 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-20 h-2 bg-white/20 rounded-full" />
+                <div className="w-32 h-2 bg-white/10 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          4. SECTION: THE PROCESS FAST, CLEAR, DONE (3 Cards, matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
+        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
+            <Activity className="w-3.5 h-3.5 text-zinc-400" />
+            <span>PROCESS</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+            The Process Fast, Clear, Done
+          </h2>
+          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-xl mx-auto">
+            No endless revisions. No messy handoffs. Just a unified AI workflow that delivers real results.
+          </p>
+        </div>
+
+        {/* 3 Horizontal Process Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+          {/* Card 1: Share Your Vision */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            {/* Visual: Chat Prompt Bubble */}
+            <div className="w-full h-36 rounded-xl bg-[#0A0A0A] border border-white/10 p-3.5 flex flex-col justify-between mb-6">
+              <div className="rounded-lg bg-zinc-900 border border-white/10 p-2 text-xs text-zinc-300">
+                &quot;Build a real-time dashboard with search &amp; calendar...&quot;
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+                <span>Prompt received</span>
+                <span className="text-emerald-400">Ready</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
+                Share Your Vision
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
+                Chat naturally or speak your ideas using voice mode to outline projects, tasks, or creative drafts.
               </p>
             </div>
           </div>
 
-          {/* Card 5 (Span 7): Developer-First Architecture / Code Snippet */}
-          <div className="md:col-span-7 group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 flex flex-col justify-between min-h-[290px] transition-all duration-300 hover:bg-[#151515]">
-            {/* Visual: Code Editor Mockup */}
-            <div className="w-full h-36 rounded-xl bg-[#08080a] border border-white/10 p-3.5 font-mono text-[11px] leading-relaxed text-zinc-300 overflow-hidden mb-6">
-              <p className="text-zinc-500">// Make a streaming request to Usick One Core</p>
-              <p className="mt-1">
-                <span className="text-purple-400">const</span> response ={" "}
-                <span className="text-purple-400">await</span> usick.
-                <span className="text-sky-400">chat</span>({`{`}
-              </p>
-              <p className="pl-4">
-                model: <span className="text-emerald-400">&quot;usick-flagship&quot;</span>,
-              </p>
-              <p className="pl-4">
-                prompt: <span className="text-emerald-400">&quot;Architect a modular dashboard...&quot;</span>,
-              </p>
-              <p className="pl-4">
-                tools: [<span className="text-amber-400">&quot;web_search&quot;</span>, <span className="text-amber-400">&quot;sandbox&quot;</span>]
-              </p>
-              <p>{`});`}</p>
+          {/* Card 2: AI Generates & Designs */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            {/* Visual: Code PRD Wireframe Sandbox */}
+            <div className="w-full h-36 rounded-xl bg-[#0A0A0A] border border-white/10 p-3 flex flex-col justify-between mb-6 font-mono text-[11px]">
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-zinc-400">
+                <span>Blueprint Generator</span>
+                <span className="text-[10px] text-sky-400">PRD.json</span>
+              </div>
+              <div className="space-y-1 text-zinc-500 text-[10px]">
+                <p>+ app/dashboard/page.tsx</p>
+                <p>+ lib/api/sync.ts</p>
+                <p>+ components/ui/card.tsx</p>
+              </div>
             </div>
-
             <div>
               <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
-                Developer-First Architecture
+                We Architect &amp; Build
               </h3>
               <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
-                Extensible endpoints, structured PRD generator, and sandbox preview for modern workflows.
+                One Mind drafts the PRD blueprint, structures code files, or sets calendar agendas in real time.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Ready to Launch */}
+          <div className="group rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-6 sm:p-7 flex flex-col justify-between min-h-[340px] transition-all duration-300 hover:bg-[#161616]">
+            {/* Visual: Launch Emblem with Radial Rays */}
+            <div className="relative w-full h-36 rounded-xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mb-6">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18)_0%,transparent_60%)]" />
+              <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/25 flex items-center justify-center relative z-10 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                <OneMindGlyph size={28} className="text-white" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-1.5 tracking-tight">
+                Ready to Launch
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A0A0A0] leading-relaxed">
+                Run live previews, export code, or sync schedules straight to Google Calendar with one click.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          SECTION 5: BOTTOM CALL-TO-ACTION (Pre-Footer Banner)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <section className="relative z-10 py-20 sm:py-28 px-5 sm:px-8 border-t border-white/[0.08] bg-[#0A0A0A]">
-        <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-[#111111] border border-white/15 flex items-center justify-center mb-6 shadow-[0_0_24px_rgba(255,255,255,0.12)]">
-            <UsickStarGlyph className="w-6 h-6" glow={true} />
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          5. SECTION: ASYMMETRICAL SPLIT CARDS (Matching reference bottom left)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="features" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Split Card A: Don't settle for single-model subscriptions */}
+          <div className="group rounded-3xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:bg-[#161616]">
+            <div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-3">
+                Don&apos;t settle for single-model subscriptions
+              </h3>
+              <p className="text-sm text-[#A0A0A0] leading-relaxed mb-6 max-w-md">
+                Why pay for 5 separate AI tools? One Mind gives you access to flagship reasoning, code studio, smart calendar, image generation, and music in one unified workspace.
+              </p>
+              <button
+                type="button"
+                onClick={() => onGetStarted?.("signup")}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                <span>Start Now</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Visual: Layered Device Mockups */}
+            <div className="relative w-full h-48 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center gap-3 overflow-hidden mt-8 p-4">
+              <div className="flex items-center gap-3 text-zinc-400">
+                <div className="w-16 h-24 rounded-xl border border-white/15 bg-zinc-900/80 flex flex-col items-center justify-center p-2">
+                  <Smartphone className="w-5 h-5 text-zinc-300" />
+                  <span className="text-[9px] mt-1 font-mono">Mobile</span>
+                </div>
+                <div className="w-28 h-32 rounded-xl border border-white/25 bg-zinc-900 flex flex-col items-center justify-center p-3 shadow-xl">
+                  <Laptop className="w-7 h-7 text-white" />
+                  <span className="text-[10px] mt-1.5 font-mono text-zinc-200">Web App</span>
+                </div>
+                <div className="w-20 h-28 rounded-xl border border-white/15 bg-zinc-900/80 flex flex-col items-center justify-center p-2">
+                  <Tablet className="w-5 h-5 text-zinc-300" />
+                  <span className="text-[9px] mt-1 font-mono">Tablet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Split Card B: We think deeply before we execute */}
+          <div className="group rounded-3xl bg-[#111111] border border-white/[0.08] hover:border-white/20 p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:bg-[#161616]">
+            <div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-3">
+                We think deeply before we execute
+              </h3>
+              <p className="text-sm text-[#A0A0A0] leading-relaxed mb-6 max-w-md">
+                Adaptive effort levels (Faster, Balanced, Max) let you tune neural reasoning depth for instant quick replies or comprehensive multi-step analysis.
+              </p>
+              <button
+                type="button"
+                onClick={() => onGetStarted?.("signup")}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                <span>Start Now</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Visual: Connected Neural Nodes */}
+            <div className="relative w-full h-48 rounded-2xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center overflow-hidden mt-8 p-4">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12)_0%,transparent_65%)]" />
+              <div className="relative z-10 flex items-center gap-6">
+                <div className="w-12 h-12 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center text-xs font-mono text-zinc-400">
+                  Faster
+                </div>
+                <div className="w-12 h-[1px] bg-gradient-to-r from-white/20 to-white/60" />
+                <div className="w-16 h-16 rounded-full bg-zinc-800 border border-white/40 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                  <OneMindGlyph size={24} className="text-white" />
+                </div>
+                <div className="w-12 h-[1px] bg-gradient-to-r from-white/60 to-white/20" />
+                <div className="w-12 h-12 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center text-xs font-mono text-zinc-400">
+                  Max
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          6. SECTION: WHAT FOUNDERS ARE SAYING (Testimonials, matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="testimonials" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
+        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
+            <Star className="w-3.5 h-3.5 text-zinc-400" />
+            <span>TESTIMONIALS</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+            What Founders Are Saying
+          </h2>
+          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-xl mx-auto">
+            Creators trust One Mind to help founders turn ideas into reality and ship with impact.
+          </p>
+        </div>
+
+        {/* 3 Testimonial Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+          <div className="rounded-2xl bg-[#111111] border border-white/[0.08] p-6 sm:p-7 flex flex-col justify-between">
+            <p className="text-sm text-zinc-300 leading-relaxed mb-6 italic">
+              &quot;Having GPT-4o, Claude 3.5, and Usick One in a single tab transformed our workflow. We draft PRDs and generate frontend previews 3x faster without leaving the app.&quot;
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white font-semibold text-sm">
+                MR
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Michael R.</p>
+                <p className="text-xs text-zinc-500">Growth Lead at Co-Found</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#111111] border border-white/[0.08] p-6 sm:p-7 flex flex-col justify-between">
+            <p className="text-sm text-zinc-300 leading-relaxed mb-6 italic">
+              &quot;The smart schedule parser with Google Calendar integration alone is worth it. I type my day in natural language and my entire agenda syncs automatically.&quot;
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white font-semibold text-sm">
+                JL
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Jason L.</p>
+                <p className="text-xs text-zinc-500">Founder at LaunchGrid</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#111111] border border-white/[0.08] p-6 sm:p-7 flex flex-col justify-between">
+            <p className="text-sm text-zinc-300 leading-relaxed mb-6 italic">
+              &quot;The minimalist dark futuristic interface is stunning. It feels like an authentic pro workspace, not another generic dashboard. Simply indispensable.&quot;
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white font-semibold text-sm">
+                EB
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Emily B.</p>
+                <p className="text-xs text-zinc-500">Tech Lead &amp; Designer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4 Pagination Dots */}
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <span className="w-2 h-2 rounded-full bg-white" />
+          <span className="w-2 h-2 rounded-full bg-white/20" />
+          <span className="w-2 h-2 rounded-full bg-white/20" />
+          <span className="w-2 h-2 rounded-full bg-white/20" />
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          7. SECTION: PRICING (Straightforward pricing that fits, matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[1240px] mx-auto border-t border-white/[0.06]">
+        <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-18">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
+            <span>PRICING</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+            Straightforward pricing that fits
+          </h2>
+          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-xl mx-auto">
+            Whether you&apos;re launching your first idea or scaling your startup, One Mind has a plan that fits your pace.
+          </p>
+        </div>
+
+        {/* 3 Pricing Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          {/* Card 1: Starter Plan */}
+          <div className="rounded-3xl bg-[#111111] border border-white/[0.08] p-7 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <OneMindGlyph size={18} className="text-zinc-400" />
+                <h3 className="text-base font-semibold text-white">Starter Plan</h3>
+              </div>
+              <div className="mb-6">
+                <span className="text-3xl sm:text-4xl font-bold text-white">$0</span>
+                <span className="text-xs text-zinc-500 ml-1.5">USD / free forever</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-zinc-400">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Usick One Flagship AI access</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>10,000 monthly AI credits</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Up to 3 active schedules</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Standard web search</span>
+                </li>
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => onGetStarted?.("signup")}
+              className="w-full mt-8 py-3 rounded-full text-xs font-semibold border border-white/15 text-white hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              Choose this plan
+            </button>
+          </div>
+
+          {/* Card 2: Pro Plan (Highlighted Card) */}
+          <div className="relative rounded-3xl bg-[#161616] border border-white/25 p-7 sm:p-8 flex flex-col justify-between shadow-[0_0_50px_rgba(255,255,255,0.08)] transform md:-translate-y-2">
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white text-black shadow-md">
+              Most Popular
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2 pt-2">
+                <OneMindGlyph size={18} className="text-white" />
+                <h3 className="text-base font-semibold text-white">Pro Plan</h3>
+              </div>
+              <div className="mb-6">
+                <span className="text-3xl sm:text-4xl font-bold text-white">Rp 50.000</span>
+                <span className="text-xs text-zinc-400 ml-1.5">/ bulan</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-zinc-300">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>All Flagship Models (Claude 3.5, GPT-4o, Gemini)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>50,000 AI Credits + 50 Code Credits</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>Code PRD Studio &amp; Live Sandbox Preview</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>50 Smart Schedules &amp; Google Calendar sync</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>Music Connect, Image Studio &amp; Private Messages</span>
+                </li>
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenPricing) onOpenPricing();
+                else onGetStarted?.("signup");
+              }}
+              className="w-full mt-8 py-3 rounded-full text-xs font-semibold bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.02] cursor-pointer shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+            >
+              Choose Pro Plan
+            </button>
+          </div>
+
+          {/* Card 3: Velocity+ Plan */}
+          <div className="rounded-3xl bg-[#111111] border border-white/[0.08] p-7 sm:p-8 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <OneMindGlyph size={18} className="text-zinc-400" />
+                <h3 className="text-base font-semibold text-white">Velocity+ Plan</h3>
+              </div>
+              <div className="mb-6">
+                <span className="text-3xl sm:text-4xl font-bold text-white">Custom</span>
+                <span className="text-xs text-zinc-500 ml-1.5">/ enterprise &amp; teams</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-zinc-400">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Unlimited Max-effort reasoning</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Team seats &amp; shared workspace projects</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Dedicated priority throughput</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                  <span>Early access to newly released models</span>
+                </li>
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenPricing) onOpenPricing();
+                else onGetStarted?.("signup");
+              }}
+              className="w-full mt-8 py-3 rounded-full text-xs font-semibold border border-white/15 text-white hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              Choose this plan
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          8. SECTION: FAQ ACCORDION (Matching reference)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section id="faq" className="relative z-10 py-24 sm:py-32 px-5 sm:px-8 max-w-[850px] mx-auto border-t border-white/[0.06]">
+        <div className="text-center max-w-xl mx-auto mb-14">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase bg-[#111111] border border-white/10 text-zinc-300 mb-4">
+            <span>FAQS</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+            Questions? We&apos;ve got answers.
+          </h2>
+          <p className="text-sm text-[#A0A0A0] leading-relaxed">
+            We&apos;ve answered the most common questions below. If you still need help, reach out to our team.
+          </p>
+        </div>
+
+        {/* FAQ Accordion List */}
+        <div className="space-y-3">
+          {faqs.map((item, idx) => {
+            const isOpen = openFaqIndex === idx;
+            return (
+              <div
+                key={item.q}
+                className="rounded-2xl bg-[#111111] border border-white/[0.08] hover:border-white/15 transition-all overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleFaq(idx)}
+                  className="w-full px-6 py-4 sm:py-5 flex items-center justify-between text-left text-sm sm:text-base font-semibold text-white cursor-pointer select-none"
+                >
+                  <span>{item.q}</span>
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ml-4",
+                      isOpen && "rotate-180 text-white"
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-6 pb-5 pt-1 text-xs sm:text-sm text-[#A0A0A0] leading-relaxed border-t border-white/5 animate-in fade-in-0 duration-200">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          9. PRE-FOOTER CTA BANNER (Curved horizon with central glyph)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <section className="relative z-10 py-20 sm:py-28 px-5 sm:px-8 border-t border-white/[0.08]">
+        <div className="max-w-[960px] mx-auto text-center flex flex-col items-center">
+          {/* Luminous Logo Circle */}
+          <div className="w-16 h-16 rounded-2xl bg-[#111111] border border-white/20 flex items-center justify-center mb-6 shadow-[0_0_35px_rgba(255,255,255,0.18)]">
+            <OneMindGlyph size={32} className="text-white" />
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
-            Start Creating With Usick One
+            Ready to launch something that actually works?
           </h2>
 
-          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-xl mx-auto mb-8">
-            Empower your workflow with unified AI intelligence, code generation, and effortless productivity.
+          <p className="text-sm sm:text-base text-[#A0A0A0] leading-relaxed max-w-lg mx-auto mb-8">
+            Let One Mind design the workflow your ideas deserve. Clean, strategic, and ready to grow.
           </p>
 
           <button
             type="button"
             onClick={() => onGetStarted?.("signup")}
-            className="inline-flex items-center gap-2.5 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.03] active:scale-[0.98] cursor-pointer shadow-[0_0_35px_rgba(255,255,255,0.25)]"
+            className="inline-flex items-center gap-2.5 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base bg-white text-black hover:bg-zinc-200 transition-all transform hover:scale-[1.02] cursor-pointer shadow-[0_0_35px_rgba(255,255,255,0.22)]"
           >
-            <span>Get Started</span>
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
+            <span>Get Started Now</span>
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </section>

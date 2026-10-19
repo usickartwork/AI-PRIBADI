@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ArrowRight, CheckCircle2, Shield, Sparkles, X, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { OneMindLogo } from "@/components/ui/one-mind-logo";
 
 /* Layout primitive (Container) */
 const containerWidths = {
@@ -207,9 +208,15 @@ export default function Footer01({
             : "border-zinc-200 bg-white text-zinc-900"
         )}
       >
+        {/* Curved Ambient Glow Top Horizon (Matching reference bottom) */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.14)_0%,transparent_70%)] pointer-events-none"
+          aria-hidden="true"
+        />
+
         <Container className="pt-16 sm:pt-20">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.3fr_2fr]">
-            {/* Brand Intro & Quick Action (No email form as requested) */}
+            {/* Brand Intro & Quick Action */}
             <div className="flex max-w-md flex-col gap-5">
               <a
                 href="#"
@@ -218,12 +225,9 @@ export default function Footer01({
                   const container = document.getElementById("page-1-container") || window;
                   container.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                className={cn(
-                  "flex items-center font-bold tracking-tight text-xl transition-opacity hover:opacity-90",
-                  isDark ? "text-white" : "text-black"
-                )}
+                className="inline-block transition-opacity hover:opacity-90 cursor-pointer"
               >
-                <span>Usick One</span>
+                <OneMindLogo iconSize={26} textClassName="text-2xl font-bold tracking-tight text-white" />
               </a>
 
               <p
@@ -232,7 +236,7 @@ export default function Footer01({
                   isDark ? "text-zinc-400" : "text-zinc-600"
                 )}
               >
-                One Mind. Infinite Intelligence. Ekosistem cerdas terpadu: Multi-Model AI Chat, Voice Assistant Realtime, Code Studio & PRD, Image Generation & Translasi, Music One & Connect, Messages Realtime, Catatan Pintar, hingga Smart Schedule otomatis dalam satu ruang kerja.
+                One Mind — The Unified AI Workspace. Connecting flagship reasoning models (including Usick One), Code Studio &amp; PRD, smart calendar agendas, and creative tools in one seamless canvas.
               </p>
 
               {/* Call-to-action Button */}
@@ -247,7 +251,7 @@ export default function Footer01({
                       : "bg-black text-white hover:bg-zinc-800"
                   )}
                 >
-                  <span>Mulai Sekarang</span>
+                  <span>Start Now</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
                 <Button
@@ -261,7 +265,7 @@ export default function Footer01({
                       : "border-zinc-200 text-zinc-700 hover:bg-zinc-100 hover:text-black"
                   )}
                 >
-                  Masuk Akun
+                  Sign In
                 </Button>
               </div>
             </div>
