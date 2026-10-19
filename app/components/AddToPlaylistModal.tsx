@@ -3,6 +3,15 @@
 import React, { useState } from "react";
 import { MusicItem, LocalPlaylist } from "@/lib/music";
 
+export interface AddToPlaylistAnchor {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+  width: number;
+  height: number;
+}
+
 interface AddToPlaylistModalProps {
   track: MusicItem | null;
   isOpen: boolean;
@@ -14,6 +23,7 @@ interface AddToPlaylistModalProps {
   onTogglePlaylistTrack: (playlistId: string, track: MusicItem) => void;
   onCreatePlaylist: (name: string, trackToAdd?: MusicItem) => void;
   userName?: string;
+  anchorRect?: AddToPlaylistAnchor | null;
 }
 
 export function AddToPlaylistModal({
@@ -27,10 +37,74 @@ export function AddToPlaylistModal({
   onTogglePlaylistTrack,
   onCreatePlaylist,
   userName = "Fsic",
+  anchorRect,
 }: AddToPlaylistModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreatingInline, setIsCreatingInline] = useState(false);
   const [inlineName, setInlineName] = useState("");
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(typeof window !== "undefined" && window.innerWidth >= 640);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const panelWidth = 360;
+    const panelHeight = 440;
+    const margin = 16;
+    const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const windowHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+
+    if (!anchorRect) {
+      setPopoverStyle({
+        position: "fixed",
+        bottom: "96px",
+        left: "24px",
+        width: `${panelWidth}px`,
+        maxHeight: `${panelHeight}px`,
+      });
+      return;
+    }
+
+    // Align horizontally with the clicked anchor icon center or clamp inside screen
+    let left = anchorRect.left + anchorRect.width / 2 - panelWidth / 2;
+    if (left < margin) left = margin;
+    if (left + panelWidth > windowWidth - margin) {
+      left = windowWidth - panelWidth - margin;
+    }
+
+    // Determine whether to place above or below icon
+    const spaceAbove = anchorRect.top;
+    const spaceBelow = windowHeight - anchorRect.bottom;
+
+    if (spaceAbove >= 280 || spaceAbove >= spaceBelow) {
+      // Position directly above the icon
+      setPopoverStyle({
+        position: "fixed",
+        bottom: `${windowHeight - anchorRect.top + 10}px`,
+        left: `${left}px`,
+        width: `${panelWidth}px`,
+        maxHeight: `${Math.min(panelHeight, spaceAbove - 16)}px`,
+      });
+    } else {
+      // Position directly below the icon
+      setPopoverStyle({
+        position: "fixed",
+        top: `${anchorRect.bottom + 10}px`,
+        left: `${left}px`,
+        width: `${panelWidth}px`,
+        maxHeight: `${Math.min(panelHeight, spaceBelow - 16)}px`,
+      });
+    }
+  }, [isOpen, anchorRect]);
 
   if (!isOpen || !track) return null;
 
@@ -50,14 +124,19 @@ export function AddToPlaylistModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 select-none animate-in fade-in-0 duration-150"
+      className="fixed inset-0 z-50 flex items-end sm:block bg-black/60 backdrop-blur-xs sm:bg-transparent sm:backdrop-blur-none select-none animate-in fade-in-0 duration-150"
       onClick={onClose}
     >
       <div
-        className={`w-full max-h-[85vh] sm:max-h-[640px] sm:max-w-md rounded-t-[28px] sm:rounded-3xl border-t sm:border p-5 pb-7 sm:p-6 shadow-2xl flex flex-col gap-4 overflow-hidden animate-in slide-in-from-bottom duration-200 sm:zoom-in-95 ${
+        style={isDesktop ? popoverStyle : undefined}
+        className={`w-full max-h-[85vh] rounded-t-[28px] sm:rounded-2xl border-t sm:border p-4.5 sm:p-5 shadow-2xl flex flex-col gap-3.5 overflow-hidden animate-in ${
+          isDesktop
+            ? "sm:zoom-in-95 sm:fade-in-0 duration-150"
+            : "slide-in-from-bottom duration-200"
+        } ${
           isDark
-            ? "bg-[#121215] border-zinc-800 text-white"
-            : "bg-white border-zinc-200 text-zinc-900"
+            ? "bg-[#141418] border-zinc-800 text-white shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+            : "bg-white border-zinc-200 text-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
         }`}
         onClick={(e) => e.stopPropagation()}
       >

@@ -32,8 +32,6 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
   const [isChecking, setIsChecking] = useState(false);
   const [previewData, setPreviewData] = useState<PlaylistPreviewData | null>(null);
   const [targetPlaylistName, setTargetPlaylistName] = useState("");
-  const [showInstructions, setShowInstructions] = useState(false);
-
   // Setiap kali modal dibuka, selalu reset state ke kondisi awal (halaman input tautan)
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +40,6 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
       setPreviewData(null);
       setTargetPlaylistName("");
       setIsChecking(false);
-      setShowInstructions(false);
     }
   }, [isOpen]);
 
@@ -201,46 +198,35 @@ export const ImportPlaylistModal: React.FC<ImportPlaylistModalProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
-          {/* Kotak Petunjuk Sederhana (Collapsible) */}
+          {/* Kotak Petunjuk Langsung */}
           <div
             className={`rounded-2xl border p-3.5 transition-all ${
               isDark ? "bg-zinc-900/40 border-zinc-800/70" : "bg-zinc-50 border-zinc-200"
             }`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <span className="text-xs font-bold tracking-tight">Cara import playlist</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowInstructions(!showInstructions)}
-                className="text-[11px] text-zinc-400 hover:text-white transition cursor-pointer"
-              >
-                {showInstructions ? "Sembunyikan" : "Bantuan"}
-              </button>
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="text-xs font-bold tracking-tight">Cara import playlist</span>
             </div>
 
-            {showInstructions && (
-              <div className="mt-2.5 pt-2.5 border-t border-zinc-800/40 space-y-2 text-xs text-zinc-400 leading-relaxed">
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Buka playlist Spotify kamu.</li>
-                  <li>Tekan menu tiga titik &gt; Bagikan &gt; Salin Tautan.</li>
-                  <li>Tempel tautan di bawah dan tekan Enter.</li>
-                  <li>Konfirmasi daftar lagu, lalu tekan Import.</li>
-                </ol>
-                <p className="text-[11px] text-zinc-500">
-                  Maksimal 100 lagu per proses import. Lagu diimpor sesuai urutan playlist.
-                </p>
-              </div>
-            )}
+            <div className="mt-2.5 pt-2.5 border-t border-zinc-800/40 space-y-2 text-xs text-zinc-400 leading-relaxed">
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Buka playlist Spotify kamu.</li>
+                <li>Tekan menu tiga titik &gt; Bagikan &gt; Salin Tautan.</li>
+                <li>Tempel tautan di bawah dan tekan Enter.</li>
+                <li>Konfirmasi daftar lagu, lalu tekan Import.</li>
+              </ol>
+              <p className="text-[11px] text-zinc-500">
+                Maksimal 100 lagu per proses import. Lagu diimpor sesuai urutan playlist.
+              </p>
+            </div>
           </div>
 
           {/* Form Input Tautan Spotify */}
