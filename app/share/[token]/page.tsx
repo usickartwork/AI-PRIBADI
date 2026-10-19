@@ -1,0 +1,97 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+import { Metadata } from "next";
+import Link from "next/link";
+import { getPublicSharedLink } from "@/lib/shareServer";
+import { SharedProjectView } from "./SharedProjectView";
+import { AlertCircle, ArrowLeft } from "lucide-react";
+
+interface PageProps {
+  params: Promise<{ token: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { token } = await params;
+  if (!token) {
+    return { title: "Tautan Tidak Ditemukan - Usick One" };
+  }
+
+  const link = await getPublicSharedLink(token);
+  if (!link) {
+    return {
+      title: "Tautan Tidak Ditemukan atau Telah Dicabut - Usick One",
+      description: "Tautan percakapan ini tidak tersedia atau telah dicabut oleh pemiliknya.",
+    };
+  }
+
+  const title = `${link.title_snapshot || "Percakapan"} | Usick One`;
+  const description = `Lihat percakapan proyek "${link.title_snapshot || "Percakapan"}" yang dibagikan melalui Usick One.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+  };
+}
+
+export default async function SharedProjectPage({ params }: PageProps) {
+  const { token } = await params;
+
+  if (!token) {
+    return <NotFoundView />;
+  }
+
+  const link = await getPublicSharedLink(token);
+
+  if (!link) {
+    return <NotFoundView />;
+  }
+
+  return (
+    <SharedProjectView
+      initialTitle={link.title_snapshot || "Untitled Project"}
+      initialMessages={Array.isArray(link.messages_snapshot) ? link.messages_snapshot : []}
+      createdAt={link.created_at}
+      token={link.public_token}
+    />
+  );
+}
+
+function NotFoundView() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0c0c0e] text-zinc-100">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8 text-center shadow-2xl backdrop-blur-xl">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight mb-2">
+          Tautan Tidak Tersedia
+        </h1>
+
+        <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mb-6">
+          Tautan ini tidak ditemukan, sudah kedaluwarsa, atau telah dicabut oleh pemiliknya.
+        </p>
+
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold bg-white text-black hover:bg-zinc-200 transition shadow-sm cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Kembali ke Usick One</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+

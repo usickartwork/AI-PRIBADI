@@ -14,7 +14,8 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml";
+    pathname === "/sitemap.xml" ||
+    pathname.startsWith("/share");
 
   if (isPublicPage && isTargetMethod) {
     return NextResponse.next();

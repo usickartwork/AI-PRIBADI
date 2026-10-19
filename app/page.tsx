@@ -28,6 +28,8 @@ const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal")
 const ChatSearchModal = dynamic(() => import("./components/ChatSearchModal").then((m) => m.ChatSearchModal));
 const VoiceAssistantModal = dynamic(() => import("./components/VoiceAssistantModal").then((m) => m.VoiceAssistantModal));
 const ShareAIResponseModal = dynamic(() => import("./components/ShareAIResponseModal").then((m) => m.ShareAIResponseModal));
+const ShareProjectModal = dynamic(() => import("./components/ShareProjectModal").then((m) => m.ShareProjectModal));
+const SharedLinksManager = dynamic(() => import("./components/SharedLinksManager").then((m) => m.SharedLinksManager));
 const SettingsSidebarAccordion = dynamic(() => import("@/components/ui/settings-sidebar-accordion").then((m) => m.Pattern));
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
@@ -635,6 +637,8 @@ export default function Home() {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
   const [selectedLockedModelName, setSelectedLockedModelName] = useState<string | undefined>(undefined);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharingSession, setSharingSession] = useState<ChatSession | null>(null);
 
   // Mount-on-first-open tracker for modals: defers chunk download until first open,
   // then preserves the mounted instance and lifecycle across close/reopen.
@@ -645,6 +649,7 @@ export default function Home() {
     search: false,
     voice: false,
     shareAI: false,
+    shareProject: false,
   });
   if (showPricingModal) openedModalsRef.current.pricing = true;
   if (showUpgradeModal) openedModalsRef.current.upgrade = true;
@@ -652,6 +657,7 @@ export default function Home() {
   if (showSearchModal) openedModalsRef.current.search = true;
   if (showVoiceModal) openedModalsRef.current.voice = true;
   if (shareAIContent) openedModalsRef.current.shareAI = true;
+  if (showShareModal) openedModalsRef.current.shareProject = true;
 
   const refreshSubscription = useCallback(async () => {
     try {
@@ -917,7 +923,7 @@ export default function Home() {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"account" | "devices" | "appearance" | "billing" | "pricing" | "security">("account");
+  const [settingsTab, setSettingsTab] = useState<"account" | "devices" | "appearance" | "billing" | "pricing" | "security" | "shared-links">("account");
   const [deviceSessions, setDeviceSessions] = useState<{
     id: string;
     isCurrent: boolean;
@@ -4196,6 +4202,30 @@ export default function Home() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSessionMenuId(null);
+                                if (!user) {
+                                  setShowAuthModal(true);
+                                  return;
+                                }
+                                setSharingSession(sess);
+                                setShowShareModal(true);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer text-left ${
+                                isDark
+                                  ? "text-zinc-200 hover:text-white hover:bg-zinc-800"
+                                  : "text-zinc-800 hover:text-black hover:bg-zinc-100"
+                              }`}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                              </svg>
+                              <span>Bagikan</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 deleteSession(sess.id);
                                 setSessionMenuId(null);
                               }}
@@ -4480,6 +4510,41 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2 pointer-events-auto">
+                {/* Share Project Button */}
+                {messages.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (!user) {
+                        setShowAuthModal(true);
+                        return;
+                      }
+                      const activeSess = sessions.find((s) => s.id === activeSessionId);
+                      const cur: ChatSession = activeSess
+                        ? activeSess
+                        : {
+                            id: activeSessionId || "current-session",
+                            title: messages[0]?.content ? messages[0].content.slice(0, 40) : "Percakapan Usick One",
+                            messages: messages,
+                            updatedAt: Date.now(),
+                          };
+                      setSharingSession(cur);
+                      setShowShareModal(true);
+                    }}
+                    className={`flex h-10 sm:h-11 px-3 sm:px-3.5 items-center justify-center gap-1.5 rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 animate-in fade-in-0 duration-200 ${
+                      isDark
+                        ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                        : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                    }`}
+                    title="Bagikan Project (Share)"
+                    aria-label="Bagikan Project"
+                  >
+                    <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    <span className="text-xs sm:text-[13px] font-medium hidden sm:inline">Share</span>
+                  </button>
+                )}
+
                 {/* Only show the Plus (New Chat) button when there is chat content (liquid glass circle) */}
                 {messages.length > 0 && (
                   <button
@@ -5790,6 +5855,17 @@ export default function Home() {
                     )}
                   </div>
                 )}
+
+                {/* ─── TAB: SHARED LINKS ─── */}
+                {settingsTab === "shared-links" && (
+                  <SharedLinksManager
+                    isDark={isDark}
+                    onNavigateToChat={() => {
+                      setSettingsOpen(false);
+                      setActiveView("chats");
+                    }}
+                  />
+                )}
               </div>
             </main>
           </div>
@@ -5970,6 +6046,23 @@ export default function Home() {
             setShareAIContent(null);
           }}
           onRequireAuth={() => setShowAuthModal(true)}
+        />
+      ) : null}
+
+      {/* ─── SHARE PROJECT MODAL ─────────────────────────────────────────── */}
+      {showShareModal || openedModalsRef.current.shareProject ? (
+        <ShareProjectModal
+          isOpen={showShareModal}
+          onClose={() => {
+            setShowShareModal(false);
+            setSharingSession(null);
+          }}
+          isDark={isDark}
+          session={sharingSession}
+          onOpenSharedLinks={() => {
+            setSettingsTab("shared-links");
+            setSettingsOpen(true);
+          }}
         />
       ) : null}
 
