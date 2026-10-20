@@ -2000,8 +2000,27 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "NEXT");
       return null;
     }
-    const currentQueue = queueRef.current;
-    const currentIndex = queueIndexRef.current;
+    let currentQueue = queueRef.current;
+    const finishedTrack = currentTrackRef.current;
+
+    // Hapus lagu yang telah selesai diputar dari antrean agar langsung hilang
+    if (finishedTrack) {
+      const foundIdx = currentQueue.findIndex((t) => t.id === finishedTrack.id);
+      if (foundIdx !== -1) {
+        const withoutFinished = currentQueue.filter((_, idx) => idx !== foundIdx);
+        if (repeatModeRef.current === "all") {
+          currentQueue = [...withoutFinished, finishedTrack];
+        } else {
+          currentQueue = withoutFinished;
+        }
+        setQueue(currentQueue);
+        saveQueueState({
+          items: currentQueue,
+          currentIndex: 0,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
 
     // Helper untuk memilih lagu rekomendasi jika antrean di panel kosong atau telah selesai
     const getNextRecommendation = (): MusicItem | null => {
@@ -2045,6 +2064,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     };
 
     if (currentQueue.length === 0) {
+      setQueueIndex(-1);
       const rec = getNextRecommendation();
       if (rec) {
         playTrack(rec);
@@ -2056,23 +2076,8 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     let nextIdx = 0;
     if (isShuffleRef.current) {
       nextIdx = Math.floor(Math.random() * currentQueue.length);
-    } else if (currentIndex < 0) {
-      nextIdx = 0;
     } else {
-      nextIdx = currentIndex + 1;
-      if (nextIdx >= currentQueue.length) {
-        if (repeatModeRef.current === "all") {
-          nextIdx = 0;
-        } else {
-          // Antrean habis: otomatis lanjutkan ke lagu rekomendasi agar musik tidak berhenti
-          const rec = getNextRecommendation();
-          if (rec) {
-            playTrack(rec);
-            return rec;
-          }
-          return null;
-        }
-      }
+      nextIdx = 0;
     }
     setQueueIndex(nextIdx);
     const nextTrack = currentQueue[nextIdx];
@@ -2246,6 +2251,24 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
     const timer = setInterval(() => setRemoteTickMs(Date.now()), 250);
     return () => clearInterval(timer);
   }, [isRemoteActive, remoteActiveSession?.is_playing]);
+
+  // ─── Real-Time Remote Queue Synchronization (Device B reflects Device A's Queue) ─
+  useEffect(() => {
+    if (!isRemoteActive || !remoteActiveSession) return;
+    const remoteQueue = remoteActiveSession.queue_payload;
+    if (Array.isArray(remoteQueue)) {
+      const currentIds = queueRef.current.map((t) => t.id).join(",");
+      const remoteIds = remoteQueue.map((t) => t.id).join(",");
+      if (currentIds !== remoteIds) {
+        setQueue(remoteQueue);
+        saveQueueState({
+          items: remoteQueue,
+          currentIndex: queueIndexRef.current,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  }, [isRemoteActive, remoteActiveSession?.queue_payload]);
 
   // ─── Real-Time Radio Song Title Polling (Zero Rate Limit) ───────────────────
   useEffect(() => {
@@ -4351,7 +4374,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
               audioRef.current.currentTime = 0;
               audioRef.current.play().catch(() => {});
             } else {
-              playNext();
+              handleTrackEnded();
             }
           }
         }}

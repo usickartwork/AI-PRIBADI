@@ -898,7 +898,12 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     };
   }, [enabled, localInstanceId, showConnectModal, syncHeartbeat, sendWakeupPing]);
 
-  // Immediately sync & ping peers whenever local track, play/pause, shuffle, or repeat changes
+  // Track queue fingerprint to detect any changes (add, remove, advance) in the queue
+  const queueFingerprint = useMemo(() => {
+    return Array.isArray(bridge.queue) ? bridge.queue.map((t) => t.id).join(",") : "";
+  }, [bridge.queue]);
+
+  // Immediately sync & ping peers whenever local track, queue, play/pause, shuffle, or repeat changes
   useEffect(() => {
     if (!enabled || !localInstanceId) return;
     if (bridge.isPlaying) {
@@ -916,7 +921,9 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
     bridge.isPlaying,
     bridge.isShuffle,
     bridge.repeatMode,
+    queueFingerprint,
     syncHeartbeat,
+    sendWakeupPing,
   ]);
 
   // Refresh device list & official Spotify Connect state on demand
@@ -1180,6 +1187,23 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           prev && prev.session_instance_id === targetInstanceId
             ? { ...prev, repeat_state: payload.repeatMode!, updated_at: nowIso }
             : prev
+        );
+      } else if (commandType === "ADD_TO_QUEUE" && payload?.track) {
+        const track = payload.track;
+        const updater = (s: AppDeviceSession) => {
+          const currentQueue = Array.isArray(s.queue_payload) ? s.queue_payload : [];
+          if (currentQueue.some((item) => item.id === track.id)) return s;
+          return {
+            ...s,
+            queue_payload: [...currentQueue, track],
+            updated_at: nowIso,
+          };
+        };
+        setSessions((prev) =>
+          prev.map((s) => (s.session_instance_id === targetInstanceId ? updater(s) : s))
+        );
+        setActiveSession((prev) =>
+          prev && prev.session_instance_id === targetInstanceId ? updater(prev) : prev
         );
       }
 

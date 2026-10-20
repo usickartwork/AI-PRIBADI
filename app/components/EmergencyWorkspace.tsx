@@ -359,8 +359,8 @@ export default function EmergencyWorkspace({
           <span className="text-sm font-bold tracking-tight">Emergency</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Discrete 112 Call pill */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Option 1: 112 Call pill */}
           <a
             href="tel:112"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 ${
@@ -374,6 +374,25 @@ export default function EmergencyWorkspace({
               <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
             </svg>
             <span>Panggil 112</span>
+          </a>
+
+          {/* Option 2: Direct WhatsApp 112 pill */}
+          <a
+            href="https://wa.me/628113530112"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 border ${
+              isDark
+                ? 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800'
+                : 'bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100'
+            }`}
+            title="Direct WhatsApp 0811-3530-112"
+          >
+            <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span className="hidden sm:inline">WA 112</span>
+            <span className="sm:hidden">WA</span>
           </a>
 
           <button
@@ -468,7 +487,7 @@ export default function EmergencyWorkspace({
               })}
             </div>
 
-            {/* Discrete Footer Call Link */}
+            {/* Discrete Footer Call & Direct WhatsApp Link */}
             <div className="pt-4 text-center">
               <p className="text-xs text-zinc-400">
                 Kondisi darurat langsung mengancam nyawa?{' '}
@@ -476,7 +495,16 @@ export default function EmergencyWorkspace({
                   href="tel:112"
                   className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
                 >
-                  Hubungi 112 sekarang
+                  Hubungi 112
+                </a>{' '}
+                atau{' '}
+                <a
+                  href="https://wa.me/628113530112"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
+                >
+                  Direct WhatsApp (0811-3530-112)
                 </a>
               </p>
             </div>
@@ -693,15 +721,24 @@ export default function EmergencyWorkspace({
               </button>
             </div>
 
-            {/* Direct Skip to Emergency Call */}
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
+            {/* Direct Skip to Emergency Call or Direct WhatsApp */}
+            <div className="text-center pt-2 flex items-center justify-center gap-2 text-xs text-zinc-400 flex-wrap">
+              <span>Lewati formulir:</span>
+              <a
+                href="tel:112"
+                className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
               >
-                Lewati formulir dan langsung hubungi nomor bantuan darurat ➔
-              </button>
+                Panggil 112
+              </a>
+              <span>atau</span>
+              <a
+                href="https://wa.me/628113530112"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
+              >
+                Direct WhatsApp ➔
+              </a>
             </div>
           </div>
         )}
@@ -733,8 +770,9 @@ export default function EmergencyWorkspace({
               </button>
             </div>
 
-            {/* 1. Tombol Utama Hubungi 112 & Kontak Alternatif 0811-3530-112 */}
+            {/* 1. Opsi 1: Panggil 112 Langsung & Opsi 2: Direct WhatsApp 0811-3530-112 */}
             <div className="space-y-2.5">
+              {/* Opsi 1: Call 112 Langsung */}
               <a
                 href="tel:112"
                 className={`w-full p-4.5 rounded-2xl flex items-center justify-between border transition cursor-pointer active:scale-98 shadow-xl ${
@@ -745,10 +783,10 @@ export default function EmergencyWorkspace({
               >
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                    Panggilan Darurat Bebas Pulsa (Multi-Instansi)
+                    Opsi 1 — Panggilan Telepon Bebas Pulsa (Multi-Instansi)
                   </span>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight">
-                    Hubungi 112
+                    Panggil 112 Langsung
                   </h3>
                   <p className="text-xs opacity-80">
                     Polisi, Medis/Ambulans, Pemadam Kebakaran, dan SAR
@@ -761,24 +799,31 @@ export default function EmergencyWorkspace({
                 </div>
               </a>
 
+              {/* Opsi 2: Direct WhatsApp 0811-3530-112 */}
               <a
-                href="tel:08113530112"
-                className={`w-full p-3.5 rounded-2xl flex items-center justify-between border transition cursor-pointer active:scale-98 ${
+                href={`https://wa.me/628113530112?text=${encodeURIComponent(reportSummaryText)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`w-full p-4 rounded-2xl flex items-center justify-between border transition cursor-pointer active:scale-98 ${
                   isDark
-                    ? 'bg-zinc-900/60 hover:bg-zinc-800/80 text-white border-zinc-800'
-                    : 'bg-white hover:bg-zinc-50 text-zinc-900 border-zinc-200'
+                    ? 'bg-zinc-900/80 hover:bg-zinc-800 text-white border-zinc-700/80'
+                    : 'bg-white hover:bg-zinc-50 text-zinc-900 border-zinc-300'
                 }`}
               >
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Kontak Alternatif Seluler / WhatsApp
+                    Opsi 2 — Direct WhatsApp Resmi 112
                   </span>
-                  <h4 className="text-base font-bold">0811-3530-112</h4>
-                  <p className="text-[11px] text-zinc-400">Jalur pengaduan seluler 112</p>
+                  <h4 className="text-base sm:text-lg font-bold">Direct WhatsApp 0811-3530-112</h4>
+                  <p className="text-[11px] text-zinc-400">Kirim teks laporan darurat langsung ke WhatsApp 112</p>
                 </div>
-                <svg className="w-5 h-5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border ${
+                  isDark ? 'bg-zinc-800 border-zinc-700 text-zinc-200' : 'bg-zinc-100 border-zinc-200 text-zinc-800'
+                }`}>
+                  <svg className="w-5 h-5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
               </a>
             </div>
 
