@@ -803,7 +803,7 @@ export default function EmergencyWorkspace({
               <button
                 type="button"
                 onClick={() => setActiveStep3Tab('actions')}
-                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center ${
                   activeStep3Tab === 'actions'
                     ? isDark
                       ? 'bg-zinc-800 text-white shadow-sm font-bold'
@@ -811,14 +811,13 @@ export default function EmergencyWorkspace({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Zap className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Tindakan Cepat</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveStep3Tab('summary')}
-                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center ${
                   activeStep3Tab === 'summary'
                     ? isDark
                       ? 'bg-zinc-800 text-white shadow-sm font-bold'
@@ -826,14 +825,13 @@ export default function EmergencyWorkspace({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <FileText className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Ringkasan Laporan</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveStep3Tab('checklist')}
-                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center ${
                   activeStep3Tab === 'checklist'
                     ? isDark
                       ? 'bg-zinc-800 text-white shadow-sm font-bold'
@@ -841,7 +839,6 @@ export default function EmergencyWorkspace({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Check className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">Checklist</span>
               </button>
             </div>
