@@ -5299,136 +5299,350 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             <div className="space-y-6 animate-in fade-in-0 duration-200">
               {/* Mode A: Viewing Liked Songs */}
               {isViewingLiked && (
-                <div className="space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => {
-                          setIsViewingLiked(false);
-                          if (typeof window !== "undefined" && window.innerWidth >= 640) {
-                            setSubTab("home");
-                          }
-                        }}
-                        className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
-                        title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali ke Daftar Playlist"}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
-                        isDark ? "bg-white/10 border-white/20 text-white" : "bg-black/5 border-black/15 text-zinc-900"
-                      }`}>
-                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h2 className="text-base sm:text-lg font-bold tracking-tight">Lagu Disukai</h2>
-                        <p className="text-xs text-zinc-500">{likedSongs.length} lagu tersimpan</p>
-                      </div>
+                <div className="space-y-4 max-w-4xl mx-auto pb-8">
+                  {/* Top Bar with Back Button */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsViewingLiked(false);
+                        if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                          setSubTab("home");
+                        }
+                      }}
+                      className={`p-2 rounded-full backdrop-blur-md transition cursor-pointer shrink-0 ${
+                        isDark ? "bg-black/40 hover:bg-black/60 text-white" : "bg-white/80 hover:bg-white text-black shadow-sm"
+                      }`}
+                      title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali"}
+                      aria-label="Kembali"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Header: Liked Songs Artwork + Details (Spotify Style) */}
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-5 pt-1">
+                    <div className="w-56 h-56 sm:w-60 sm:h-60 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-[#4b2bee] via-[#7343e6] to-[#8d67f5] flex items-center justify-center text-white shrink-0 border border-white/10 select-none">
+                      <svg className="w-20 h-20 fill-white" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight truncate">
+                        Lagu yang Disukai
+                      </h1>
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                          isDark ? "bg-zinc-800 text-zinc-200 border border-zinc-700" : "bg-zinc-200 text-zinc-800 border border-zinc-300"
+                        }`}>
+                          {userName ? userName.charAt(0).toUpperCase() : "U"}
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold truncate">{userName || "Fsic"}</span>
+                      </div>
+
+                      <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.6 9h16.8M3.6 15h16.8" />
+                        </svg>
+                        <span>{likedSongs.length} lagu tersimpan</span>
+                        {likedSongs.length > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {Math.round(likedSongs.reduce((acc, t) => acc + (t.durationMs || 210000), 0) / 60000)} mnt
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar (Share, Shuffle, Big Play Button - strictly monochrome / web theme, NO GREEN) */}
+                  <div className="flex items-center justify-between pt-2 pb-1">
+                    <div className="flex items-center gap-1 sm:gap-2">
                       <button
                         type="button"
                         onClick={() => setShowImportPlaylistModal(true)}
-                        className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
-                          isDark
-                            ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-                            : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                        className={`p-2.5 rounded-full transition cursor-pointer ${
+                          isDark ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80" : "text-zinc-600 hover:text-black hover:bg-zinc-100"
                         }`}
                         title="Import Playlist Spotify"
                         aria-label="Import Playlist Spotify"
                       >
-                        <svg className="w-4 h-4 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={likedSongs.length === 0}
+                        onClick={() => {
+                          if (likedSongs.length === 0) return;
+                          const shuffled = [...likedSongs].sort(() => Math.random() - 0.5);
+                          playAllTracks(shuffled);
+                        }}
+                        className={`p-2.5 rounded-full transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                          isDark ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80" : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                        }`}
+                        title="Acak putar lagu disukai"
+                        aria-label="Acak putar lagu disukai"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H4a2 2 0 01-2-2V6a2 2 0 012-2h4m8 0h4a2 2 0 012 2v2m-6 10h6m0 0l-3-3m3 3l-3 3M4 18l16-12" />
                         </svg>
                       </button>
 
-                      {likedSongs.length > 0 && (
-                        <button
-                          onClick={() => playAllTracks(likedSongs)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
-                        >
-                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <polygon points="6 4, 18 12, 6 20" />
-                          </svg>
-                          <span>Putar Semua</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={likedSongs.length === 0}
+                        onClick={() => playAllTracks(likedSongs)}
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-xl transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 ${
+                          isDark
+                            ? "bg-white text-black hover:bg-zinc-200"
+                            : "bg-black text-white hover:bg-zinc-800"
+                        }`}
+                        title="Putar Semua"
+                        aria-label="Putar Semua"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                          <polygon points="6 4, 18 12, 6 20" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
 
                   {renderTrackTable(likedSongs, {
-                    emptyMessage: "Belum ada lagu yang kamu sukai. Klik ikon hati pada lagu untuk menyimpannya di sini.",
+                    emptyMessage: "Belum ada lagu yang kamu sukai. Klik ikon hati atau tambah pada lagu untuk menyimpannya di sini.",
                   })}
                 </div>
               )}
 
               {/* Mode B: Viewing a Specific Custom Playlist */}
               {!isViewingLiked && selectedLocalPlaylist && (
-                <div className="space-y-5">
-                  <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-zinc-800/60">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => {
-                          setSelectedLocalPlaylist(null);
-                          if (typeof window !== "undefined" && window.innerWidth >= 640) {
-                            setSubTab("home");
-                          }
-                        }}
-                        className="p-2 rounded-xl border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition cursor-pointer"
-                        title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali ke Daftar Playlist"}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <div className="w-10 h-10 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h2 className="text-base sm:text-lg font-bold tracking-tight">{selectedLocalPlaylist.name}</h2>
-                        <p className="text-xs text-zinc-500">
-                          {selectedLocalPlaylist.items.length} lagu {selectedLocalPlaylist.description ? `• ${selectedLocalPlaylist.description}` : ""}
-                        </p>
-                      </div>
+                <div className="space-y-4 max-w-4xl mx-auto pb-8">
+                  {/* Top Bar with Back Button */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLocalPlaylist(null);
+                        if (typeof window !== "undefined" && window.innerWidth >= 640) {
+                          setSubTab("home");
+                        }
+                      }}
+                      className={`p-2 rounded-full backdrop-blur-md transition cursor-pointer shrink-0 ${
+                        isDark ? "bg-black/40 hover:bg-black/60 text-white" : "bg-white/80 hover:bg-white text-black shadow-sm"
+                      }`}
+                      title={typeof window !== "undefined" && window.innerWidth >= 640 ? "Kembali ke Beranda" : "Kembali"}
+                      aria-label="Kembali"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Header: Collage Artwork + Details (Spotify Mobile Style) */}
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-5 pt-1">
+                    {/* Big Square Artwork (Collage of 4 covers if >= 4, single cover if > 0, or fallback) */}
+                    <div className="w-56 h-56 sm:w-60 sm:h-60 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-2xl shrink-0 border border-white/10 select-none bg-zinc-900">
+                      {selectedLocalPlaylist.items.filter((t) => t.artworkUrl).length >= 4 ? (
+                        <div className="w-full h-full grid grid-cols-2 grid-rows-2">
+                          {selectedLocalPlaylist.items
+                            .filter((t) => t.artworkUrl)
+                            .slice(0, 4)
+                            .map((t, i) => (
+                              <img
+                                key={i}
+                                src={t.artworkUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ))}
+                        </div>
+                      ) : selectedLocalPlaylist.items.find((t) => t.artworkUrl) ? (
+                        <img
+                          src={selectedLocalPlaylist.items.find((t) => t.artworkUrl)!.artworkUrl}
+                          alt={selectedLocalPlaylist.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-500">
+                          <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {selectedLocalPlaylist.items.length > 0 && (
-                        <button
-                          onClick={() => playAllTracks(selectedLocalPlaylist.items)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition cursor-pointer shadow-md"
-                        >
-                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <polygon points="6 4, 18 12, 6 20" />
-                          </svg>
-                          <span>Putar Semua</span>
-                        </button>
+                    {/* Meta info & Titles */}
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight truncate">
+                        {selectedLocalPlaylist.name}
+                      </h1>
+                      {selectedLocalPlaylist.description && (
+                        <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                          {selectedLocalPlaylist.description}
+                        </p>
                       )}
 
+                      {/* Creator row */}
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                          isDark ? "bg-zinc-800 text-zinc-200 border border-zinc-700" : "bg-zinc-200 text-zinc-800 border border-zinc-300"
+                        }`}>
+                          {userName ? userName.charAt(0).toUpperCase() : "U"}
+                        </div>
+                        <span className="text-xs sm:text-sm font-bold truncate">{userName || "Fsic"}</span>
+                      </div>
+
+                      {/* Stats */}
+                      <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.6 9h16.8M3.6 15h16.8" />
+                        </svg>
+                        <span>{selectedLocalPlaylist.items.length} lagu</span>
+                        {selectedLocalPlaylist.items.length > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {Math.round(selectedLocalPlaylist.items.reduce((acc, t) => acc + (t.durationMs || 210000), 0) / 60000)} mnt
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar (Share, Delete, Shuffle, Big Play Button matching Web Theme - NO GREEN) */}
+                  <div className="flex items-center justify-between pt-2 pb-1">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      {/* Share button */}
                       <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof navigator !== "undefined" && navigator.clipboard) {
+                            navigator.clipboard.writeText(window.location.href);
+                            showQueueToast("Tautan playlist disalin ke clipboard!");
+                          }
+                        }}
+                        className={`p-2.5 rounded-full transition cursor-pointer ${
+                          isDark ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80" : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                        }`}
+                        title="Bagikan Playlist"
+                        aria-label="Bagikan Playlist"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                      </button>
+
+                      {/* Delete Playlist button */}
+                      <button
+                        type="button"
                         onClick={() => deletePlaylist(selectedLocalPlaylist.id)}
-                        className={`p-2 rounded-xl border transition cursor-pointer ${
-                          isDark
-                            ? "border-zinc-800 hover:border-zinc-700 hover:bg-white/10 text-zinc-400 hover:text-white"
-                            : "border-zinc-200 hover:border-zinc-300 hover:bg-black/5 text-zinc-600 hover:text-black"
+                        className={`p-2.5 rounded-full transition cursor-pointer ${
+                          isDark ? "text-zinc-400 hover:text-red-400 hover:bg-zinc-800/80" : "text-zinc-600 hover:text-red-600 hover:bg-zinc-100"
                         }`}
                         title="Hapus Playlist"
+                        aria-label="Hapus Playlist"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Shuffle Button */}
+                      <button
+                        type="button"
+                        disabled={selectedLocalPlaylist.items.length === 0}
+                        onClick={() => {
+                          if (selectedLocalPlaylist.items.length === 0) return;
+                          const shuffled = [...selectedLocalPlaylist.items].sort(() => Math.random() - 0.5);
+                          playAllTracks(shuffled);
+                        }}
+                        className={`p-2.5 rounded-full transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                          isDark ? "text-zinc-400 hover:text-white hover:bg-zinc-800/80" : "text-zinc-600 hover:text-black hover:bg-zinc-100"
+                        }`}
+                        title="Acak putar playlist"
+                        aria-label="Acak putar playlist"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H4a2 2 0 01-2-2V6a2 2 0 012-2h4m8 0h4a2 2 0 012 2v2m-6 10h6m0 0l-3-3m3 3l-3 3M4 18l16-12" />
+                        </svg>
+                      </button>
+
+                      {/* Big Circular Play Button (Monochrome - strictly follows web theme, NO GREEN!) */}
+                      <button
+                        type="button"
+                        disabled={selectedLocalPlaylist.items.length === 0}
+                        onClick={() => playAllTracks(selectedLocalPlaylist.items)}
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-xl transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 ${
+                          isDark
+                            ? "bg-white text-black hover:bg-zinc-200"
+                            : "bg-black text-white hover:bg-zinc-800"
+                        }`}
+                        title="Putar Playlist"
+                        aria-label="Putar Playlist"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 fill-current translate-x-0.5" viewBox="0 0 24 24">
+                          <polygon points="6 4, 18 12, 6 20" />
                         </svg>
                       </button>
                     </div>
                   </div>
 
+                  {/* Action Chips: + Tambahkan, Import Spotify */}
+                  <div className="flex items-center gap-2 pt-0.5 pb-2 overflow-x-auto no-scrollbar">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSubTab("home");
+                        if (chatInputRef.current) {
+                          chatInputRef.current.focus();
+                        }
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer shrink-0 ${
+                        isDark
+                          ? "bg-zinc-900/80 border-zinc-800 hover:bg-zinc-800 text-zinc-200 hover:text-white"
+                          : "bg-zinc-100 border-zinc-300 hover:bg-zinc-200 text-zinc-800 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Tambahkan</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowImportPlaylistModal(true)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer shrink-0 ${
+                        isDark
+                          ? "bg-zinc-900/80 border-zinc-800 hover:bg-zinc-800 text-zinc-200 hover:text-white"
+                          : "bg-zinc-100 border-zinc-300 hover:bg-zinc-200 text-zinc-800 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      <span>Import Spotify</span>
+                    </button>
+                  </div>
+
+                  {/* Track List */}
                   {renderTrackTable(selectedLocalPlaylist.items, {
-                    emptyMessage: "Playlist ini masih kosong. Cari lagu dan klik ikon '+' untuk menambahkannya ke playlist ini.",
+                    emptyMessage: "Playlist ini masih kosong. Klik 'Tambahkan' untuk mencari dan memasukkan lagu.",
                     showRemoveFromPlaylist: true,
                     onRemoveFromPlaylist: (trackId) => removeTrackFromPlaylist(selectedLocalPlaylist.id, trackId),
                   })}
