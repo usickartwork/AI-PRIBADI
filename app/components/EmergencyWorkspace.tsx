@@ -2,6 +2,22 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
+  Car,
+  Flame,
+  HeartPulse,
+  Mountain,
+  ShieldAlert,
+  Activity,
+  Waves,
+  Wind,
+  CloudLightning,
+  UserX,
+  Brain,
+  Skull,
+  Zap,
+  HelpCircle,
+} from 'lucide-react';
+import {
   EMERGENCY_CATEGORIES,
   EMERGENCY_GUIDES,
 } from '@/lib/emergency/data';
@@ -31,6 +47,7 @@ interface MainCategoryOption {
   title: string;
   desc: string;
   defaultGuideId: string;
+  icon: React.ComponentType<{ className?: string }>;
   hasSubCategories?: boolean;
 }
 
@@ -40,18 +57,21 @@ const MAIN_CATEGORIES: MainCategoryOption[] = [
     title: 'Kecelakaan',
     desc: 'Lalu lintas jalan raya, kendaraan, atau benturan fisik',
     defaultGuideId: 'guide-kecelakaan-lalin',
+    icon: Car,
   },
   {
     key: 'kebakaran',
     title: 'Kebakaran',
     desc: 'Kobaran api, asap pekat gedung, atau bahaya ledakan gas',
     defaultGuideId: 'guide-kebakaran',
+    icon: Flame,
   },
   {
     key: 'kesehatan',
     title: 'Kondisi Medis',
     desc: 'Henti napas/jantung, tersedak, pingsan, stroke, pendarahan',
     defaultGuideId: 'guide-henti-jantung-medis',
+    icon: HeartPulse,
     hasSubCategories: true,
   },
   {
@@ -59,6 +79,7 @@ const MAIN_CATEGORIES: MainCategoryOption[] = [
     title: 'Bencana Alam',
     desc: 'Gempa bumi, banjir, tsunami, longsor, letusan gunung, badai',
     defaultGuideId: 'guide-gempa-bumi',
+    icon: Mountain,
     hasSubCategories: true,
   },
   {
@@ -66,37 +87,62 @@ const MAIN_CATEGORIES: MainCategoryOption[] = [
     title: 'Lainnya',
     desc: 'Ancaman keamanan, sengatan listrik, keracunan, atau umum',
     defaultGuideId: 'guide-darurat-lainnya',
+    icon: HelpCircle,
     hasSubCategories: true,
   },
 ];
 
+interface SubCategoryOption {
+  id: string;
+  name: string;
+  guideId: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
 // Sub-categories for Bencana Alam
-const BENCANA_SUB_CATEGORIES = [
-  { id: 'gempa-bumi', name: 'Gempa Bumi', guideId: 'guide-gempa-bumi' },
-  { id: 'banjir', name: 'Banjir & Arus Deras', guideId: 'guide-banjir' },
-  { id: 'tsunami', name: 'Peringatan Tsunami', guideId: 'guide-tsunami' },
-  { id: 'tanah-longsor', name: 'Tanah Longsor', guideId: 'guide-tanah-longsor' },
-  { id: 'letusan-gunung', name: 'Letusan Gunung Api', guideId: 'guide-letusan-gunung' },
-  { id: 'cuaca-ekstrem', name: 'Cuaca Ekstrem & Badai Petir', guideId: 'guide-cuaca-ekstrem' },
+const BENCANA_SUB_CATEGORIES: SubCategoryOption[] = [
+  { id: 'gempa-bumi', name: 'Gempa Bumi', guideId: 'guide-gempa-bumi', icon: Activity },
+  { id: 'banjir', name: 'Banjir & Arus Deras', guideId: 'guide-banjir', icon: Waves },
+  { id: 'tsunami', name: 'Peringatan Tsunami', guideId: 'guide-tsunami', icon: Wind },
+  { id: 'tanah-longsor', name: 'Tanah Longsor', guideId: 'guide-tanah-longsor', icon: Mountain },
+  { id: 'letusan-gunung', name: 'Letusan Gunung Api', guideId: 'guide-letusan-gunung', icon: Flame },
+  { id: 'cuaca-ekstrem', name: 'Cuaca Ekstrem & Badai Petir', guideId: 'guide-cuaca-ekstrem', icon: CloudLightning },
 ];
 
 // Sub-categories for Kondisi Medis
-const MEDIS_SUB_CATEGORIES = [
-  { id: 'henti-jantung-medis', name: 'Henti Jantung / Tidak Bernapas', guideId: 'guide-henti-jantung-medis' },
-  { id: 'tersedak', name: 'Tersedak (Saluran Napas Tersumbat)', guideId: 'guide-tersedak' },
-  { id: 'perdarahan-berat', name: 'Perdarahan Berat / Luka Dalam', guideId: 'guide-perdarahan-berat' },
-  { id: 'pingsan', name: 'Pingsan / Hilang Kesadaran', guideId: 'guide-pingsan' },
-  { id: 'dugaan-stroke', name: 'Dugaan Stroke (Bibir Mencong / Pelo)', guideId: 'guide-dugaan-stroke' },
-  { id: 'keracunan', name: 'Keracunan Makanan / Kimia', guideId: 'guide-keracunan' },
+const MEDIS_SUB_CATEGORIES: SubCategoryOption[] = [
+  { id: 'henti-jantung-medis', name: 'Henti Jantung / Tidak Bernapas', guideId: 'guide-henti-jantung-medis', icon: HeartPulse },
+  { id: 'tersedak', name: 'Tersedak (Saluran Napas Tersumbat)', guideId: 'guide-tersedak', icon: Wind },
+  { id: 'perdarahan-berat', name: 'Perdarahan Berat / Luka Dalam', guideId: 'guide-perdarahan-berat', icon: ShieldAlert },
+  { id: 'pingsan', name: 'Pingsan / Hilang Kesadaran', guideId: 'guide-pingsan', icon: UserX },
+  { id: 'dugaan-stroke', name: 'Dugaan Stroke (Bibir Mencong / Pelo)', guideId: 'guide-dugaan-stroke', icon: Brain },
+  { id: 'keracunan', name: 'Keracunan Makanan / Kimia', guideId: 'guide-keracunan', icon: Skull },
 ];
 
 // Sub-categories for Lainnya
-const LAINNYA_SUB_CATEGORIES = [
-  { id: 'keamanan-kekerasan', name: 'Ancaman Keamanan & Kejahatan', guideId: 'guide-keamanan-kekerasan' },
-  { id: 'sengatan-listrik', name: 'Sengatan Listrik', guideId: 'guide-sengatan-listrik' },
-  { id: 'kebocoran-gas', name: 'Kebocoran Gas LPG', guideId: 'guide-kebocoran-gas' },
-  { id: 'darurat-lainnya', name: 'Darurat Umum / Bantuan Terpadu', guideId: 'guide-darurat-lainnya' },
+const LAINNYA_SUB_CATEGORIES: SubCategoryOption[] = [
+  { id: 'keamanan-kekerasan', name: 'Ancaman Keamanan & Kejahatan', guideId: 'guide-keamanan-kekerasan', icon: ShieldAlert },
+  { id: 'sengatan-listrik', name: 'Sengatan Listrik', guideId: 'guide-sengatan-listrik', icon: Zap },
+  { id: 'kebocoran-gas', name: 'Kebocoran Gas LPG', guideId: 'guide-kebocoran-gas', icon: Flame },
+  { id: 'darurat-lainnya', name: 'Darurat Umum / Bantuan Terpadu', guideId: 'guide-darurat-lainnya', icon: HelpCircle },
 ];
+
+const getCategoryIcon = (guideId: string, catKey?: MainCategoryKey | null) => {
+  const allSubs = [
+    ...BENCANA_SUB_CATEGORIES,
+    ...MEDIS_SUB_CATEGORIES,
+    ...LAINNYA_SUB_CATEGORIES,
+  ];
+  const foundSub = allSubs.find((s) => s.guideId === guideId);
+  if (foundSub) return foundSub.icon;
+
+  const foundMain = MAIN_CATEGORIES.find(
+    (m) => m.key === catKey || m.defaultGuideId === guideId
+  );
+  if (foundMain) return foundMain.icon;
+
+  return ShieldAlert;
+};
 
 export default function EmergencyWorkspace({
   isDark,
@@ -211,6 +257,11 @@ export default function EmergencyWorkspace({
       EMERGENCY_GUIDES.find((g) => g.id === 'guide-darurat-lainnya')!
     );
   }, [selectedGuideId]);
+
+  // Resolve category icon for current selection
+  const SelectedIcon = useMemo(() => {
+    return getCategoryIcon(selectedGuideId, selectedMainCat);
+  }, [selectedGuideId, selectedMainCat]);
 
   // Formatted report summary for copying to emergency operators
   const reportSummaryText = useMemo(() => {
@@ -360,46 +411,61 @@ export default function EmergencyWorkspace({
 
             {/* Exactly 5 Main Cards */}
             <div className="space-y-2.5">
-              {MAIN_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.key}
-                  type="button"
-                  onClick={() => {
-                    if (cat.key === 'bencana') {
-                      setActiveSubMenu('bencana');
-                    } else if (cat.key === 'kesehatan') {
-                      setActiveSubMenu('kesehatan');
-                    } else if (cat.key === 'lainnya') {
-                      setActiveSubMenu('lainnya');
-                    } else {
-                      setSelectedMainCat(cat.key);
-                      setSelectedSubCatName(cat.title);
-                      setSelectedGuideId(cat.defaultGuideId);
-                      setStep(2);
-                    }
-                  }}
-                  className={`w-full p-4 sm:p-4.5 rounded-2xl border text-left transition cursor-pointer flex items-center justify-between gap-4 group active:scale-[0.99] ${
-                    isDark
-                      ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 hover:border-zinc-700'
-                      : 'bg-white border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300'
-                  }`}
-                >
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <h3 className="text-base font-bold tracking-tight group-hover:underline">
-                      {cat.title}
-                    </h3>
-                    <p className="text-xs text-zinc-400 truncate">
-                      {cat.desc}
-                    </p>
-                  </div>
+              {MAIN_CATEGORIES.map((cat) => {
+                const IconComponent = cat.icon;
+                return (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    onClick={() => {
+                      if (cat.key === 'bencana') {
+                        setActiveSubMenu('bencana');
+                      } else if (cat.key === 'kesehatan') {
+                        setActiveSubMenu('kesehatan');
+                      } else if (cat.key === 'lainnya') {
+                        setActiveSubMenu('lainnya');
+                      } else {
+                        setSelectedMainCat(cat.key);
+                        setSelectedSubCatName(cat.title);
+                        setSelectedGuideId(cat.defaultGuideId);
+                        setStep(2);
+                      }
+                    }}
+                    className={`w-full p-4 sm:p-4.5 rounded-2xl border text-left transition cursor-pointer flex items-center justify-between gap-3.5 group active:scale-[0.99] ${
+                      isDark
+                        ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 hover:border-zinc-700'
+                        : 'bg-white border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition ${
+                          isDark
+                            ? 'bg-zinc-800/80 border-zinc-700/60 text-zinc-200 group-hover:bg-zinc-700/80 group-hover:text-white'
+                            : 'bg-zinc-100 border-zinc-200 text-zinc-800 group-hover:bg-zinc-200 group-hover:text-black'
+                        }`}
+                      >
+                        <IconComponent className="w-5 h-5 shrink-0" />
+                      </div>
 
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-400 group-hover:text-white transition">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </button>
-              ))}
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <h3 className="text-base font-bold tracking-tight group-hover:underline">
+                          {cat.title}
+                        </h3>
+                        <p className="text-xs text-zinc-400 truncate">
+                          {cat.desc}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-400 group-hover:text-white transition">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Discrete Footer Call Link */}
@@ -447,29 +513,43 @@ export default function EmergencyWorkspace({
                 : activeSubMenu === 'kesehatan'
                 ? MEDIS_SUB_CATEGORIES
                 : LAINNYA_SUB_CATEGORIES
-              ).map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedMainCat(activeSubMenu);
-                    setSelectedSubCatName(sub.name);
-                    setSelectedGuideId(sub.guideId);
-                    setActiveSubMenu(null);
-                    setStep(2);
-                  }}
-                  className={`w-full p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
-                    isDark
-                      ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 text-zinc-100'
-                      : 'bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-900'
-                  }`}
-                >
-                  <span className="text-sm font-semibold">{sub.name}</span>
-                  <svg className="w-4 h-4 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              ))}
+              ).map((sub) => {
+                const SubIcon = sub.icon;
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMainCat(activeSubMenu);
+                      setSelectedSubCatName(sub.name);
+                      setSelectedGuideId(sub.guideId);
+                      setActiveSubMenu(null);
+                      setStep(2);
+                    }}
+                    className={`w-full p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] group ${
+                      isDark
+                        ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 text-zinc-100'
+                        : 'bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition ${
+                          isDark
+                            ? 'bg-zinc-800/80 border-zinc-700/50 text-zinc-300 group-hover:text-white group-hover:bg-zinc-700/70'
+                            : 'bg-zinc-100 border-zinc-200 text-zinc-700 group-hover:text-black group-hover:bg-zinc-200'
+                        }`}
+                      >
+                        <SubIcon className="w-4 h-4 shrink-0" />
+                      </div>
+                      <span className="text-sm font-semibold truncate group-hover:underline">{sub.name}</span>
+                    </div>
+                    <svg className="w-4 h-4 text-zinc-500 shrink-0 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -487,8 +567,14 @@ export default function EmergencyWorkspace({
               <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
                 Informasi Singkat Kejadian
               </h2>
-              <p className="text-xs text-zinc-400">
-                Kategori: <strong className="text-white dark:text-zinc-100 font-bold">{selectedSubCatName || 'Darurat'}</strong>
+              <p className="text-xs text-zinc-400 flex items-center gap-2 flex-wrap">
+                <span>Kategori:</span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${
+                  isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-100' : 'bg-zinc-100 border-zinc-300 text-zinc-900'
+                }`}>
+                  <SelectedIcon className="w-3.5 h-3.5 shrink-0 text-zinc-300" />
+                  <span>{selectedSubCatName || 'Darurat'}</span>
+                </span>
               </p>
             </div>
 
@@ -735,8 +821,9 @@ export default function EmergencyWorkspace({
                 isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
               }`}
             >
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300">
-                Tindakan Pertama: {currentGuide.title}
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+                <SelectedIcon className="w-4 h-4 shrink-0 text-zinc-300" />
+                <span>Tindakan Pertama: {currentGuide.title}</span>
               </h4>
 
               <div className="space-y-2">
