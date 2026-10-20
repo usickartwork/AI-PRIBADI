@@ -314,8 +314,8 @@ export default function EmergencyWorkspace({
 
   return (
     <div
-      className={`h-full w-full flex flex-col overflow-y-auto select-none transition-colors duration-150 ${
-        isDark ? 'bg-[#0c0c0e] text-zinc-100' : 'bg-zinc-50 text-zinc-900'
+      className={`h-full w-full flex flex-col overflow-y-auto select-none transition-colors duration-150 bg-transparent ${
+        isDark ? 'text-zinc-100' : 'text-zinc-900'
       }`}
     >
       {/* Toast Notification */}
@@ -333,86 +333,54 @@ export default function EmergencyWorkspace({
         </div>
       )}
 
-      {/* ─── TOP APP BAR (Minimal & Discrete) ─────────────────────────────────── */}
+      {/* ─── TOP APP BAR (Serasi & Identik Tab Chat AI: Floating, Transparent, No Box) ─── */}
       <header
-        className={`sticky top-0 z-30 px-4 sm:px-6 py-2.5 backdrop-blur-md border-b flex items-center justify-between ${
-          isDark
-            ? 'bg-[#0c0c0e]/90 border-zinc-800/80 text-white'
-            : 'bg-white/90 border-zinc-200/80 text-zinc-900'
+        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+          isDark ? "text-white" : "text-zinc-900"
         }`}
       >
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            className={`p-2 rounded-full transition cursor-pointer shrink-0 ${
-              isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-black'
-            }`}
-            title="Menu Panel"
-            aria-label="Menu Panel"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          <span className="text-sm font-bold tracking-tight">Emergency</span>
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* 3-line hamburger menu button on the LEFT (liquid glass circle, identik tab chat) */}
+          {onTogglePanel && (
+            <button
+              onClick={onTogglePanel}
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+              }`}
+              title="Menu Panel"
+              aria-label="Menu Panel"
+            >
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Option 1: 112 Call pill */}
-          <a
-            href="tel:112"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 ${
-              isDark
-                ? 'bg-white text-black hover:bg-zinc-200'
-                : 'bg-black text-white hover:bg-zinc-800'
-            }`}
-            title="Panggilan Darurat Bebas Pulsa 112"
-          >
-            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-              <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
-            </svg>
-            <span>Panggil 112</span>
-          </a>
-
-          {/* Option 2: Direct WhatsApp 112 pill */}
-          <a
-            href="https://wa.me/628113530112"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 border ${
-              isDark
-                ? 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800'
-                : 'bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-100'
-            }`}
-            title="Direct WhatsApp 0811-3530-112"
-          >
-            <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span className="hidden sm:inline">WA 112</span>
-            <span className="sm:hidden">WA</span>
-          </a>
-
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Close button on the RIGHT (liquid glass circle, identik gaya tombol chat) */}
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-full transition cursor-pointer ${
-              isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-black'
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+              isDark
+                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
             }`}
             title="Tutup"
             aria-label="Tutup"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       </header>
 
-      {/* ─── MAIN FOCUSED WORKSPACE (Clean & Spacious) ────────────────────────── */}
-      <div className="flex-1 max-w-xl w-full mx-auto px-4 py-6 sm:py-10 flex flex-col justify-center">
+      {/* ─── MAIN FOCUSED WORKSPACE (Clean & Spacious, Adjusted for Floating Top Bar) ─── */}
+      <div className="flex-1 max-w-xl w-full mx-auto px-4 pt-16 sm:pt-20 pb-10 flex flex-col justify-center">
         {/* ══════════════════════════════════════════════════════════════════════
             STEP 1 — PILIH KEADAAN DARURAT (Maksimal 5 Pilihan Bersih)
         ══════════════════════════════════════════════════════════════════════ */}
