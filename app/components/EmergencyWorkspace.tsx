@@ -23,6 +23,7 @@ import {
   Hospital,
   ArrowLeft,
   ArrowRight,
+  FileText,
 } from 'lucide-react';
 import {
   EMERGENCY_CATEGORIES,
@@ -171,6 +172,9 @@ export default function EmergencyWorkspace({
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // Step 3 Segmented Navigation Tab State
+  const [activeStep3Tab, setActiveStep3Tab] = useState<'actions' | 'summary' | 'checklist'>('actions');
+
   // Interactive Checklist State (stored in localStorage)
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
     if (typeof window !== 'undefined') {
@@ -253,29 +257,34 @@ export default function EmergencyWorkspace({
     return getCategoryIcon(selectedGuideId, selectedMainCat);
   }, [selectedGuideId, selectedMainCat]);
 
-  // Formatted report summary for copying to emergency operators
-  const reportSummaryText = useMemo(() => {
-    const categoryName =
+  // Resolved Category Name & Victim Label
+  const currentCategoryName = useMemo(() => {
+    return (
       selectedSubCatName ||
       MAIN_CATEGORIES.find((c) => c.key === selectedMainCat)?.title ||
-      'Keadaan Darurat';
+      'Keadaan Darurat'
+    );
+  }, [selectedSubCatName, selectedMainCat]);
 
-    const victimLabel =
-      victimStatus === 'trapped'
-        ? 'Ada yang terjebak'
-        : victimStatus === 'injured'
-        ? 'Ada korban luka-luka'
-        : victimStatus === 'unconscious'
-        ? 'Ada korban tidak sadarkan diri'
-        : victimStatus === 'none'
-        ? 'Tidak ada korban jiwa/luka'
-        : 'Belum dipastikan';
+  const currentVictimLabel = useMemo(() => {
+    return victimStatus === 'trapped'
+      ? 'Ada yang terjebak'
+      : victimStatus === 'injured'
+      ? 'Ada korban luka-luka'
+      : victimStatus === 'unconscious'
+      ? 'Ada korban tidak sadarkan diri'
+      : victimStatus === 'none'
+      ? 'Tidak ada korban jiwa/luka'
+      : 'Belum dipastikan';
+  }, [victimStatus]);
 
+  // Formatted report summary for copying to emergency operators
+  const reportSummaryText = useMemo(() => {
     const lines = [
       '=== LAPORAN KEADAAN DARURAT ===',
-      `Jenis Kejadian: ${categoryName}`,
+      `Jenis Kejadian: ${currentCategoryName}`,
       `Lokasi: ${locationText.trim() || 'Lokasi belum ditentukan'}`,
-      `Kondisi Korban: ${victimLabel}`,
+      `Kondisi Korban: ${currentVictimLabel}`,
     ];
 
     if (additionalNote.trim()) {
@@ -284,7 +293,7 @@ export default function EmergencyWorkspace({
     lines.push(`Waktu Laporan: ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`);
 
     return lines.join('\n');
-  }, [selectedSubCatName, selectedMainCat, locationText, victimStatus, additionalNote]);
+  }, [currentCategoryName, locationText, currentVictimLabel, additionalNote]);
 
   // Reset to Step 1
   const handleReset = () => {
@@ -297,6 +306,7 @@ export default function EmergencyWorkspace({
     setCoords(null);
     setVictimStatus('unknown');
     setAdditionalNote('');
+    setActiveStep3Tab('actions');
   };
 
   return (
@@ -784,101 +794,235 @@ export default function EmergencyWorkspace({
               </a>
             </div>
 
-            {/* 2. Ringkasan Kejadian Langsung Teks Tanpa Box */}
-            <div className="space-y-2 py-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Ringkasan Laporan untuk Petugas
-                </span>
+            {/* 2. Segmented Navigation Tabs */}
+            <div
+              className={`grid grid-cols-3 gap-1 p-1 rounded-xl border text-xs font-semibold ${
+                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveStep3Tab('actions')}
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeStep3Tab === 'actions'
+                    ? isDark
+                      ? 'bg-zinc-800 text-white shadow-sm font-bold'
+                      : 'bg-white text-zinc-900 shadow-sm font-bold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Tindakan Cepat</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
-                    isDark ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
+              <button
+                type="button"
+                onClick={() => setActiveStep3Tab('summary')}
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeStep3Tab === 'summary'
+                    ? isDark
+                      ? 'bg-zinc-800 text-white shadow-sm font-bold'
+                      : 'bg-white text-zinc-900 shadow-sm font-bold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Ringkasan Laporan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveStep3Tab('checklist')}
+                className={`py-2 px-1 rounded-lg text-center transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeStep3Tab === 'checklist'
+                    ? isDark
+                      ? 'bg-zinc-800 text-white shadow-sm font-bold'
+                      : 'bg-white text-zinc-900 shadow-sm font-bold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Checklist</span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT 1: Tindakan Cepat */}
+            {activeStep3Tab === 'actions' && (
+              <div className="space-y-3.5 animate-in fade-in-0 duration-150">
+                <div className="flex items-center gap-2">
+                  <SelectedIcon className="w-4 h-4 shrink-0 text-zinc-300" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Panduan Cepat: {currentGuide.title}
+                  </h4>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
+                    Lakukan Sekarang:
+                  </span>
+                  <div className="space-y-2">
+                    {currentGuide.doNow.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-xl border flex items-start gap-3 transition ${
+                          isDark ? 'bg-zinc-900/40 border-zinc-800/80' : 'bg-white border-zinc-200'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-black shrink-0 mt-0.5 ${
+                            isDark ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200 text-zinc-800'
+                          }`}
+                        >
+                          {idx + 1}
+                        </div>
+                        <p className="text-xs font-medium leading-relaxed text-zinc-200">
+                          {item}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {currentGuide.dontDo.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
+                      Hindari:
+                    </span>
+                    <div className="space-y-2">
+                      {currentGuide.dontDo.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-2.5 rounded-xl border flex items-start gap-2.5 ${
+                            isDark ? 'bg-zinc-900/20 border-zinc-800/50 text-zinc-400' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
+                          }`}
+                        >
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center bg-zinc-800/60 text-zinc-400 shrink-0 mt-0.5">
+                            <X className="w-3 h-3" />
+                          </div>
+                          <p className="text-xs leading-relaxed">
+                            {item}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT 2: Ringkasan Laporan */}
+            {activeStep3Tab === 'summary' && (
+              <div className="space-y-3 animate-in fade-in-0 duration-150">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-zinc-400" />
+                    <span>Format Laporan untuk Petugas</span>
+                  </h4>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                      isDark ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
+                    }`}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Teks Lengkap</span>
+                  </button>
+                </div>
+
+                <div
+                  className={`p-4 rounded-2xl border space-y-3 ${
+                    isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
                   }`}
                 >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Salin Teks</span>
-                </button>
-              </div>
+                  <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-zinc-800/50">
+                    <span className="text-[11px] font-semibold text-zinc-400 shrink-0">Kejadian</span>
+                    <span className="text-xs font-bold text-right text-zinc-100 dark:text-white">
+                      {currentCategoryName}
+                    </span>
+                  </div>
 
-              <div className="text-xs leading-relaxed font-mono whitespace-pre-wrap text-zinc-300 dark:text-zinc-200 select-text">
-                {reportSummaryText}
-              </div>
-            </div>
+                  <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-zinc-800/50">
+                    <span className="text-[11px] font-semibold text-zinc-400 shrink-0">Lokasi</span>
+                    <span className="text-xs font-medium text-right text-zinc-200 break-words max-w-[70%]">
+                      {locationText.trim() || 'Lokasi belum ditentukan'}
+                    </span>
+                  </div>
 
-            {/* 3. Panduan Singkat Tindakan Pertama (Langsung Teks Tanpa Box) */}
-            <div className="space-y-3 py-1">
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <SelectedIcon className="w-4 h-4 shrink-0 text-zinc-300" />
-                <span>Tindakan Pertama: {currentGuide.title}</span>
-              </h4>
+                  <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-zinc-800/50">
+                    <span className="text-[11px] font-semibold text-zinc-400 shrink-0">Kondisi Korban</span>
+                    <span className="text-xs font-medium text-right text-zinc-200">
+                      {currentVictimLabel}
+                    </span>
+                  </div>
 
-              <div className="space-y-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-                  Lakukan Sekarang:
-                </span>
-                <ul className="space-y-1.5">
-                  {currentGuide.doNow.slice(0, 3).map((item, idx) => (
-                    <li key={idx} className="text-xs text-zinc-200 flex items-start gap-2">
-                      <span className="font-mono font-bold text-zinc-400 shrink-0">{idx + 1}.</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  {additionalNote.trim() && (
+                    <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-zinc-800/50">
+                      <span className="text-[11px] font-semibold text-zinc-400 shrink-0">Keterangan</span>
+                      <span className="text-xs font-medium text-right text-zinc-200 max-w-[70%]">
+                        {additionalNote.trim()}
+                      </span>
+                    </div>
+                  )}
 
-              {currentGuide.dontDo.length > 0 && (
-                <div className="pt-2 border-t border-zinc-800/40 space-y-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-                    Hindari:
-                  </span>
-                  <ul className="space-y-1">
-                    {currentGuide.dontDo.slice(0, 2).map((item, idx) => (
-                      <li key={idx} className="text-xs text-zinc-400 flex items-start gap-2">
-                        <X className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* 4. Checklist Tindakan Keselamatan (Langsung Muncul, Tanpa Accordion) */}
-            <div className="space-y-2.5 py-1">
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <Check className="w-4 h-4 text-zinc-400 shrink-0" />
-                <span>Checklist Tindakan Keselamatan</span>
-              </h4>
-
-              <div className="space-y-1.5">
-                {currentGuide.checklist.map((item, idx) => {
-                  const itemKey = `${currentGuide.id}-${item}`;
-                  const isDone = !!checkedItems[itemKey];
-                  return (
-                    <label
-                      key={idx}
-                      onClick={() => toggleChecklistItem(itemKey)}
-                      className={`flex items-start gap-2.5 py-1.5 px-2 rounded-xl transition cursor-pointer select-none text-xs ${
-                        isDone
-                          ? 'text-zinc-500 line-through'
-                          : isDark ? 'text-zinc-200 hover:bg-zinc-800/30' : 'text-zinc-800 hover:bg-zinc-100/50'
-                      }`}
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-0.5">
+                    <span>Format ringkas untuk dibacakan / dikirim</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
+                      className="text-xs font-bold text-white dark:text-zinc-200 hover:underline inline-flex items-center gap-1 cursor-pointer"
                     >
-                      <input
-                        type="checkbox"
-                        checked={isDone}
-                        onChange={() => {}}
-                        className="mt-0.5 accent-white cursor-pointer"
-                      />
-                      <span>{item}</span>
-                    </label>
-                  );
-                })}
+                      <Copy className="w-3 h-3" />
+                      <span>Salin Teks Lengkap</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* TAB CONTENT 3: Checklist Keselamatan */}
+            {activeStep3Tab === 'checklist' && (
+              <div className="space-y-3 animate-in fade-in-0 duration-150">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <Check className="w-4 h-4 text-zinc-400" />
+                    <span>Checklist Tindakan Keselamatan</span>
+                  </h4>
+                  <span className="text-[11px] font-semibold text-zinc-400">
+                    {currentGuide.checklist.filter((item) => !!checkedItems[`${currentGuide.id}-${item}`]).length} / {currentGuide.checklist.length} Selesai
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {currentGuide.checklist.map((item, idx) => {
+                    const itemKey = `${currentGuide.id}-${item}`;
+                    const isDone = !!checkedItems[itemKey];
+                    return (
+                      <label
+                        key={idx}
+                        onClick={() => toggleChecklistItem(itemKey)}
+                        className={`p-3 rounded-xl border flex items-start gap-3 transition cursor-pointer select-none text-xs ${
+                          isDone
+                            ? 'bg-zinc-900/20 border-zinc-800/40 text-zinc-500 line-through'
+                            : isDark
+                            ? 'bg-zinc-900/40 border-zinc-800 text-zinc-200 hover:bg-zinc-800/60'
+                            : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isDone}
+                          onChange={() => {}}
+                          className="mt-0.5 accent-white cursor-pointer"
+                        />
+                        <span className="leading-relaxed">{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 5. Cari Fasilitas Medis Terdekat (Langsung Tombol Saja) */}
             <div className="pt-1">
