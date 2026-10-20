@@ -16,20 +16,23 @@ import {
   Skull,
   Zap,
   HelpCircle,
+  Copy,
+  Check,
+  X,
+  ExternalLink,
+  Hospital,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import {
   EMERGENCY_CATEGORIES,
   EMERGENCY_GUIDES,
 } from '@/lib/emergency/data';
-import { EMERGENCY_CONTACTS } from '@/lib/emergency/contacts';
 import {
   EmergencyCategory,
   EmergencyGuide,
-  NearbyFacility,
 } from '@/lib/emergency/types';
 import {
-  fetchNearbyFacilitiesFromCoords,
-  CURATED_MAJOR_FACILITIES,
   buildExternalSearchUrl,
 } from '@/lib/emergency/facilities';
 
@@ -168,15 +171,6 @@ export default function EmergencyWorkspace({
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Step 3 Expandable secondary panels (Keep step 3 clean by default)
-  const [showChecklist, setShowChecklist] = useState(false);
-  const [showFacilities, setShowFacilities] = useState(false);
-  const [showAllContacts, setShowAllContacts] = useState(false);
-
-  // Facilities Search State
-  const [facilities, setFacilities] = useState<NearbyFacility[]>(CURATED_MAJOR_FACILITIES);
-  const [manualCitySearch, setManualCitySearch] = useState('');
-
   // Interactive Checklist State (stored in localStorage)
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
     if (typeof window !== 'undefined') {
@@ -233,10 +227,6 @@ export default function EmergencyWorkspace({
         setLocationText(`Koordinat: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
         setIsLocating(false);
         showToast('Lokasi GPS berhasil diperoleh.');
-
-        // Pre-fetch nearby facilities in background
-        const res = await fetchNearbyFacilitiesFromCoords(c.lat, c.lng, 'all');
-        setFacilities(res);
       },
       (err) => {
         setIsLocating(false);
@@ -307,9 +297,6 @@ export default function EmergencyWorkspace({
     setCoords(null);
     setVictimStatus('unknown');
     setAdditionalNote('');
-    setShowChecklist(false);
-    setShowFacilities(false);
-    setShowAllContacts(false);
   };
 
   return (
@@ -671,21 +658,23 @@ export default function EmergencyWorkspace({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                   isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                 }`}
               >
-                ← Kembali
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Kembali</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-md active:scale-95 ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 ${
                   isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
                 }`}
               >
-                Lanjutkan ke Tindakan →
+                <span>Lanjutkan ke Tindakan</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -705,7 +694,7 @@ export default function EmergencyWorkspace({
                 rel="noopener noreferrer"
                 className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
               >
-                Direct WhatsApp ➔
+                Direct WhatsApp
               </a>
             </div>
           </div>
@@ -795,46 +784,33 @@ export default function EmergencyWorkspace({
               </a>
             </div>
 
-            {/* 2. Ringkasan Kejadian yang Bisa Disalin */}
-            <div
-              className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
+            {/* 2. Ringkasan Kejadian Langsung Teks Tanpa Box */}
+            <div className="space-y-2 py-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Ringkasan Laporan untuk Petugas</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  Ringkasan Laporan untuk Petugas
                 </span>
 
                 <button
                   type="button"
                   onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
-                    isDark ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-black'
+                    isDark ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
                   }`}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                  </svg>
+                  <Copy className="w-3.5 h-3.5" />
                   <span>Salin Teks</span>
                 </button>
               </div>
 
-              <pre className="p-3 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono whitespace-pre-wrap text-zinc-300">
+              <div className="text-xs leading-relaxed font-mono whitespace-pre-wrap text-zinc-300 dark:text-zinc-200 select-text">
                 {reportSummaryText}
-              </pre>
+              </div>
             </div>
 
-            {/* 3. Panduan Singkat Tindakan Pertama */}
-            <div
-              className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
-                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+            {/* 3. Panduan Singkat Tindakan Pertama (Langsung Teks Tanpa Box) */}
+            <div className="space-y-3 py-1">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
                 <SelectedIcon className="w-4 h-4 shrink-0 text-zinc-300" />
                 <span>Tindakan Pertama: {currentGuide.title}</span>
               </h4>
@@ -854,14 +830,14 @@ export default function EmergencyWorkspace({
               </div>
 
               {currentGuide.dontDo.length > 0 && (
-                <div className="pt-2 border-t border-zinc-800/60 space-y-1.5">
+                <div className="pt-2 border-t border-zinc-800/40 space-y-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
                     Hindari:
                   </span>
                   <ul className="space-y-1">
                     {currentGuide.dontDo.slice(0, 2).map((item, idx) => (
                       <li key={idx} className="text-xs text-zinc-400 flex items-start gap-2">
-                        <span className="text-zinc-500 font-bold shrink-0">✕</span>
+                        <X className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-0.5" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -870,162 +846,58 @@ export default function EmergencyWorkspace({
               )}
             </div>
 
-            {/* 4. Bagian Terpisah (Expandable Accordion - Tidak Membebani Tampilan Utama) */}
-            <div className="space-y-2 pt-1">
-              {/* Accordion 1: Checklist Tindakan */}
-              <div
-                className={`rounded-2xl border overflow-hidden ${
-                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowChecklist((prev) => !prev)}
-                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
-                >
-                  <span>✓ Checklist Tindakan Keselamatan</span>
-                  <span className="text-zinc-500">{showChecklist ? '▲ Tutup' : '▼ Buka'}</span>
-                </button>
+            {/* 4. Checklist Tindakan Keselamatan (Langsung Muncul, Tanpa Accordion) */}
+            <div className="space-y-2.5 py-1">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                <Check className="w-4 h-4 text-zinc-400 shrink-0" />
+                <span>Checklist Tindakan Keselamatan</span>
+              </h4>
 
-                {showChecklist && (
-                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-2 animate-in fade-in-0 duration-150">
-                    {currentGuide.checklist.map((item, idx) => {
-                      const itemKey = `${currentGuide.id}-${item}`;
-                      const isDone = !!checkedItems[itemKey];
-                      return (
-                        <label
-                          key={idx}
-                          onClick={() => toggleChecklistItem(itemKey)}
-                          className={`flex items-start gap-2.5 p-2 rounded-xl transition cursor-pointer select-none text-xs ${
-                            isDone
-                              ? 'text-zinc-500 line-through'
-                              : isDark ? 'text-zinc-200 hover:bg-zinc-800/40' : 'text-zinc-800 hover:bg-zinc-50'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isDone}
-                            onChange={() => {}}
-                            className="mt-0.5 accent-white cursor-pointer"
-                          />
-                          <span>{item}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Accordion 2: Fasilitas Rumah Sakit & Layanan Terdekat */}
-              <div
-                className={`rounded-2xl border overflow-hidden ${
-                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowFacilities((prev) => !prev)}
-                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
-                >
-                  <span>🏥 Cari Fasilitas Medis Terdekat</span>
-                  <span className="text-zinc-500">{showFacilities ? '▲ Tutup' : '▼ Buka'}</span>
-                </button>
-
-                {showFacilities && (
-                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-3 animate-in fade-in-0 duration-150">
-                    <div className="flex gap-2 pt-2">
+              <div className="space-y-1.5">
+                {currentGuide.checklist.map((item, idx) => {
+                  const itemKey = `${currentGuide.id}-${item}`;
+                  const isDone = !!checkedItems[itemKey];
+                  return (
+                    <label
+                      key={idx}
+                      onClick={() => toggleChecklistItem(itemKey)}
+                      className={`flex items-start gap-2.5 py-1.5 px-2 rounded-xl transition cursor-pointer select-none text-xs ${
+                        isDone
+                          ? 'text-zinc-500 line-through'
+                          : isDark ? 'text-zinc-200 hover:bg-zinc-800/30' : 'text-zinc-800 hover:bg-zinc-100/50'
+                      }`}
+                    >
                       <input
-                        type="text"
-                        value={manualCitySearch}
-                        onChange={(e) => setManualCitySearch(e.target.value)}
-                        placeholder="Ketik kota/daerah..."
-                        className={`flex-1 px-3 py-1.5 rounded-xl border text-xs focus:outline-none ${
-                          isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-black'
-                        }`}
+                        type="checkbox"
+                        checked={isDone}
+                        onChange={() => {}}
+                        className="mt-0.5 accent-white cursor-pointer"
                       />
-                      <a
-                        href={buildExternalSearchUrl(
-                          manualCitySearch ? `Rumah Sakit IGD terdekat ${manualCitySearch}` : 'Rumah Sakit IGD terdekat',
-                          coords
-                        )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                          isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-100 border-zinc-300 text-black'
-                        }`}
-                      >
-                        Buka Maps ↗
-                      </a>
-                    </div>
-
-                    <div className="space-y-2 pt-1">
-                      {facilities.slice(0, 3).map((f) => (
-                        <div
-                          key={f.id}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
-                            isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                          }`}
-                        >
-                          <div className="min-w-0 pr-2">
-                            <h5 className="font-bold truncate">{f.name}</h5>
-                            <p className="text-[11px] text-zinc-400 truncate">{f.address || f.typeLabel}</p>
-                          </div>
-                          <a
-                            href={f.mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-semibold underline shrink-0 hover:text-white"
-                          >
-                            Rute
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      <span>{item}</span>
+                    </label>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Accordion 3: Kontak Darurat Resmi Lainnya */}
-              <div
-                className={`rounded-2xl border overflow-hidden ${
-                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
+            {/* 5. Cari Fasilitas Medis Terdekat (Langsung Tombol Saja) */}
+            <div className="pt-1">
+              <a
+                href={buildExternalSearchUrl('Rumah Sakit IGD terdekat', coords)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`w-full p-4 rounded-2xl border text-xs font-bold flex items-center justify-between transition cursor-pointer active:scale-98 ${
+                  isDark
+                    ? 'bg-zinc-900/60 hover:bg-zinc-800 text-zinc-200 border-zinc-800'
+                    : 'bg-white/80 hover:bg-zinc-100 text-zinc-900 border-zinc-200'
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={() => setShowAllContacts((prev) => !prev)}
-                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
-                >
-                  <span>📞 Nomor Darurat Instansi Lainnya (110, 113, 115, 119)</span>
-                  <span className="text-zinc-500">{showAllContacts ? '▲ Tutup' : '▼ Buka'}</span>
-                </button>
-
-                {showAllContacts && (
-                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-2 animate-in fade-in-0 duration-150">
-                    {EMERGENCY_CONTACTS.filter((c) => c.number !== '112' && c.id !== '0811-3530-112').map((c) => (
-                      <div
-                        key={c.id}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
-                          isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                        }`}
-                      >
-                        <div>
-                          <h5 className="font-bold">{c.name}</h5>
-                          <span className="text-sm font-mono font-bold text-white dark:text-zinc-100">{c.displayNumber}</span>
-                        </div>
-                        <a
-                          href={`tel:${c.number}`}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                            isDark ? 'bg-white text-black' : 'bg-black text-white'
-                          }`}
-                        >
-                          Panggil
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                <div className="flex items-center gap-2.5">
+                  <Hospital className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <span>Cari Fasilitas Medis Terdekat</span>
+                </div>
+                <ExternalLink className="w-4 h-4 text-zinc-500 shrink-0" />
+              </a>
             </div>
 
             {/* Back Button */}
@@ -1033,9 +905,10 @@ export default function EmergencyWorkspace({
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer inline-flex items-center gap-1.5"
               >
-                ← Ubah informasi laporan
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Ubah informasi laporan</span>
               </button>
             </div>
           </div>
