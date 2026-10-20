@@ -22,6 +22,7 @@ const MessagesWorkspace = dynamic(() => import("./components/MessagesWorkspace")
 const GameWorkspace = dynamic(() => import("./components/GameWorkspace").then((m) => m.GameWorkspace));
 const MusicWorkspace = dynamic(() => import("./components/MusicWorkspace").then((m) => m.MusicWorkspace));
 const NotebookWorkspace = dynamic(() => import("./components/NotebookWorkspace").then((m) => m.NotebookWorkspace));
+const EmergencyWorkspace = dynamic(() => import("./components/EmergencyWorkspace"));
 const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
 const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
 const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
@@ -783,12 +784,12 @@ export default function Home() {
   });
 
   // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game" (sementara dinonaktifkan), alihkan ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook">(() => {
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook" | "emergency">(() => {
     if (typeof window !== "undefined") {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const viewParam = urlParams.get("view");
-        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook"].includes(viewParam)) {
+        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency"].includes(viewParam)) {
           return viewParam as any;
         }
         const saved = localStorage.getItem("usick-active-view");
@@ -796,7 +797,7 @@ export default function Home() {
           localStorage.removeItem("usick-active-view");
           return "chats";
         }
-        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook") return saved;
+        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook" || saved === "emergency") return saved;
       } catch {}
     }
     return "chats";
@@ -867,6 +868,8 @@ export default function Home() {
         localStorage.setItem("usick-halaman-subtab", halamanSubTab);
       } else if (activeView === "notebook") {
         localStorage.setItem("usick-active-view", "notebook");
+      } else if (activeView === "emergency") {
+        localStorage.setItem("usick-active-view", "emergency");
       } else {
         localStorage.removeItem("usick-active-view");
       }
@@ -4103,6 +4106,26 @@ export default function Home() {
               )}
             </div>
 
+            {/* Emergency Feature Button (Pusat Bantuan & Panduan Darurat - Bebas Akses Tanpa Login/Pro) */}
+            <div
+              onClick={() => {
+                setActiveView("emergency");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                activeView === "emergency"
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <div className="flex items-center gap-3 md:gap-3">
+                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Emergency</span>
+              </div>
+            </div>
+
             {/* Tab Lainnya (Game & Faith) disembunyikan sementara sesuai instruksi pengguna */}
             {/* Siap dimunculkan kembali kapan saja sesuai prompt pengguna */}
           </div>
@@ -4458,6 +4481,16 @@ export default function Home() {
           </div>
         ) : null}
 
+        {/* EmergencyWorkspace */}
+        <div className={`h-full w-full ${activeView === "emergency" ? "flex flex-col flex-1" : "hidden"}`}>
+          <EmergencyWorkspace
+            key="emergency-workspace-instance"
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+        </div>
+
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
           {(subscription?.plan || "free") === "free" ? (
@@ -4566,7 +4599,7 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             />
           )
-        ) : activeView === "code" || activeView === "messages" || activeView === "music" || activeView === "notebook" || isHalamanActive ? null : (
+        ) : activeView === "code" || activeView === "messages" || activeView === "music" || activeView === "notebook" || activeView === "emergency" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
             <header className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
