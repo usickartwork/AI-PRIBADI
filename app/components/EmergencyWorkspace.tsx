@@ -9,15 +9,12 @@ import { EMERGENCY_CONTACTS } from '@/lib/emergency/contacts';
 import {
   EmergencyCategory,
   EmergencyGuide,
-  EmergencyContact,
   NearbyFacility,
-  EmergencyTriageState,
 } from '@/lib/emergency/types';
 import {
   fetchNearbyFacilitiesFromCoords,
-  getFallbackNearbyFacilities,
-  buildExternalSearchUrl,
   CURATED_MAJOR_FACILITIES,
+  buildExternalSearchUrl,
 } from '@/lib/emergency/facilities';
 
 interface EmergencyWorkspaceProps {
@@ -26,25 +23,115 @@ interface EmergencyWorkspaceProps {
   onTogglePanel: () => void;
 }
 
+// 5 Main Simplified Categories for Step 1
+type MainCategoryKey = 'kecelakaan' | 'kebakaran' | 'kesehatan' | 'bencana' | 'lainnya';
+
+interface MainCategoryOption {
+  key: MainCategoryKey;
+  title: string;
+  desc: string;
+  defaultGuideId: string;
+  hasSubCategories?: boolean;
+}
+
+const MAIN_CATEGORIES: MainCategoryOption[] = [
+  {
+    key: 'kecelakaan',
+    title: 'Kecelakaan',
+    desc: 'Lalu lintas jalan raya, kendaraan, atau benturan fisik',
+    defaultGuideId: 'guide-kecelakaan-lalin',
+  },
+  {
+    key: 'kebakaran',
+    title: 'Kebakaran',
+    desc: 'Kobaran api, asap pekat gedung, atau bahaya ledakan gas',
+    defaultGuideId: 'guide-kebakaran',
+  },
+  {
+    key: 'kesehatan',
+    title: 'Kondisi Medis',
+    desc: 'Henti napas/jantung, tersedak, pingsan, stroke, pendarahan',
+    defaultGuideId: 'guide-henti-jantung-medis',
+    hasSubCategories: true,
+  },
+  {
+    key: 'bencana',
+    title: 'Bencana Alam',
+    desc: 'Gempa bumi, banjir, tsunami, longsor, letusan gunung, badai',
+    defaultGuideId: 'guide-gempa-bumi',
+    hasSubCategories: true,
+  },
+  {
+    key: 'lainnya',
+    title: 'Lainnya',
+    desc: 'Ancaman keamanan, sengatan listrik, keracunan, atau umum',
+    defaultGuideId: 'guide-darurat-lainnya',
+    hasSubCategories: true,
+  },
+];
+
+// Sub-categories for Bencana Alam
+const BENCANA_SUB_CATEGORIES = [
+  { id: 'gempa-bumi', name: 'Gempa Bumi', guideId: 'guide-gempa-bumi' },
+  { id: 'banjir', name: 'Banjir & Arus Deras', guideId: 'guide-banjir' },
+  { id: 'tsunami', name: 'Peringatan Tsunami', guideId: 'guide-tsunami' },
+  { id: 'tanah-longsor', name: 'Tanah Longsor', guideId: 'guide-tanah-longsor' },
+  { id: 'letusan-gunung', name: 'Letusan Gunung Api', guideId: 'guide-letusan-gunung' },
+  { id: 'cuaca-ekstrem', name: 'Cuaca Ekstrem & Badai Petir', guideId: 'guide-cuaca-ekstrem' },
+];
+
+// Sub-categories for Kondisi Medis
+const MEDIS_SUB_CATEGORIES = [
+  { id: 'henti-jantung-medis', name: 'Henti Jantung / Tidak Bernapas', guideId: 'guide-henti-jantung-medis' },
+  { id: 'tersedak', name: 'Tersedak (Saluran Napas Tersumbat)', guideId: 'guide-tersedak' },
+  { id: 'perdarahan-berat', name: 'Perdarahan Berat / Luka Dalam', guideId: 'guide-perdarahan-berat' },
+  { id: 'pingsan', name: 'Pingsan / Hilang Kesadaran', guideId: 'guide-pingsan' },
+  { id: 'dugaan-stroke', name: 'Dugaan Stroke (Bibir Mencong / Pelo)', guideId: 'guide-dugaan-stroke' },
+  { id: 'keracunan', name: 'Keracunan Makanan / Kimia', guideId: 'guide-keracunan' },
+];
+
+// Sub-categories for Lainnya
+const LAINNYA_SUB_CATEGORIES = [
+  { id: 'keamanan-kekerasan', name: 'Ancaman Keamanan & Kejahatan', guideId: 'guide-keamanan-kekerasan' },
+  { id: 'sengatan-listrik', name: 'Sengatan Listrik', guideId: 'guide-sengatan-listrik' },
+  { id: 'kebocoran-gas', name: 'Kebocoran Gas LPG', guideId: 'guide-kebocoran-gas' },
+  { id: 'darurat-lainnya', name: 'Darurat Umum / Bantuan Terpadu', guideId: 'guide-darurat-lainnya' },
+];
+
 export default function EmergencyWorkspace({
   isDark,
   onClose,
   onTogglePanel,
 }: EmergencyWorkspaceProps) {
-  // Navigation sub-tabs inside Emergency
-  const [activeTab, setActiveTab] = useState<'triage' | 'guides' | 'contacts' | 'facilities'>('triage');
+  // Step indicator: 1 (Category selection) -> 2 (Short details) -> 3 (Emergency Actions)
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Online / Offline status
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  // Sub-category selector modal/view if category has sub-categories
+  const [activeSubMenu, setActiveSubMenu] = useState<'bencana' | 'kesehatan' | 'lainnya' | null>(null);
 
-  // Search keyword for guides
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  // Selected Category & Guide IDs
+  const [selectedMainCat, setSelectedMainCat] = useState<MainCategoryKey | null>(null);
+  const [selectedSubCatName, setSelectedSubCatName] = useState<string>('');
+  const [selectedGuideId, setSelectedGuideId] = useState<string>('guide-darurat-lainnya');
 
-  // Currently opened detail guide
-  const [selectedGuide, setSelectedGuide] = useState<EmergencyGuide | null>(null);
+  // Step 2 Inputs (Simple, Max 2-3 fields)
+  const [locationText, setLocationText] = useState('');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [victimStatus, setVictimStatus] = useState<string>('unknown');
+  const [additionalNote, setAdditionalNote] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Checklist state stored in localStorage
+  // Step 3 Expandable secondary panels (Keep step 3 clean by default)
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [showFacilities, setShowFacilities] = useState(false);
+  const [showAllContacts, setShowAllContacts] = useState(false);
+
+  // Facilities Search State
+  const [facilities, setFacilities] = useState<NearbyFacility[]>(CURATED_MAJOR_FACILITIES);
+  const [manualCitySearch, setManualCitySearch] = useState('');
+
+  // Interactive Checklist State (stored in localStorage)
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -58,49 +145,21 @@ export default function EmergencyWorkspace({
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // 3-Step Triage State
-  const [triage, setTriage] = useState<EmergencyTriageState>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('usick-emergency-triage');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return {
-      step: 1,
-      categoryId: null,
-      location: '',
-      useGps: false,
-      coords: null,
-      victimStatus: 'unknown',
-      severity: 'medium',
-      additionalNotes: '',
-    };
-  });
-
-  // Facilities Search State
-  const [facilities, setFacilities] = useState<NearbyFacility[]>(CURATED_MAJOR_FACILITIES);
-  const [isLocating, setIsLocating] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [facilityFilter, setFacilityFilter] = useState<'all' | 'hospital' | 'police' | 'fire_station'>('all');
-  const [manualCitySearch, setManualCitySearch] = useState('');
-
-  // Track online/offline status
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsOnline(navigator.onLine);
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((cur) => (cur === msg ? null : cur));
+    }, 2200);
   }, []);
 
-  // Save checklist state to localStorage
+  const copyToClipboard = (text: string, label: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      showToast(`${label} disalin ke clipboard!`);
+    }
+  };
+
+  // Toggle checklist item
   const toggleChecklistItem = (itemKey: string) => {
     setCheckedItems((prev) => {
       const next = { ...prev, [itemKey]: !prev[itemKey] };
@@ -111,70 +170,10 @@ export default function EmergencyWorkspace({
     });
   };
 
-  const resetGuideChecklist = (guideId: string) => {
-    const guide = EMERGENCY_GUIDES.find((g) => g.id === guideId);
-    if (!guide) return;
-    setCheckedItems((prev) => {
-      const next = { ...prev };
-      guide.checklist.forEach((item) => {
-        delete next[`${guideId}-${item}`];
-      });
-      try {
-        localStorage.setItem('usick-emergency-checklist', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-    showToast('Checklist telah direset.');
-  };
-
-  // Toast trigger
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage((cur) => (cur === msg ? null : cur));
-    }, 2200);
-  }, []);
-
-  // Copy number / text handler
-  const copyToClipboard = (text: string, label: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      showToast(`${label} disalin ke clipboard!`);
-    }
-  };
-
-  // Persist triage state
-  const updateTriage = (updates: Partial<EmergencyTriageState>) => {
-    setTriage((prev) => {
-      const next = { ...prev, ...updates };
-      try {
-        localStorage.setItem('usick-emergency-triage', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  const resetTriage = () => {
-    const defaultState: EmergencyTriageState = {
-      step: 1,
-      categoryId: null,
-      location: '',
-      useGps: false,
-      coords: null,
-      victimStatus: 'unknown',
-      severity: 'medium',
-      additionalNotes: '',
-    };
-    setTriage(defaultState);
-    try {
-      localStorage.removeItem('usick-emergency-triage');
-    } catch {}
-  };
-
-  // Request Geolocation Explicitly
+  // Geolocation request
   const handleRequestLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setLocationError('Perangkat atau browser Anda tidak mendukung fitur Geolocation.');
+      setLocationError('Peramban Anda tidak mendukung penentuan lokasi GPS.');
       return;
     }
 
@@ -183,89 +182,89 @@ export default function EmergencyWorkspace({
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        updateTriage({
-          useGps: true,
-          coords,
-          location: `Koordinat: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`,
-        });
-
-        // Also fetch nearby facilities
-        const results = await fetchNearbyFacilitiesFromCoords(coords.lat, coords.lng, facilityFilter);
-        setFacilities(results);
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(c);
+        setLocationText(`Koordinat: ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
         setIsLocating(false);
-        showToast('Lokasi perangkat berhasil diperoleh.');
+        showToast('Lokasi GPS berhasil diperoleh.');
+
+        // Pre-fetch nearby facilities in background
+        const res = await fetchNearbyFacilitiesFromCoords(c.lat, c.lng, 'all');
+        setFacilities(res);
       },
       (err) => {
         setIsLocating(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setLocationError('Izin akses lokasi ditolak. Anda tetap dapat memasukkan lokasi secara manual.');
-        } else if (err.code === err.TIMEOUT) {
-          setLocationError('Waktu pengambilan lokasi habis. Silakan coba lagi atau ketik manual.');
+          setLocationError('Izin lokasi ditolak. Anda dapat mengetik lokasi secara manual.');
         } else {
-          setLocationError('Lokasi tidak dapat ditentukan. Silakan gunakan pencarian manual.');
+          setLocationError('Gagal mendeteksi lokasi. Silakan ketik lokasi secara manual.');
         }
       },
-      { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 }
+      { timeout: 7000, enableHighAccuracy: true, maximumAge: 60000 }
     );
   };
 
-  // Filtered categories
-  const filteredCategories = useMemo(() => {
-    return EMERGENCY_CATEGORIES.filter((cat) => {
-      const matchGroup = selectedGroup === 'all' || cat.group === selectedGroup;
-      const query = searchQuery.trim().toLowerCase();
-      const matchQuery =
-        !query ||
-        cat.name.toLowerCase().includes(query) ||
-        cat.shortDesc.toLowerCase().includes(query) ||
-        cat.keywords.some((kw) => kw.toLowerCase().includes(query));
-      return matchGroup && matchQuery;
-    });
-  }, [searchQuery, selectedGroup]);
+  // Resolve current active guide
+  const currentGuide = useMemo(() => {
+    return (
+      EMERGENCY_GUIDES.find((g) => g.id === selectedGuideId) ||
+      EMERGENCY_GUIDES.find((g) => g.id === 'guide-darurat-lainnya')!
+    );
+  }, [selectedGuideId]);
 
-  // Selected Triage Category & Guide
-  const selectedTriageCategory = useMemo(() => {
-    return EMERGENCY_CATEGORIES.find((c) => c.id === triage.categoryId) || null;
-  }, [triage.categoryId]);
-
-  const selectedTriageGuide = useMemo(() => {
-    if (!triage.categoryId) return null;
-    return EMERGENCY_GUIDES.find((g) => g.categoryId === triage.categoryId) || null;
-  }, [triage.categoryId]);
-
-  // Generate Report Summary for Operator
+  // Formatted report summary for copying to emergency operators
   const reportSummaryText = useMemo(() => {
+    const categoryName =
+      selectedSubCatName ||
+      MAIN_CATEGORIES.find((c) => c.key === selectedMainCat)?.title ||
+      'Keadaan Darurat';
+
+    const victimLabel =
+      victimStatus === 'trapped'
+        ? 'Ada yang terjebak'
+        : victimStatus === 'injured'
+        ? 'Ada korban luka-luka'
+        : victimStatus === 'unconscious'
+        ? 'Ada korban tidak sadarkan diri'
+        : victimStatus === 'none'
+        ? 'Tidak ada korban jiwa/luka'
+        : 'Belum dipastikan';
+
     const lines = [
       '=== LAPORAN KEADAAN DARURAT ===',
-      `Jenis Darurat: ${selectedTriageCategory?.name || 'Umum'}`,
-      `Lokasi: ${triage.location.trim() || 'Lokasi belum ditentukan'}`,
-      `Kondisi Korban: ${
-        triage.victimStatus === 'trapped'
-          ? 'Ada orang terjebak'
-          : triage.victimStatus === 'injured'
-          ? 'Ada korban luka-luka'
-          : triage.victimStatus === 'unconscious'
-          ? 'Ada korban tidak sadarkan diri'
-          : triage.victimStatus === 'none'
-          ? 'Tidak ada korban jiwa/luka'
-          : 'Belum dipastikan'
-      }`,
-      `Tingkat Urgensi: ${
-        triage.severity === 'critical' ? 'Kritis / Mengancam Nyawa' : triage.severity === 'medium' ? 'Sedang' : 'Ringan'
-      }`,
+      `Jenis Kejadian: ${categoryName}`,
+      `Lokasi: ${locationText.trim() || 'Lokasi belum ditentukan'}`,
+      `Kondisi Korban: ${victimLabel}`,
     ];
-    if (triage.additionalNotes.trim()) {
-      lines.push(`Keterangan Tambahan: ${triage.additionalNotes.trim()}`);
+
+    if (additionalNote.trim()) {
+      lines.push(`Keterangan: ${additionalNote.trim()}`);
     }
-    lines.push('Waktu Laporan: ' + new Date().toLocaleString('id-ID'));
+    lines.push(`Waktu Laporan: ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`);
+
     return lines.join('\n');
-  }, [selectedTriageCategory, triage]);
+  }, [selectedSubCatName, selectedMainCat, locationText, victimStatus, additionalNote]);
+
+  // Reset to Step 1
+  const handleReset = () => {
+    setStep(1);
+    setActiveSubMenu(null);
+    setSelectedMainCat(null);
+    setSelectedSubCatName('');
+    setSelectedGuideId('guide-darurat-lainnya');
+    setLocationText('');
+    setCoords(null);
+    setVictimStatus('unknown');
+    setAdditionalNote('');
+    setShowChecklist(false);
+    setShowFacilities(false);
+    setShowAllContacts(false);
+  };
 
   return (
     <div
       className={`h-full w-full flex flex-col overflow-y-auto select-none transition-colors duration-150 ${
-        isDark ? 'bg-[#0a0a0c] text-zinc-100' : 'bg-zinc-50 text-zinc-900'
+        isDark ? 'bg-[#0c0c0e] text-zinc-100' : 'bg-zinc-50 text-zinc-900'
       }`}
     >
       {/* Toast Notification */}
@@ -283,15 +282,15 @@ export default function EmergencyWorkspace({
         </div>
       )}
 
-      {/* ─── TOP APP BAR ──────────────────────────────────────────────────────── */}
+      {/* ─── TOP APP BAR (Minimal & Discrete) ─────────────────────────────────── */}
       <header
-        className={`sticky top-0 z-30 px-3.5 sm:px-6 py-2.5 backdrop-blur-md border-b flex items-center justify-between ${
+        className={`sticky top-0 z-30 px-4 sm:px-6 py-2.5 backdrop-blur-md border-b flex items-center justify-between ${
           isDark
-            ? 'bg-[#0a0a0c]/90 border-zinc-800/80 text-white'
+            ? 'bg-[#0c0c0e]/90 border-zinc-800/80 text-white'
             : 'bg-white/90 border-zinc-200/80 text-zinc-900'
         }`}
       >
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onTogglePanel}
@@ -306,39 +305,11 @@ export default function EmergencyWorkspace({
             </svg>
           </button>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold tracking-tight truncate flex items-center gap-1.5">
-                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>Emergency Center</span>
-              </h1>
-
-              {/* Online / Offline badge */}
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
-                  isOnline
-                    ? isDark
-                      ? 'bg-zinc-800/80 text-zinc-300 border-zinc-700/80'
-                      : 'bg-zinc-100 text-zinc-700 border-zinc-300'
-                    : isDark
-                    ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                    : 'bg-zinc-200 text-zinc-600 border-zinc-400'
-                }`}
-                title={isOnline ? 'Terhubung ke jaringan' : 'Mode Offline: Seluruh panduan dan nomor darurat tetap dapat diakses'}
-              >
-                {isOnline ? 'Online' : 'Offline Mode'}
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-400 truncate hidden sm:block">
-              Panduan keselamatan, kontak darurat resmi Indonesia, dan tindakan darurat.
-            </p>
-          </div>
+          <span className="text-sm font-bold tracking-tight">Emergency</span>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick Call 112 button in header */}
+          {/* Discrete 112 Call pill */}
           <a
             href="tel:112"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 ${
@@ -346,7 +317,7 @@ export default function EmergencyWorkspace({
                 ? 'bg-white text-black hover:bg-zinc-200'
                 : 'bg-black text-white hover:bg-zinc-800'
             }`}
-            title="Telepon Panggilan Darurat 112 Bebas Pulsa"
+            title="Panggilan Darurat Bebas Pulsa 112"
           >
             <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
               <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
@@ -354,15 +325,14 @@ export default function EmergencyWorkspace({
             <span>Panggil 112</span>
           </a>
 
-          {/* Close button returning to chat */}
           <button
             type="button"
             onClick={onClose}
             className={`p-2 rounded-full transition cursor-pointer ${
               isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-black'
             }`}
-            title="Tutup Emergency Center"
-            aria-label="Tutup Emergency Center"
+            title="Tutup"
+            aria-label="Tutup"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -371,1238 +341,611 @@ export default function EmergencyWorkspace({
         </div>
       </header>
 
-      {/* ─── MAIN CONTENT CONTAINER ───────────────────────────────────────────── */}
-      <div className="flex-1 max-w-5xl w-full mx-auto p-3.5 sm:p-6 space-y-5">
-        {/* ─── CRITICAL BANNER: BUTUH BANTUAN SEKARANG? ─────────────────────── */}
-        <section
-          className={`rounded-2xl p-4 sm:p-5 border transition-all ${
-            isDark
-              ? 'bg-zinc-900/90 border-zinc-700/80 shadow-xl'
-              : 'bg-zinc-100 border-zinc-300 shadow-sm'
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-                <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-zinc-300 dark:text-zinc-200">
-                  Butuh Bantuan Sekarang?
-                </h2>
-              </div>
-              <p className="text-xs text-zinc-400 max-w-xl">
-                Jika kondisi mengancam nyawa atau keselamatan, segera hubungi kontak darurat di bawah.
-                <strong className="text-zinc-200 font-semibold block mt-0.5">
-                  Jangan menunggu balasan teks atau mengisi formulir jika dalam situasi bahaya langsung.
-                </strong>
+      {/* ─── MAIN FOCUSED WORKSPACE (Clean & Spacious) ────────────────────────── */}
+      <div className="flex-1 max-w-xl w-full mx-auto px-4 py-6 sm:py-10 flex flex-col justify-center">
+        {/* ══════════════════════════════════════════════════════════════════════
+            STEP 1 — PILIH KEADAAN DARURAT (Maksimal 5 Pilihan Bersih)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {step === 1 && !activeSubMenu && (
+          <div className="space-y-6 animate-in fade-in-0 duration-200">
+            {/* Clean Calm Title */}
+            <div className="space-y-1.5 text-center sm:text-left">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Apa yang sedang terjadi?
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                Pilih situasi darurat untuk panduan tindakan dan bantuan terpadu:
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <a
-                href="tel:112"
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer shadow-lg active:scale-95 ${
-                  isDark
-                    ? 'bg-white text-black hover:bg-zinc-200'
-                    : 'bg-black text-white hover:bg-zinc-800'
-                }`}
-                title="Panggilan Darurat Bebas Pulsa 112"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
-                </svg>
-                <span>Telepon 112</span>
-              </a>
+            {/* Exactly 5 Main Cards */}
+            <div className="space-y-2.5">
+              {MAIN_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => {
+                    if (cat.key === 'bencana') {
+                      setActiveSubMenu('bencana');
+                    } else if (cat.key === 'kesehatan') {
+                      setActiveSubMenu('kesehatan');
+                    } else if (cat.key === 'lainnya') {
+                      setActiveSubMenu('lainnya');
+                    } else {
+                      setSelectedMainCat(cat.key);
+                      setSelectedSubCatName(cat.title);
+                      setSelectedGuideId(cat.defaultGuideId);
+                      setStep(2);
+                    }
+                  }}
+                  className={`w-full p-4 sm:p-4.5 rounded-2xl border text-left transition cursor-pointer flex items-center justify-between gap-4 group active:scale-[0.99] ${
+                    isDark
+                      ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 hover:border-zinc-700'
+                      : 'bg-white border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300'
+                  }`}
+                >
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <h3 className="text-base font-bold tracking-tight group-hover:underline">
+                      {cat.title}
+                    </h3>
+                    <p className="text-xs text-zinc-400 truncate">
+                      {cat.desc}
+                    </p>
+                  </div>
 
-              <a
-                href="tel:08113530112"
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer active:scale-95 ${
-                  isDark
-                    ? 'bg-zinc-800/80 border-zinc-700 hover:bg-zinc-700 text-zinc-200 hover:text-white'
-                    : 'bg-white border-zinc-300 hover:bg-zinc-50 text-zinc-800 hover:text-black'
-                }`}
-                title="Kontak Seluler / WhatsApp 112"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                <span>0811-3530-112</span>
-              </a>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-400 group-hover:text-white transition">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Discrete Footer Call Link */}
+            <div className="pt-4 text-center">
+              <p className="text-xs text-zinc-400">
+                Kondisi darurat langsung mengancam nyawa?{' '}
+                <a
+                  href="tel:112"
+                  className="font-bold underline text-white dark:text-zinc-100 hover:opacity-80"
+                >
+                  Hubungi 112 sekarang
+                </a>
+              </p>
             </div>
           </div>
-        </section>
+        )}
 
-        {/* ─── WORKSPACE NAVIGATION TABS ───────────────────────────────────────── */}
-        <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-2 overflow-x-auto no-scrollbar">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('triage');
-              setSelectedGuide(null);
-            }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 ${
-              activeTab === 'triage'
-                ? isDark ? 'bg-white text-black' : 'bg-black text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/60' : 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-            }`}
-          >
-            Alur 3-Langkah
-          </button>
+        {/* ─── STEP 1 SUB-SELECTIONS (Bencana Alam / Kondisi Medis / Lainnya) ─── */}
+        {step === 1 && activeSubMenu && (
+          <div className="space-y-5 animate-in fade-in-0 duration-200">
+            <div className="flex items-center gap-3 pb-2 border-b border-zinc-800/80">
+              <button
+                type="button"
+                onClick={() => setActiveSubMenu(null)}
+                className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                  isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Kembali</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('guides');
-              setSelectedGuide(null);
-            }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 ${
-              activeTab === 'guides'
-                ? isDark ? 'bg-white text-black' : 'bg-black text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/60' : 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-            }`}
-          >
-            Katalog Panduan ({EMERGENCY_CATEGORIES.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('contacts');
-              setSelectedGuide(null);
-            }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 ${
-              activeTab === 'contacts'
-                ? isDark ? 'bg-white text-black' : 'bg-black text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/60' : 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-            }`}
-          >
-            Kontak Darurat Resmi
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('facilities');
-              setSelectedGuide(null);
-            }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 ${
-              activeTab === 'facilities'
-                ? isDark ? 'bg-white text-black' : 'bg-black text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/60' : 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-            }`}
-          >
-            Fasilitas Terdekat
-          </button>
-        </div>
-
-        {/* ─── TAB 1: 3-STEP TRIAGE MECHANISM (ADDENDUM) ─────────────────────── */}
-        {activeTab === 'triage' && (
-          <div className="space-y-5 animate-in fade-in-0 duration-150">
-            {/* Step Progress Indicator */}
-            <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
-              <div className="space-y-0.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                  Langkah {triage.step} dari 3
-                </span>
-                <h3 className="text-base sm:text-lg font-bold">
-                  {triage.step === 1 && 'Pilih Jenis Keadaan Darurat'}
-                  {triage.step === 2 && 'Informasi Singkat Kejadian'}
-                  {triage.step === 3 && 'Tindakan Darurat & Nomor Bantuan'}
-                </h3>
-              </div>
-
-              {triage.step > 1 && (
-                <button
-                  type="button"
-                  onClick={resetTriage}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                    isDark ? 'border-zinc-800 text-zinc-400 hover:text-white' : 'border-zinc-300 text-zinc-600 hover:text-black'
-                  }`}
-                >
-                  Mulai Dari Awal
-                </button>
-              )}
+              <h3 className="text-base font-bold tracking-tight">
+                {activeSubMenu === 'bencana' && 'Pilih Jenis Bencana Alam'}
+                {activeSubMenu === 'kesehatan' && 'Pilih Kondisi Medis'}
+                {activeSubMenu === 'lainnya' && 'Pilih Situasi Darurat'}
+              </h3>
             </div>
 
-            {/* STEP 1: PILIH JENIS DARURAT */}
-            {triage.step === 1 && (
-              <div className="space-y-4">
-                <p className="text-xs text-zinc-400">
-                  Pilih kejadian yang sedang dialami untuk menyesuaikan panduan keselamatan dan nomor rujukan yang tepat:
-                </p>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                  {EMERGENCY_CATEGORIES.map((cat) => {
-                    const isSelected = triage.categoryId === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => {
-                          updateTriage({ categoryId: cat.id, step: 2 });
-                        }}
-                        className={`p-3.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between gap-2.5 active:scale-98 ${
-                          isSelected
-                            ? isDark
-                              ? 'bg-zinc-800 border-white text-white'
-                              : 'bg-zinc-200 border-black text-black'
-                            : isDark
-                            ? 'bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/80 hover:border-zinc-700 text-zinc-200'
-                            : 'bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                            {cat.groupLabel}
-                          </span>
-                          <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold truncate">{cat.name}</h4>
-                          <p className="text-[11px] text-zinc-400 line-clamp-2 mt-0.5">{cat.shortDesc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Direct skip button */}
-                <div className="pt-2 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => updateTriage({ step: 3, categoryId: triage.categoryId || 'darurat-lainnya' })}
-                    className={`text-xs underline text-zinc-400 hover:text-white transition cursor-pointer`}
-                  >
-                    Lewati formulir dan langsung buka nomor panggilan & tindakan darurat ➔
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: INFORMASI SINGKAT */}
-            {triage.step === 2 && (
-              <div className="space-y-5 max-w-2xl">
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                    isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
+            <div className="space-y-2">
+              {(activeSubMenu === 'bencana'
+                ? BENCANA_SUB_CATEGORIES
+                : activeSubMenu === 'kesehatan'
+                ? MEDIS_SUB_CATEGORIES
+                : LAINNYA_SUB_CATEGORIES
+              ).map((sub) => (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMainCat(activeSubMenu);
+                    setSelectedSubCatName(sub.name);
+                    setSelectedGuideId(sub.guideId);
+                    setActiveSubMenu(null);
+                    setStep(2);
+                  }}
+                  className={`w-full p-3.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
+                    isDark
+                      ? 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-800/80 text-zinc-100'
+                      : 'bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-900'
                   }`}
                 >
-                  <div>
-                    <span className="text-zinc-400">Kategori Terpilih: </span>
-                    <strong className="text-white dark:text-zinc-100 font-bold">
-                      {selectedTriageCategory?.name || 'Darurat Umum'}
-                    </strong>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateTriage({ step: 1 })}
-                    className="text-xs underline text-zinc-400 hover:text-white cursor-pointer"
-                  >
-                    Ganti Kategori
-                  </button>
-                </div>
+                  <span className="text-sm font-semibold">{sub.name}</span>
+                  <svg className="w-4 h-4 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-                {/* 1. Lokasi Kejadian */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold block text-zinc-300">
-                    1. Lokasi Kejadian (Jalan / Kelurahan / Patokan)
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={triage.location}
-                      onChange={(e) => updateTriage({ location: e.target.value })}
-                      placeholder="Contoh: Jl. Sudirman No. 12 dekat Kantor Pos..."
-                      className={`flex-1 px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none transition ${
-                        isDark
-                          ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-500'
-                          : 'bg-white border-zinc-300 text-black placeholder-zinc-400 focus:border-zinc-600'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRequestLocation}
-                      disabled={isLocating}
-                      className={`px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0 disabled:opacity-50 ${
-                        isDark
-                          ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-200'
-                          : 'bg-zinc-100 border-zinc-300 hover:bg-zinc-200 text-zinc-800'
-                      }`}
-                      title="Gunakan lokasi GPS perangkat saat ini"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span>{isLocating ? 'Mencari...' : 'Gunakan GPS'}</span>
-                    </button>
-                  </div>
-                  {locationError && (
-                    <p className="text-[11px] text-zinc-400 mt-1">{locationError}</p>
-                  )}
-                </div>
+        {/* ══════════════════════════════════════════════════════════════════════
+            STEP 2 — INFORMASI SINGKAT (Maksimal 2-3 Pertanyaan Utama)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {step === 2 && (
+          <div className="space-y-6 animate-in fade-in-0 duration-200">
+            {/* Step Header */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                Langkah 2 dari 3
+              </span>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                Informasi Singkat Kejadian
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Kategori: <strong className="text-white dark:text-zinc-100 font-bold">{selectedSubCatName || 'Darurat'}</strong>
+              </p>
+            </div>
 
-                {/* 2. Kondisi Korban */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold block text-zinc-300">
-                    2. Kondisi Korban atau Orang Terdampak
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      { id: 'none', label: 'Tidak ada korban' },
-                      { id: 'injured', label: 'Ada luka-luka' },
-                      { id: 'trapped', label: 'Ada yang terjebak' },
-                      { id: 'unconscious', label: 'Tidak sadar' },
-                      { id: 'unknown', label: 'Belum dipastikan' },
-                    ].map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => updateTriage({ victimStatus: v.id as any })}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold border text-center transition cursor-pointer ${
-                          triage.victimStatus === v.id
-                            ? isDark
-                              ? 'bg-white text-black border-white'
-                              : 'bg-black text-white border-black'
-                            : isDark
-                            ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                            : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100'
-                        }`}
-                      >
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. Tingkat Kejadian */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold block text-zinc-300">
-                    3. Skala Urgensi Kejadian
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'critical', label: 'Kritis / Mendesak' },
-                      { id: 'medium', label: 'Sedang' },
-                      { id: 'low', label: 'Terkendali / Ringan' },
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => updateTriage({ severity: s.id as any })}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold border text-center transition cursor-pointer ${
-                          triage.severity === s.id
-                            ? isDark
-                              ? 'bg-white text-black border-white'
-                              : 'bg-black text-white border-black'
-                            : isDark
-                            ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                            : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Keterangan Tambahan (Opsional) */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-zinc-300">
-                    4. Keterangan Tambahan (Opsional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={triage.additionalNotes}
-                    onChange={(e) => updateTriage({ additionalNotes: e.target.value })}
-                    placeholder="Contoh: Api menjalar dari dapur lantai 2, bau kabel hangus..."
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none transition resize-none ${
+            <div className="space-y-4">
+              {/* Question 1: Lokasi Kejadian */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold block text-zinc-300">
+                  1. Lokasi Kejadian (Jalan / Patokan Terdekat)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={locationText}
+                    onChange={(e) => setLocationText(e.target.value)}
+                    placeholder="Contoh: Jl. Sudirman dekat Halte Bus..."
+                    className={`flex-1 px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none transition ${
                       isDark
                         ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-500'
                         : 'bg-white border-zinc-300 text-black placeholder-zinc-400 focus:border-zinc-600'
                     }`}
                   />
-                </div>
-
-                {/* Navigation Buttons for Step 2 */}
-                <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80">
                   <button
                     type="button"
-                    onClick={() => updateTriage({ step: 1 })}
-                    className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                    onClick={handleRequestLocation}
+                    disabled={isLocating}
+                    className={`px-3 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0 disabled:opacity-50 ${
+                      isDark
+                        ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-200'
+                        : 'bg-zinc-100 border-zinc-300 hover:bg-zinc-200 text-zinc-800'
                     }`}
+                    title="Gunakan lokasi GPS perangkat"
                   >
-                    ← Kembali
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateTriage({ step: 3 })}
-                      className={`px-3 py-2.5 rounded-xl text-xs text-zinc-400 hover:text-white transition cursor-pointer`}
-                    >
-                      Lewati
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateTriage({ step: 3 })}
-                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-md active:scale-95 ${
-                        isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
-                      }`}
-                    >
-                      Lanjutkan ke Tindakan →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: TINDAKAN DARURAT */}
-            {triage.step === 3 && (
-              <div className="space-y-6">
-                {/* 1. Quick Emergency Calls Section */}
-                <div
-                  className={`p-4 sm:p-5 rounded-2xl border ${
-                    isDark ? 'bg-zinc-900/90 border-zinc-700/80' : 'bg-zinc-100 border-zinc-300'
-                  }`}
-                >
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Lakukan Panggilan Darurat Sekarang</span>
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <a
-                      href="tel:112"
-                      className={`p-4 rounded-xl flex items-center justify-between border transition cursor-pointer active:scale-98 ${
-                        isDark
-                          ? 'bg-white text-black hover:bg-zinc-200 border-white'
-                          : 'bg-black text-white hover:bg-zinc-800 border-black'
-                      }`}
-                    >
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                          Bebas Pulsa / Multi-Instansi
-                        </span>
-                        <h5 className="text-lg font-black tracking-tight">Telepon 112</h5>
-                        <p className="text-[11px] opacity-80">Panggilan Darurat Terpadu</p>
-                      </div>
-                      <svg className="w-6 h-6 fill-current shrink-0" viewBox="0 0 24 24">
-                        <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
-                      </svg>
-                    </a>
-
-                    <a
-                      href="tel:08113530112"
-                      className={`p-4 rounded-xl flex items-center justify-between border transition cursor-pointer active:scale-98 ${
-                        isDark
-                          ? 'bg-zinc-800/80 hover:bg-zinc-700/80 text-white border-zinc-700'
-                          : 'bg-white hover:bg-zinc-50 text-zinc-900 border-zinc-300'
-                      }`}
-                    >
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          Jalur Seluler / WhatsApp
-                        </span>
-                        <h5 className="text-base sm:text-lg font-bold">0811-3530-112</h5>
-                        <p className="text-[11px] text-zinc-400">Pengaduan Seluler 112</p>
-                      </div>
-                      <svg className="w-6 h-6 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </a>
-                  </div>
+                    <span>{isLocating ? 'Mendeteksi...' : 'GPS'}</span>
+                  </button>
                 </div>
-
-                {/* 2. Salin Ringkasan Laporan untuk Operator */}
-                <div
-                  className={`p-4 rounded-2xl border space-y-2.5 ${
-                    isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>Ringkasan Informasi untuk Operator Darurat</span>
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
-                        isDark ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-black'
-                      }`}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                      </svg>
-                      <span>Salin Ringkasan</span>
-                    </button>
-                  </div>
-
-                  <pre className="p-3 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono whitespace-pre-wrap text-zinc-300 overflow-x-auto">
-                    {reportSummaryText}
-                  </pre>
-                  <p className="text-[11px] text-zinc-400">
-                    Bacakan teks di atas saat operator 112 menjawab panggilan Anda, atau tempelkan pada pesan pengaduan.
-                  </p>
-                </div>
-
-                {/* 3. Panduan Tindakan Khusus Kategori */}
-                {selectedTriageGuide && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
-                      <h4 className="text-sm font-bold text-zinc-200">
-                        Panduan Keselamatan: {selectedTriageGuide.title}
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedGuide(selectedTriageGuide)}
-                        className="text-xs underline text-zinc-400 hover:text-white cursor-pointer"
-                      >
-                        Buka Panduan Lengkap ➔
-                      </button>
-                    </div>
-
-                    {/* Lakukan Sekarang */}
-                    <div
-                      className={`p-4 rounded-2xl border space-y-2 ${
-                        isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                      }`}
-                    >
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-300">
-                        Lakukan Sekarang:
-                      </span>
-                      <ul className="space-y-1.5 pt-1">
-                        {selectedTriageGuide.doNow.slice(0, 4).map((step, idx) => (
-                          <li key={idx} className="text-xs flex items-start gap-2 text-zinc-200">
-                            <span className="font-mono text-zinc-400 shrink-0 font-bold">{idx + 1}.</span>
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Jangan Lakukan */}
-                    <div
-                      className={`p-4 rounded-2xl border space-y-2 ${
-                        isDark ? 'bg-zinc-900/40 border-zinc-800/80' : 'bg-zinc-100 border-zinc-200'
-                      }`}
-                    >
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-400">
-                        Hindari Tindakan Berbahaya Ini:
-                      </span>
-                      <ul className="space-y-1 pt-1">
-                        {selectedTriageGuide.dontDo.map((item, idx) => (
-                          <li key={idx} className="text-xs flex items-start gap-2 text-zinc-400">
-                            <span className="text-zinc-500 shrink-0 font-bold">✕</span>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Checklist Tindakan */}
-                    <div
-                      className={`p-4 rounded-2xl border space-y-3 ${
-                        isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-zinc-200">Checklist Tindakan Darurat</span>
-                        <button
-                          type="button"
-                          onClick={() => resetGuideChecklist(selectedTriageGuide.id)}
-                          className="text-[11px] text-zinc-400 hover:text-white underline cursor-pointer"
-                        >
-                          Reset
-                        </button>
-                      </div>
-
-                      <div className="space-y-2">
-                        {selectedTriageGuide.checklist.map((item, idx) => {
-                          const itemKey = `${selectedTriageGuide.id}-${item}`;
-                          const isDone = !!checkedItems[itemKey];
-                          return (
-                            <label
-                              key={idx}
-                              onClick={() => toggleChecklistItem(itemKey)}
-                              className={`flex items-start gap-2.5 p-2 rounded-xl transition cursor-pointer select-none ${
-                                isDone
-                                  ? isDark ? 'bg-zinc-800/60 text-zinc-400 line-through' : 'bg-zinc-100 text-zinc-400 line-through'
-                                  : isDark ? 'hover:bg-zinc-800/40 text-zinc-200' : 'hover:bg-zinc-50 text-zinc-800'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isDone}
-                                onChange={() => {}}
-                                className="mt-0.5 accent-white cursor-pointer"
-                              />
-                              <span className="text-xs leading-relaxed">{item}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                {locationError && (
+                  <p className="text-[11px] text-zinc-400">{locationError}</p>
                 )}
+              </div>
 
-                {/* Back to Step 2 Button */}
-                <div className="pt-2 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => updateTriage({ step: 2 })}
-                    className={`px-4 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'border-zinc-800 text-zinc-400 hover:text-white' : 'border-zinc-300 text-zinc-700 hover:text-black'
-                    }`}
-                  >
-                    ← Edit Informasi Laporan
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('facilities')}
-                    className={`px-4 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                      isDark ? 'border-zinc-700 bg-zinc-800 text-white' : 'border-zinc-300 bg-zinc-100 text-black'
-                    }`}
-                  >
-                    Cari Fasilitas Rumah Sakit Terdekat ➔
-                  </button>
+              {/* Question 2: Kondisi Korban */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold block text-zinc-300">
+                  2. Apakah ada korban yang membutuhkan bantuan?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'none', label: 'Tidak ada korban' },
+                    { id: 'injured', label: 'Ada korban luka' },
+                    { id: 'trapped', label: 'Ada yang terjebak' },
+                    { id: 'unconscious', label: 'Korban tidak sadar' },
+                  ].map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setVictimStatus(v.id)}
+                      className={`p-2.5 rounded-xl text-xs font-semibold border text-center transition cursor-pointer ${
+                        victimStatus === v.id
+                          ? isDark
+                            ? 'bg-white text-black border-white'
+                            : 'bg-black text-white border-black'
+                          : isDark
+                          ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                          : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                      }`}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* ─── TAB 2: KATALOG PANDUAN DARURAT (18 KATEGORI) ────────────────────── */}
-        {activeTab === 'guides' && !selectedGuide && (
-          <div className="space-y-4 animate-in fade-in-0 duration-150">
-            {/* Search and Group Filters */}
-            <div className="space-y-2.5">
-              <div className="relative">
+              {/* Question 3: Keterangan Tambahan (Opsional) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold block text-zinc-300">
+                  3. Keterangan Singkat (Opsional)
+                </label>
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari panduan darurat (misal: kebakaran, gempa, cpr, tersedak, stroke)..."
-                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs focus:outline-none transition ${
+                  value={additionalNote}
+                  onChange={(e) => setAdditionalNote(e.target.value)}
+                  placeholder="Contoh: Asap di lantai 2, api membesar..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none transition ${
                     isDark
-                      ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600'
-                      : 'bg-white border-zinc-300 text-black placeholder-zinc-400 focus:border-zinc-500'
+                      ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-black placeholder-zinc-400 focus:border-zinc-600'
                   }`}
                 />
-                <svg
-                  className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-2.5 text-zinc-400 hover:text-white text-xs"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Group Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                {[
-                  { id: 'all', label: 'Semua' },
-                  { id: 'bencana', label: 'Bencana Alam' },
-                  { id: 'kesehatan', label: 'Kesehatan & Medis' },
-                  { id: 'kecelakaan', label: 'Kecelakaan' },
-                  { id: 'keamanan', label: 'Keamanan' },
-                ].map((grp) => (
-                  <button
-                    key={grp.id}
-                    type="button"
-                    onClick={() => setSelectedGroup(grp.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 border ${
-                      selectedGroup === grp.id
-                        ? isDark ? 'bg-white text-black border-white' : 'bg-black text-white border-black'
-                        : isDark ? 'border-zinc-800 text-zinc-400 hover:text-white' : 'border-zinc-300 text-zinc-600 hover:text-black'
-                    }`}
-                  >
-                    {grp.label}
-                  </button>
-                ))}
               </div>
             </div>
 
-            {/* Guides Grid */}
-            {filteredCategories.length === 0 ? (
-              <div className="py-12 text-center space-y-2 border border-dashed border-zinc-800 rounded-2xl p-6">
-                <p className="text-sm font-semibold text-zinc-400">
-                  Panduan tidak ditemukan untuk &quot;{searchQuery}&quot;
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Jika sedang menghadapi bahaya langsung, silakan hubungi kontak darurat terpadu 112.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-2 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-300 hover:text-white"
-                >
-                  Tampilkan Semua Panduan
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {filteredCategories.map((cat) => {
-                  const guide = EMERGENCY_GUIDES.find((g) => g.categoryId === cat.id);
-                  return (
-                    <div
-                      key={cat.id}
-                      onClick={() => guide && setSelectedGuide(guide)}
-                      className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between gap-3 group ${
-                        isDark
-                          ? 'bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/80 hover:border-zinc-700'
-                          : 'bg-white border-zinc-200 hover:bg-zinc-100/80'
-                      }`}
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                            {cat.groupLabel}
-                          </span>
-                          <span className="text-xs text-zinc-500 group-hover:text-white transition">
-                            Buka →
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-zinc-100 group-hover:underline">
-                          {cat.name}
-                        </h4>
-                        <p className="text-xs text-zinc-400 line-clamp-2">
-                          {cat.shortDesc}
-                        </p>
-                      </div>
-
-                      {guide && (
-                        <div className="flex items-center justify-between text-[11px] text-zinc-500 border-t border-zinc-800/60 pt-2.5">
-                          <span>{guide.checklist.length} langkah tindakan</span>
-                          <span>Ditinjau {guide.reviewDate}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── DETAIL VIEW FOR SELECTED GUIDE ─────────────────────────────────── */}
-        {selectedGuide && (
-          <div className="space-y-5 animate-in fade-in-0 duration-150">
-            {/* Top Bar inside Guide Detail */}
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+            {/* Navigation Buttons for Step 2 */}
+            <div className="pt-2 flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setSelectedGuide(null)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                onClick={() => setStep(1)}
+                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                   isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                 }`}
               >
-                ← Kembali ke Daftar
+                ← Kembali
               </button>
 
-              <div className="text-[11px] text-zinc-400">
-                Verifikasi: {selectedGuide.reviewDate}
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-md active:scale-95 ${
+                  isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
+                }`}
+              >
+                Lanjutkan ke Tindakan →
+              </button>
+            </div>
+
+            {/* Direct Skip to Emergency Call */}
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
+              >
+                Lewati formulir dan langsung hubungi nomor bantuan darurat ➔
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            STEP 3 — TINDAKAN DARURAT (Fokus Hanya Informasi Penting)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {step === 3 && (
+          <div className="space-y-6 animate-in fade-in-0 duration-200">
+            {/* Step Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Langkah 3 dari 3
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+                  Tindakan Darurat
+                </h2>
               </div>
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className={`text-xs px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark ? 'border-zinc-800 text-zinc-400 hover:text-white' : 'border-zinc-300 text-zinc-600 hover:text-black'
+                }`}
+              >
+                Mulai Baru
+              </button>
             </div>
 
-            {/* Guide Header */}
-            <div className="space-y-1">
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-                {selectedGuide.title}
-              </h2>
-              <p className="text-xs text-zinc-400">
-                {selectedGuide.applicableWhen}
-              </p>
+            {/* 1. Tombol Utama Hubungi 112 & Kontak Alternatif 0811-3530-112 */}
+            <div className="space-y-2.5">
+              <a
+                href="tel:112"
+                className={`w-full p-4.5 rounded-2xl flex items-center justify-between border transition cursor-pointer active:scale-98 shadow-xl ${
+                  isDark
+                    ? 'bg-white text-black hover:bg-zinc-200 border-white'
+                    : 'bg-black text-white hover:bg-zinc-800 border-black'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                    Panggilan Darurat Bebas Pulsa (Multi-Instansi)
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                    Hubungi 112
+                  </h3>
+                  <p className="text-xs opacity-80">
+                    Polisi, Medis/Ambulans, Pemadam Kebakaran, dan SAR
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-black/10 dark:bg-white/10 shrink-0">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
+                  </svg>
+                </div>
+              </a>
+
+              <a
+                href="tel:08113530112"
+                className={`w-full p-3.5 rounded-2xl flex items-center justify-between border transition cursor-pointer active:scale-98 ${
+                  isDark
+                    ? 'bg-zinc-900/60 hover:bg-zinc-800/80 text-white border-zinc-800'
+                    : 'bg-white hover:bg-zinc-50 text-zinc-900 border-zinc-200'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Kontak Alternatif Seluler / WhatsApp
+                  </span>
+                  <h4 className="text-base font-bold">0811-3530-112</h4>
+                  <p className="text-[11px] text-zinc-400">Jalur pengaduan seluler 112</p>
+                </div>
+                <svg className="w-5 h-5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </a>
             </div>
 
-            {/* 1. Lakukan Sekarang */}
+            {/* 2. Ringkasan Kejadian yang Bisa Disalin */}
             <div
-              className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
-                isDark ? 'bg-zinc-900/80 border-zinc-700/80' : 'bg-white border-zinc-300'
+              className={`p-4 rounded-2xl border space-y-2.5 ${
+                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-white shrink-0" />
-                <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-zinc-200">
-                  Lakukan Sekarang (Prioritas Utama)
-                </h3>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Ringkasan Laporan untuk Petugas</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(reportSummaryText, 'Ringkasan laporan')}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                    isDark ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-black'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  <span>Salin Teks</span>
+                </button>
               </div>
 
-              <ol className="space-y-2">
-                {selectedGuide.doNow.map((step, idx) => (
-                  <li key={idx} className="text-xs sm:text-sm flex items-start gap-2.5 text-zinc-200">
-                    <span className="font-mono font-bold text-zinc-400 shrink-0">{idx + 1}.</span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
+              <pre className="p-3 rounded-xl bg-black/40 border border-white/5 text-[11px] font-mono whitespace-pre-wrap text-zinc-300">
+                {reportSummaryText}
+              </pre>
             </div>
 
-            {/* 2. Langkah Berikutnya & Jangan Lakukan (Side by Side on desktop) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Langkah Berikutnya */}
-              <div
-                className={`p-4 rounded-2xl border space-y-2 ${
-                  isDark ? 'bg-zinc-900/50 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
-                }`}
-              >
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300">
-                  Langkah Berikutnya:
-                </h4>
-                <ul className="space-y-1.5 pt-1">
-                  {selectedGuide.nextSteps.map((step, idx) => (
-                    <li key={idx} className="text-xs flex items-start gap-2 text-zinc-300">
-                      <span className="text-zinc-500 font-bold shrink-0">•</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {/* 3. Panduan Singkat Tindakan Pertama */}
+            <div
+              className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
+                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
+              }`}
+            >
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300">
+                Tindakan Pertama: {currentGuide.title}
+              </h4>
 
-              {/* Jangan Lakukan */}
-              <div
-                className={`p-4 rounded-2xl border space-y-2 ${
-                  isDark ? 'bg-zinc-900/50 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
-                }`}
-              >
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-400">
-                  Jangan Lakukan:
-                </h4>
-                <ul className="space-y-1.5 pt-1">
-                  {selectedGuide.dontDo.map((item, idx) => (
-                    <li key={idx} className="text-xs flex items-start gap-2 text-zinc-400">
-                      <span className="text-zinc-500 font-bold shrink-0">✕</span>
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
+                  Lakukan Sekarang:
+                </span>
+                <ul className="space-y-1.5">
+                  {currentGuide.doNow.slice(0, 3).map((item, idx) => (
+                    <li key={idx} className="text-xs text-zinc-200 flex items-start gap-2">
+                      <span className="font-mono font-bold text-zinc-400 shrink-0">{idx + 1}.</span>
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
 
-            {/* 3. Kapan Memanggil Bantuan */}
-            <div
-              className={`p-4 rounded-2xl border space-y-2 ${
-                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-zinc-300">
-                Kapan Memanggil Bantuan Segera:
-              </h4>
-              <ul className="space-y-1.5 pt-1">
-                {selectedGuide.whenToCallHelp.map((item, idx) => (
-                  <li key={idx} className="text-xs flex items-start gap-2 text-zinc-300">
-                    <span className="text-zinc-400 font-bold shrink-0">!</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* 4. Checklist Interaktif */}
-            <div
-              className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
-                isDark ? 'bg-zinc-900/70 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-zinc-200">
-                    Checklist Tindakan ({selectedGuide.checklist.filter(item => checkedItems[`${selectedGuide.id}-${item}`]).length} / {selectedGuide.checklist.length} selesai)
-                  </h4>
-                  <p className="text-[11px] text-zinc-400">
-                    Tersimpan lokal di perangkat Anda untuk memantau tahapan evakuasi/bantuan.
-                  </p>
+              {currentGuide.dontDo.length > 0 && (
+                <div className="pt-2 border-t border-zinc-800/60 space-y-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
+                    Hindari:
+                  </span>
+                  <ul className="space-y-1">
+                    {currentGuide.dontDo.slice(0, 2).map((item, idx) => (
+                      <li key={idx} className="text-xs text-zinc-400 flex items-start gap-2">
+                        <span className="text-zinc-500 font-bold shrink-0">✕</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+              )}
+            </div>
 
+            {/* 4. Bagian Terpisah (Expandable Accordion - Tidak Membebani Tampilan Utama) */}
+            <div className="space-y-2 pt-1">
+              {/* Accordion 1: Checklist Tindakan */}
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
+                }`}
+              >
                 <button
                   type="button"
-                  onClick={() => resetGuideChecklist(selectedGuide.id)}
-                  className="text-xs underline text-zinc-400 hover:text-white cursor-pointer shrink-0"
+                  onClick={() => setShowChecklist((prev) => !prev)}
+                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
                 >
-                  Reset Checklist
+                  <span>✓ Checklist Tindakan Keselamatan</span>
+                  <span className="text-zinc-500">{showChecklist ? '▲ Tutup' : '▼ Buka'}</span>
                 </button>
-              </div>
 
-              <div className="space-y-2 pt-1">
-                {selectedGuide.checklist.map((item, idx) => {
-                  const itemKey = `${selectedGuide.id}-${item}`;
-                  const isDone = !!checkedItems[itemKey];
-                  return (
-                    <label
-                      key={idx}
-                      onClick={() => toggleChecklistItem(itemKey)}
-                      className={`flex items-start gap-3 p-2.5 rounded-xl transition cursor-pointer select-none border ${
-                        isDone
-                          ? isDark
-                            ? 'bg-zinc-800/60 border-zinc-800 text-zinc-400 line-through'
-                            : 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through'
-                          : isDark
-                          ? 'bg-zinc-900/50 border-zinc-800/80 hover:bg-zinc-800/50 text-zinc-200'
-                          : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isDone}
-                        onChange={() => {}}
-                        className="mt-0.5 accent-white cursor-pointer"
-                      />
-                      <span className="text-xs leading-relaxed">{item}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 5. Kontak Relevan untuk Panduan Ini */}
-            <div className="space-y-2.5">
-              <h4 className="text-xs font-bold text-zinc-300">
-                Kontak Darurat Relevan untuk Situasi Ini:
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {selectedGuide.relevantContactIds.map((cId) => {
-                  const contact = EMERGENCY_CONTACTS.find((c) => c.id === cId);
-                  if (!contact) return null;
-                  return (
-                    <div
-                      key={contact.id}
-                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <h5 className="text-xs font-bold truncate">{contact.name}</h5>
-                        <p className="text-[11px] text-zinc-400 font-mono">{contact.displayNumber}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(contact.number, contact.name)}
-                          className={`p-2 rounded-lg border text-xs transition cursor-pointer ${
-                            isDark ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300' : 'border-zinc-300 hover:bg-zinc-100 text-zinc-700'
+                {showChecklist && (
+                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-2 animate-in fade-in-0 duration-150">
+                    {currentGuide.checklist.map((item, idx) => {
+                      const itemKey = `${currentGuide.id}-${item}`;
+                      const isDone = !!checkedItems[itemKey];
+                      return (
+                        <label
+                          key={idx}
+                          onClick={() => toggleChecklistItem(itemKey)}
+                          className={`flex items-start gap-2.5 p-2 rounded-xl transition cursor-pointer select-none text-xs ${
+                            isDone
+                              ? 'text-zinc-500 line-through'
+                              : isDark ? 'text-zinc-200 hover:bg-zinc-800/40' : 'text-zinc-800 hover:bg-zinc-50'
                           }`}
-                          title="Salin Nomor"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                          </svg>
-                        </button>
-                        <a
-                          href={`tel:${contact.number}`}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                            isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
+                          <input
+                            type="checkbox"
+                            checked={isDone}
+                            onChange={() => {}}
+                            className="mt-0.5 accent-white cursor-pointer"
+                          />
+                          <span>{item}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 2: Fasilitas Rumah Sakit & Layanan Terdekat */}
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowFacilities((prev) => !prev)}
+                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
+                >
+                  <span>🏥 Cari Fasilitas Medis Terdekat</span>
+                  <span className="text-zinc-500">{showFacilities ? '▲ Tutup' : '▼ Buka'}</span>
+                </button>
+
+                {showFacilities && (
+                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-3 animate-in fade-in-0 duration-150">
+                    <div className="flex gap-2 pt-2">
+                      <input
+                        type="text"
+                        value={manualCitySearch}
+                        onChange={(e) => setManualCitySearch(e.target.value)}
+                        placeholder="Ketik kota/daerah..."
+                        className={`flex-1 px-3 py-1.5 rounded-xl border text-xs focus:outline-none ${
+                          isDark ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-black'
+                        }`}
+                      />
+                      <a
+                        href={buildExternalSearchUrl(
+                          manualCitySearch ? `Rumah Sakit IGD terdekat ${manualCitySearch}` : 'Rumah Sakit IGD terdekat',
+                          coords
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                          isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-100 border-zinc-300 text-black'
+                        }`}
+                      >
+                        Buka Maps ↗
+                      </a>
+                    </div>
+
+                    <div className="space-y-2 pt-1">
+                      {facilities.slice(0, 3).map((f) => (
+                        <div
+                          key={f.id}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                            isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
                           }`}
-                          title={`Hubungi ${contact.name}`}
+                        >
+                          <div className="min-w-0 pr-2">
+                            <h5 className="font-bold truncate">{f.name}</h5>
+                            <p className="text-[11px] text-zinc-400 truncate">{f.address || f.typeLabel}</p>
+                          </div>
+                          <a
+                            href={f.mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-semibold underline shrink-0 hover:text-white"
+                          >
+                            Rute
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Accordion 3: Kontak Darurat Resmi Lainnya */}
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  isDark ? 'bg-zinc-900/40 border-zinc-800' : 'bg-white border-zinc-200'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowAllContacts((prev) => !prev)}
+                  className="w-full p-3.5 flex items-center justify-between text-xs font-bold transition cursor-pointer text-left"
+                >
+                  <span>📞 Nomor Darurat Instansi Lainnya (110, 113, 115, 119)</span>
+                  <span className="text-zinc-500">{showAllContacts ? '▲ Tutup' : '▼ Buka'}</span>
+                </button>
+
+                {showAllContacts && (
+                  <div className="p-3.5 pt-0 border-t border-zinc-800/60 space-y-2 animate-in fade-in-0 duration-150">
+                    {EMERGENCY_CONTACTS.filter((c) => c.number !== '112' && c.id !== '0811-3530-112').map((c) => (
+                      <div
+                        key={c.id}
+                        className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                          isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
+                        }`}
+                      >
+                        <div>
+                          <h5 className="font-bold">{c.name}</h5>
+                          <span className="text-sm font-mono font-bold text-white dark:text-zinc-100">{c.displayNumber}</span>
+                        </div>
+                        <a
+                          href={`tel:${c.number}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                            isDark ? 'bg-white text-black' : 'bg-black text-white'
+                          }`}
                         >
                           Panggil
                         </a>
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Official Sources Footer */}
-            <div className="text-[11px] text-zinc-500 pt-2 border-t border-zinc-800/60">
-              <span>Sumber Rujukan Resmi: </span>
-              {selectedGuide.officialSources.map((src, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  {src.url ? (
-                    <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
-                      {src.name}
-                    </a>
-                  ) : (
-                    src.name
-                  )}
-                </span>
-              ))}
+            {/* Back Button */}
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
+              >
+                ← Ubah informasi laporan
+              </button>
             </div>
           </div>
         )}
-
-        {/* ─── TAB 3: DAFTAR KONTAK DARURAT RESMI ─────────────────────────────── */}
-        {activeTab === 'contacts' && (
-          <div className="space-y-4 animate-in fade-in-0 duration-150">
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-bold">Daftar Kontak Darurat Resmi Indonesia</h3>
-              <p className="text-xs text-zinc-400">
-                Nomor terverifikasi untuk penanganan multi-sektor kebencanaan, kepolisian, medis, pemadam, dan SAR.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {EMERGENCY_CONTACTS.map((contact) => (
-                <div
-                  key={contact.id}
-                  className={`p-4 sm:p-5 rounded-2xl border flex flex-col justify-between gap-4 ${
-                    isDark ? 'bg-zinc-900/60 border-zinc-800/90' : 'bg-white border-zinc-200'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                        {contact.verifiedAvailability}
-                      </span>
-                      {contact.isHotline && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          isDark ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-zinc-200 text-black border-zinc-300'
-                        }`}>
-                          Bebas Pulsa
-                        </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-black tracking-tight">{contact.name}</h4>
-                      <p className="text-xs text-zinc-400 mt-0.5">{contact.serviceType}</p>
-                    </div>
-
-                    <div className="text-2xl font-black font-mono tracking-wider pt-1 text-white dark:text-zinc-100">
-                      {contact.displayNumber}
-                    </div>
-
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      {contact.notes || contact.coverage}
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-2">
-                    <div className="text-[10px] text-zinc-500 truncate">
-                      Sumber: {contact.officialSource}
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(contact.number, contact.name)}
-                        className={`p-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                          isDark ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300' : 'border-zinc-300 hover:bg-zinc-100 text-zinc-700'
-                        }`}
-                        title="Salin Nomor Telepon"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
-                      </button>
-
-                      <a
-                        href={`tel:${contact.number}`}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer active:scale-95 shadow-md ${
-                          isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
-                        }`}
-                      >
-                        <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                          <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.72 11.72 0 003.68.59 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.72 11.72 0 00.59 3.68 1 1 0 01-.24 1.02l-2.23 2.09z" />
-                        </svg>
-                        <span>Panggil</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ─── TAB 4: FASILITAS TERDEKAT (NEARBY HELP) ─────────────────────────── */}
-        {activeTab === 'facilities' && (
-          <div className="space-y-5 animate-in fade-in-0 duration-150">
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-bold">Fasilitas Kesehatan & Layanan Terdekat</h3>
-              <p className="text-xs text-zinc-400">
-                Pencarian Rumah Sakit / IGD, Puskesmas, Pos Polisi, dan Pemadam Kebakaran dengan izin lokasi eksplisit.
-              </p>
-            </div>
-
-            {/* Location Permission / Manual Input Banner */}
-            <div
-              className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
-                isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <h4 className="text-xs sm:text-sm font-bold text-zinc-200">
-                    {triage.coords ? 'Lokasi Perangkat Aktif' : 'Tentukan Lokasi Anda'}
-                  </h4>
-                  <p className="text-xs text-zinc-400">
-                    {triage.coords
-                      ? `Koordinat: ${triage.coords.lat.toFixed(4)}, ${triage.coords.lng.toFixed(4)}`
-                      : 'Izinkan lokasi peramban atau masukkan nama kota secara manual.'}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRequestLocation}
-                    disabled={isLocating}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50 ${
-                      isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'
-                    }`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>{isLocating ? 'Mencari Lokasi...' : 'Gunakan Lokasi Saya'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {locationError && (
-                <p className="text-xs text-zinc-400 pt-1 border-t border-zinc-800/60">{locationError}</p>
-              )}
-
-              {/* Manual City / Location input */}
-              <div className="pt-2 flex gap-2">
-                <input
-                  type="text"
-                  value={manualCitySearch}
-                  onChange={(e) => setManualCitySearch(e.target.value)}
-                  placeholder="Ketik kota / kecamatan (contoh: Jakarta Pusat, Surabaya, Bandung)..."
-                  className={`flex-1 px-3.5 py-2 rounded-xl border text-xs focus:outline-none transition ${
-                    isDark ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500' : 'bg-white border-zinc-300 text-black placeholder-zinc-400'
-                  }`}
-                />
-                <a
-                  href={buildExternalSearchUrl(
-                    manualCitySearch ? `Rumah Sakit IGD terdekat ${manualCitySearch}` : 'Rumah Sakit IGD terdekat',
-                    triage.coords
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`px-4 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                    isDark ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white' : 'bg-zinc-100 border-zinc-300 hover:bg-zinc-200 text-black'
-                  }`}
-                >
-                  <span>Buka di Maps ↗</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Filter by facility type */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {[
-                { id: 'all', label: 'Semua Fasilitas' },
-                { id: 'hospital', label: 'Rumah Sakit / IGD' },
-                { id: 'police', label: 'Kantor Polisi' },
-                { id: 'fire_station', label: 'Pemadam Kebakaran' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => {
-                    setFacilityFilter(f.id as any);
-                    if (triage.coords) {
-                      fetchNearbyFacilitiesFromCoords(triage.coords.lat, triage.coords.lng, f.id as any).then(setFacilities);
-                    }
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer shrink-0 ${
-                    facilityFilter === f.id
-                      ? isDark ? 'bg-white text-black border-white' : 'bg-black text-white border-black'
-                      : isDark ? 'border-zinc-800 text-zinc-400 hover:text-white' : 'border-zinc-300 text-zinc-600 hover:text-black'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Facilities List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {facilities
-                .filter((fac) => facilityFilter === 'all' || fac.type === facilityFilter)
-                .map((fac) => (
-                  <div
-                    key={fac.id}
-                    className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 ${
-                      isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          {fac.typeLabel}
-                        </span>
-                        {fac.distanceKm !== undefined && (
-                          <span className="text-xs font-bold text-zinc-300 font-mono">
-                            ~{fac.distanceKm} km
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="text-sm font-bold text-zinc-100">{fac.name}</h4>
-                      {fac.address && (
-                        <p className="text-xs text-zinc-400 line-clamp-2">{fac.address}</p>
-                      )}
-                      {fac.phone && (
-                        <p className="text-xs text-zinc-300 font-mono pt-0.5">Telp: {fac.phone}</p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                      {fac.phone ? (
-                        <a
-                          href={`tel:${fac.phone}`}
-                          className="text-xs font-semibold underline text-zinc-300 hover:text-white"
-                        >
-                          Hubungi
-                        </a>
-                      ) : (
-                        <span className="text-[11px] text-zinc-500">Info kontak via Maps</span>
-                      )}
-
-                      <a
-                        href={fac.mapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-                          isDark ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-black'
-                        }`}
-                      >
-                        <span>Petunjuk Arah</span>
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* ─── FOOTER DISCLAIMER ──────────────────────────────────────────────── */}
-        <footer className="pt-6 pb-8 border-t border-zinc-800/60 text-center space-y-1 text-xs text-zinc-500">
-          <p>
-            Emergency Center Usick One — Panduan bantuan keselamatan umum.
-          </p>
-          <p>
-            Informasi ini tidak menggantikan tindakan dokter, paramedis, atau petugas tanggap darurat resmi.
-          </p>
-        </footer>
       </div>
+
+      {/* ─── FOOTER (Concise Disclaimer) ───────────────────────────────────────── */}
+      <footer className="py-4 border-t border-zinc-800/60 text-center text-[11px] text-zinc-500">
+        Emergency Usick One — Panduan keselamatan umum. Tidak menggantikan tindakan tenaga medis/petugas darurat.
+      </footer>
     </div>
   );
 }
