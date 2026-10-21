@@ -127,7 +127,7 @@ export function updateAIRacers(
     const lookaheadCenter = trackCurve.getPointAt(lookaheadT);
 
     _aiTangent.subVectors(lookaheadCenter, currentCenter).normalize();
-    _aiNormal.crossVectors(_aiTangent, _aiUp).normalize();
+    _aiNormal.crossVectors(_aiUp, _aiTangent).normalize();
 
     _aiTargetPos.copy(currentCenter).addScaledVector(_aiNormal, ai.laneOffset);
     _aiTargetPos.y += 0.35;
@@ -138,7 +138,7 @@ export function updateAIRacers(
 
     // Hitung sudut hadap menuju target di depan
     _aiForwardVec.subVectors(lookaheadCenter, ai.position).normalize();
-    const targetAngle = Math.atan2(-_aiForwardVec.x, -_aiForwardVec.z);
+    const targetAngle = Math.atan2(_aiForwardVec.x, _aiForwardVec.z);
     ai.headingAngle += (targetAngle - ai.headingAngle) * Math.min(1, dt * 6);
     ai.model.group.rotation.y = ai.headingAngle;
 

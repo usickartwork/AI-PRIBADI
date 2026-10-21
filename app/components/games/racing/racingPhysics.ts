@@ -92,8 +92,8 @@ export function updatePlayerPhysics(
   }
 
   // 4. Integrasi Vektor Kecepatan (Inersia lateral)
-  const forwardX = -Math.sin(car.headingAngle);
-  const forwardZ = -Math.cos(car.headingAngle);
+  const forwardX = Math.sin(car.headingAngle);
+  const forwardZ = Math.cos(car.headingAngle);
 
   const grip = car.isDrifting ? 0.91 : 0.97;
   car.velocity.x = car.velocity.x * grip + forwardX * car.speed * (1 - grip);

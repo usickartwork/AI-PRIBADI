@@ -484,15 +484,15 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
       playerModel.group.rotation.y = player.headingAngle;
 
       // Efek visual body tilt saat belok & drift
-      playerModel.group.rotation.z = -player.steerAngle * 0.18;
+      playerModel.group.rotation.z = player.steerAngle * 0.18;
       playerModel.updateWheels(player.speed, player.steerAngle, dt);
 
       // ─── KAMERA THIRD-PERSON DINAMIS (CHASE CAMERA) ───
       const camDistance = 7.5;
       const camHeight = 3.6;
 
-      const forwardX = -Math.sin(player.headingAngle);
-      const forwardZ = -Math.cos(player.headingAngle);
+      const forwardX = Math.sin(player.headingAngle);
+      const forwardZ = Math.cos(player.headingAngle);
 
       _camTargetPos.set(
         player.position.x - forwardX * camDistance,

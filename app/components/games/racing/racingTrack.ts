@@ -78,7 +78,7 @@ export function buildRaceTrack(): TrackData {
     // Hitung vektor tangen & normal lateral jalan
     const tangent = new THREE.Vector3().subVectors(nextPt, pt).normalize();
     const up = new THREE.Vector3(0, 1, 0);
-    const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+    const normal = new THREE.Vector3().crossVectors(up, tangent).normalize();
 
     // Posisi tepi jalan
     const leftRoad = new THREE.Vector3().copy(pt).addScaledVector(normal, -halfW);
@@ -111,13 +111,13 @@ export function buildRaceTrack(): TrackData {
 
     if (i < segments) {
       const v = i * 2;
-      // Road quad
-      roadIndices.push(v, v + 1, v + 2);
-      roadIndices.push(v + 1, v + 3, v + 2);
+      // Road quad (menghadap ke atas +Y)
+      roadIndices.push(v, v + 2, v + 1);
+      roadIndices.push(v + 1, v + 2, v + 3);
 
       // Curbs quads
-      curbIndices.push(v, v + 1, v + 2);
-      curbIndices.push(v + 1, v + 3, v + 2);
+      curbIndices.push(v, v + 2, v + 1);
+      curbIndices.push(v + 1, v + 2, v + 3);
 
       // Barrier quads
       barrierIndices.push(v, v + 1, v + 2);
@@ -155,6 +155,7 @@ export function buildRaceTrack(): TrackData {
     color: 0x141418,
     roughness: 0.85,
     metalness: 0.1,
+    side: THREE.DoubleSide,
   });
 
   const curbMatLeft = new THREE.MeshStandardMaterial({
@@ -162,6 +163,7 @@ export function buildRaceTrack(): TrackData {
     emissive: 0x06b6d4,
     emissiveIntensity: 0.25,
     roughness: 0.5,
+    side: THREE.DoubleSide,
   });
 
   const curbMatRight = new THREE.MeshStandardMaterial({
@@ -169,6 +171,7 @@ export function buildRaceTrack(): TrackData {
     emissive: 0xec4899,
     emissiveIntensity: 0.25,
     roughness: 0.5,
+    side: THREE.DoubleSide,
   });
 
   const barrierMatLeft = new THREE.MeshStandardMaterial({
@@ -177,6 +180,7 @@ export function buildRaceTrack(): TrackData {
     emissiveIntensity: 0.4,
     transparent: true,
     opacity: 0.85,
+    side: THREE.DoubleSide,
   });
 
   const barrierMatRight = new THREE.MeshStandardMaterial({
@@ -185,6 +189,7 @@ export function buildRaceTrack(): TrackData {
     emissiveIntensity: 0.4,
     transparent: true,
     opacity: 0.85,
+    side: THREE.DoubleSide,
   });
 
   const trackMesh = new THREE.Mesh(roadGeom, roadMat);
