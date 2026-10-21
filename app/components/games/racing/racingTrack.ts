@@ -25,6 +25,7 @@ export const RAW_CIRCUIT_POINTS: THREE.Vector3[] = [
 export interface TrackData {
   curve: THREE.CatmullRomCurve3;
   checkpoints: THREE.Vector3[];
+  sampledPoints: THREE.Vector3[];
   trackMesh: THREE.Mesh;
   curbLeftMesh: THREE.Mesh;
   curbRightMesh: THREE.Mesh;
@@ -241,6 +242,7 @@ export function buildRaceTrack(): TrackData {
   return {
     curve,
     checkpoints,
+    sampledPoints: points,
     trackMesh,
     curbLeftMesh,
     curbRightMesh,

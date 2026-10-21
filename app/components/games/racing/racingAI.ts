@@ -58,6 +58,29 @@ export function createAIRacers(scene: THREE.Scene, startPt: THREE.Vector3): AICa
   return racers;
 }
 
+const _aiTangent = new THREE.Vector3();
+const _aiUp = new THREE.Vector3(0, 1, 0);
+const _aiNormal = new THREE.Vector3();
+const _aiTargetPos = new THREE.Vector3();
+const _aiForwardVec = new THREE.Vector3();
+
+export function resetAIRacers(racers: AICarState[], startPt: THREE.Vector3): void {
+  racers.forEach((ai, idx) => {
+    const cfg = AI_CONFIGS[idx];
+    const gridZ = -(idx + 1) * 7.0;
+    ai.position.set(startPt.x + cfg.lane, startPt.y + 0.35, startPt.z + gridZ);
+    ai.model.group.position.copy(ai.position);
+    ai.model.group.rotation.set(0, 0, 0);
+    ai.speed = 0;
+    ai.headingAngle = 0;
+    ai.curveT = 0;
+    ai.currentLap = 1;
+    ai.currentCheckpoint = 0;
+    ai.raceProgress = 0;
+    ai.hasFinished = false;
+  });
+}
+
 /**
  * Update pergerakan AI navigasi sirkuit & deteksi posisi balapan.
  */
@@ -98,28 +121,24 @@ export function updateAIRacers(
       }
     }
 
-    // Hitung posisi di spline dengan offset jalur lateral
+    // Hitung posisi di spline dengan offset jalur lateral (0 allocations)
     const currentCenter = trackCurve.getPointAt(ai.curveT);
     const lookaheadT = (ai.curveT + 0.03) % 1.0;
     const lookaheadCenter = trackCurve.getPointAt(lookaheadT);
 
-    const tangent = new THREE.Vector3().subVectors(lookaheadCenter, currentCenter).normalize();
-    const up = new THREE.Vector3(0, 1, 0);
-    const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+    _aiTangent.subVectors(lookaheadCenter, currentCenter).normalize();
+    _aiNormal.crossVectors(_aiTangent, _aiUp).normalize();
 
-    // Posisi target di jalurnya
-    const targetPos = new THREE.Vector3()
-      .copy(currentCenter)
-      .addScaledVector(normal, ai.laneOffset);
-    targetPos.y += 0.35;
+    _aiTargetPos.copy(currentCenter).addScaledVector(_aiNormal, ai.laneOffset);
+    _aiTargetPos.y += 0.35;
 
     // Haluskan perpindahan posisi
-    ai.position.lerp(targetPos, Math.min(1, dt * 8));
+    ai.position.lerp(_aiTargetPos, Math.min(1, dt * 8));
     ai.model.group.position.copy(ai.position);
 
     // Hitung sudut hadap menuju target di depan
-    const forwardVec = new THREE.Vector3().subVectors(lookaheadCenter, ai.position).normalize();
-    const targetAngle = Math.atan2(-forwardVec.x, -forwardVec.z);
+    _aiForwardVec.subVectors(lookaheadCenter, ai.position).normalize();
+    const targetAngle = Math.atan2(-_aiForwardVec.x, -_aiForwardVec.z);
     ai.headingAngle += (targetAngle - ai.headingAngle) * Math.min(1, dt * 6);
     ai.model.group.rotation.y = ai.headingAngle;
 

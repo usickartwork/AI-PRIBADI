@@ -18,6 +18,7 @@ import {
   AICarState,
   createAIRacers,
   updateAIRacers,
+  resetAIRacers,
   cleanupAIRacers,
 } from "./racingAI";
 import {
@@ -37,6 +38,10 @@ import {
   formatTimeMs,
   RacingRecords,
 } from "../common/gameStorage";
+
+// Pre-allocated scratch vectors to prevent GC frame stutters in the 60fps chase camera loop
+const _camTargetPos = new THREE.Vector3();
+const _camLookTarget = new THREE.Vector3();
 
 interface UsickRacingProps {
   isDark?: boolean;
@@ -104,6 +109,12 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const lapStartTimeRef = useRef<number>(0);
   const raceStartTimeRef = useRef<number>(0);
+  const countdownTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearCountdownTimeouts = useCallback(() => {
+    countdownTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    countdownTimeoutsRef.current = [];
+  }, []);
 
   // Toggle Sound
   const toggleSound = useCallback(() => {
@@ -121,6 +132,8 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
 
   // Mulai Balapan (Start Countdown 3-2-1-GO!)
   const startRace = useCallback(() => {
+    clearCountdownTimeouts();
+
     // Reset player position to starting line
     const startPt = RAW_CIRCUIT_POINTS[0];
     playerStateRef.current = {
@@ -139,6 +152,9 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
       hasFinished: false,
     };
 
+    // Reset AI racers ke posisi grid awal
+    resetAIRacers(aiRacersRef.current, startPt);
+
     setCurrentLap(1);
     setCurrentLapTime(0);
     setLastLapTime(null);
@@ -151,13 +167,13 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
 
     playCountdownBeep(false, soundEnabledRef.current);
 
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       setCountdownNum("2");
       playCountdownBeep(false, soundEnabledRef.current);
-      setTimeout(() => {
+      const t2 = setTimeout(() => {
         setCountdownNum("1");
         playCountdownBeep(false, soundEnabledRef.current);
-        setTimeout(() => {
+        const t3 = setTimeout(() => {
           setCountdownNum("GO!");
           playCountdownBeep(true, soundEnabledRef.current);
           startEngineSound(soundEnabledRef.current);
@@ -165,11 +181,15 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
           const now = performance.now();
           lapStartTimeRef.current = now;
           raceStartTimeRef.current = now;
-          setTimeout(() => setCountdownNum(""), 700);
+          const t4 = setTimeout(() => setCountdownNum(""), 700);
+          countdownTimeoutsRef.current.push(t4);
         }, 1000);
+        countdownTimeoutsRef.current.push(t3);
       }, 1000);
+      countdownTimeoutsRef.current.push(t2);
     }, 1000);
-  }, []);
+    countdownTimeoutsRef.current.push(t1);
+  }, [clearCountdownTimeouts]);
 
   // Inisialisasi Scene Three.js
   useEffect(() => {
@@ -260,13 +280,14 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      clearCountdownTimeouts();
       stopEngineSound();
       stopDriftSound();
       cleanupAIRacers(aiRacers, scene);
       renderer.dispose();
       if (container) container.innerHTML = "";
     };
-  }, [selectedCarType]);
+  }, [selectedCarType, clearCountdownTimeouts]);
 
   // Keyboard Event Handlers
   useEffect(() => {
@@ -369,7 +390,7 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
         updatePlayerPhysics(
           player,
           inputsRef.current,
-          track.curve,
+          track.sampledPoints,
           track.checkpoints,
           dt,
           () => playCrashSound(soundEnabledRef.current),
@@ -473,21 +494,21 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
       const forwardX = -Math.sin(player.headingAngle);
       const forwardZ = -Math.cos(player.headingAngle);
 
-      const targetCamPos = new THREE.Vector3(
+      _camTargetPos.set(
         player.position.x - forwardX * camDistance,
         player.position.y + camHeight,
         player.position.z - forwardZ * camDistance
       );
 
       // Haluskan pergerakan kamera (Smooth Lerp)
-      camera.position.lerp(targetCamPos, Math.min(1, dt * 7.5));
+      camera.position.lerp(_camTargetPos, Math.min(1, dt * 7.5));
 
-      const lookTarget = new THREE.Vector3(
+      _camLookTarget.set(
         player.position.x + forwardX * 8.0,
         player.position.y + 1.2,
         player.position.z + forwardZ * 8.0
       );
-      camera.lookAt(lookTarget);
+      camera.lookAt(_camLookTarget);
 
       // Dynamic FOV Boost effect
       const targetFOV = player.boostDuration > 0 ? 66 : 60;
@@ -525,6 +546,7 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
+              clearCountdownTimeouts();
               stopEngineSound();
               stopDriftSound();
               onBackToHub();
@@ -836,7 +858,10 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
                 Restart Race
               </button>
               <button
-                onClick={() => setGameState("select")}
+                onClick={() => {
+                  clearCountdownTimeouts();
+                  setGameState("select");
+                }}
                 className="w-full py-2.5 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs rounded-xl transition cursor-pointer"
               >
                 Ganti Mobil
@@ -891,7 +916,10 @@ export const UsickRacing: React.FC<UsickRacingProps> = ({
                 Race Again
               </button>
               <button
-                onClick={() => setGameState("select")}
+                onClick={() => {
+                  clearCountdownTimeouts();
+                  setGameState("select");
+                }}
                 className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl transition cursor-pointer"
               >
                 Pilih Mobil

@@ -33,10 +33,12 @@ const DRAG = 0.988;
 const STEER_SENSITIVITY = 2.4;
 const WALL_OFFSET = TRACK_WIDTH / 2 - 0.9;
 
+const _tempPushDir = new THREE.Vector3();
+
 export function updatePlayerPhysics(
   car: PlayerCarState,
   inputs: PlayerControls,
-  trackCurve: THREE.CatmullRomCurve3,
+  sampledPoints: THREE.Vector3[],
   checkpoints: THREE.Vector3[],
   dt: number,
   onWallHit?: () => void,
@@ -102,35 +104,37 @@ export function updatePlayerPhysics(
   car.position.z += car.velocity.z * dt;
 
   // 5. Collision dengan Tepi Sirkuit (Pagar Barrier)
-  // Temukan proyeksi titik sirkuit terdekat
-  let closestDist = Infinity;
-  const closestCenter = new THREE.Vector3();
-  const searchSegments = 40;
+  // Temukan proyeksi titik sirkuit terdekat dari pre-sampled points (0 allocations)
+  let closestDistSq = Infinity;
+  let closestPt = sampledPoints[0];
 
-  for (let i = 0; i < searchSegments; i++) {
-    const t = i / searchSegments;
-    const pt = trackCurve.getPointAt(t);
-    const d = Math.hypot(car.position.x - pt.x, car.position.z - pt.z);
-    if (d < closestDist) {
-      closestDist = d;
-      closestCenter.copy(pt);
+  for (let i = 0; i < sampledPoints.length; i++) {
+    const pt = sampledPoints[i];
+    const dx = car.position.x - pt.x;
+    const dz = car.position.z - pt.z;
+    const dSq = dx * dx + dz * dz;
+    if (dSq < closestDistSq) {
+      closestDistSq = dSq;
+      closestPt = pt;
     }
   }
 
+  const closestDist = Math.sqrt(closestDistSq);
+
   // Jika menabrak pembatas jalan
   if (closestDist > WALL_OFFSET) {
-    const pushDir = new THREE.Vector3().subVectors(closestCenter, car.position);
-    pushDir.y = 0;
-    pushDir.normalize();
+    _tempPushDir.subVectors(closestPt, car.position);
+    _tempPushDir.y = 0;
+    _tempPushDir.normalize();
 
-    car.position.addScaledVector(pushDir, (closestDist - WALL_OFFSET) * 0.8);
+    car.position.addScaledVector(_tempPushDir, (closestDist - WALL_OFFSET) * 0.85);
     car.speed *= 0.72; // Penalti tabrakan
     car.velocity.multiplyScalar(0.72);
     if (onWallHit) onWallHit();
   }
 
   // Selaraskan elevasi Y dengan kontur jalan
-  car.position.y = closestCenter.y + 0.35;
+  car.position.y = closestPt.y + 0.35;
 
   // 6. Checkpoint & Lap Validation
   checkpoints.forEach((cp, idx) => {
