@@ -2746,6 +2746,9 @@ export default function Home() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Hindari trigger saat user sedang menggunakan IME composition
+    if (e.nativeEvent.isComposing) return;
+
     // Shortcut desktop: Ctrl+Enter atau Cmd+Enter untuk kirim pesan cepat
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
@@ -2753,9 +2756,25 @@ export default function Home() {
       return;
     }
 
-    // Sesuai brief: Enter di keyboard (terutama mobile) digunakan untuk turun ke bawah / baris baru,
-    // BUKAN untuk mengirim pesan. Pengiriman pesan dilakukan dengan mengklik tombol panah ke kanan.
     if (e.key === "Enter") {
+      // Deteksi perangkat mobile (touch screen / virtual keyboard)
+      const isMobile =
+        typeof window !== "undefined" &&
+        (window.matchMedia("(pointer: coarse)").matches ||
+          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+
+      // Desktop: Enter saja mengirim chat, Shift+Enter membuat baris baru / spasi ke bawah
+      if (!isMobile) {
+        if (e.shiftKey) {
+          setTimeout(autoResize, 0);
+          return;
+        }
+        e.preventDefault();
+        sendMessage();
+        return;
+      }
+
+      // Khusus mobile: Enter keyboard selalu membuat baris baru / spasi ke bawah
       setTimeout(autoResize, 0);
     }
   };
