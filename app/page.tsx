@@ -19,6 +19,7 @@ const ScheduleWorkspace = dynamic(() => import("./components/ScheduleWorkspace")
 const FaithWorkspace = dynamic(() => import("./components/FaithWorkspace").then((m) => m.FaithWorkspace));
 const ImageWorkspace = dynamic(() => import("./components/ImageWorkspace").then((m) => m.ImageWorkspace));
 const MessagesWorkspace = dynamic(() => import("./components/MessagesWorkspace"));
+const GameHub = dynamic(() => import("./components/games/GameHub").then((m) => m.GameHub), { ssr: false });
 const GameWorkspace = dynamic(() => import("./components/GameWorkspace").then((m) => m.GameWorkspace));
 const MusicWorkspace = dynamic(() => import("./components/MusicWorkspace").then((m) => m.MusicWorkspace));
 const NotebookWorkspace = dynamic(() => import("./components/NotebookWorkspace").then((m) => m.NotebookWorkspace));
@@ -833,20 +834,18 @@ export default function Home() {
     visitedViewsRef.current.code = false;
     visitedViewsRef.current.notebook = false;
     visitedViewsRef.current.faith = false;
-    visitedViewsRef.current.game = false;
   } else {
     if (activeView === "code") visitedViewsRef.current.code = true;
     if (activeView === "notebook") visitedViewsRef.current.notebook = true;
     if (isProPlan && isHalamanActive && halamanSubTab === "faith") {
       visitedViewsRef.current.faith = true;
     }
-    if (isProPlan && isHalamanActive && halamanSubTab === "game") {
-      visitedViewsRef.current.game = true;
-    }
     if (!isProPlan) {
       visitedViewsRef.current.faith = false;
-      visitedViewsRef.current.game = false;
     }
+  }
+  if (activeView === "game" || (isHalamanActive && halamanSubTab === "game")) {
+    visitedViewsRef.current.game = true;
   }
 
   useEffect(() => {
@@ -4141,8 +4140,31 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tab Lainnya (Game & Faith) disembunyikan sementara sesuai instruksi pengguna */}
-            {/* Siap dimunculkan kembali kapan saja sesuai prompt pengguna */}
+            {/* Tab Game Hub (Chess Arena & Neon Drift) */}
+            <div
+              onClick={() => {
+                setActiveView("game");
+                setHalamanSubTab("game");
+                closeSidebarOnMobile();
+              }}
+              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                (activeView === "game" || (isHalamanActive && halamanSubTab === "game"))
+                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+              }`}
+            >
+              <div className="flex items-center gap-3 md:gap-3">
+                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                <span>Game</span>
+              </div>
+              <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                isDark ? "bg-zinc-800 text-emerald-400 border-zinc-700/80" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}>
+                OFFLINE
+              </span>
+            </div>
           </div>
 
           {/* ─── SECTION CATATAN (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
@@ -4558,22 +4580,11 @@ export default function Home() {
           )}
         </div>
 
-        {/* GameWorkspace (Sub-tab Game di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama agar sesi 3D game tetap aktif tanpa reload WebGL */}
+        {/* GameHub (Game Center: Chess Arena & Neon Drift — Offline-First) */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
-            <LockedFeatureView
-              isDark={isDark}
-              title="3D Survival Game (Eksklusif Pro)"
-              description="Permainan interaktif 3D Survival dunia terbuka bertenaga Three.js ini khusus untuk pengguna paket Usick One Pro."
-              onUpgrade={() => {
-                setSelectedLockedModelName("3D Survival Game (Pro)");
-                setShowUpgradeModal(true);
-              }}
-              onBack={() => setActiveView("chats")}
-            />
-          ) : (isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
-            <GameWorkspace
-              key="game-workspace-instance"
+          {(isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
+            <GameHub
+              key="game-hub-instance"
               isDark={isDark}
               isVisible={isHalamanActive && halamanSubTab === "game"}
               onClose={() => setActiveView("chats")}
