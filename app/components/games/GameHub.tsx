@@ -4,7 +4,7 @@ import React, { useState, Suspense } from "react";
 import dynamic from "next/dynamic";
 import {
   loadChessPreferences,
-  loadNeonRecords,
+  loadRacingRecords,
   formatTimeMs,
 } from "./common/gameStorage";
 
@@ -14,9 +14,9 @@ const ChessArena = dynamic(() => import("./chess/ChessArena"), {
   loading: () => <GameLoadingPlaceholder gameName="Chess Arena" />,
 });
 
-const NeonDrift = dynamic(() => import("./neon/NeonDrift"), {
+const UsickRacing = dynamic(() => import("./racing/UsickRacing"), {
   ssr: false,
-  loading: () => <GameLoadingPlaceholder gameName="Neon Drift" />,
+  loading: () => <GameLoadingPlaceholder gameName="Usick Racing" />,
 });
 
 interface GameHubProps {
@@ -30,14 +30,14 @@ interface GameHubProps {
 function GameLoadingPlaceholder({ gameName }: { gameName: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full w-full p-8 animate-pulse text-center">
-      <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mb-3">
-        <svg className="w-6 h-6 text-zinc-400 animate-spin" fill="none" viewBox="0 0 24 24">
+      <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mb-3 shadow-lg">
+        <svg className="w-6 h-6 text-cyan-400 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
         </svg>
       </div>
       <p className="text-sm font-semibold text-zinc-300">Memuat {gameName}...</p>
-      <p className="text-xs text-zinc-500 mt-1">Menyiapkan aset offline terisolasi</p>
+      <p className="text-xs text-zinc-500 mt-1">Menyiapkan aset 3D offline terisolasi</p>
     </div>
   );
 }
@@ -48,11 +48,11 @@ export const GameHub: React.FC<GameHubProps> = ({
   onTogglePanel,
   subTabsElement,
 }) => {
-  const [activeGame, setActiveGame] = useState<"hub" | "chess" | "neon">("hub");
+  const [activeGame, setActiveGame] = useState<"hub" | "chess" | "racing">("hub");
 
   // Load quick preview stats
   const chessPrefs = loadChessPreferences();
-  const neonRecords = loadNeonRecords();
+  const racingRecords = loadRacingRecords();
 
   if (activeGame === "chess") {
     return (
@@ -62,10 +62,10 @@ export const GameHub: React.FC<GameHubProps> = ({
     );
   }
 
-  if (activeGame === "neon") {
+  if (activeGame === "racing") {
     return (
-      <Suspense fallback={<GameLoadingPlaceholder gameName="Neon Drift" />}>
-        <NeonDrift isDark={isDark} onBackToHub={() => setActiveGame("hub")} />
+      <Suspense fallback={<GameLoadingPlaceholder gameName="Usick Racing" />}>
+        <UsickRacing isDark={isDark} onBackToHub={() => setActiveGame("hub")} />
       </Suspense>
     );
   }
@@ -128,13 +128,13 @@ export const GameHub: React.FC<GameHubProps> = ({
         <div className="text-center max-w-xl mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3 border bg-zinc-800/30 dark:border-zinc-800 border-zinc-200">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-zinc-400">100% Bebas Kuota & Tanpa Login Tambahan</span>
+            <span className="text-zinc-400">100% Bebas Kuota & Tanpa Akun Tambahan</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2.5">
             Pilih Permainan Anda
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-            Game arcade dan strategi offline ringan berkualitas tinggi yang dibangun langsung di dalam Usick One tanpa membebani browser Anda.
+            Game arcade 3D dan strategi catur offline berkinerja tinggi yang dibangun langsung di dalam Usick One tanpa membebani browser Anda.
           </p>
         </div>
 
@@ -228,9 +228,9 @@ export const GameHub: React.FC<GameHubProps> = ({
             </div>
           </div>
 
-          {/* Card 2: Neon Drift */}
+          {/* Card 2: Usick Racing (3D Arcade) */}
           <div
-            onClick={() => setActiveGame("neon")}
+            onClick={() => setActiveGame("racing")}
             className={`group relative rounded-3xl p-6 border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${
               isDark
                 ? "bg-zinc-900/60 hover:bg-zinc-900 border-white/10 hover:border-white/20 shadow-xl shadow-black/40"
@@ -248,7 +248,7 @@ export const GameHub: React.FC<GameHubProps> = ({
                   </div>
                   <div>
                     <h3 className="text-lg font-bold tracking-tight group-hover:text-cyan-400 transition">
-                      Neon Drift
+                      Usick Racing
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -256,7 +256,7 @@ export const GameHub: React.FC<GameHubProps> = ({
                       }`}>
                         Offline Ready
                       </span>
-                      <span className="text-[10px] text-zinc-500">• Canvas 2D</span>
+                      <span className="text-[10px] text-zinc-500">• 3D Arcade</span>
                     </div>
                   </div>
                 </div>
@@ -271,33 +271,23 @@ export const GameHub: React.FC<GameHubProps> = ({
               </div>
 
               <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
-                &ldquo;Master the neon track.&rdquo; Balap arcade top-down dengan fisika drift inersia yang responsif, visual cyberpunk neon, dan kontrol sentuh / keyboard yang mulus.
+                Balap arcade 3D berperspektif third-person dengan sirkuit neon, lawan AI kompetitif, fisika drift boost, dan pilihan supercar kencang.
               </p>
 
-              {/* Light Visual Preview: Stylized Glowing Neon Circuit SVG */}
+              {/* Light Visual Preview: Stylized 3D Road with Neon Perspective */}
               <div className="w-full h-32 rounded-2xl overflow-hidden border border-zinc-800/80 relative mb-5 flex items-center justify-center bg-[#09090b]">
-                <svg className="w-full h-full p-3 opacity-70 group-hover:opacity-100 transition duration-300" viewBox="0 0 300 120" fill="none">
-                  {/* Subtle Grid */}
-                  <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.05)" />
-                  <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" />
-                  <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.05)" />
-                  {/* Neon Track Path */}
-                  <path
-                    d="M 40 90 Q 70 90 90 60 T 160 30 T 230 70 T 260 90"
-                    stroke="#06b6d4"
-                    strokeWidth="18"
-                    strokeLinecap="round"
-                    className="drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
-                  />
-                  <path
-                    d="M 40 90 Q 70 90 90 60 T 160 30 T 230 70 T 260 90"
-                    stroke="#ffffff"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeDasharray="6 8"
-                  />
-                  {/* Neon Car Silhouette */}
-                  <rect x="150" y="24" width="20" height="12" rx="3" fill="#18181b" stroke="#ec4899" strokeWidth="2" className="drop-shadow-[0_0_6px_rgba(236,72,153,0.9)]" />
+                <svg className="w-full h-full p-2 opacity-80 group-hover:opacity-100 transition duration-300" viewBox="0 0 300 120" fill="none">
+                  <path d="M 150 10 L 20 120 L 280 120 Z" fill="#141418" />
+                  <line x1="150" y1="10" x2="150" y2="120" stroke="#06b6d4" strokeWidth="2" strokeDasharray="6 8" />
+                  <path d="M 150 10 L 15 120" stroke="#06b6d4" strokeWidth="4" className="drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                  <path d="M 150 10 L 285 120" stroke="#ec4899" strokeWidth="4" className="drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
+                  {/* Neon Supercar 3D Silhouette */}
+                  <rect x="138" y="70" width="24" height="34" rx="4" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.5" className="drop-shadow-[0_0_12px_rgba(6,182,212,0.9)]" />
+                  <rect x="142" y="80" width="16" height="12" rx="2" fill="#09090b" />
+                  <rect x="135" y="94" width="4" height="8" rx="1" fill="#1e293b" />
+                  <rect x="161" y="94" width="4" height="8" rx="1" fill="#1e293b" />
+                  <rect x="135" y="72" width="4" height="8" rx="1" fill="#1e293b" />
+                  <rect x="161" y="72" width="4" height="8" rx="1" fill="#1e293b" />
                 </svg>
               </div>
             </div>
@@ -307,7 +297,7 @@ export const GameHub: React.FC<GameHubProps> = ({
               <div className="text-[11px] text-zinc-500">
                 <span>Best Lap: </span>
                 <span className="font-semibold text-cyan-400 font-mono">
-                  {formatTimeMs(neonRecords.bestLapMs)}
+                  {formatTimeMs(racingRecords.bestLapMs)}
                 </span>
               </div>
               <button className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
@@ -335,7 +325,7 @@ export const GameHub: React.FC<GameHubProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-emerald-400">✓</span>
-            <span>Bebas Lag & Konsisten dengan Tema Usick One</span>
+            <span>Grafis 3D 60 FPS Bertenaga Three.js</span>
           </div>
         </div>
       </div>

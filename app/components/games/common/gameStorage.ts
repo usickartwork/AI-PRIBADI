@@ -20,6 +20,13 @@ export interface NeonDriftRecords {
   soundEnabled: boolean;
 }
 
+export interface RacingRecords {
+  bestLapMs: number | null;
+  totalRacesFinished: number;
+  selectedCar: "apex" | "inferno" | "phantom";
+  soundEnabled: boolean;
+}
+
 const DEFAULT_CHESS_PREFS: ChessPreferences = {
   difficulty: "medium",
   playerColor: "w",
@@ -36,8 +43,16 @@ const DEFAULT_NEON_RECORDS: NeonDriftRecords = {
   soundEnabled: true,
 };
 
+const DEFAULT_RACING_RECORDS: RacingRecords = {
+  bestLapMs: null,
+  totalRacesFinished: 0,
+  selectedCar: "apex",
+  soundEnabled: true,
+};
+
 const CHESS_STORAGE_KEY = "usick-chess-prefs-v1";
 const NEON_STORAGE_KEY = "usick-neon-records-v1";
+const RACING_STORAGE_KEY = "usick-racing-records-v1";
 
 export function loadChessPreferences(): ChessPreferences {
   if (typeof window === "undefined") return DEFAULT_CHESS_PREFS;
@@ -87,6 +102,33 @@ export function saveNeonRecords(records: NeonDriftRecords): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(NEON_STORAGE_KEY, JSON.stringify(records));
+  } catch {}
+}
+
+export function loadRacingRecords(): RacingRecords {
+  if (typeof window === "undefined") return DEFAULT_RACING_RECORDS;
+  try {
+    const raw = localStorage.getItem(RACING_STORAGE_KEY);
+    if (!raw) return DEFAULT_RACING_RECORDS;
+    const parsed = JSON.parse(raw);
+    const validCar = ["apex", "inferno", "phantom"].includes(parsed?.selectedCar)
+      ? parsed.selectedCar
+      : "apex";
+    return {
+      bestLapMs: typeof parsed?.bestLapMs === "number" ? parsed.bestLapMs : null,
+      totalRacesFinished: typeof parsed?.totalRacesFinished === "number" ? parsed.totalRacesFinished : 0,
+      selectedCar: validCar,
+      soundEnabled: typeof parsed?.soundEnabled === "boolean" ? parsed.soundEnabled : true,
+    };
+  } catch {
+    return DEFAULT_RACING_RECORDS;
+  }
+}
+
+export function saveRacingRecords(records: RacingRecords): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(RACING_STORAGE_KEY, JSON.stringify(records));
   } catch {}
 }
 
