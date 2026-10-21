@@ -2029,7 +2029,7 @@ export default function Home() {
 
     // Timeout berbasis aktivitas (heartbeat): hanya abort jika server macet/tidak mengirim data sama sekali
     let timeoutId: NodeJS.Timeout | null = null;
-    const resetActivityTimer = (ms = 45000) => {
+    const resetActivityTimer = (ms = 90000) => {
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         controller.abort("TIMEOUT");
@@ -2037,7 +2037,7 @@ export default function Home() {
     };
 
     const isCurrentDeepSeek = model.toLowerCase().includes("deepseek");
-    resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 65000 : 45000);
+    resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 120000 : 90000);
 
     let assistantId = "";
     let userMsgId = "";
@@ -2341,22 +2341,23 @@ export default function Home() {
 
       const appendSmoothly = async (textChunk: string) => {
         if (!textChunk || controller.signal.aborted) return;
-        // Jika chunk pendek (1-3 karakter), langsung tampilkan instan
-        if (textChunk.length <= 3) {
+        // Jika chunk pendek (1-4 karakter), langsung tampilkan instan
+        if (textChunk.length <= 4) {
           fullText += textChunk;
           updateAssistantContent(assistantId, fullText);
           return;
         }
 
-        // Jika chunk berupa blok kata/kalimat sekaligus (burst dari upstream),
-        // pecah menjadi sub-chunk halus (3-5 karakter) dengan jeda 12ms agar animasi mengetik halus terlihat
-        const step = Math.max(2, Math.floor(textChunk.length / 10));
+        // Animasi mengetik adaptif agar tidak menahan pembacaan stream dari server
+        const step = Math.max(4, Math.ceil(textChunk.length / 8));
         for (let i = 0; i < textChunk.length; i += step) {
           if (controller.signal.aborted) return;
           const slice = textChunk.slice(i, i + step);
           fullText += slice;
           updateAssistantContent(assistantId, fullText);
-          await sleep(12);
+          if (i + step < textChunk.length) {
+            await sleep(6);
+          }
         }
       };
 
@@ -2378,7 +2379,7 @@ export default function Home() {
         if (done || controller.signal.aborted) break;
 
         // Reset timer heartbeat: selama token/data masih mengalir dari AI, jangan pernah abort!
-        resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 65000 : 45000);
+        resetActivityTimer(isCurrentDeepSeek || Boolean(activeImage) ? 120000 : 90000);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -2492,15 +2493,10 @@ export default function Home() {
           await appendSmoothly(reasoningBuffer.trim());
         }
       } else if (!controller.signal.aborted && rawContentBuffer.trim()) {
-        const finalClean = rawContentBuffer
-          .replace(/<think>[\s\S]*?<\/think>/gi, "")
-          .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
-          .replace(/<\/?think>/gi, "")
-          .replace(/<\/?thought>/gi, "")
-          .trim();
-        if (finalClean.length > fullText.length) {
-          const missingTail = finalClean.slice(fullText.length);
-          fullText += missingTail;
+        const { answer: finalClean } = extractCleanAnswer(rawContentBuffer);
+        const resolvedText = finalClean.trim() || rawContentBuffer.replace(/<\/?(think|thought)[^>]*>/gi, "").trim();
+        if (resolvedText && resolvedText.length > fullText.trim().length) {
+          fullText = resolvedText;
           updateAssistantContent(assistantId, fullText);
         }
       }

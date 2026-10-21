@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { searchWeb, SearchResult } from "@/lib/search";
 import { isModelAllowedForPlan, calculateCreditUsage } from "@/lib/pricing";
@@ -389,23 +389,23 @@ export async function POST(request: Request) {
       ? body.effortLevel
       : "Max";
 
-  let maxTokens = 4096;
+  let maxTokens = 16384;
   let temperature = 0.7;
   let effortInstruction = "";
 
   if (effortLevel === "Faster") {
-    maxTokens = hasImage ? 8192 : 4096;
+    maxTokens = hasImage ? 16384 : 8192;
     temperature = 0.3;
     effortInstruction =
       "\n\n[Mode Upaya: FASTER]\nBerikan jawaban yang sangat cepat, padat, ringkas, dan langsung ke inti persoalan (to-the-point). Hindari pengantar panjang atau penjelasan tambahan yang tidak esensial. Utamakan kecepatan respons dengan format efisien.";
   } else if (effortLevel === "Balanced") {
-    maxTokens = hasImage ? 16384 : 8192;
+    maxTokens = hasImage ? 32768 : 16384;
     temperature = 0.6;
     effortInstruction =
       "\n\n[Mode Upaya: BALANCED]\nBerikan jawaban yang seimbang antara kecepatan dan kelengkapan. Jelaskan inti persoalan secara jelas, rapi, dan efisien.";
   } else {
     // "Max" - kualitas terbaik & mendalam (default saat ini)
-    maxTokens = hasImage ? 16384 : 8192;
+    maxTokens = hasImage ? 32768 : 16384;
     temperature = 0.7;
     effortInstruction =
       "\n\n[Mode Upaya: MAX]\nBerikan jawaban dengan kualitas terbaik, analisis komprehensif, mendalam, dan penjelasan yang rinci dengan penalaran yang matang.";
@@ -540,14 +540,14 @@ export async function POST(request: Request) {
     } else {
       rawCandidates.push(
         "novita:apodex/apodex-1.1-mini",
-        "novita:qwen/qwen3.8-flash",
         "gemini:gemini-3.5-flash-lite",
+        "novita:qwen/qwen3.8-flash",
+        "novita:inclusionai/ling-3.1-flash",
         "novita:moonshotai/kimi-k2-instruct",
         "gemini:gemini-3.1-flash-lite-preview",
         "gemini:gemini-3.1-flash-lite",
-        "novita:inclusionai/ling-3.1-flash",
-        "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-        "custom:clario/gemini-3.7-flash-auto"
+        "custom:clario/gemini-3.7-flash-auto",
+        "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast"
       );
     }
   } else {
@@ -735,7 +735,7 @@ export async function POST(request: Request) {
           models: openRouterModels,
           messages: messagesToSend,
           stream: true,
-          max_tokens: maxTokens,
+          max_tokens: Math.max(maxTokens, 16384),
           temperature,
           ...(isExplicitReasoning ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
         });
@@ -745,7 +745,7 @@ export async function POST(request: Request) {
           model: modelName,
           messages: messagesToSend,
           stream: true,
-          max_tokens: maxTokens,
+          max_tokens: Math.max(maxTokens, 16384),
           temperature,
           chat_template_kwargs: { enable_thinking: false },
         });
@@ -770,7 +770,7 @@ export async function POST(request: Request) {
           model: modelName,
           messages: messagesToSend,
           stream: true,
-          max_tokens: maxTokens,
+          max_tokens: Math.max(maxTokens, 16384),
           temperature,
           ...(isExplicitReasoning ? { reasoning_effort: reasoningEffortMap[effortLevel] } : {}),
         });
@@ -1101,6 +1101,12 @@ export async function POST(request: Request) {
         let buffer = "";
         let anthropicOutputChars = 0;
         const decoder = new TextDecoder();
+        const keepAliveInterval = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(": keepalive\n\n"));
+          } catch {}
+        }, 10000);
+
         try {
           while (true) {
             const { done, value } = await upstreamReader.read();
@@ -1182,9 +1188,17 @@ export async function POST(request: Request) {
           controller.close();
         } catch (readErr) {
           controller.error(readErr);
+        } finally {
+          clearInterval(keepAliveInterval);
         }
       } else {
         let standardOutputBytes = 0;
+        const keepAliveInterval = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(": keepalive\n\n"));
+          } catch {}
+        }, 10000);
+
         try {
           for (const initChunk of verifiedInitialChunks) {
             standardOutputBytes += initChunk.length;
@@ -1230,6 +1244,8 @@ export async function POST(request: Request) {
           controller.close();
         } catch (readErr) {
           controller.error(readErr);
+        } finally {
+          clearInterval(keepAliveInterval);
         }
       }
     },
