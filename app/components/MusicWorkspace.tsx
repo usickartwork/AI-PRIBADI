@@ -4414,13 +4414,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 <button
                   onClick={onTogglePanel}
                   title="Menu Panel"
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
                       ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white"
                       : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black"
                   }`}
                 >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
@@ -4430,7 +4430,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
             </div>
 
             {/* Right: Bespoke Liquid-Glass Controls with Radio Broadcast Button & Popover Options */}
-            <div className="flex items-center gap-2 shrink-0 relative" ref={radioMenuRef}>
+            <div className="flex items-center gap-2.5 shrink-0 relative" ref={radioMenuRef}>
               {/* Radio Broadcast Button in Top Right */}
               <button
                 type="button"
@@ -4438,7 +4438,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                 title="Siaran Radio Populer 24/7"
                 aria-label="Siaran Radio Populer 24/7"
                 aria-expanded={isRadioMenuOpen}
-                className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                className={`relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                   isRadioMenuOpen
                     ? isDark
                       ? "bg-white text-black border border-white shadow-md shadow-white/10"
@@ -4452,12 +4452,12 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                     : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                 }`}
               >
-                <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.828a5 5 0 010-7.072m7.072 0a5 5 0 010 7.072M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
                 </svg>
                 {/* Clean Monochrome On-Air Indicator (NO RED AT ALL) */}
                 {currentTrack?.isLiveRadio && isPlaying && (
-                  <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full animate-pulse ${
+                  <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse ${
                     isDark ? "bg-white" : "bg-black"
                   }`} />
                 )}
@@ -4470,13 +4470,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={() => setShowLyrics(false)}
                   title="Tutup Lirik"
                   aria-label="Tutup Lirik"
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
                       ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                       : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                   }`}
                 >
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -4486,13 +4486,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={closeAlbumDetail}
                   title="Kembali"
                   aria-label="Kembali"
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
                       ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                       : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                   }`}
                 >
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
@@ -4502,13 +4502,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   onClick={closeArtistProfile}
                   title="Kembali"
                   aria-label="Kembali"
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
                       ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                       : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                   }`}
                 >
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
@@ -4527,7 +4527,7 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }}
                   title={desktopRightPanelMode === "library" ? "Tutup Koleksi Kamu" : "Koleksi Kamu"}
                   aria-label="Koleksi Kamu"
-                  className={`relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     desktopRightPanelMode === "library"
                       ? isDark
                         ? "bg-white text-black hover:bg-zinc-200 shadow-white/10"
@@ -4537,11 +4537,11 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                       : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
                   }`}
                 >
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
                   </svg>
                   {likedSongs.length > 0 && (
-                    <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs ${
+                    <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-4.5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs ${
                       desktopRightPanelMode === "library"
                         ? isDark ? "bg-black text-white" : "bg-white text-black"
                         : isDark ? "bg-white text-black" : "bg-black text-white"
@@ -4562,13 +4562,13 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
                   }}
                   title="Kembali ke Musik"
                   aria-label="Kembali ke Musik"
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
                     isDark
                       ? "bg-white text-black hover:bg-zinc-200 shadow-white/10"
                       : "bg-black text-white hover:bg-zinc-800 shadow-black/10"
                   }`}
                 >
-                  <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 fill-current" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 fill-current" viewBox="0 0 24 24">
                     <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
                   </svg>
                 </button>
