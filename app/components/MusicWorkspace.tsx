@@ -2459,6 +2459,39 @@ export function MusicWorkspace({
       ? remoteActiveSession.repeat_state || "off"
       : repeatMode;
 
+  // Remote Desktop Volume Control: specifically detects when a Desktop is actively playing music via Connect
+  const isRemoteDesktopPlaying = Boolean(
+    isRemoteActive &&
+    remoteActiveSession &&
+    remoteActiveSession.device_type === "desktop" &&
+    (remoteActiveSession.is_playing || remoteActiveSession.is_active_playback)
+  );
+
+  const [remoteDesktopVolumeLocal, setRemoteDesktopVolumeLocal] = useState<number>(() => {
+    return remoteActiveSession?.volume_percent ?? 80;
+  });
+
+  useEffect(() => {
+    if (typeof remoteActiveSession?.volume_percent === "number") {
+      setRemoteDesktopVolumeLocal(remoteActiveSession.volume_percent);
+    }
+  }, [remoteActiveSession?.volume_percent]);
+
+  const handleRemoteDesktopVolume = (pct: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+    setRemoteDesktopVolumeLocal(clamped);
+    if (remoteActiveSession) {
+      musicConnect.sendAppCommand(remoteActiveSession.session_instance_id, "SET_VOLUME", {
+        volumePercent: clamped,
+      });
+    }
+  };
+
+  const handleToggleRemoteDesktopMute = () => {
+    const nextPct = remoteDesktopVolumeLocal > 0 ? 0 : 80;
+    handleRemoteDesktopVolume(nextPct);
+  };
+
   // ─── Mobile Background Playback & MediaSession Integration ────────────────
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
@@ -6502,6 +6535,58 @@ export function MusicWorkspace({
                 </button>
               </div>
             </div>
+
+            {/* Remote Desktop Volume Strip in Mobile Mini-Player (Auto-appears on HP when Desktop is playing music via Connect) */}
+            {isRemoteDesktopPlaying && remoteActiveSession && (
+              <div
+                className={`px-4 py-2 border-t flex items-center justify-between gap-2.5 text-xs select-none transition-colors ${
+                  isDark ? "bg-black/35 border-white/5 text-white" : "bg-black/5 border-black/5 text-zinc-900"
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-1.5 shrink-0 text-emerald-500 font-bold text-[11px] truncate max-w-[120px]">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="truncate">{remoteActiveSession.device_name}</span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleToggleRemoteDesktopMute}
+                    className="p-1 text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                    title={remoteDesktopVolumeLocal === 0 ? "Bunyikan" : "Bisukan"}
+                  >
+                    {remoteDesktopVolumeLocal === 0 ? (
+                      <svg className="w-3.5 h-3.5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    )}
+                  </button>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={remoteDesktopVolumeLocal}
+                    onChange={(e) => handleRemoteDesktopVolume(parseInt(e.target.value, 10))}
+                    className={`flex-1 h-1.5 rounded-full cursor-pointer ${
+                      isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                    }`}
+                  />
+
+                  <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0 w-8 text-right">
+                    {remoteDesktopVolumeLocal}%
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
         {/* ─── DESKTOP VIEW (>= sm): Full 3-Column Experience ────────────────── */}
@@ -7613,6 +7698,73 @@ export function MusicWorkspace({
                 </button>
               </div>
             </div>
+
+            {/* Remote Desktop Volume Card in Mobile Full-Screen Player (Auto-appears on HP when Desktop is playing music via Connect) */}
+            {isRemoteDesktopPlaying && remoteActiveSession && (
+              <div
+                className={`p-3 rounded-2xl border transition-all animate-in fade-in slide-in-from-bottom-2 ${
+                  isDark
+                    ? "bg-white/5 border-white/10 text-white"
+                    : "bg-black/5 border-black/10 text-zinc-900"
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-semibold mb-2 px-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span className="truncate">
+                      Volume <span className="text-emerald-400 font-bold">{remoteActiveSession.device_name}</span>
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-black/20 dark:bg-white/10 shrink-0 font-bold">
+                    {remoteDesktopVolumeLocal}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleToggleRemoteDesktopMute}
+                    className={`p-1.5 rounded-xl transition cursor-pointer active:scale-90 shrink-0 ${
+                      remoteDesktopVolumeLocal === 0
+                        ? "text-rose-400 bg-rose-500/10"
+                        : isDark
+                        ? "text-zinc-400 hover:text-white"
+                        : "text-zinc-600 hover:text-black"
+                    }`}
+                    title={remoteDesktopVolumeLocal === 0 ? "Bunyikan" : "Bisukan"}
+                  >
+                    {remoteDesktopVolumeLocal === 0 ? (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    )}
+                  </button>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={remoteDesktopVolumeLocal}
+                    onChange={(e) => handleRemoteDesktopVolume(parseInt(e.target.value, 10))}
+                    className={`flex-1 h-2 rounded-full cursor-pointer transition-all ${
+                      isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                    }`}
+                  />
+
+                  <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  </svg>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

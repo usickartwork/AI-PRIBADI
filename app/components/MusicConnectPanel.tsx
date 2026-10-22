@@ -583,11 +583,13 @@ export function MusicConnectContent({
   isSendingCommand,
   commandFeedback,
   onRefreshDevices,
+  onSendAppCommand,
   onTransferAppPlayback,
 }: MusicConnectPanelContentProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(localDeviceName);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [panelVolume, setPanelVolume] = useState<number>(80);
 
   useEffect(() => {
     setNameInput(localDeviceName);
@@ -624,6 +626,12 @@ export function MusicConnectContent({
   // Currently active device in the top card
   const activeSessionDisplay = isRemoteActive ? remoteControllableSession : localSession;
   const isCurrentDeviceLocal = !isRemoteActive;
+
+  useEffect(() => {
+    if (typeof activeSessionDisplay?.volume_percent === "number") {
+      setPanelVolume(activeSessionDisplay.volume_percent);
+    }
+  }, [activeSessionDisplay?.volume_percent]);
 
   // Build the list of switchable devices (devices user can click to switch playback to).
   // CRITICAL: NEVER include the currently active playback device in this list!
@@ -842,6 +850,64 @@ export function MusicConnectContent({
                   />
                 </div>
               </div>
+
+              {/* Remote Desktop Volume Control: Auto-appears on phone when active playing device is desktop */}
+              {isRemoteActive && activeSessionDisplay.device_type === "desktop" && (
+                <div className="pt-3 mt-1 border-t border-white/10 dark:border-white/10 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Volume {activeSessionDisplay.device_name}
+                    </span>
+                    <span className="font-mono text-[11px] font-bold text-white px-2 py-0.5 rounded-full bg-white/10">
+                      {panelVolume}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = panelVolume > 0 ? 0 : 80;
+                        setPanelVolume(nextVal);
+                        onSendAppCommand?.(activeSessionDisplay.session_instance_id, "SET_VOLUME", {
+                          volumePercent: nextVal,
+                        });
+                      }}
+                      className="p-1 text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                    >
+                      {panelVolume === 0 ? (
+                        <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                      )}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={panelVolume}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setPanelVolume(val);
+                        onSendAppCommand?.(activeSessionDisplay.session_instance_id, "SET_VOLUME", {
+                          volumePercent: val,
+                        });
+                      }}
+                      className={`flex-1 h-1.5 rounded-full cursor-pointer ${
+                        isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-xs text-zinc-400">Tidak ada perangkat aktif</div>
