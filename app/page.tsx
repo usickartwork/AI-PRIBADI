@@ -4202,11 +4202,6 @@ export default function Home() {
                       </svg>
                       <span>Game</span>
                     </div>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                      isDark ? "bg-zinc-800 text-emerald-400 border-zinc-700/80" : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    }`}>
-                      OFFLINE
-                    </span>
                   </div>
 
                   <div
@@ -4575,6 +4570,7 @@ export default function Home() {
             <MusicWorkspace
               key="music-workspace-instance"
               isDark={isDark}
+              isVisible={activeView === "music"}
               onClose={() => setActiveView("chats")}
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               userName={chatAccountName}

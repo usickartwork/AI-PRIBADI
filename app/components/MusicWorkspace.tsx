@@ -46,6 +46,7 @@ import { AddToPlaylistModal, AddToPlaylistAnchor } from "./AddToPlaylistModal";
 
 interface MusicWorkspaceProps {
   isDark: boolean;
+  isVisible?: boolean;
   onClose: () => void;
   onTogglePanel?: () => void;
   userName?: string;
@@ -392,7 +393,13 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
-export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: MusicWorkspaceProps) {
+export function MusicWorkspace({
+  isDark,
+  isVisible = true,
+  onClose,
+  onTogglePanel,
+  userName,
+}: MusicWorkspaceProps) {
   // Navigation & View State (Clean 2 primary tabs: home & playlists)
   const [subTab, setSubTab] = useState<SubTab>("home");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1662,6 +1669,62 @@ export function MusicWorkspace({ isDark, onClose, onTogglePanel, userName }: Mus
 
     playTrack(currentTrack);
   };
+
+  // Desktop Spacebar Shortcut for Play/Pause (Spotify-style)
+  // Gated: only active when isVisible is true, and ignored when user is typing in search/input/textarea
+  const togglePlayPauseRef = useRef(togglePlayPause);
+  useEffect(() => {
+    togglePlayPauseRef.current = togglePlayPause;
+  });
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle Space
+      if (e.code !== "Space" && e.key !== " " && e.keyCode !== 32) return;
+
+      // Ignore repeated keydown events when holding space down
+      if (e.repeat) return;
+
+      // Do not intercept system / browser shortcuts (e.g. Cmd+Space, Ctrl+Space, Alt+Space)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Check if user is typing in any text input, search field, textarea, or editable element
+      const target = e.target as HTMLElement | null;
+      const activeEl = typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+
+      const isTyping = (el: HTMLElement | null): boolean => {
+        if (!el) return false;
+        if (el.closest?.("input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset']):not([type='color']):not([type='file']), textarea, [contenteditable='true'], [role='textbox']")) {
+          return true;
+        }
+        const tag = el.tagName?.toUpperCase();
+        if (tag === "TEXTAREA" || el.isContentEditable || el.getAttribute("role") === "textbox") {
+          return true;
+        }
+        if (tag === "INPUT") {
+          const type = (el as HTMLInputElement).type?.toLowerCase();
+          const nonTextTypes = ["range", "checkbox", "radio", "button", "submit", "reset", "color", "file"];
+          return !nonTextTypes.includes(type);
+        }
+        return false;
+      };
+
+      if (isTyping(target) || isTyping(activeEl)) {
+        return; // Allow native typing of space
+      }
+
+      // Spotify desktop behavior: toggle play/pause and prevent default page scrolling
+      e.preventDefault();
+      togglePlayPauseRef.current();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isVisible]);
 
   const handleSeek = (newTime: number) => {
     if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return; // Disallow seek on live radio
