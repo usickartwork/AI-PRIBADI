@@ -6544,8 +6544,10 @@ export function MusicWorkspace({
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center gap-1.5 shrink-0 text-emerald-500 font-bold text-[11px] truncate max-w-[120px]">
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className={`flex items-center gap-1.5 shrink-0 font-bold text-[11px] truncate max-w-[120px] ${
+                  isDark ? "text-zinc-200" : "text-zinc-800"
+                }`}>
+                  <svg className="w-3.5 h-3.5 shrink-0 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <span className="truncate">{remoteActiveSession.device_name}</span>
@@ -6555,7 +6557,9 @@ export function MusicWorkspace({
                   <button
                     type="button"
                     onClick={handleToggleRemoteDesktopMute}
-                    className="p-1 text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                    className={`p-1 shrink-0 cursor-pointer transition ${
+                      isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                    }`}
                     title={remoteDesktopVolumeLocal === 0 ? "Bunyikan" : "Bisukan"}
                   >
                     {remoteDesktopVolumeLocal === 0 ? (
@@ -6577,11 +6581,13 @@ export function MusicWorkspace({
                     value={remoteDesktopVolumeLocal}
                     onChange={(e) => handleRemoteDesktopVolume(parseInt(e.target.value, 10))}
                     className={`flex-1 h-1.5 rounded-full cursor-pointer ${
-                      isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                      isDark ? "bg-white/15 accent-white" : "bg-black/15 accent-black"
                     }`}
                   />
 
-                  <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0 w-8 text-right">
+                  <span className={`text-[10px] font-mono font-bold shrink-0 w-8 text-right ${
+                    isDark ? "text-zinc-400" : "text-zinc-600"
+                  }`}>
                     {remoteDesktopVolumeLocal}%
                   </span>
                 </div>
@@ -7710,14 +7716,16 @@ export function MusicWorkspace({
               >
                 <div className="flex items-center justify-between text-xs font-semibold mb-2 px-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 shrink-0 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <span className="truncate">
-                      Volume <span className="text-emerald-400 font-bold">{remoteActiveSession.device_name}</span>
+                      Volume <span className="font-bold underline decoration-zinc-500/30 underline-offset-2">{remoteActiveSession.device_name}</span>
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-black/20 dark:bg-white/10 shrink-0 font-bold">
+                  <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full shrink-0 font-bold ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-zinc-900"
+                  }`}>
                     {remoteDesktopVolumeLocal}%
                   </span>
                 </div>
@@ -7755,7 +7763,7 @@ export function MusicWorkspace({
                     value={remoteDesktopVolumeLocal}
                     onChange={(e) => handleRemoteDesktopVolume(parseInt(e.target.value, 10))}
                     className={`flex-1 h-2 rounded-full cursor-pointer transition-all ${
-                      isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                      isDark ? "bg-white/15 accent-white" : "bg-black/15 accent-black"
                     }`}
                   />
 

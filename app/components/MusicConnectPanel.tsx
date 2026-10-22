@@ -853,15 +853,19 @@ export function MusicConnectContent({
 
               {/* Remote Desktop Volume Control: Auto-appears on phone when active playing device is desktop */}
               {isRemoteActive && activeSessionDisplay.device_type === "desktop" && (
-                <div className="pt-3 mt-1 border-t border-white/10 dark:border-white/10 space-y-2">
+                <div className={`pt-3 mt-1 border-t space-y-2 ${
+                  isDark ? "border-white/10" : "border-black/10"
+                }`}>
                   <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 text-emerald-400">
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span className={`flex items-center gap-1.5 ${isDark ? "text-white" : "text-zinc-900"}`}>
+                      <svg className="w-3.5 h-3.5 shrink-0 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                       Volume {activeSessionDisplay.device_name}
                     </span>
-                    <span className="font-mono text-[11px] font-bold text-white px-2 py-0.5 rounded-full bg-white/10">
+                    <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      isDark ? "bg-white/10 text-white" : "bg-black/10 text-zinc-900"
+                    }`}>
                       {panelVolume}%
                     </span>
                   </div>
@@ -875,7 +879,10 @@ export function MusicConnectContent({
                           volumePercent: nextVal,
                         });
                       }}
-                      className="p-1 text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                      className={`p-1 shrink-0 cursor-pointer transition ${
+                        isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                      }`}
+                      title={panelVolume === 0 ? "Bunyikan" : "Bisukan"}
                     >
                       {panelVolume === 0 ? (
                         <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -902,7 +909,7 @@ export function MusicConnectContent({
                         });
                       }}
                       className={`flex-1 h-1.5 rounded-full cursor-pointer ${
-                        isDark ? "bg-white/20 accent-emerald-400" : "bg-black/20 accent-emerald-500"
+                        isDark ? "bg-white/15 accent-white" : "bg-black/15 accent-black"
                       }`}
                     />
                   </div>
