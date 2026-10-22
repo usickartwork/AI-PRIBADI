@@ -27,6 +27,14 @@ export interface RacingRecords {
   soundEnabled: boolean;
 }
 
+export interface PlatformerRecords {
+  highestLevelUnlocked: number;
+  totalCoinsCollected: number;
+  totalDeaths: number;
+  bestTimesMs: Record<number, number | null>;
+  soundEnabled: boolean;
+}
+
 const DEFAULT_CHESS_PREFS: ChessPreferences = {
   difficulty: "medium",
   playerColor: "w",
@@ -50,9 +58,18 @@ const DEFAULT_RACING_RECORDS: RacingRecords = {
   soundEnabled: true,
 };
 
+const DEFAULT_PLATFORMER_RECORDS: PlatformerRecords = {
+  highestLevelUnlocked: 1,
+  totalCoinsCollected: 0,
+  totalDeaths: 0,
+  bestTimesMs: { 1: null, 2: null, 3: null },
+  soundEnabled: true,
+};
+
 const CHESS_STORAGE_KEY = "usick-chess-prefs-v1";
 const NEON_STORAGE_KEY = "usick-neon-records-v1";
 const RACING_STORAGE_KEY = "usick-racing-records-v1";
+const PLATFORMER_STORAGE_KEY = "usick-platformer-records-v1";
 
 export function loadChessPreferences(): ChessPreferences {
   if (typeof window === "undefined") return DEFAULT_CHESS_PREFS;
@@ -129,6 +146,48 @@ export function saveRacingRecords(records: RacingRecords): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(RACING_STORAGE_KEY, JSON.stringify(records));
+  } catch {}
+}
+
+export function loadPlatformerRecords(): PlatformerRecords {
+  if (typeof window === "undefined") return DEFAULT_PLATFORMER_RECORDS;
+  try {
+    const raw = localStorage.getItem(PLATFORMER_STORAGE_KEY);
+    if (!raw) return DEFAULT_PLATFORMER_RECORDS;
+    const parsed = JSON.parse(raw);
+    return {
+      highestLevelUnlocked:
+        typeof parsed?.highestLevelUnlocked === "number"
+          ? Math.max(1, Math.min(3, parsed.highestLevelUnlocked))
+          : 1,
+      totalCoinsCollected:
+        typeof parsed?.totalCoinsCollected === "number"
+          ? Math.max(0, parsed.totalCoinsCollected)
+          : 0,
+      totalDeaths:
+        typeof parsed?.totalDeaths === "number"
+          ? Math.max(0, parsed.totalDeaths)
+          : 0,
+      bestTimesMs:
+        parsed?.bestTimesMs && typeof parsed.bestTimesMs === "object"
+          ? {
+              1: typeof parsed.bestTimesMs[1] === "number" ? parsed.bestTimesMs[1] : null,
+              2: typeof parsed.bestTimesMs[2] === "number" ? parsed.bestTimesMs[2] : null,
+              3: typeof parsed.bestTimesMs[3] === "number" ? parsed.bestTimesMs[3] : null,
+            }
+          : { 1: null, 2: null, 3: null },
+      soundEnabled:
+        typeof parsed?.soundEnabled === "boolean" ? parsed.soundEnabled : true,
+    };
+  } catch {
+    return DEFAULT_PLATFORMER_RECORDS;
+  }
+}
+
+export function savePlatformerRecords(records: PlatformerRecords): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PLATFORMER_STORAGE_KEY, JSON.stringify(records));
   } catch {}
 }
 

@@ -4,8 +4,7 @@ import React, { useState, Suspense } from "react";
 import dynamic from "next/dynamic";
 import {
   loadChessPreferences,
-  loadRacingRecords,
-  formatTimeMs,
+  loadPlatformerRecords,
 } from "./common/gameStorage";
 
 // Lazy loading kedua game secara independen (client-only, ssr: false)
@@ -14,9 +13,9 @@ const ChessArena = dynamic(() => import("./chess/ChessArena"), {
   loading: () => <GameLoadingPlaceholder gameName="Chess Arena" />,
 });
 
-const UsickRacing = dynamic(() => import("./racing/UsickRacing"), {
+const PixelPlatformer = dynamic(() => import("./platformer/PixelPlatformer"), {
   ssr: false,
-  loading: () => <GameLoadingPlaceholder gameName="Usick Racing" />,
+  loading: () => <GameLoadingPlaceholder gameName="Pixel Platformer" />,
 });
 
 interface GameHubProps {
@@ -48,11 +47,11 @@ export const GameHub: React.FC<GameHubProps> = ({
   onTogglePanel,
   subTabsElement,
 }) => {
-  const [activeGame, setActiveGame] = useState<"hub" | "chess" | "racing">("hub");
+  const [activeGame, setActiveGame] = useState<"hub" | "chess" | "platformer">("hub");
 
   // Load quick preview stats
   const chessPrefs = loadChessPreferences();
-  const racingRecords = loadRacingRecords();
+  const platformerRecords = loadPlatformerRecords();
 
   if (activeGame === "chess") {
     return (
@@ -62,10 +61,10 @@ export const GameHub: React.FC<GameHubProps> = ({
     );
   }
 
-  if (activeGame === "racing") {
+  if (activeGame === "platformer") {
     return (
-      <Suspense fallback={<GameLoadingPlaceholder gameName="Usick Racing" />}>
-        <UsickRacing isDark={isDark} onBackToHub={() => setActiveGame("hub")} />
+      <Suspense fallback={<GameLoadingPlaceholder gameName="Pixel Platformer" />}>
+        <PixelPlatformer isDark={isDark} onBackToHub={() => setActiveGame("hub")} />
       </Suspense>
     );
   }
@@ -228,9 +227,9 @@ export const GameHub: React.FC<GameHubProps> = ({
             </div>
           </div>
 
-          {/* Card 2: Usick Racing (3D Arcade) */}
+          {/* Card 2: Pixel Platformer (2D Arcade) */}
           <div
-            onClick={() => setActiveGame("racing")}
+            onClick={() => setActiveGame("platformer")}
             className={`group relative rounded-3xl p-6 border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${
               isDark
                 ? "bg-zinc-900/60 hover:bg-zinc-900 border-white/10 hover:border-white/20 shadow-xl shadow-black/40"
@@ -244,19 +243,19 @@ export const GameHub: React.FC<GameHubProps> = ({
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border transition group-hover:scale-105 ${
                     isDark ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-100 border-zinc-300 text-black"
                   }`}>
-                    🏎️
+                    🕹️
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold tracking-tight group-hover:text-cyan-400 transition">
-                      Usick Racing
+                    <h3 className="text-lg font-bold tracking-tight group-hover:text-emerald-400 transition">
+                      Pixel Platformer
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isDark ? "bg-cyan-500/20 text-cyan-400" : "bg-cyan-50 text-cyan-700"
+                        isDark ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-700"
                       }`}>
                         Offline Ready
                       </span>
-                      <span className="text-[10px] text-zinc-500">• 3D Arcade</span>
+                      <span className="text-[10px] text-zinc-500">• 2D Arcade</span>
                     </div>
                   </div>
                 </div>
@@ -271,23 +270,37 @@ export const GameHub: React.FC<GameHubProps> = ({
               </div>
 
               <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
-                Balap arcade 3D berperspektif third-person dengan sirkuit neon, lawan AI kompetitif, fisika drift boost, dan pilihan supercar kencang.
+                Side-scroller retro 2D pixel-art dengan aksi lompat presisi, koin berkilau, musuh cyber, dan 3 level bertingkat penuh rintangan seru.
               </p>
 
-              {/* Light Visual Preview: Stylized 3D Road with Neon Perspective */}
-              <div className="w-full h-32 rounded-2xl overflow-hidden border border-zinc-800/80 relative mb-5 flex items-center justify-center bg-[#09090b]">
-                <svg className="w-full h-full p-2 opacity-80 group-hover:opacity-100 transition duration-300" viewBox="0 0 300 120" fill="none">
-                  <path d="M 150 10 L 20 120 L 280 120 Z" fill="#141418" />
-                  <line x1="150" y1="10" x2="150" y2="120" stroke="#06b6d4" strokeWidth="2" strokeDasharray="6 8" />
-                  <path d="M 150 10 L 15 120" stroke="#06b6d4" strokeWidth="4" className="drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-                  <path d="M 150 10 L 285 120" stroke="#ec4899" strokeWidth="4" className="drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
-                  {/* Neon Supercar 3D Silhouette */}
-                  <rect x="138" y="70" width="24" height="34" rx="4" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.5" className="drop-shadow-[0_0_12px_rgba(6,182,212,0.9)]" />
-                  <rect x="142" y="80" width="16" height="12" rx="2" fill="#09090b" />
-                  <rect x="135" y="94" width="4" height="8" rx="1" fill="#1e293b" />
-                  <rect x="161" y="94" width="4" height="8" rx="1" fill="#1e293b" />
-                  <rect x="135" y="72" width="4" height="8" rx="1" fill="#1e293b" />
-                  <rect x="161" y="72" width="4" height="8" rx="1" fill="#1e293b" />
+              {/* Light Visual Preview: Stylized 2D Pixel Platformer */}
+              <div className="w-full h-32 rounded-2xl overflow-hidden border border-zinc-800/80 relative mb-5 flex items-center justify-center bg-[#070c14]">
+                <svg className="w-full h-full p-2 opacity-85 group-hover:opacity-100 transition duration-300" viewBox="0 0 300 120" fill="none">
+                  {/* Sky Stars */}
+                  <rect x="30" y="20" width="2" height="2" fill="#ffffff" opacity="0.6" />
+                  <rect x="90" y="35" width="2" height="2" fill="#ffffff" opacity="0.4" />
+                  <rect x="180" y="15" width="2" height="2" fill="#ffffff" opacity="0.8" />
+                  <rect x="250" y="40" width="2" height="2" fill="#ffffff" opacity="0.5" />
+                  {/* Distant Hills */}
+                  <path d="M 0 90 Q 60 65 140 85 Q 220 60 300 80 L 300 120 L 0 120 Z" fill="#0d1b2a" />
+                  {/* Ground Platforms */}
+                  <rect x="10" y="85" width="90" height="35" rx="3" fill="#0b261b" stroke="#10b981" strokeWidth="2" />
+                  <rect x="130" y="65" width="80" height="18" rx="3" fill="#0b261b" stroke="#10b981" strokeWidth="2" />
+                  <rect x="235" y="80" width="60" height="40" rx="3" fill="#0b261b" stroke="#10b981" strokeWidth="2" />
+                  {/* Spikes in pit */}
+                  <polygon points="105,120 112,105 120,120" fill="#f43f5e" />
+                  <polygon points="115,120 122,105 130,120" fill="#f43f5e" />
+                  {/* Floating Gold Coin */}
+                  <circle cx="170" cy="45" r="7" fill="#fbbf24" stroke="#fef3c7" strokeWidth="1.5" className="animate-pulse" />
+                  <rect x="168" y="40" width="4" height="10" fill="#fef3c7" />
+                  {/* Pixel Runner Character */}
+                  <rect x="50" y="62" width="12" height="16" rx="2" fill="#06b6d4" />
+                  <rect x="52" y="56" width="10" height="8" rx="1" fill="#1e293b" />
+                  <rect x="57" y="58" width="5" height="3" fill="#38bdf8" />
+                  <rect x="46" y="61" width="5" height="3" fill="#ec4899" />
+                  {/* Goal Flag */}
+                  <rect x="270" y="45" width="3" height="35" fill="#64748b" />
+                  <polygon points="273,47 290,55 273,63" fill="#10b981" />
                 </svg>
               </div>
             </div>
@@ -295,10 +308,12 @@ export const GameHub: React.FC<GameHubProps> = ({
             {/* Bottom Card Footer with Quick Record & Play Button */}
             <div className="flex items-center justify-between pt-3 border-t border-zinc-200/40 dark:border-zinc-800/60">
               <div className="text-[11px] text-zinc-500">
-                <span>Best Lap: </span>
-                <span className="font-semibold text-cyan-400 font-mono">
-                  {formatTimeMs(racingRecords.bestLapMs)}
+                <span>Progress: </span>
+                <span className="font-semibold text-emerald-400">
+                  Level {platformerRecords.highestLevelUnlocked} / 3
                 </span>
+                <span className="mx-1.5">•</span>
+                <span className="text-amber-400">🪙 {platformerRecords.totalCoinsCollected}</span>
               </div>
               <button className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
                 isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
@@ -325,7 +340,7 @@ export const GameHub: React.FC<GameHubProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-emerald-400">✓</span>
-            <span>Grafis 3D 60 FPS Bertenaga Three.js</span>
+            <span>Grafis Pixel Art 60 FPS Canvas 2D</span>
           </div>
         </div>
       </div>

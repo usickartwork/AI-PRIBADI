@@ -815,7 +815,15 @@ export default function Home() {
     }
     return "game";
   });
-  const [lainnyaExpanded, setLainnyaExpanded] = useState(false);
+  const [lainnyaExpanded, setLainnyaExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick-active-view");
+        return saved === "halaman" || saved === "faith" || saved === "game";
+      } catch {}
+    }
+    return false;
+  });
   const isInitialActiveViewSyncDone = useRef(false);
 
   const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
@@ -4140,30 +4148,100 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tab Game Hub (Chess Arena & Neon Drift) */}
-            <div
-              onClick={() => {
-                setActiveView("game");
-                setHalamanSubTab("game");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                (activeView === "game" || (isHalamanActive && halamanSubTab === "game"))
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <div className="flex items-center gap-3 md:gap-3">
-                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            {/* Lainnya Tab (Dropdown/Accordion Fitur: Game & Faith) */}
+            <div className="space-y-1">
+              <div
+                onClick={() => {
+                  setLainnyaExpanded((prev) => !prev);
+                }}
+                className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                  isHalamanActive
+                    ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                    : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+                }`}
+              >
+                <div className="flex items-center gap-3 md:gap-3">
+                  {/* Icon Titik 3 (•••) */}
+                  <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                  <span>Lainnya</span>
+                </div>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-                <span>Game</span>
               </div>
-              <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                isDark ? "bg-zinc-800 text-emerald-400 border-zinc-700/80" : "bg-emerald-50 text-emerald-700 border-emerald-200"
-              }`}>
-                OFFLINE
-              </span>
+
+              {/* Sub-tabs: Game & Faith (Hanya muncul jika diklik 'Lainnya') */}
+              {lainnyaExpanded && (
+                <div className="pl-6 pr-1 space-y-1 pt-0.5">
+                  <div
+                    onClick={() => {
+                      setActiveView("halaman");
+                      setHalamanSubTab("game");
+                      closeSidebarOnMobile();
+                    }}
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                      isHalamanActive && halamanSubTab === "game"
+                        ? (isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200 text-black font-medium")
+                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900")
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+                      </svg>
+                      <span>Game</span>
+                    </div>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                      isDark ? "bg-zinc-800 text-emerald-400 border-zinc-700/80" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}>
+                      OFFLINE
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      if ((subscription?.plan || "free") === "free") {
+                        setSelectedLockedModelName("Faith Space (Pro)");
+                        setShowUpgradeModal(true);
+                        return;
+                      }
+                      setActiveView("halaman");
+                      setHalamanSubTab("faith");
+                      closeSidebarOnMobile();
+                    }}
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                      isHalamanActive && halamanSubTab === "faith"
+                        ? (isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200 text-black font-medium")
+                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900")
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+                      </svg>
+                      <span>Faith</span>
+                    </div>
+                    {(subscription?.plan || "free") === "free" && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                        isDark ? "bg-zinc-800 text-amber-400 border-zinc-700/80" : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}>
+                        PRO
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
