@@ -58,7 +58,7 @@ type SubTab = "home" | "search" | "playlists" | "radio";
 const SILENT_AUDIO_URI =
   "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 
-// Curated starter tracks with 100% verified Spotify artworks
+// Curated starter tracks with 100% verified Spotify artworks & pre-resolved YouTube IDs
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
     id: "spotify:track:4jXpabLpCjQ6Fk9x1hWfS2",
@@ -72,7 +72,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 236873,
     externalUrl: "https://open.spotify.com/track/4jXpabLpCjQ6Fk9x1hWfS2",
     uri: "spotify:track:4jXpabLpCjQ6Fk9x1hWfS2",
-    youtubeVideoId: "",
+    youtubeVideoId: "AQpEIZ8dNcU",
   },
   {
     id: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
@@ -86,7 +86,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 233712,
     externalUrl: "https://open.spotify.com/track/7qiZfU4dY1lWllzX7mPBI3",
     uri: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
-    youtubeVideoId: "",
+    youtubeVideoId: "JGwWNGJdvx8",
   },
   {
     id: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
@@ -100,7 +100,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200040,
     externalUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
     uri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
-    youtubeVideoId: "",
+    youtubeVideoId: "4NRXx6U8ABQ",
   },
   {
     id: "spotify:track:5QO79kh1waicV47BqGRL3g",
@@ -114,7 +114,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 215626,
     externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g",
     uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
-    youtubeVideoId: "",
+    youtubeVideoId: "XXYlFuWEuKI",
   },
   {
     id: "spotify:track:6dOtVTDdiauQNBQEDOtlAB",
@@ -128,7 +128,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 210373,
     externalUrl: "https://open.spotify.com/track/6dOtVTDdiauQNBQEDOtlAB",
     uri: "spotify:track:6dOtVTDdiauQNBQEDOtlAB",
-    youtubeVideoId: "",
+    youtubeVideoId: "V9PVRfjEBTI",
   },
   {
     id: "spotify:track:7so0lgd0zP2Sbgs2d7a1SZ",
@@ -136,13 +136,13 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     providerItemId: "7so0lgd0zP2Sbgs2d7a1SZ",
     itemType: "track",
     title: "Die With A Smile",
-    artistNames: ["Lady Gaga","Bruno Mars"],
+    artistNames: ["Lady Gaga", "Bruno Mars"],
     albumTitle: "MAYHEM",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b273b0860cf0a98e09663c82290c",
     durationMs: 251667,
     externalUrl: "https://open.spotify.com/track/7so0lgd0zP2Sbgs2d7a1SZ",
     uri: "spotify:track:7so0lgd0zP2Sbgs2d7a1SZ",
-    youtubeVideoId: "",
+    youtubeVideoId: "kPa7bsKwL-c",
   },
   {
     id: "spotify:track:2qSkIjg1o9h3YT9RAgYN75",
@@ -156,7 +156,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 175459,
     externalUrl: "https://open.spotify.com/track/2qSkIjg1o9h3YT9RAgYN75",
     uri: "spotify:track:2qSkIjg1o9h3YT9RAgYN75",
-    youtubeVideoId: "",
+    youtubeVideoId: "eVli-tstM5E",
   },
   {
     id: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
@@ -170,7 +170,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 157279,
     externalUrl: "https://open.spotify.com/track/5G2f63n7IPVPPjfNIGih7Q",
     uri: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
-    youtubeVideoId: "",
+    youtubeVideoId: "KEG7b851Ric",
   },
   {
     id: "spotify:track:1BxfuPKGuaTgP7aM0Bbdwr",
@@ -184,7 +184,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 178426,
     externalUrl: "https://open.spotify.com/track/1BxfuPKGuaTgP7aM0Bbdwr",
     uri: "spotify:track:1BxfuPKGuaTgP7aM0Bbdwr",
-    youtubeVideoId: "",
+    youtubeVideoId: "ic8j13piAhQ",
   },
   {
     id: "spotify:track:7zOVh5fGpEwSbZd0g9z80B",
@@ -198,7 +198,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200476,
     externalUrl: "https://open.spotify.com/track/7zOVh5fGpEwSbZd0g9z80B",
     uri: "spotify:track:7zOVh5fGpEwSbZd0g9z80B",
-    youtubeVideoId: "",
+    youtubeVideoId: "yjnSX_iUFVo",
   },
   {
     id: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
@@ -212,7 +212,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 194469,
     externalUrl: "https://open.spotify.com/track/2dIBMHByUGcNPzmYBJ6OAj",
     uri: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
-    youtubeVideoId: "",
+    youtubeVideoId: "cWrSjCZ5AeE",
   },
   {
     id: "spotify:track:1nYdkPCbHdYi4w7s2L6SHA",
@@ -226,7 +226,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 320000,
     externalUrl: "https://open.spotify.com/track/1nYdkPCbHdYi4w7s2L6SHA",
     uri: "spotify:track:1nYdkPCbHdYi4w7s2L6SHA",
-    youtubeVideoId: "",
+    youtubeVideoId: "gIsoLyQX7W8",
   },
   {
     id: "spotify:track:1mea3bSkSGXuIRvnydlB5b",
@@ -240,7 +240,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 242373,
     externalUrl: "https://open.spotify.com/track/1mea3bSkSGXuIRvnydlB5b",
     uri: "spotify:track:1mea3bSkSGXuIRvnydlB5b",
-    youtubeVideoId: "",
+    youtubeVideoId: "dvgZkm1xWPE",
   },
   {
     id: "spotify:track:39LLxExYz6ewLAcYrzQQyP",
@@ -254,7 +254,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 203807,
     externalUrl: "https://open.spotify.com/track/39LLxExYz6ewLAcYrzQQyP",
     uri: "spotify:track:39LLxExYz6ewLAcYrzQQyP",
-    youtubeVideoId: "",
+    youtubeVideoId: "TUVcZfQe-Kw",
   },
   {
     id: "spotify:track:2JiDi0qAXsPwhPqA2qaKGt",
@@ -268,7 +268,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 355154,
     externalUrl: "https://open.spotify.com/track/2JiDi0qAXsPwhPqA2qaKGt",
     uri: "spotify:track:2JiDi0qAXsPwhPqA2qaKGt",
-    youtubeVideoId: "",
+    youtubeVideoId: "fJ9rUzIMcZQ",
   },
   {
     id: "spotify:track:5vNRhkKd0yEAg8suGBpjeY",
@@ -276,13 +276,13 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     providerItemId: "5vNRhkKd0yEAg8suGBpjeY",
     itemType: "track",
     title: "APT.",
-    artistNames: ["ROSÉ","Bruno Mars"],
+    artistNames: ["ROSÉ", "Bruno Mars"],
     albumTitle: "APT.",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b27346085aa1855bd888abc51a5a",
     durationMs: 169917,
     externalUrl: "https://open.spotify.com/track/5vNRhkKd0yEAg8suGBpjeY",
     uri: "spotify:track:5vNRhkKd0yEAg8suGBpjeY",
-    youtubeVideoId: "",
+    youtubeVideoId: "ekr2nIex040",
   },
   {
     id: "spotify:track:2gcMYiZzzmzoF8PPAfL3IO",
@@ -296,7 +296,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 182903,
     externalUrl: "https://open.spotify.com/track/2gcMYiZzzmzoF8PPAfL3IO",
     uri: "spotify:track:2gcMYiZzzmzoF8PPAfL3IO",
-    youtubeVideoId: "",
+    youtubeVideoId: "HB8vftGxsIc",
   },
   {
     id: "spotify:track:4Dvkj6JhhA12EX05fT7y2e",
@@ -310,7 +310,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 167303,
     externalUrl: "https://open.spotify.com/track/4Dvkj6JhhA12EX05fT7y2e",
     uri: "spotify:track:4Dvkj6JhhA12EX05fT7y2e",
-    youtubeVideoId: "",
+    youtubeVideoId: "H5v3kku4y6Q",
   },
   {
     id: "spotify:track:3aBGKDiAAvH2H7HLOyQ4US",
@@ -324,7 +324,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 233453,
     externalUrl: "https://open.spotify.com/track/3aBGKDiAAvH2H7HLOyQ4US",
     uri: "spotify:track:3aBGKDiAAvH2H7HLOyQ4US",
-    youtubeVideoId: "",
+    youtubeVideoId: "FvOpPeKSf_4",
   },
   {
     id: "spotify:track:3e0wYnFxkqinmtXebYPMSt",
@@ -338,7 +338,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 266773,
     externalUrl: "https://open.spotify.com/track/3e0wYnFxkqinmtXebYPMSt",
     uri: "spotify:track:3e0wYnFxkqinmtXebYPMSt",
-    youtubeVideoId: "",
+    youtubeVideoId: "yKNxeF4KMsY",
   },
   {
     id: "spotify:track:7MXVkk9YMctZqd1Srtv4MB",
@@ -346,13 +346,13 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     providerItemId: "7MXVkk9YMctZqd1Srtv4MB",
     itemType: "track",
     title: "Starboy",
-    artistNames: ["The Weeknd","Daft Punk"],
+    artistNames: ["The Weeknd", "Daft Punk"],
     albumTitle: "Starboy",
     artworkUrl: "https://i.scdn.co/image/ab67616d0000b2734718e2b124f79258be7bc452",
     durationMs: 230453,
     externalUrl: "https://open.spotify.com/track/7MXVkk9YMctZqd1Srtv4MB",
     uri: "spotify:track:7MXVkk9YMctZqd1Srtv4MB",
-    youtubeVideoId: "",
+    youtubeVideoId: "34Na4j8AVgA",
   },
   {
     id: "spotify:track:6O0WEM0QNEhqpU50BKui7o",
@@ -366,7 +366,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 243724,
     externalUrl: "https://open.spotify.com/track/6O0WEM0QNEhqpU50BKui7o",
     uri: "spotify:track:6O0WEM0QNEhqpU50BKui7o",
-    youtubeVideoId: "",
+    youtubeVideoId: "QSWYyoF79oE",
   },
   {
     id: "spotify:track:3blvSatB9XD5i705K4j2yP",
@@ -380,7 +380,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 222706,
     externalUrl: "https://open.spotify.com/track/3blvSatB9XD5i705K4j2yP",
     uri: "spotify:track:3blvSatB9XD5i705K4j2yP",
-    youtubeVideoId: "",
+    youtubeVideoId: "vl_3mZx88zw",
   },
 ];
 
@@ -907,6 +907,21 @@ export function MusicWorkspace({
             },
             onError: (err: any) => {
               console.warn("[YouTube Player Error]:", err);
+              // Error 101/150 (embedding disabled by owner) or 100 (not found/private)
+              const track = currentTrackRef.current;
+              if (track?.previewUrl && audioRef.current) {
+                console.log("[YouTube Player]: Falling back to audio preview stream");
+                try {
+                  audioRef.current.src = track.previewUrl;
+                  audioRef.current.loop = false;
+                  audioRef.current.volume = isMuted ? 0 : volume;
+                  audioRef.current.muted = isMuted;
+                  audioRef.current.play().then(() => {
+                    setIsPlaying(true);
+                    isPlayingRef.current = true;
+                  }).catch(() => {});
+                } catch {}
+              }
             },
           },
         });
@@ -1494,6 +1509,21 @@ export function MusicWorkspace({
     }
 
     if (!videoId) {
+      if (track.previewUrl && audioRef.current) {
+        try {
+          audioRef.current.src = track.previewUrl;
+          audioRef.current.loop = false;
+          audioRef.current.volume = isMuted ? 0 : volume;
+          audioRef.current.muted = isMuted;
+          if (shouldAutoPlay) {
+            audioRef.current.play().then(() => {
+              setIsPlaying(true);
+              isPlayingRef.current = true;
+            }).catch(() => {});
+          }
+          return;
+        } catch {}
+      }
       console.warn("Could not resolve videoId for track:", track.title);
       return;
     }
@@ -4454,10 +4484,10 @@ export function MusicWorkspace({
         }}
       />
 
-      {/* Background YouTube Audio Container (Placed offscreen with non-zero dimensions to prevent mobile browser suspension) */}
+      {/* Background YouTube Audio Container (In-viewport with minimal opacity to prevent browser suspension of background media) */}
       <div
         id="youtube-music-player-container"
-        className="fixed -left-[9999px] top-0 w-[300px] h-[200px] pointer-events-none opacity-0 z-[-1] overflow-hidden"
+        className="fixed bottom-0 right-0 w-[240px] h-[160px] pointer-events-none opacity-[0.01] z-[-1] overflow-hidden"
         aria-hidden="true"
       >
         <div id="youtube-music-player" />
