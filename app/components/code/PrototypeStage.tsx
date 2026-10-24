@@ -207,7 +207,7 @@ export function PrototypeStage({
                 : "bg-black hover:bg-zinc-800 text-white shadow-zinc-900/20"
             }`}
           >
-            <span>{isApproved ? "Lanjut ke Agent & Tasks" : "Approve Prototype & Buat Tasks"}</span>
+            <span>{isApproved ? "Lanjut ke Build App" : "Approve Prototype & Mulai Build"}</span>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>

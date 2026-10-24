@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ProjectItem } from "../CodeWorkspace";
 import { StageStatus, AppBuilderState, DiagnosticIssue, EnhancedProjectTask } from "./types";
 
@@ -48,6 +48,17 @@ export function TestDebugStage({
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const warningCount = issues.filter((i) => i.severity === "warning").length;
   const infoCount = issues.filter((i) => i.severity === "info").length;
+
+  const hasAutoScannedRef = useRef(false);
+  useEffect(() => {
+    if (issues.length === 0 && !hasAutoScannedRef.current) {
+      hasAutoScannedRef.current = true;
+      const t = setTimeout(() => {
+        onRunDiagnostics();
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [issues.length, onRunDiagnostics]);
 
   const quickstartScript = `unzip ${project.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}-project.zip -d ./app
 cd ./app

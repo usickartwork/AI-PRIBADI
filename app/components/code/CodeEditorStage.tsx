@@ -11,6 +11,10 @@ interface CodeEditorStageProps {
   appBuilderState: AppBuilderState;
   onUpdateFile: (path: string, content: string) => void;
   onSelectFile: (path: string) => void;
+  onAddFile?: (path: string, initialContent?: string) => void;
+  onDeleteFile?: (path: string) => void;
+  onRefineWithAi?: (filePath: string, instruction: string) => Promise<void>;
+  isRefining?: boolean;
   onCreateCheckpoint: (summary: string) => void;
   onRestoreCheckpoint: (checkpoint: BuildCheckpoint) => void;
   onProceedToTestDebug: () => void;
@@ -23,6 +27,10 @@ export function CodeEditorStage({
   appBuilderState,
   onUpdateFile,
   onSelectFile,
+  onAddFile,
+  onDeleteFile,
+  onRefineWithAi,
+  isRefining = false,
   onCreateCheckpoint,
   onRestoreCheckpoint,
   onProceedToTestDebug,
@@ -39,6 +47,14 @@ export function CodeEditorStage({
   const [checkpointNote, setCheckpointNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [previewReloadKey, setPreviewReloadKey] = useState(0);
+
+  // AI Copilot prompt state
+  const [aiInstruction, setAiInstruction] = useState("");
+
+  // New file inline input state
+  const [isAddingFile, setIsAddingFile] = useState(false);
+  const [newFilePathInput, setNewFilePathInput] = useState("");
 
   // Sync buffer when activePath changes
   useEffect(() => {
@@ -60,13 +76,11 @@ export function CodeEditorStage({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Save on Cmd+S / Ctrl+S
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
       handleSaveActiveFile();
       return;
     }
-    // Indent with 2 spaces on Tab
     if (e.key === "Tab") {
       e.preventDefault();
       const target = e.currentTarget;
@@ -92,6 +106,58 @@ export function CodeEditorStage({
     handleSaveActiveFile();
     onCreateCheckpoint(note);
     setCheckpointNote("");
+  };
+
+  const handleConfirmAddFile = () => {
+    const path = newFilePathInput.trim();
+    if (!path) {
+      setIsAddingFile(false);
+      return;
+    }
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    const initial = cleanPath.endsWith(".tsx") || cleanPath.endsWith(".ts")
+      ? `"use client";\n\nimport React from "react";\n\nexport default function Component() {\n  return <div>${cleanPath}</div>;\n}\n`
+      : cleanPath.endsWith(".json")
+      ? "{\n}\n"
+      : cleanPath.endsWith(".css")
+      ? "/* custom styles */\n"
+      : "";
+
+    if (onAddFile) {
+      onAddFile(cleanPath, initial);
+    } else {
+      onUpdateFile(cleanPath, initial);
+      onSelectFile(cleanPath);
+    }
+    setNewFilePathInput("");
+    setIsAddingFile(false);
+  };
+
+  const handleDeleteCurrentFile = () => {
+    if (Object.keys(files).length <= 1) return;
+    if (window.confirm(`Hapus file '${activePath}' dari proyek virtual?`)) {
+      if (onDeleteFile) {
+        onDeleteFile(activePath);
+      }
+    }
+  };
+
+  const handleSendAiRefine = async () => {
+    const text = aiInstruction.trim();
+    if (!text || isRefining) return;
+    setAiInstruction("");
+    if (onRefineWithAi) {
+      await onRefineWithAi(activePath, text);
+    }
+  };
+
+  const handleOpenPreviewNewTab = () => {
+    const html = project.generatedHtml || "";
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.write(injectSandboxSecurity(html));
+      w.document.close();
+    }
   };
 
   const securedHtml = useMemo(() => {
@@ -226,16 +292,59 @@ export function CodeEditorStage({
 
       {/* ── Main Tri-Pane Body ──────────────────────────────────── */}
       <div className="flex-1 flex min-h-0 relative overflow-hidden">
-        {/* Left: Virtual File Tree */}
+        {/* Left: Virtual File Tree Explorer */}
         <aside
           className={`w-56 sm:w-64 border-r flex flex-col shrink-0 select-none ${
             isDark ? "bg-[#101014] border-white/10" : "bg-white border-black/10"
           }`}
         >
           <div className="p-3 border-b border-inherit flex items-center justify-between text-xs">
-            <span className="font-bold uppercase tracking-wider text-zinc-400">Proyek Virtual</span>
-            <span className="font-mono text-zinc-500 text-[11px]">{Object.keys(files).length} file</span>
+            <span className="font-bold uppercase tracking-wider text-zinc-400">File Explorer</span>
+            <button
+              type="button"
+              onClick={() => setIsAddingFile(true)}
+              className="text-[11px] font-mono font-bold text-zinc-400 hover:text-white px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 cursor-pointer"
+              title="Tambah file baru"
+            >
+              + File
+            </button>
           </div>
+
+          {/* Inline Add File Input */}
+          {isAddingFile && (
+            <div className="p-2 border-b border-inherit bg-black/40">
+              <input
+                type="text"
+                value={newFilePathInput}
+                onChange={(e) => setNewFilePathInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleConfirmAddFile();
+                  if (e.key === "Escape") setIsAddingFile(false);
+                }}
+                autoFocus
+                placeholder="e.g. components/Footer.tsx"
+                className={`w-full px-2 py-1 rounded-lg text-xs font-mono border outline-none ${
+                  isDark ? "bg-zinc-900 border-white/20 text-white" : "bg-white border-black/20 text-black"
+                }`}
+              />
+              <div className="flex justify-end gap-1.5 mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingFile(false)}
+                  className="px-2 py-0.5 text-[10px] text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAddFile}
+                  className="px-2 py-0.5 text-[10px] font-bold bg-white text-black rounded cursor-pointer"
+                >
+                  Buat
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5 font-mono text-xs">
             {Object.keys(files).map((fPath) => {
@@ -274,7 +383,7 @@ export function CodeEditorStage({
           </div>
         </aside>
 
-        {/* Center: Monospace Code Editor */}
+        {/* Center: Monospace Code Editor & AI Copilot */}
         {splitRatio !== "preview_only" && (
           <div className="flex-1 flex flex-col min-w-0 min-h-0 border-r border-inherit">
             {/* Editor File Tab Header */}
@@ -283,14 +392,14 @@ export function CodeEditorStage({
                 isDark ? "bg-black/40 border-white/10 text-zinc-300" : "bg-zinc-100 border-black/10 text-zinc-700"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <span className="font-bold">{activePath}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-bold truncate">{activePath}</span>
                 {hasUnsavedChanges && (
                   <span className="text-[10px] text-zinc-400 italic">● belum disimpan</span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleSaveActiveFile}
@@ -317,6 +426,17 @@ export function CodeEditorStage({
                 >
                   {copied ? "✓ Tersalin" : "Salin"}
                 </button>
+
+                {onDeleteFile && Object.keys(files).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteCurrentFile}
+                    className="p-1 rounded-lg text-xs text-zinc-500 hover:text-red-400 cursor-pointer"
+                    title="Hapus file ini"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
             </div>
 
@@ -341,6 +461,60 @@ export function CodeEditorStage({
               />
             </div>
 
+            {/* AI Copilot Quick Refinement Bar (Dyad & AI App Builder Open Style) */}
+            <div
+              className={`p-2.5 border-t flex items-center gap-2 shrink-0 ${
+                isDark ? "bg-[#11131a] border-white/10" : "bg-zinc-100 border-black/10"
+              }`}
+            >
+              <div className="flex-1 relative flex items-center">
+                <span className="absolute left-3 text-xs text-zinc-400">✦</span>
+                <input
+                  type="text"
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendAiRefine();
+                    }
+                  }}
+                  disabled={isRefining}
+                  placeholder={`Instruksi AI untuk ${activePath} (e.g. Tambahkan search filter, styling dark card)...`}
+                  className={`w-full pl-7 pr-3 py-1.5 rounded-xl text-xs outline-none border transition ${
+                    isDark
+                      ? "bg-zinc-950 border-white/10 text-white placeholder-zinc-500 focus:border-white/30"
+                      : "bg-white border-black/10 text-zinc-900 placeholder-zinc-400 focus:border-black/30"
+                  }`}
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={isRefining || !aiInstruction.trim()}
+                onClick={handleSendAiRefine}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  isDark
+                    ? "bg-white hover:bg-zinc-200 text-black disabled:opacity-40"
+                    : "bg-black hover:bg-zinc-800 text-white disabled:opacity-40"
+                }`}
+              >
+                {isRefining ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span>Refining...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Refine AI</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Status Footer */}
             <div
               className={`px-4 py-1.5 border-t flex items-center justify-between text-[11px] font-mono ${
@@ -348,7 +522,7 @@ export function CodeEditorStage({
               }`}
             >
               <span>{lines.length} baris | {editBuffer.length} karakter</span>
-              <span>UTF-8 | TypeScript</span>
+              <span>UTF-8 | Next.js App Router</span>
             </div>
           </div>
         )}
@@ -362,9 +536,33 @@ export function CodeEditorStage({
                 isDark ? "bg-[#121216] border-white/10" : "bg-white border-black/10"
               }`}
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                 <span className="text-xs font-bold">Pratinjau Interaktif</span>
+
+                {/* Reload Preview Button */}
+                <button
+                  type="button"
+                  onClick={() => setPreviewReloadKey((k) => k + 1)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
+                  title="Muat ulang pratinjau"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+
+                {/* Open in New Window */}
+                <button
+                  type="button"
+                  onClick={handleOpenPreviewNewTab}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
+                  title="Buka pratinjau di tab baru"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </button>
               </div>
 
               {/* Device Selector */}
@@ -395,6 +593,7 @@ export function CodeEditorStage({
             {/* Iframe Canvas Container */}
             <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
               <div
+                key={previewReloadKey}
                 className="transition-all duration-300 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-white"
                 style={{
                   width: device === "desktop" ? "100%" : `${currentPreset.width}px`,

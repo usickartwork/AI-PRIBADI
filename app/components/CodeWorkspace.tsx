@@ -3916,6 +3916,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
 
   const [isBuildingApp, setIsBuildingApp] = useState(false);
   const [isDiagnosticScanning, setIsDiagnosticScanning] = useState(false);
+  const [isRefiningFile, setIsRefiningFile] = useState(false);
 
   const handleUpdateDesignTokens = (tokens: DesignTokens) => {
     if (!activeProjectId) return;
@@ -3944,7 +3945,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     const updatedStatuses = {
       ...b.stageStatuses,
       prototype: "approved" as StageStatus,
-      build: "ready_for_review" as StageStatus,
+      build: "in_progress" as StageStatus,
     };
 
     setProjects((prev) =>
@@ -3969,6 +3970,12 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
 
     setBuilderStage("build");
     setActiveTab("builder");
+    showCopyToast("Prototype disetujui! Memulai build aplikasi Next.js...");
+
+    // Otomatis jalankan pipeline build aplikasi Next.js step-by-step
+    setTimeout(() => {
+      handleStartBuildApp();
+    }, 200);
   };
 
   const handleStartBuildApp = async () => {
@@ -3977,6 +3984,9 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     if (!current) return;
     setIsBuildingApp(true);
     try {
+      // Simulasi eksekusi pipeline 6-langkah secara transparan (4300ms)
+      await new Promise((resolve) => setTimeout(resolve, 4300));
+
       const b = normalizeProductBuilderData(current);
       const generatedFiles = generateProjectFiles(current, b.designTokens);
       const initialCheckpoint: BuildCheckpoint = {
@@ -4017,10 +4027,115 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
       );
 
       setBuilderStage("editor");
-      showCopyToast("Aplikasi Next.js berhasil dibangun!");
+      showCopyToast("Build aplikasi selesai! Membuka Code Editor & Live Preview...");
     } finally {
       setIsBuildingApp(false);
     }
+  };
+
+  const handleRefineFileWithAi = async (filePath: string, instruction: string) => {
+    if (!activeProjectId || !instruction.trim()) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+    const b = normalizeProductBuilderData(current);
+    const currentCode = b.appBuilder.files[filePath] || "";
+
+    setIsRefiningFile(true);
+    try {
+      const systemPrompt = `Anda adalah AI Code Refiner untuk aplikasi Next.js 15 App Router.
+Tugas Anda adalah memperbarui atau menambahkan fitur pada file '${filePath}' berdasarkan instruksi pengguna.
+HANYA berikan kode file yang telah diperbarui secara lengkap di dalam blok kode \`\`\`tsx (atau ekstensi sesuai file). JANGAN berikan teks obrolan di luar blok kode.`;
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: `File saat ini: ${filePath}\n\`\`\`\n${currentCode}\n\`\`\`\n\nInstruksi perubahan:\n${instruction}`,
+            },
+          ],
+          userId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.text || data.reply || "";
+        const match = text.match(/```(?:tsx|typescript|ts|javascript|jsx|css|json)?\n([\s\S]*?)```/);
+        const refinedCode = match ? match[1].trim() : text.trim();
+
+        if (refinedCode && refinedCode.length > 20) {
+          handleUpdateFileContent(filePath, refinedCode);
+          handleCreateCheckpoint(`AI Refine: ${instruction.slice(0, 36)}`);
+          showCopyToast(`File ${filePath} berhasil diperbarui AI!`);
+          return;
+        }
+      }
+      showCopyToast("Gagal memperbarui file, silakan coba lagi.");
+    } catch (err) {
+      console.error("[CodeWorkspace] Refine error:", err);
+      showCopyToast("Terjadi kesalahan saat memproses instruksi AI.");
+    } finally {
+      setIsRefiningFile(false);
+    }
+  };
+
+  const handleAddVirtualFile = (path: string, initialContent: string = "") => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...b.appBuilder,
+            files: {
+              ...b.appBuilder.files,
+              [path]: initialContent,
+            },
+            activeFilePath: path,
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+    showCopyToast(`File baru ${path} berhasil dibuat!`);
+  };
+
+  const handleDeleteVirtualFile = (path: string) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const newFiles = { ...b.appBuilder.files };
+        delete newFiles[path];
+        const remainingKeys = Object.keys(newFiles);
+        const nextActive = remainingKeys[0] || "app/page.tsx";
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...b.appBuilder,
+            files: newFiles,
+            activeFilePath: nextActive,
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+    showCopyToast(`File ${path} dihapus dari workspace virtual.`);
   };
 
   const handleUpdateFileContent = (path: string, content: string) => {
@@ -8804,6 +8919,10 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   appBuilderState={builderData.appBuilder}
                   onUpdateFile={handleUpdateFileContent}
                   onSelectFile={handleSelectActiveFile}
+                  onAddFile={handleAddVirtualFile}
+                  onDeleteFile={handleDeleteVirtualFile}
+                  onRefineWithAi={handleRefineFileWithAi}
+                  isRefining={isRefiningFile}
                   onCreateCheckpoint={handleCreateCheckpoint}
                   onRestoreCheckpoint={handleRestoreCheckpoint}
                   onProceedToTestDebug={() => handleSelectBuilderStage("test_debug")}
