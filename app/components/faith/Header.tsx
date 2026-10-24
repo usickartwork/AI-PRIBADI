@@ -1,7 +1,6 @@
 'use client';
 
 import { User } from '@/types/database';
-import { Plus } from 'lucide-react';
 import { useFaithNav } from '@/lib/faith/navigationContext';
 
 interface HeaderProps {
@@ -10,7 +9,7 @@ interface HeaderProps {
   onNewChat?: () => void;
 }
 
-export default function Header({ user, onNewChat }: HeaderProps) {
+export default function Header({ user }: HeaderProps) {
   const { setActiveTab, isDark } = useFaithNav();
 
   return (
@@ -42,24 +41,8 @@ export default function Header({ user, onNewChat }: HeaderProps) {
           </button>
         </div>
 
-        {/* Right: New Chat (+) Button */}
-        <div className="flex items-center gap-1.5">
-          {onNewChat && (
-            <button
-              type="button"
-              onClick={onNewChat}
-              className={`w-8 h-8 rounded-full flex items-center justify-center border transition cursor-pointer shadow-2xs active:scale-95 ${
-                isDark
-                  ? 'bg-[#1C1C20] hover:bg-[#25252A] border-[#2C2C32] text-white'
-                  : 'bg-[#F2F2F3] hover:bg-[#EAEAEB] border-[#DCDCE0] text-[#111113]'
-              }`}
-              title="Percakapan Baru"
-              aria-label="Mulai percakapan baru"
-            >
-              <Plus size={15} strokeWidth={2.2} />
-            </button>
-          )}
-        </div>
+        {/* Right side is kept clean without extra buttons */}
+        <div className="flex items-center gap-1.5" />
       </div>
     </header>
   );

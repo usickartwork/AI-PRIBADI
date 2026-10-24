@@ -11,7 +11,7 @@ import { User, UserRole } from "@/types/database";
 
 interface FaithWorkspaceProps {
   isDark: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onTogglePanel?: () => void;
   subTabsElement?: React.ReactNode;
 }
@@ -20,21 +20,19 @@ export function FaithWorkspace({
   isDark,
   onClose,
   onTogglePanel,
-  subTabsElement,
 }: FaithWorkspaceProps) {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<FaithTabType>("tanya");
   const [user, setUser] = useState<User>(() => getStoredUser());
   const [showIntro, setShowIntro] = useState(false);
 
-  // Otomatis sinkronkan data profil dari akun yang didaftarkan ke web OneMind
+  // Otomatis sinkronkan username akun terdaftar dari web OneMind
   useEffect(() => {
     const existing = getStoredUser();
 
     if (isClerkLoaded && clerkUser) {
       const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-      const name =
-        clerkUser.fullName ||
+      const username =
         clerkUser.username ||
         (clerkUser.publicMetadata?.username as string) ||
         clerkUser.firstName ||
@@ -51,7 +49,7 @@ export function FaithWorkspace({
         ...existing,
         id: clerkUser.id,
         token,
-        name,
+        name: username,
         email,
         phone,
         avatar_url: avatarUrl,
@@ -127,34 +125,8 @@ export function FaithWorkspace({
         {/* Sacred Cross Entrance Splash Animation */}
         {showIntro && user && <EntranceAnimation onComplete={handleIntroComplete} />}
 
-        {/* ─── WORKSPACE TOP BAR (SubTabs Game / Faith + Close, tanpa garis 3) ─── */}
-        {subTabsElement && (
-          <header className="shrink-0 w-full z-20 flex items-center justify-between px-3.5 sm:px-6 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {subTabsElement}
-            </div>
-
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className={`flex h-9 sm:h-10 w-9 sm:w-10 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                  isDark
-                    ? "bg-zinc-900/70 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white"
-                    : "bg-white/80 hover:bg-white border border-black/10 text-zinc-700 hover:text-black"
-                }`}
-                title="Kembali ke Chats"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </header>
-        )}
-
-        {/* ─── BODY: FAITH HUB TABS (HANYA CHAT & ALKITAB) ───────────────── */}
-        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:pb-3">
+        {/* ─── BODY: FAITH HUB TABS (HANYA CHAT & ALKITAB, TANPA HEADER TAB/X) ─── */}
+        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:py-3">
           {/* Tanya Rohani */}
           <div className={`h-full w-full ${currentTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             <FaithChatView />

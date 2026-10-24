@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useUser } from '@clerk/nextjs';
 import Header from '@/app/components/faith/Header';
 import Navigation from '@/app/components/faith/Navigation';
 import EntranceAnimation from '@/app/components/faith/EntranceAnimation';
@@ -216,31 +217,36 @@ export default function FaithHubHomePage() {
   const hasRestoredScrollRef = useRef(false);
 
   // Refs
+  const { user: clerkUser } = useUser();
   const abortControllerRef = useRef<AbortController | null>(null);
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Initial load: check auth, restore conversations & save scroll position on unmount/tab switch
+  // Username akun terdaftar dari web OneMind
+  const displayUsername =
+    clerkUser?.username ||
+    (clerkUser?.publicMetadata?.username as string) ||
+    clerkUser?.firstName ||
+    user?.name ||
+    (clerkUser?.primaryEmailAddress?.emailAddress ? clerkUser.primaryEmailAddress.emailAddress.split('@')[0] : 'Sahabat');
+
+  // Initial load: Setiap kali masuk web atau refresh, selalu mulai di obrolan baru
   useEffect(() => {
     const currentUser = getStoredUser();
     setUser(currentUser || DEFAULT_USER);
     setIsAuthenticated(true);
     setIsMounted(true);
-    const stored = getStoredConversations();
 
-    if (stored.length > 0) {
-      setConversations(stored);
-      const activeId = getActiveConversationId() || stored[0].id;
-      const current = stored.find((c) => c.id === activeId) || stored[0];
-      setActiveConvId(current.id);
-      setMessages(current.messages || []);
-    } else {
-      const initial = createNewConversation();
-      setConversations([initial]);
-      setActiveConvId(initial.id);
-      setMessages([]);
-    }
+    const initial = createNewConversation();
+    setConversations([initial]);
+    setActiveConvId(initial.id);
+    setActiveConversationId(initial.id);
+    setMessages([]);
+    setInputPrompt('');
+    try {
+      sessionStorage.removeItem(SCROLL_POS_KEY);
+    } catch {}
 
     return () => {
       // Snapshot exact scroll position on unmount (e.g. switching tabs)
@@ -837,11 +843,8 @@ export default function FaithHubHomePage() {
           showIntro ? 'scale-[0.985] opacity-90 translate-y-1' : 'scale-100 opacity-100 translate-y-0'
         }`}
       >
-        {/* Top Header with Brand & New Chat (+) */}
-        <Header
-          user={user}
-          onNewChat={handleStartNewChat}
-        />
+        {/* Top Header with Brand */}
+        <Header user={user} />
 
         {/* Middle Scrollable Chat / Content Area */}
         <main
@@ -870,13 +873,13 @@ export default function FaithHubHomePage() {
                 </svg>
               </div>
 
-              {/* Welcome Greeting with Account Name */}
+              {/* Welcome Greeting with Account Username */}
               <div className="space-y-2 mb-7 sm:mb-8">
                 <h1 className="text-2xl sm:text-3xl font-semibold text-[#111113] dark:text-white tracking-tight leading-snug">
                   Apa yang sedang ada di dalam hatimu hari ini,{' '}
-                  <span className="font-bold text-[#111113] dark:text-white">{user.name}</span>?
+                  <span className="font-bold text-[#111113] dark:text-white">{displayUsername}</span>?
                 </h1>
-                <p className="text-xs sm:text-sm text-[#8E8E93] max-w-md mx-auto leading-relaxed mt-2">
+                <p className="text-xs sm:text-sm text-[#8E8E93] dark:text-zinc-400 max-w-md mx-auto leading-relaxed mt-2">
                   Tuliskan pertanyaan rohani, perikop firman, atau curahan isi hatimu dengan tenang.
                 </p>
               </div>
@@ -956,7 +959,7 @@ export default function FaithHubHomePage() {
                         </div>
                       ) : null}
                       <span className="font-semibold text-[#111113] dark:text-white">
-                        {isUser ? user.name : 'Faith Companion'}
+                        {isUser ? displayUsername : 'Faith Companion'}
                       </span>
                       {msg.createdAt && (
                         <span className="text-[10px] text-[#8E8E93]">
