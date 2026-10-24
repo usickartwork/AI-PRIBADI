@@ -2,19 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
-import {
-  BuilderStage,
-  PipelineMetadata,
-  normalizePipelineMetadata,
-} from "./code/types";
-import { synthesizeProjectDesignSpec, applyDesignRevision } from "./code/designEngine";
-import { generateInteractivePrototypeHtml } from "./code/prototypeEngine";
-import { buildAndTestProject } from "./code/buildAndTestEngine";
-import { PipelineStageBar } from "./code/PipelineStageBar";
-import { DesignStageView } from "./code/DesignStageView";
-import { PrototypeStageView } from "./code/PrototypeStageView";
-import { BuildAndTestStageView } from "./code/BuildAndTestStageView";
-import { createZeroDepZip, downloadZipBlob } from "./code/zipExporter";
 
 export type TaskStatus =
   | "ready"
@@ -357,7 +344,6 @@ export type ProjectPRD = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
-  pipelineMetadata?: PipelineMetadata;
 };
 
 export type ProjectCategory =
@@ -530,7 +516,6 @@ export type ProjectItem = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
-  pipelineMetadata?: PipelineMetadata;
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -3192,7 +3177,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "design" | "prototype" | "build">("chat");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -6642,207 +6627,6 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     }
   };
 
-  // ── AI App Builder Pipeline Handlers ──────────────────────────────────────────
-  const activePipelineMeta = useMemo(() => {
-    return activeProject ? normalizePipelineMetadata(activeProject) : null;
-  }, [activeProject]);
-
-  const activeDesignSpec = useMemo(() => {
-    if (!activeProject) return null;
-    return activePipelineMeta?.designSpec || synthesizeProjectDesignSpec(activeProject);
-  }, [activeProject, activePipelineMeta]);
-
-  const activePrototypeState = useMemo(() => {
-    if (!activeProject) return null;
-    if (activePipelineMeta?.prototypeState) return activePipelineMeta.prototypeState;
-    if (activeProject.generatedHtml) {
-      return { html: activeProject.generatedHtml, version: 1, testedInteractions: [] };
-    }
-    const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-    const generated = generateInteractivePrototypeHtml(activeProject, spec);
-    return { html: generated.html, version: generated.version, testedInteractions: [] };
-  }, [activeProject, activePipelineMeta, activeDesignSpec]);
-
-  const activeBuildState = useMemo(() => {
-    if (!activeProject) return undefined;
-    if (activePipelineMeta?.buildState) return activePipelineMeta.buildState;
-    const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-    return buildAndTestProject(activeProject, spec).buildState;
-  }, [activeProject, activePipelineMeta, activeDesignSpec]);
-
-  const activeTestState = useMemo(() => {
-    if (!activeProject) return undefined;
-    if (activePipelineMeta?.testState) return activePipelineMeta.testState;
-    const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-    return buildAndTestProject(activeProject, spec).testState;
-  }, [activeProject, activePipelineMeta, activeDesignSpec]);
-
-  // Transisi Otomatis: Approve PRD -> Design Stage
-  const handleApprovePrdAndContinue = () => {
-    if (!activeProject || !activeProject.prd) return;
-    const designSpec = synthesizeProjectDesignSpec(activeProject);
-    const meta = normalizePipelineMetadata(activeProject);
-    meta.stageStatuses.prd = "approved";
-    meta.stageStatuses.design = "ready_for_review";
-    meta.currentStage = "design";
-    meta.designSpec = designSpec;
-    meta.approvedPrdVersion = (meta.approvedPrdVersion || 0) + 1;
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProject.id
-          ? {
-              ...p,
-              pipelineMetadata: meta,
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setActiveTab("design");
-    setCopyFeedback("PRD Disetujui! Memulai tahap Design secara otomatis...");
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
-  // Transisi: Approve Design -> Prototype Stage
-  const handleApproveDesignAndContinue = () => {
-    if (!activeProject) return;
-    const meta = normalizePipelineMetadata(activeProject);
-    const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-    meta.stageStatuses.design = "approved";
-    meta.stageStatuses.prototype = "ready_for_review";
-    meta.currentStage = "prototype";
-
-    const proto = generateInteractivePrototypeHtml(activeProject, spec);
-    meta.prototypeState = {
-      html: proto.html,
-      version: proto.version,
-      testedInteractions: [],
-      approvedAt: Date.now(),
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProject.id
-          ? {
-              ...p,
-              generatedHtml: proto.html,
-              pipelineMetadata: meta,
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setActiveTab("prototype");
-    setCopyFeedback("Desain Disetujui! Menghasilkan Prototype interaktif...");
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
-  // Transisi: Approve Prototype -> Build & Test Stage
-  const handleApprovePrototypeAndContinue = () => {
-    if (!activeProject) return;
-    const meta = normalizePipelineMetadata(activeProject);
-    const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-    meta.stageStatuses.prototype = "approved";
-    meta.stageStatuses.build = "ready_for_review";
-    meta.stageStatuses.test = "ready_for_review";
-    meta.currentStage = "build";
-
-    const buildRes = buildAndTestProject(activeProject, spec);
-    meta.buildState = buildRes.buildState;
-    meta.testState = buildRes.testState;
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProject.id
-          ? {
-              ...p,
-              pipelineMetadata: meta,
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setActiveTab("build");
-    setCopyFeedback("Prototype Disetujui! Menjalankan Build & Diagnostic Tests...");
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
-  // Unduh ZIP Proyek Modular Next.js
-  const handleDownloadProjectZip = () => {
-    if (!activeProject) return;
-    const files = activeBuildState?.files;
-    if (!files || Object.keys(files).length === 0) return;
-    const zipBytes = createZeroDepZip(files);
-    const slug = (activeProject.title || "nexus-app").toLowerCase().replace(/[^a-z0-9]/g, "-");
-    downloadZipBlob(zipBytes, `${slug}-nextjs15.zip`);
-    setCopyFeedback("Source code ZIP berhasil diunduh!");
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
-  // Stage Bar Navigator Selector
-  const handleSelectPipelineStage = (stage: BuilderStage) => {
-    if (stage === "idea") setActiveTab("chat");
-    else if (stage === "prd") setActiveTab("prd");
-    else if (stage === "design") setActiveTab("design");
-    else if (stage === "prototype" || stage === "preview") setActiveTab("prototype");
-    else if (stage === "build" || stage === "test") setActiveTab("build");
-  };
-
-  // Handler Natural Language Revision
-  const handleRequestRevision = (instruction: string) => {
-    if (!activeProject) return;
-    const meta = normalizePipelineMetadata(activeProject);
-    const revEntry = {
-      id: "rev-" + Date.now(),
-      stage: meta.currentStage,
-      instruction,
-      timestamp: Date.now(),
-      summary: `Revisi pada tahap ${meta.currentStage}: "${instruction}"`,
-    };
-    meta.revisions = [revEntry, ...meta.revisions];
-
-    if (meta.currentStage === "design" && activeDesignSpec) {
-      const updatedSpec = applyDesignRevision(activeDesignSpec, instruction);
-      meta.designSpec = updatedSpec;
-      meta.stageStatuses.prototype = "needs_update";
-      meta.stageStatuses.build = "needs_update";
-    } else if (meta.currentStage === "prototype") {
-      const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-      const updatedProto = generateInteractivePrototypeHtml(activeProject, spec);
-      meta.prototypeState = {
-        html: updatedProto.html,
-        version: (meta.prototypeState?.version || 1) + 1,
-        testedInteractions: [],
-        approvedAt: Date.now(),
-      };
-      meta.stageStatuses.build = "needs_update";
-    } else if (meta.currentStage === "build" || meta.currentStage === "test") {
-      const spec = activeDesignSpec || synthesizeProjectDesignSpec(activeProject);
-      const res = buildAndTestProject(activeProject, spec);
-      meta.buildState = res.buildState;
-      meta.testState = res.testState;
-    }
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProject.id
-          ? {
-              ...p,
-              pipelineMetadata: meta,
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setCopyFeedback(`Revisi diterapkan pada tahap ${meta.currentStage}!`);
-    setTimeout(() => setCopyFeedback(null), 3000);
-  };
-
   // ── Task Management Actions ───────────────────────────────────────────────────
   const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
     if (!activeProject) return;
@@ -7684,46 +7468,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Wiki (PRD)</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("design")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "design"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Arah Visual & Desain"
-              >
-                <span>🎨</span>
-                <span className="hidden sm:inline">Design</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("prototype")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "prototype"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Prototype Interaktif"
-              >
-                <span>⚡</span>
-                <span className="hidden sm:inline">Prototype</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("build")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "build"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Build & Diagnostic Test"
-              >
-                <span>🔨</span>
-                <span className="hidden sm:inline">Build &amp; Test</span>
+                <span>Wiki</span>
               </button>
 
               <button
@@ -7849,18 +7594,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           </button>
         </div>
       </header>
-
-      {/* ─── Pipeline Stage Bar (Idea -> PRD -> Design -> Prototype -> Build -> Test -> Preview) ─── */}
-      {activeProject && isPlannerFinished && activePipelineMeta && (
-        <div className="pt-[max(3.5rem,calc(env(safe-area-inset-top))+2.5rem))] shrink-0 z-10">
-          <PipelineStageBar
-            currentStage={activePipelineMeta.currentStage}
-            stageStatuses={activePipelineMeta.stageStatuses}
-            onSelectStage={handleSelectPipelineStage}
-            isDark={isDark}
-          />
-        </div>
-      )}
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
@@ -9238,24 +8971,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               <p className="text-xs text-zinc-400 mt-0.5">Spesifikasi kebutuhan produk terstruktur untuk {activeProject.title}</p>
             </div>
             {isBlueprintReady && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleApprovePrdAndContinue}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 transition shadow-md cursor-pointer"
-                >
-                  <span>Approve PRD &amp; Lanjut Desain →</span>
-                </button>
-                <button
-                  onClick={copyPRDText}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                    isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                  }`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                  <span>Copy PRD</span>
-                </button>
-              </div>
+              <button
+                onClick={copyPRDText}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                <span>Copy PRD</span>
+              </button>
             )}
           </div>
 
@@ -9600,69 +9324,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   )}
                 </div>
               )}
-
-              {/* Bottom Automatic Pipeline Transition Card */}
-              {isBlueprintReady && (
-                <div className="p-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <h4 className="text-sm font-bold text-white">PRD Siap Disetujui</h4>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      Setujui spesifikasi kebutuhan ini untuk secara otomatis melanjutkan ke tahap perancangan visual (Design) tanpa perlu mengetik ulang instruksi.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleApprovePrdAndContinue}
-                    className="px-6 py-3 rounded-2xl text-xs font-bold bg-white text-black hover:bg-zinc-200 transition shadow-xl shrink-0 cursor-pointer"
-                  >
-                    Approve PRD &amp; Lanjut ke Tahap Desain →
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
-      )}
-
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* PIPELINE STAGE: DESIGN                                                     */}
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeProject && currentTab === "design" && activeDesignSpec && (
-        <DesignStageView
-          designSpec={activeDesignSpec}
-          onApproveAndContinue={handleApproveDesignAndContinue}
-          onRequestRevision={handleRequestRevision}
-          isDark={isDark}
-        />
-      )}
-
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* PIPELINE STAGE: PROTOTYPE                                                  */}
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeProject && currentTab === "prototype" && activePrototypeState && (
-        <PrototypeStageView
-          prototypeState={activePrototypeState}
-          onApproveAndBuild={handleApprovePrototypeAndContinue}
-          onRequestRevision={handleRequestRevision}
-          isDark={isDark}
-        />
-      )}
-
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* PIPELINE STAGE: BUILD & TEST                                               */}
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeProject && currentTab === "build" && (
-        <BuildAndTestStageView
-          buildState={activeBuildState}
-          testState={activeTestState}
-          onOpenPreview={() => setActiveTab("prototype")}
-          onDownloadZip={handleDownloadProjectZip}
-          onRequestRevision={handleRequestRevision}
-          isDark={isDark}
-        />
       )}
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
