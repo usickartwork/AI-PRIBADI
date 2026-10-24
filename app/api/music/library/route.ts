@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getNotesAdmin } from "@/lib/notesServer";
 import { MusicItem, LocalPlaylist } from "@/lib/music";
+import { syncUserLibraryToTasteProfile } from "@/lib/musicTasteServer";
 import crypto from "crypto";
 
 const SYSTEM_MUSIC_TITLE = "__USICK_MUSIC_LIBRARY__";
@@ -200,6 +201,13 @@ export async function POST(req: NextRequest) {
       }
     } catch (metaErr) {
       console.warn("[music/library] Clerk metadata backup warning:", metaErr);
+    }
+
+    // 3. Synchronize manual preference signals (likes, unlikes, playlists, imports) into user's Taste Profile
+    try {
+      await syncUserLibraryToTasteProfile(userId, likedSongs, playlists);
+    } catch (tasteErr) {
+      console.warn("[music/library] Taste profile sync warning:", tasteErr);
     }
 
     return NextResponse.json({

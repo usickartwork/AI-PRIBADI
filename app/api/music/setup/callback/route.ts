@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import fs from "fs";
 import path from "path";
 
 export async function GET(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");

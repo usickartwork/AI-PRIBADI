@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { deleteUserData } from "@/lib/subscriptionServer";
+import { deleteUserMusicTasteData } from "@/lib/musicTasteServer";
 import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
         adminClient.from("credit_balances").delete().eq("user_id", userId),
         adminClient.from("subscriptions").delete().eq("user_id", userId),
         adminClient.from("profiles").delete().eq("id", userId),
+        adminClient.from("user_notes").delete().eq("user_id", `${userId}::ui_preferences`),
       ];
 
       // Jika ada email, bersihkan juga yang terkait email
@@ -59,8 +61,12 @@ export async function POST(req: NextRequest) {
       console.warn("[delete-account] SUPABASE_SERVICE_ROLE_KEY not configured — cannot delete Supabase data (RLS will block).");
     }
 
-    // 2. Hapus cache langganan dari memori
+    // 2. Hapus cache langganan & profil musik/taste dari memori dan database
     await deleteUserData(userId);
+    await deleteUserMusicTasteData(userId).catch(() => {});
+    if (clerkUserId && typeof clerkUserId === "string" && clerkUserId !== userId) {
+      await deleteUserMusicTasteData(clerkUserId).catch(() => {});
+    }
 
     // 3. Hapus akun dari Clerk secara permanen
     if (clerkUserId && typeof clerkUserId === "string") {

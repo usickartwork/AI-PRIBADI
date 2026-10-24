@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useAuth } from "@clerk/nextjs";
 import Avatar from "@/components/ui/components-primitives-avatar";
 import {
   MusicItem,
@@ -21,6 +22,7 @@ import {
   clearRecentSearches,
   formatDurationMs,
   generatePlaylistId,
+  getCanonicalTrackKey,
 } from "@/lib/music";
 import {
   RadioStation,
@@ -34,7 +36,15 @@ import {
   setClientLyricsCache,
 } from "@/lib/lyrics";
 import { useMusicConnect } from "@/lib/useMusicConnect";
-import { getInterpolatedRemoteProgressSec } from "@/lib/musicConnect";
+import { getInterpolatedRemoteProgressSec, getOrCreateInstanceId } from "@/lib/musicConnect";
+import {
+  type ListeningEndReason,
+  type ListeningSourceContext,
+  deduplicateMusicItems,
+  rankAutoplayCandidates,
+  rankHomeRecommendations,
+} from "@/lib/musicRecommendation";
+import { useMusicTelemetry } from "@/lib/useMusicTelemetry";
 import {
   MusicConnectButton,
   MusicConnectIcon,
@@ -400,6 +410,10 @@ export function MusicWorkspace({
   onTogglePanel,
   userName,
 }: MusicWorkspaceProps) {
+  // Authenticated Account Identity for Per-User Recommendations & Telemetry
+  const { userId: clerkUserId, isLoaded: isClerkLoaded } = useAuth();
+  const instanceId = useMemo(() => getOrCreateInstanceId(), []);
+
   // Navigation & View State (Clean 2 primary tabs: home & playlists)
   const [subTab, setSubTab] = useState<SubTab>("home");
   const [searchQuery, setSearchQuery] = useState("");
@@ -409,14 +423,29 @@ export function MusicWorkspace({
   const [hasSearched, setHasSearched] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
-  // Discover Feed State (Randomized/shuffled starter collection like Spotify / Apple Music home)
+  // Discover Feed & Smart Autoplay Candidate Pool State
   const [discoverTracks, setDiscoverTracks] = useState<MusicItem[]>(() =>
     shuffleArray(FEATURED_STARTER_TRACKS)
   );
+  const [autoplayCandidates, setAutoplayCandidates] = useState<MusicItem[]>([]);
+  const [tasteSignalEpoch, setTasteSignalEpoch] = useState(0);
 
   const handleShuffleDiscover = () => {
-    const pool = tracks.length > 0 ? tracks : FEATURED_STARTER_TRACKS;
-    setDiscoverTracks(shuffleArray(pool));
+    const pool = discoverTracks.length > 0
+      ? discoverTracks
+      : tracks.length > 0
+      ? tracks
+      : FEATURED_STARTER_TRACKS;
+    const ranked = rankHomeRecommendations(
+      pool,
+      telemetryRef.current.localProfileRef.current,
+      {
+        limit: pool.length,
+        explorationJitter: 0.14,
+        seed: Date.now() & 0xffff,
+      }
+    );
+    setDiscoverTracks(ranked.length > 0 ? ranked.map((r) => r.item) : shuffleArray(pool));
   };
 
   const handlePlayAllDiscover = () => {
@@ -554,20 +583,50 @@ export function MusicWorkspace({
     }, 1100);
   }, []);
 
-  // Spotify-style Recommendations (derived from trending discover catalog, prioritizing same artist as current track)
+  const [isRemotePlaybackActiveState, setIsRemotePlaybackActiveState] = useState(false);
+
+  const telemetry = useMusicTelemetry({
+    userId: clerkUserId,
+    isAuthLoaded: isClerkLoaded,
+    instanceId,
+    isRemoteActive: isRemotePlaybackActiveState,
+  });
+  const telemetryRef = useRef(telemetry);
+  telemetryRef.current = telemetry;
+
+  // Smart Queue & Autoplay Recommendations (context-aware + personal taste + diversity)
   const recommendedTracks = useMemo(() => {
-    const sourcePool = discoverTracks.length > 0 ? discoverTracks : FEATURED_STARTER_TRACKS;
-    const currentArtists = (currentTrack?.artistNames || []).map((a) => a.toLowerCase().trim());
-    const candidates = sourcePool.filter(
-      (t) => t.id !== currentTrack?.id && !queue.some((q) => q.id === t.id)
+    void tasteSignalEpoch;
+    const playlistItems = localPlaylists.slice(0, 6).flatMap((pl) => pl.items.slice(0, 8));
+    const mergedPool = deduplicateMusicItems([
+      ...autoplayCandidates,
+      ...discoverTracks,
+      ...likedSongs.slice(0, 20),
+      ...playlistItems,
+      ...FEATURED_STARTER_TRACKS,
+    ]);
+    const ranked = rankAutoplayCandidates(
+      currentTrack && !currentTrack.isLiveRadio ? currentTrack : null,
+      mergedPool,
+      telemetry.localProfileRef.current,
+      {
+        limit: 8,
+        excludeTrackIds: queue.map((q) => q.id),
+        sessionRecentKeys: telemetry.sessionRecentKeysRef.current,
+      }
     );
-    candidates.sort((a, b) => {
-      const aMatch = a.artistNames.some((an) => currentArtists.includes(an.toLowerCase().trim())) ? 1 : 0;
-      const bMatch = b.artistNames.some((bn) => currentArtists.includes(bn.toLowerCase().trim())) ? 1 : 0;
-      return bMatch - aMatch;
-    });
-    return candidates.slice(0, 8);
-  }, [discoverTracks, currentTrack, queue]);
+    return ranked.map((r) => r.item);
+  }, [
+    autoplayCandidates,
+    discoverTracks,
+    likedSongs,
+    localPlaylists,
+    currentTrack,
+    queue,
+    tasteSignalEpoch,
+    telemetry.localProfileRef,
+    telemetry.sessionRecentKeysRef,
+  ]);
 
   // Interactive Continuous Scrubber State
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -663,15 +722,38 @@ export function MusicWorkspace({
   const isShuffleRef = useRef<boolean>(isShuffle);
 
   const discoverTracksRef = useRef<MusicItem[]>(discoverTracks);
+  const autoplayCandidatesRef = useRef<MusicItem[]>(autoplayCandidates);
   const tracksRef = useRef<MusicItem[]>(tracks);
+  const likedSongsRef = useRef<MusicItem[]>(likedSongs);
+  const localPlaylistsRef = useRef<LocalPlaylist[]>(localPlaylists);
+  const subTabRef = useRef<SubTab>(subTab);
+  const hasSearchedRef = useRef<boolean>(hasSearched);
+  const searchQueryRef = useRef<string>(searchQuery);
+  const selectedArtistRef = useRef<ArtistProfileData | null>(selectedArtist);
+  const selectedAlbumRef = useRef<AlbumDetailData | null>(selectedAlbum);
+  const isViewingLikedRef = useRef<boolean>(isViewingLiked);
+  const selectedLocalPlaylistRef = useRef<LocalPlaylist | null>(selectedLocalPlaylist);
   const recentlyPlayedIdsRef = useRef<string[]>([]);
+  const failedAutoplayIdsRef = useRef<Set<string>>(new Set());
+  const autoplayErrorRetryCountRef = useRef<number>(0);
+  const playNextRef = useRef<(arg?: unknown) => MusicItem | null>(() => null);
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
   useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
   useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
   useEffect(() => { discoverTracksRef.current = discoverTracks; }, [discoverTracks]);
+  useEffect(() => { autoplayCandidatesRef.current = autoplayCandidates; }, [autoplayCandidates]);
   useEffect(() => { tracksRef.current = tracks; }, [tracks]);
+  useEffect(() => { likedSongsRef.current = likedSongs; }, [likedSongs]);
+  useEffect(() => { localPlaylistsRef.current = localPlaylists; }, [localPlaylists]);
+  useEffect(() => { subTabRef.current = subTab; }, [subTab]);
+  useEffect(() => { hasSearchedRef.current = hasSearched; }, [hasSearched]);
+  useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
+  useEffect(() => { selectedArtistRef.current = selectedArtist; }, [selectedArtist]);
+  useEffect(() => { selectedAlbumRef.current = selectedAlbum; }, [selectedAlbum]);
+  useEffect(() => { isViewingLikedRef.current = isViewingLiked; }, [isViewingLiked]);
+  useEffect(() => { selectedLocalPlaylistRef.current = selectedLocalPlaylist; }, [selectedLocalPlaylist]);
 
   // Audio Ref (fallback)
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -682,6 +764,8 @@ export function MusicWorkspace({
   const cloudSyncAbortRef = useRef<AbortController | null>(null);
 
   const syncLibraryToCloud = useCallback((nextLiked: MusicItem[], nextPlaylists: LocalPlaylist[]) => {
+    telemetryRef.current.syncLocalLibraryMirror(nextLiked, nextPlaylists);
+    setTasteSignalEpoch((v) => v + 1);
     if (cloudSyncTimeoutRef.current) {
       clearTimeout(cloudSyncTimeoutRef.current);
     }
@@ -759,6 +843,8 @@ export function MusicWorkspace({
             saveLikedSongs(mergedLiked);
             setLocalPlaylists(mergedPl);
             saveLocalPlaylists(mergedPl);
+            telemetryRef.current.syncLocalLibraryMirror(mergedLiked, mergedPl);
+            setTasteSignalEpoch((v) => v + 1);
             try { localStorage.setItem(ownerKey, json.userId); } catch {}
 
             if (mergedLiked.length !== cloudLiked.length || mergedPl.length !== cloudPl.length) {
@@ -770,12 +856,16 @@ export function MusicWorkspace({
             saveLikedSongs(cloudLiked);
             setLocalPlaylists(cloudPl);
             saveLocalPlaylists(cloudPl);
+            telemetryRef.current.syncLocalLibraryMirror(cloudLiked, cloudPl);
+            setTasteSignalEpoch((v) => v + 1);
             try { localStorage.setItem(ownerKey, json.userId); } catch {}
           }
         } else {
           // Account has no cloud record yet
           if (!lastOwnerId || lastOwnerId === json.userId) {
             try { localStorage.setItem(ownerKey, json.userId); } catch {}
+            telemetryRef.current.syncLocalLibraryMirror(currentLocalLiked, currentLocalPl);
+            setTasteSignalEpoch((v) => v + 1);
             if (currentLocalLiked.length > 0 || currentLocalPl.length > 0) {
               syncLibraryToCloud(currentLocalLiked, currentLocalPl);
             }
@@ -785,6 +875,8 @@ export function MusicWorkspace({
             saveLikedSongs([]);
             setLocalPlaylists([]);
             saveLocalPlaylists([]);
+            telemetryRef.current.syncLocalLibraryMirror([], []);
+            setTasteSignalEpoch((v) => v + 1);
             try { localStorage.setItem(ownerKey, json.userId); } catch {}
           }
         }
@@ -916,11 +1008,14 @@ export function MusicWorkspace({
                   audioRef.current.loop = false;
                   audioRef.current.volume = isMuted ? 0 : volume;
                   audioRef.current.muted = isMuted;
+                  audioRef.current.onended = () => handleTrackEnded();
                   audioRef.current.play().then(() => {
                     setIsPlaying(true);
                     isPlayingRef.current = true;
                   }).catch(() => {});
                 } catch {}
+              } else {
+                telemetryRef.current.markPlaybackFailure();
               }
             },
           },
@@ -1035,6 +1130,37 @@ export function MusicWorkspace({
   useEffect(() => {
     if (!isPlaying) return;
     const interval = setInterval(() => {
+      const isPreviewAudioActive = Boolean(
+        !currentTrackRef.current?.isLiveRadio &&
+          audioRef.current &&
+          audioRef.current.src &&
+          !audioRef.current.src.startsWith("data:audio") &&
+          !audioRef.current.paused
+      );
+
+      if (isPreviewAudioActive && audioRef.current) {
+        const cur = audioRef.current.currentTime;
+        const dur = audioRef.current.duration;
+        if (typeof cur === "number" && !isNaN(cur)) {
+          setCurrentTime(cur);
+          playbackClockRef.current = {
+            positionSeconds: cur,
+            snapshotPerfTime: performance.now(),
+            isPlaying: true,
+            duration: typeof dur === "number" && dur > 0 && !isNaN(dur) ? dur : playbackClockRef.current.duration,
+            trackId: currentTrack?.id || "",
+          };
+          telemetryRef.current.tickAudiblePlayback({
+            isPlaying: isPlayingRef.current,
+            isScrubbing: isScrubbingRef.current,
+            playerCurrentSec: cur,
+            playerDurationSec: typeof dur === "number" && !isNaN(dur) ? dur : undefined,
+          });
+        }
+        if (typeof dur === "number" && dur > 0 && !isNaN(dur)) setDuration(dur);
+        return;
+      }
+
       if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === "function") {
         try {
           const cur = ytPlayerRef.current.getCurrentTime();
@@ -1049,6 +1175,12 @@ export function MusicWorkspace({
               duration: typeof dur === "number" && dur > 0 ? dur : playbackClockRef.current.duration,
               trackId: currentTrack?.id || "",
             };
+            telemetryRef.current.tickAudiblePlayback({
+              isPlaying: isPlayingRef.current,
+              isScrubbing: isScrubbingRef.current,
+              playerCurrentSec: cur,
+              playerDurationSec: typeof dur === "number" && !isNaN(dur) ? dur : undefined,
+            });
           }
           if (typeof dur === "number" && dur > 0 && !isNaN(dur)) setDuration(dur);
         } catch {}
@@ -1062,78 +1194,207 @@ export function MusicWorkspace({
   const searchAbortControllerRef = useRef<AbortController | null>(null);
 
   // ─── Initial & Category-Based Spotify Catalog Fetch (Loads 50 songs) ──────
-  const fetchSpotifyMusic = useCallback(async (query: string = "", category: string = "all", limit: number = 50) => {
-    const normalizedQuery = query.trim().replace(/\s+/g, " ").toLowerCase();
-    if (normalizedQuery) {
-      lastFetchedSearchQueryRef.current = `${normalizedQuery}__${category}__${limit}`;
-    }
+  const fetchSpotifyMusic = useCallback(
+    async (
+      query: string = "",
+      category: string = "all",
+      limit: number = 50,
+      options?: { skipDiscoverOverride?: boolean }
+    ) => {
+      const normalizedQuery = query.trim().replace(/\s+/g, " ").toLowerCase();
+      if (normalizedQuery) {
+        lastFetchedSearchQueryRef.current = `${normalizedQuery}__${category}__${limit}`;
+      }
 
-    if (searchAbortControllerRef.current) {
-      searchAbortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    searchAbortControllerRef.current = controller;
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      searchAbortControllerRef.current = controller;
 
-    setIsSearching(true);
-    setSearchError(null);
-    try {
-      const categoryParam = category !== "all" ? `&category=${encodeURIComponent(category)}` : "";
-      const seedParam = !query.trim() ? `&seed=${Math.floor(Math.random() * 10000)}` : "";
-      const res = await fetch(
-        `/api/music/search?q=${encodeURIComponent(query.trim())}${categoryParam}${seedParam}&limit=${limit}`,
-        { signal: controller.signal }
-      );
-      const json = await res.json();
+      if (!options?.skipDiscoverOverride) {
+        setIsSearching(true);
+      }
+      setSearchError(null);
+      try {
+        const categoryParam = category !== "all" ? `&category=${encodeURIComponent(category)}` : "";
+        const seedParam = !query.trim() ? `&seed=${Math.floor(Math.random() * 10000)}` : "";
+        const res = await fetch(
+          `/api/music/search?q=${encodeURIComponent(query.trim())}${categoryParam}${seedParam}&limit=${limit}`,
+          { signal: controller.signal }
+        );
+        const json = await res.json();
 
-      if (controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
 
-      setIsSpotifyConfigured(json.configured ?? false);
+        setIsSpotifyConfigured(json.configured ?? false);
 
-      if (json.success && json.data) {
-        const fetchedTracks: MusicItem[] = json.data.tracks || [];
-        if (fetchedTracks.length > 0) {
-          if (!query.trim()) {
-            const combined = [...fetchedTracks];
-            if (combined.length < 20) {
-              const existingIds = new Set(combined.map((t) => t.id));
-              const existingKeys = new Set(
-                combined.map((t) => `${t.title.toLowerCase()}_${(t.artistNames[0] || "").toLowerCase()}`)
+        if (json.success && json.data) {
+          const fetchedTracks: MusicItem[] = json.data.tracks || [];
+          if (fetchedTracks.length > 0 && !options?.skipDiscoverOverride) {
+            if (!query.trim()) {
+              const combined = deduplicateMusicItems([
+                ...fetchedTracks,
+                ...(fetchedTracks.length < 20 ? FEATURED_STARTER_TRACKS : []),
+              ]);
+              const ranked = rankHomeRecommendations(
+                combined,
+                telemetryRef.current.localProfileRef.current,
+                { limit: combined.length }
               );
-              for (const starter of shuffleArray(FEATURED_STARTER_TRACKS)) {
-                const key = `${starter.title.toLowerCase()}_${(starter.artistNames[0] || "").toLowerCase()}`;
-                if (!existingIds.has(starter.id) && !existingKeys.has(key)) {
-                  combined.push(starter);
-                  existingIds.add(starter.id);
-                  existingKeys.add(key);
-                }
-              }
+              const ordered = ranked.length > 0 ? ranked.map((r) => r.item) : shuffleArray(combined);
+              setTracks(ordered);
+              setDiscoverTracks(ordered);
+            } else {
+              setTracks(fetchedTracks);
             }
-            setTracks(combined);
-            setDiscoverTracks(shuffleArray(combined));
-          } else {
-            setTracks(fetchedTracks);
           }
+          if (json.data.artists) setArtists(json.data.artists);
+          if (json.data.albums) setAlbums(json.data.albums);
+          if (json.data.playlists) setPlaylistsList(json.data.playlists);
+        } else if (json.error && !options?.skipDiscoverOverride) {
+          setSearchError(json.error);
         }
-        if (json.data.artists) setArtists(json.data.artists);
-        if (json.data.albums) setAlbums(json.data.albums);
-        if (json.data.playlists) setPlaylistsList(json.data.playlists);
-      } else if (json.error) {
-        setSearchError(json.error);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (!options?.skipDiscoverOverride) {
+          setSearchError(err?.message || "Gagal menghubungkan ke Spotify API.");
+        }
+      } finally {
+        if (searchAbortControllerRef.current === controller) {
+          setIsSearching(false);
+        }
       }
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      setSearchError(err?.message || "Gagal menghubungkan ke Spotify API.");
-    } finally {
-      if (searchAbortControllerRef.current === controller) {
-        setIsSearching(false);
-      }
-    }
-  }, []);
+    },
+    []
+  );
 
-  // Initial load: Fetch 50 tracks from Spotify
+  // Load auxiliary artists/albums/playlists once on mount without clobbering personalized Home feed
   useEffect(() => {
-    fetchSpotifyMusic("", "all", 50);
+    void fetchSpotifyMusic("", "all", 30, { skipDiscoverOverride: true });
   }, [fetchSpotifyMusic]);
+
+  // ─── Personalized Per-Account Home Recommendations Loader ──────────────────
+  useEffect(() => {
+    if (!isClerkLoaded) return;
+    const scopeKey = `usick_music_home_recs_v1::${clerkUserId || "guest"}`;
+    let isCancelled = false;
+    const controller = new AbortController();
+
+    // 1. Instant scoped hydration from localStorage (prevents cross-account bleed & zero-flash reload)
+    if (typeof window !== "undefined") {
+      try {
+        const cachedRaw = window.localStorage.getItem(scopeKey);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDiscoverTracks(parsed);
+            if (!hasSearchedRef.current) {
+              setTracks(parsed);
+            }
+          }
+        } else {
+          // Account has no cached feed on this browser yet: reset to neutral starter ranking immediately
+          const neutral = rankHomeRecommendations(
+            FEATURED_STARTER_TRACKS,
+            telemetryRef.current.localProfileRef.current,
+            { limit: FEATURED_STARTER_TRACKS.length }
+          ).map((r) => r.item);
+          setDiscoverTracks(neutral.length > 0 ? neutral : shuffleArray(FEATURED_STARTER_TRACKS));
+        }
+      } catch {}
+    }
+
+    // 2. Fetch fresh personalized Home recommendations from server
+    (async () => {
+      try {
+        const res = await fetch("/api/music/recommendations?mode=home&limit=36", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (isCancelled || controller.signal.aborted) return;
+
+        if (json?.success && Array.isArray(json.tracks) && json.tracks.length > 0) {
+          setIsSpotifyConfigured(true);
+          setDiscoverTracks(json.tracks);
+          if (!hasSearchedRef.current) {
+            setTracks(json.tracks);
+          }
+          if (typeof window !== "undefined") {
+            try {
+              window.localStorage.setItem(scopeKey, JSON.stringify(json.tracks));
+            } catch {}
+          }
+          return;
+        }
+      } catch (err: any) {
+        if (err?.name === "AbortError" || isCancelled) return;
+      }
+
+      // Offline / error fallback: populate via standard catalog fetch
+      if (!isCancelled && !hasSearchedRef.current) {
+        void fetchSpotifyMusic("", "all", 50);
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+    };
+  }, [isClerkLoaded, clerkUserId, fetchSpotifyMusic]);
+
+  // ─── Debounced Smart Autoplay Candidate Prefetch ───────────────────────────
+  useEffect(() => {
+    if (!currentTrack || currentTrack.isLiveRadio) return;
+    let isCancelled = false;
+    const controller = new AbortController();
+
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          mode: "autoplay",
+          seedId: currentTrack.id,
+          seedTitle: currentTrack.title,
+          seedArtists: currentTrack.artistNames.join("||"),
+          limit: "18",
+        });
+        if (currentTrack.genres && currentTrack.genres.length > 0) {
+          params.set("seedGenres", currentTrack.genres.join("||"));
+        }
+        if (currentTrack.releaseYear) {
+          params.set("seedYear", String(currentTrack.releaseYear));
+        }
+        const excludeIds = queueRef.current.slice(0, 30).map((q) => q.id);
+        if (excludeIds.length > 0) {
+          params.set("excludeIds", excludeIds.join("||"));
+        }
+        const recentKeys = telemetryRef.current.sessionRecentKeysRef.current.slice(0, 20);
+        if (recentKeys.length > 0) {
+          params.set("recentKeys", recentKeys.join("||"));
+        }
+
+        const res = await fetch(`/api/music/recommendations?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!isCancelled && json?.success && Array.isArray(json.tracks) && json.tracks.length > 0) {
+          setAutoplayCandidates(json.tracks);
+        }
+      } catch {
+        // Silent fallback: Smart Autoplay still ranks over discoverTracks + library + starter tracks locally
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [currentTrack?.id, clerkUserId]);
 
   // Debounced search as user types in chat box (seamless typing without interruption)
   useEffect(() => {
@@ -1339,7 +1600,8 @@ export function MusicWorkspace({
       return;
     }
 
-    // 1. Stop YouTube playback so it NEVER clashes with live radio
+    // 1. Finalize any active song telemetry session & stop YouTube playback so it NEVER clashes with live radio
+    telemetryRef.current.finalizeActiveSession("track_change");
     if (ytPlayerRef.current) {
       try {
         if (typeof ytPlayerRef.current.stopVideo === "function") {
@@ -1392,170 +1654,227 @@ export function MusicWorkspace({
   }, [currentTrack, isMuted, volume]);
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
-  const playTrack = useCallback(async (track: MusicItem, options?: { startSeconds?: number; autoPlay?: boolean; forceLocal?: boolean }) => {
-    if (track.isLiveRadio) {
-      const match = POPULAR_RADIO_STATIONS.find((s) => `radio:${s.id}` === track.id || s.streamUrl === track.streamUrl);
-      if (match) {
-        playRadioStation(match);
-        return;
+  const playTrack = useCallback(
+    async (
+      track: MusicItem,
+      options?: {
+        startSeconds?: number;
+        autoPlay?: boolean;
+        forceLocal?: boolean;
+        sourceContext?: ListeningSourceContext;
+        previousEndReason?: ListeningEndReason;
       }
-    }
-
-    // Stop active live radio stream immediately when switching to standard track
-    if (audioRef.current) {
-      try {
-        audioRef.current.pause();
-        audioRef.current.src = SILENT_AUDIO_URI;
-        audioRef.current.loop = true;
-      } catch {}
-    }
-    setActiveRadioStation(null);
-    activeRadioStationRef.current = null;
-    currentTrackRef.current = track;
-
-    const mc = musicConnectRef.current;
-    if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
-      mc.sendAppCommand(
-        mc.remoteActiveSession.session_instance_id,
-        "PLAY_TRACK",
-        {
-          track,
-          positionSeconds: options?.startSeconds || 0,
-          autoPlay: options?.autoPlay !== false,
+    ) => {
+      if (track.isLiveRadio) {
+        const match = POPULAR_RADIO_STATIONS.find(
+          (s) => `radio:${s.id}` === track.id || s.streamUrl === track.streamUrl
+        );
+        if (match) {
+          playRadioStation(match);
+          return;
         }
-      );
-      showQueueToast(
-        `Memutar "${track.title}" di ${mc.remoteActiveSession.device_name}`
-      );
-      return;
-    }
+      }
 
-    const startSec = Math.max(0, options?.startSeconds || 0);
-    const shouldAutoPlay = options?.autoPlay !== false;
-    setCurrentTrack(track);
-    setIsPlaying(shouldAutoPlay);
-    userRequestedPauseRef.current = !shouldAutoPlay;
-    setCurrentTime(startSec);
-    loadedTrackIdRef.current = track.id;
-    if (track.id) {
-      recentlyPlayedIdsRef.current = [
-        track.id,
-        ...recentlyPlayedIdsRef.current.filter((id) => id !== track.id),
-      ].slice(0, 30);
-    }
+      // Infer selection context seamlessly when triggered from existing UI handlers
+      const inferredSourceContext: ListeningSourceContext =
+        options?.sourceContext ||
+        (selectedAlbumRef.current
+          ? "album"
+          : selectedArtistRef.current
+          ? "artist"
+          : isViewingLikedRef.current
+          ? "liked"
+          : selectedLocalPlaylistRef.current
+          ? "playlist"
+          : hasSearchedRef.current && searchQueryRef.current.trim()
+          ? "search"
+          : subTabRef.current === "home"
+          ? "home"
+          : "unknown");
 
-    // Reset clock snapshot and lyric index immediately to prevent stale interpolation
-    playbackClockRef.current = {
-      positionSeconds: startSec,
-      snapshotPerfTime: performance.now(),
-      isPlaying: shouldAutoPlay,
-      duration: track.durationMs ? track.durationMs / 1000 : 0,
-      trackId: track.id,
-    };
-    activeLyricIndexRef.current = -1;
-    setActiveLyricIndex(-1);
-
-    // Keep mobile background audio alive by acquiring HTML5 audio session lock
-    if (shouldAutoPlay && audioRef.current) {
-      try {
-        if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+      // Stop active live radio stream immediately when switching to standard track
+      if (audioRef.current) {
+        try {
+          audioRef.current.onended = null;
+          audioRef.current.pause();
           audioRef.current.src = SILENT_AUDIO_URI;
           audioRef.current.loop = true;
-        }
-        audioRef.current.play().catch(() => {});
-      } catch {}
-    }
-
-    // Update queue index if track is already in queue, but never auto-add unqueued tracks to queue
-    setQueue((prevQueue) => {
-      const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
-      const newIdx = existingIdx !== -1 ? existingIdx : -1;
-      setQueueIndex(newIdx);
-      saveQueueState({ items: prevQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
-      return prevQueue;
-    });
-
-    if (track.durationMs && track.durationMs > 0) {
-      setDuration(track.durationMs / 1000);
-    }
-
-    let videoId = track.youtubeVideoId;
-
-    if (!videoId) {
-      setIsResolvingAudio(true);
-      try {
-        const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
-        const res = await fetch(
-          `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
-        );
-        const data = await res.json();
-        if (data.success && data.videoId) {
-          videoId = data.videoId;
-          track.youtubeVideoId = videoId;
-          // Persist the resolved videoId to the queue
-          setQueue((prevQueue) => {
-            const updated = prevQueue.map((item) =>
-              item.id === track.id ? { ...item, youtubeVideoId: videoId } : item
-            );
-            saveQueueState({ items: updated, currentIndex: queueIndexRef.current, updatedAt: new Date().toISOString() });
-            return updated;
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to resolve audio for track:", err);
-      } finally {
-        setIsResolvingAudio(false);
-      }
-    }
-
-    if (!videoId) {
-      if (track.previewUrl && audioRef.current) {
-        try {
-          audioRef.current.src = track.previewUrl;
-          audioRef.current.loop = false;
-          audioRef.current.volume = isMuted ? 0 : volume;
-          audioRef.current.muted = isMuted;
-          if (shouldAutoPlay) {
-            audioRef.current.play().then(() => {
-              setIsPlaying(true);
-              isPlayingRef.current = true;
-            }).catch(() => {});
-          }
-          return;
         } catch {}
       }
-      console.warn("Could not resolve videoId for track:", track.title);
-      return;
-    }
+      setActiveRadioStation(null);
+      activeRadioStationRef.current = null;
+      currentTrackRef.current = track;
 
-    const targetVideoId = videoId;
-    setCurrentVideoId(targetVideoId);
-
-    if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
-      try {
-        if (shouldAutoPlay) {
-          ytPlayerRef.current.loadVideoById({
-            videoId: targetVideoId,
-            startSeconds: startSec,
-          });
-          ytPlayerRef.current.playVideo();
-        } else if (typeof ytPlayerRef.current.cueVideoById === "function") {
-          ytPlayerRef.current.cueVideoById({
-            videoId: targetVideoId,
-            startSeconds: startSec,
-          });
-        }
-      } catch (err) {
-        console.warn("ytPlayer loadVideoById error:", err);
+      const mc = musicConnectRef.current;
+      if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
+        mc.sendAppCommand(
+          mc.remoteActiveSession.session_instance_id,
+          "PLAY_TRACK",
+          {
+            track,
+            positionSeconds: options?.startSeconds || 0,
+            autoPlay: options?.autoPlay !== false,
+          }
+        );
+        showQueueToast(
+          `Memutar "${track.title}" di ${mc.remoteActiveSession.device_name}`
+        );
+        return;
       }
-    } else {
-      pendingVideoIdRef.current = targetVideoId;
-      pendingVideoOptionsRef.current = {
-        startSeconds: startSec,
-        autoPlay: shouldAutoPlay,
+
+      const startSec = Math.max(0, options?.startSeconds || 0);
+      const shouldAutoPlay = options?.autoPlay !== false;
+
+      // Start verified local playback telemetry session (finalizing previous session with exact reason)
+      telemetryRef.current.startTrackSession(track, {
+        sourceContext: inferredSourceContext,
+        searchQuery:
+          inferredSourceContext === "search" ? searchQueryRef.current : undefined,
+        previousEndReason: options?.previousEndReason || "track_change",
+      });
+
+      setCurrentTrack(track);
+      setIsPlaying(shouldAutoPlay);
+      userRequestedPauseRef.current = !shouldAutoPlay;
+      setCurrentTime(startSec);
+      loadedTrackIdRef.current = track.id;
+      if (track.id) {
+        recentlyPlayedIdsRef.current = [
+          track.id,
+          ...recentlyPlayedIdsRef.current.filter((id) => id !== track.id),
+        ].slice(0, 30);
+      }
+
+      // Reset clock snapshot and lyric index immediately to prevent stale interpolation
+      playbackClockRef.current = {
+        positionSeconds: startSec,
+        snapshotPerfTime: performance.now(),
+        isPlaying: shouldAutoPlay,
+        duration: track.durationMs ? track.durationMs / 1000 : 0,
+        trackId: track.id,
       };
-    }
-  }, []);
+      activeLyricIndexRef.current = -1;
+      setActiveLyricIndex(-1);
+
+      // Keep mobile background audio alive by acquiring HTML5 audio session lock
+      if (shouldAutoPlay && audioRef.current) {
+        try {
+          if (!audioRef.current.src || !audioRef.current.src.startsWith("data:audio")) {
+            audioRef.current.src = SILENT_AUDIO_URI;
+            audioRef.current.loop = true;
+          }
+          audioRef.current.play().catch(() => {});
+        } catch {}
+      }
+
+      // Update queue index if track is already in queue, but never auto-add unqueued tracks to queue
+      setQueue((prevQueue) => {
+        const existingIdx = prevQueue.findIndex((item) => item.id === track.id);
+        const newIdx = existingIdx !== -1 ? existingIdx : -1;
+        setQueueIndex(newIdx);
+        saveQueueState({ items: prevQueue, currentIndex: newIdx, updatedAt: new Date().toISOString() });
+        return prevQueue;
+      });
+
+      if (track.durationMs && track.durationMs > 0) {
+        setDuration(track.durationMs / 1000);
+      }
+
+      let videoId = track.youtubeVideoId;
+
+      if (!videoId) {
+        setIsResolvingAudio(true);
+        try {
+          const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
+          const res = await fetch(
+            `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
+          );
+          const data = await res.json();
+          if (data.success && data.videoId) {
+            videoId = data.videoId;
+            track.youtubeVideoId = videoId;
+            // Persist the resolved videoId to the queue
+            setQueue((prevQueue) => {
+              const updated = prevQueue.map((item) =>
+                item.id === track.id ? { ...item, youtubeVideoId: videoId } : item
+              );
+              saveQueueState({ items: updated, currentIndex: queueIndexRef.current, updatedAt: new Date().toISOString() });
+              return updated;
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to resolve audio for track:", err);
+        } finally {
+          setIsResolvingAudio(false);
+        }
+      }
+
+      if (!videoId) {
+        if (track.previewUrl && audioRef.current) {
+          autoplayErrorRetryCountRef.current = 0;
+          try {
+            audioRef.current.src = track.previewUrl;
+            audioRef.current.loop = false;
+            audioRef.current.volume = isMuted ? 0 : volume;
+            audioRef.current.muted = isMuted;
+            audioRef.current.onended = () => handleTrackEnded();
+            if (shouldAutoPlay) {
+              audioRef.current.play().then(() => {
+                setIsPlaying(true);
+                isPlayingRef.current = true;
+              }).catch(() => {});
+            }
+            return;
+          } catch {}
+        }
+        console.warn("Could not resolve videoId for track:", track.title);
+        telemetryRef.current.markPlaybackFailure();
+        failedAutoplayIdsRef.current.add(track.id);
+        if (
+          inferredSourceContext === "autoplay" &&
+          autoplayErrorRetryCountRef.current < 2
+        ) {
+          autoplayErrorRetryCountRef.current += 1;
+          setTimeout(() => {
+            if (currentTrackRef.current?.id === track.id) {
+              playNextRef.current("ended");
+            }
+          }, 150);
+        }
+        return;
+      }
+
+      autoplayErrorRetryCountRef.current = 0;
+      const targetVideoId = videoId;
+      setCurrentVideoId(targetVideoId);
+
+      if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
+        try {
+          if (shouldAutoPlay) {
+            ytPlayerRef.current.loadVideoById({
+              videoId: targetVideoId,
+              startSeconds: startSec,
+            });
+            ytPlayerRef.current.playVideo();
+          } else if (typeof ytPlayerRef.current.cueVideoById === "function") {
+            ytPlayerRef.current.cueVideoById({
+              videoId: targetVideoId,
+              startSeconds: startSec,
+            });
+          }
+        } catch (err) {
+          console.warn("ytPlayer loadVideoById error:", err);
+        }
+      } else {
+        pendingVideoIdRef.current = targetVideoId;
+        pendingVideoOptionsRef.current = {
+          startSeconds: startSec,
+          autoPlay: shouldAutoPlay,
+        };
+      }
+    },
+    []
+  );
 
   const playAllTracks = (items: MusicItem[]) => {
     if (!items || items.length === 0) return;
@@ -2086,13 +2405,14 @@ export function MusicWorkspace({
     }
   };
 
-  const playNext = (): MusicItem | null => {
+  const playNext = (arg?: unknown): MusicItem | null => {
     if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return null; // Disallow skip on live radio
     const mc = musicConnectRef.current;
     if (mc?.enabled && mc?.remoteActiveSession) {
       mc.sendAppCommand(mc.remoteActiveSession.session_instance_id, "NEXT");
       return null;
     }
+    const endReason: ListeningEndReason = arg === "ended" ? "ended" : "manual_skip";
     let currentQueue = queueRef.current;
     const finishedTrack = currentTrackRef.current;
 
@@ -2115,54 +2435,60 @@ export function MusicWorkspace({
       }
     }
 
-    // Helper untuk memilih lagu rekomendasi jika antrean di panel kosong atau telah selesai
+    // Smart Autoplay: memilih lagu berikutnya secara personal + kontekstual saat antrean manual kosong
     const getNextRecommendation = (): MusicItem | null => {
       const lastTrack = currentTrackRef.current;
-      const sourcePool =
-        discoverTracksRef.current.length > 0
-          ? discoverTracksRef.current
-          : tracksRef.current.length > 0
-          ? tracksRef.current
-          : FEATURED_STARTER_TRACKS;
+      const playlistItems = localPlaylistsRef.current
+        .slice(0, 6)
+        .flatMap((pl) => pl.items.slice(0, 10));
+      const candidatePool = deduplicateMusicItems([
+        ...autoplayCandidatesRef.current,
+        ...discoverTracksRef.current,
+        ...likedSongsRef.current.slice(0, 24),
+        ...playlistItems,
+        ...tracksRef.current,
+        ...FEATURED_STARTER_TRACKS,
+      ]);
 
-      const currentArtists = (lastTrack?.artistNames || []).map((a) => a.toLowerCase().trim());
-      const recentIds = recentlyPlayedIdsRef.current;
+      const excludeIds = new Set<string>([
+        ...currentQueue.map((q) => q.id),
+        ...failedAutoplayIdsRef.current,
+      ]);
+      if (lastTrack?.id) excludeIds.add(lastTrack.id);
 
-      // 1. Prioritaskan lagu yang belum baru saja diputar dan tidak ada di antrean
-      let candidates = sourcePool.filter(
-        (t) => t.id !== lastTrack?.id && !currentQueue.some((q) => q.id === t.id) && !recentIds.includes(t.id)
+      const recentCanonicalKeys = [
+        ...telemetryRef.current.sessionRecentKeysRef.current,
+        ...recentlyPlayedIdsRef.current
+          .map((id) => candidatePool.find((c) => c.id === id))
+          .filter((item): item is MusicItem => Boolean(item))
+          .map((item) => getCanonicalTrackKey(item)),
+      ];
+
+      const ranked = rankAutoplayCandidates(
+        lastTrack,
+        candidatePool,
+        telemetryRef.current.localProfileRef.current,
+        {
+          limit: 6,
+          excludeTrackIds: excludeIds,
+          sessionRecentKeys: recentCanonicalKeys,
+        }
       );
 
-      // 2. Jika semua lagu sudah pernah diputar, izinkan lagu apa saja kecuali lagu yang sedang aktif
-      if (candidates.length === 0) {
-        candidates = sourcePool.filter(
-          (t) => t.id !== lastTrack?.id && !currentQueue.some((q) => q.id === t.id)
-        );
-      }
-
-      if (candidates.length === 0) {
-        candidates = sourcePool.filter((t) => t.id !== lastTrack?.id);
-      }
-
-      if (candidates.length === 0) return null;
-
-      // Urutkan: lagu dari artis yang sama dengan lagu terakhir diputar mendapat prioritas paling atas
-      candidates.sort((a, b) => {
-        const aArtistMatch = a.artistNames.some((an) => currentArtists.includes(an.toLowerCase().trim())) ? 1 : 0;
-        const bArtistMatch = b.artistNames.some((bn) => currentArtists.includes(bn.toLowerCase().trim())) ? 1 : 0;
-        return bArtistMatch - aArtistMatch;
-      });
-
-      return candidates[0] || null;
+      return ranked[0]?.item || null;
     };
 
     if (currentQueue.length === 0) {
       setQueueIndex(-1);
       const rec = getNextRecommendation();
       if (rec) {
-        playTrack(rec);
+        void playTrack(rec, {
+          sourceContext: "autoplay",
+          previousEndReason: endReason,
+        });
         return rec;
       }
+      telemetryRef.current.finalizeActiveSession(endReason);
       return null;
     }
 
@@ -2174,9 +2500,15 @@ export function MusicWorkspace({
     }
     setQueueIndex(nextIdx);
     const nextTrack = currentQueue[nextIdx];
-    if (nextTrack) playTrack(nextTrack);
+    if (nextTrack) {
+      void playTrack(nextTrack, {
+        sourceContext: "queue",
+        previousEndReason: endReason,
+      });
+    }
     return nextTrack || null;
   };
+  playNextRef.current = playNext;
 
   const playPrevious = (): MusicItem | null => {
     if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return null; // Disallow skip on live radio
@@ -2201,20 +2533,33 @@ export function MusicWorkspace({
     }
     setQueueIndex(prevIdx);
     const prevTrack = currentQueue[prevIdx];
-    if (prevTrack) playTrack(prevTrack);
+    if (prevTrack) {
+      void playTrack(prevTrack, {
+        sourceContext: "queue",
+        previousEndReason: "manual_skip",
+      });
+    }
     return prevTrack || null;
   };
 
   const handleTrackEnded = () => {
     if (currentTrackRef.current?.isLiveRadio || activeRadioStationRef.current) return;
     if (repeatModeRef.current === "one") {
+      telemetryRef.current.recordRepeatOneLoop();
       handleSeek(0);
       if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
         ytPlayerRef.current.playVideo();
+      } else if (
+        audioRef.current &&
+        audioRef.current.src &&
+        !audioRef.current.src.startsWith("data:audio")
+      ) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
       }
       return;
     }
-    playNext();
+    playNext("ended");
   };
 
   // ─── Music Connect (Multi-Device Playback Awareness & Remote Control) ───────
@@ -2335,6 +2680,10 @@ export function MusicWorkspace({
   // ─── Unified Player State (Seamless Local or Remote Connect Playback) ────────
   const isRemoteActive = Boolean(musicConnect.enabled && musicConnect.remoteActiveSession);
   const remoteActiveSession = musicConnect.remoteActiveSession;
+
+  useEffect(() => {
+    setIsRemotePlaybackActiveState(isRemoteActive);
+  }, [isRemoteActive]);
 
   const [remoteTickMs, setRemoteTickMs] = useState<number>(() => Date.now());
 
@@ -2995,6 +3344,8 @@ export function MusicWorkspace({
     if (selectedLocalPlaylist?.id === playlistId) {
       setSelectedLocalPlaylist(null);
     }
+    telemetryRef.current.syncLocalLibraryMirror(likedSongs, updated);
+    setTasteSignalEpoch((v) => v + 1);
     // Langsung hapus dari cloud database tanpa debounce
     if (cloudSyncTimeoutRef.current) clearTimeout(cloudSyncTimeoutRef.current);
     try {

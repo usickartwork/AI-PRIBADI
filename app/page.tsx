@@ -32,8 +32,23 @@ const VoiceAssistantModal = dynamic(() => import("./components/VoiceAssistantMod
 const ShareAIResponseModal = dynamic(() => import("./components/ShareAIResponseModal").then((m) => m.ShareAIResponseModal));
 const ShareProjectModal = dynamic(() => import("./components/ShareProjectModal").then((m) => m.ShareProjectModal));
 const SharedLinksManager = dynamic(() => import("./components/SharedLinksManager").then((m) => m.SharedLinksManager));
+const CustomizeTabSettings = dynamic(() => import("./components/CustomizeTabSettings").then((m) => m.CustomizeTabSettings));
 const SettingsSidebarAccordion = dynamic(() => import("@/components/ui/settings-sidebar-accordion").then((m) => m.Pattern));
 import { UserSubscriptionInfo, formatCreditNumber } from "@/lib/pricing";
+import {
+  type MainNavSlotId,
+  type NavTabId,
+  type NavigationPreferencesV1,
+  LAINNYA_GROUP_SLOT_ID,
+  NAV_TAB_METADATA,
+  clearLocalNavigationPreferences,
+  createDefaultNavigationPreferences,
+  loadLocalNavigationPreferences,
+  sanitizeNavigationPreferences,
+  saveLocalNavigationPreferences,
+  shouldAcceptRemotePreferences,
+  validateNavigationPreferencesStrict,
+} from "@/lib/navigationPrefs";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useUser, useClerk } from "@clerk/nextjs";
@@ -806,6 +821,9 @@ export default function Home() {
   const [halamanSubTab, setHalamanSubTab] = useState<"game" | "faith">(() => {
     if (typeof window !== "undefined") {
       try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewParam = urlParams.get("view");
+        if (viewParam === "faith" || viewParam === "game") return viewParam;
         const saved = localStorage.getItem("usick-halaman-subtab");
         if (saved === "faith" || saved === "game") return saved;
         const view = localStorage.getItem("usick-active-view");
@@ -818,6 +836,8 @@ export default function Home() {
   const [lainnyaExpanded, setLainnyaExpanded] = useState(() => {
     if (typeof window !== "undefined") {
       try {
+        const urlView = new URLSearchParams(window.location.search).get("view");
+        if (urlView === "halaman" || urlView === "faith" || urlView === "game") return true;
         const saved = localStorage.getItem("usick-active-view");
         return saved === "halaman" || saved === "faith" || saved === "game";
       } catch {}
@@ -858,13 +878,48 @@ export default function Home() {
 
   useEffect(() => {
     try {
+      const urlView = new URLSearchParams(window.location.search).get("view");
+      const hasExplicitHalamanDeepLink =
+        urlView === "halaman" || urlView === "faith" || urlView === "game";
       const saved = localStorage.getItem("usick-active-view");
-      if (saved === "halaman" || saved === "faith" || saved === "game") {
+      if (!hasExplicitHalamanDeepLink && (saved === "halaman" || saved === "faith" || saved === "game")) {
         setActiveView("chats");
         localStorage.removeItem("usick-active-view");
       }
     } catch {}
     isInitialActiveViewSyncDone.current = true;
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const viewParam = new URLSearchParams(window.location.search).get("view");
+        if (
+          viewParam &&
+          ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency"].includes(viewParam)
+        ) {
+          setActiveView(
+            viewParam as
+              | "chats"
+              | "code"
+              | "schedule"
+              | "faith"
+              | "image"
+              | "messages"
+              | "game"
+              | "halaman"
+              | "music"
+              | "notebook"
+              | "emergency"
+          );
+          if (viewParam === "faith" || viewParam === "game") {
+            setHalamanSubTab(viewParam);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   useEffect(() => {
@@ -968,7 +1023,267 @@ export default function Home() {
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"account" | "devices" | "appearance" | "billing" | "pricing" | "security" | "shared-links">("account");
+  const [settingsTab, setSettingsTab] = useState<"account" | "devices" | "appearance" | "customize-tab" | "billing" | "pricing" | "security" | "shared-links">("account");
+  const [navPrefs, setNavPrefs] = useState<NavigationPreferencesV1>(() =>
+    createDefaultNavigationPreferences()
+  );
+  const [navPrefsLoadingCloud, setNavPrefsLoadingCloud] = useState(false);
+  const navPrefsOwnerRef = useRef<string | null>(null);
+  const navPrefsRevisionRef = useRef<number>(0);
+  const navPrefsSaveAbortRef = useRef<AbortController | null>(null);
+  const navPrefsLastCloudSyncAtRef = useRef<number>(0);
+
+  // Per-user Navigation Preferences load + cloud sync + cross-device focus sync
+  useEffect(() => {
+    if (authLoading) return;
+
+    navPrefsSaveAbortRef.current?.abort();
+    navPrefsSaveAbortRef.current = null;
+
+    if (!user?.id) {
+      navPrefsOwnerRef.current = null;
+      navPrefsRevisionRef.current = 0;
+      navPrefsLastCloudSyncAtRef.current = 0;
+      setNavPrefsLoadingCloud(false);
+      setNavPrefs(createDefaultNavigationPreferences());
+      return;
+    }
+
+    const currentUserId = user.id;
+    navPrefsOwnerRef.current = currentUserId;
+
+    const cached = loadLocalNavigationPreferences(currentUserId);
+    if (cached) {
+      navPrefsRevisionRef.current = cached.revision;
+      setNavPrefs(cached);
+    } else {
+      navPrefsRevisionRef.current = 0;
+      setNavPrefs(createDefaultNavigationPreferences());
+    }
+
+    let cancelled = false;
+    let activeFetchController: AbortController | null = null;
+
+    const syncFromCloud = async (isInitialLoad = false) => {
+      if (cancelled || navPrefsOwnerRef.current !== currentUserId) return;
+      const now = Date.now();
+      if (!isInitialLoad && now - navPrefsLastCloudSyncAtRef.current < 15000) {
+        return;
+      }
+      navPrefsLastCloudSyncAtRef.current = now;
+
+      activeFetchController?.abort();
+      const controller = new AbortController();
+      activeFetchController = controller;
+
+      if (isInitialLoad) setNavPrefsLoadingCloud(true);
+      try {
+        const res = await fetch("/api/preferences/navigation", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || navPrefsOwnerRef.current !== currentUserId) return;
+
+        if (data?.success && data.hasCloudRecord && data.preferences) {
+          const remote = sanitizeNavigationPreferences(data.preferences).preferences;
+          setNavPrefs((prev) => {
+            if (navPrefsOwnerRef.current !== currentUserId) return prev;
+            if (shouldAcceptRemotePreferences(prev, remote, navPrefsRevisionRef.current)) {
+              navPrefsRevisionRef.current = Math.max(navPrefsRevisionRef.current, remote.revision);
+              saveLocalNavigationPreferences(currentUserId, remote);
+              return remote;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // Pertahankan cache lokal / urutan default dengan aman apabila offline atau dibatalkan
+      } finally {
+        if (!cancelled && isInitialLoad && navPrefsOwnerRef.current === currentUserId) {
+          setNavPrefsLoadingCloud(false);
+        }
+      }
+    };
+
+    void syncFromCloud(true);
+
+    const handleWindowFocus = () => {
+      void syncFromCloud(false);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncFromCloud(false);
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      activeFetchController?.abort();
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user?.id, authLoading]);
+
+  const handleSaveNavPreferences = useCallback(
+    async (draftPrefs: NavigationPreferencesV1): Promise<{ ok: boolean; message?: string }> => {
+      if (!user?.id) {
+        return {
+          ok: false,
+          message: "Anda belum masuk ke akun. Silakan masuk terlebih dahulu.",
+        };
+      }
+
+      const currentUserId = user.id;
+      const nextRevision =
+        Math.max(navPrefsRevisionRef.current, navPrefs.revision, draftPrefs.revision) + 1;
+
+      const candidate: NavigationPreferencesV1 = {
+        version: 1,
+        mainOrder: [...draftPrefs.mainOrder],
+        lainnyaOrder: [...draftPrefs.lainnyaOrder],
+        revision: nextRevision,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const validation = validateNavigationPreferencesStrict(candidate);
+      if (!validation.valid) {
+        return { ok: false, message: validation.error };
+      }
+
+      navPrefsSaveAbortRef.current?.abort();
+      const controller = new AbortController();
+      navPrefsSaveAbortRef.current = controller;
+
+      try {
+        const res = await fetch("/api/preferences/navigation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferences: validation.value }),
+          signal: controller.signal,
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data?.success) {
+          if (res.status === 401) {
+            return {
+              ok: false,
+              message: "Sesi Anda telah kedaluwarsa. Silakan masuk kembali untuk menyimpan perubahan.",
+            };
+          }
+          return {
+            ok: false,
+            message: data?.error || "Gagal menyimpan susunan navigasi ke server.",
+          };
+        }
+
+        if (navPrefsOwnerRef.current !== currentUserId) {
+          return { ok: false, message: "Sesi pengguna berubah sebelum penyimpanan selesai." };
+        }
+
+        const canonical = sanitizeNavigationPreferences(
+          data.preferences || validation.value
+        ).preferences;
+
+        navPrefsRevisionRef.current = Math.max(navPrefsRevisionRef.current, canonical.revision);
+        navPrefsLastCloudSyncAtRef.current = Date.now();
+        setNavPrefs(canonical);
+        saveLocalNavigationPreferences(currentUserId, canonical);
+
+        return { ok: true, message: "Susunan navigasi berhasil disimpan." };
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") {
+          return { ok: false, message: "Permintaan sebelumnya dibatalkan oleh pembaruan terbaru." };
+        }
+        return {
+          ok: false,
+          message: "Tidak dapat terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
+        };
+      } finally {
+        if (navPrefsSaveAbortRef.current === controller) {
+          navPrefsSaveAbortRef.current = null;
+        }
+      }
+    },
+    [user?.id, navPrefs.revision]
+  );
+
+  const handleResetNavPreferences = useCallback(async (): Promise<{ ok: boolean; message?: string }> => {
+    if (!user?.id) {
+      return {
+        ok: false,
+        message: "Anda belum masuk ke akun. Silakan masuk terlebih dahulu.",
+      };
+    }
+
+    const currentUserId = user.id;
+    const nextRevision = Math.max(navPrefsRevisionRef.current, navPrefs.revision) + 1;
+    const defaultPrefs = createDefaultNavigationPreferences(
+      new Date().toISOString(),
+      nextRevision
+    );
+
+    navPrefsSaveAbortRef.current?.abort();
+    const controller = new AbortController();
+    navPrefsSaveAbortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/preferences/navigation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferences: defaultPrefs, force: true }),
+        signal: controller.signal,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        if (res.status === 401) {
+          return {
+            ok: false,
+            message: "Sesi Anda telah kedaluwarsa. Silakan masuk kembali untuk mereset susunan navigasi.",
+          };
+        }
+        return {
+          ok: false,
+          message: data?.error || "Gagal mengembalikan susunan navigasi ke default.",
+        };
+      }
+
+      if (navPrefsOwnerRef.current !== currentUserId) {
+        return { ok: false, message: "Sesi pengguna berubah sebelum reset selesai." };
+      }
+
+      const canonical = sanitizeNavigationPreferences(
+        data.preferences || defaultPrefs
+      ).preferences;
+
+      navPrefsRevisionRef.current = Math.max(navPrefsRevisionRef.current, canonical.revision);
+      navPrefsLastCloudSyncAtRef.current = Date.now();
+      setNavPrefs(canonical);
+      saveLocalNavigationPreferences(currentUserId, canonical);
+
+      return { ok: true, message: "Susunan navigasi berhasil dikembalikan ke default." };
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") {
+        return { ok: false, message: "Permintaan reset sebelumnya dibatalkan." };
+      }
+      return {
+        ok: false,
+        message: "Tidak dapat terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
+      };
+    } finally {
+      if (navPrefsSaveAbortRef.current === controller) {
+        navPrefsSaveAbortRef.current = null;
+      }
+    }
+  }, [user?.id, navPrefs.revision]);
   const [deviceSessions, setDeviceSessions] = useState<{
     id: string;
     isCurrent: boolean;
@@ -1052,6 +1367,12 @@ export default function Home() {
         await clerkSignOut();
       }
     } catch {}
+    navPrefsSaveAbortRef.current?.abort();
+    navPrefsSaveAbortRef.current = null;
+    navPrefsOwnerRef.current = null;
+    navPrefsRevisionRef.current = 0;
+    navPrefsLastCloudSyncAtRef.current = 0;
+    setNavPrefs(createDefaultNavigationPreferences());
     sessionsOwnerIdRef.current = null;
     historySyncedForRef.current = null;
     setUser(null);
@@ -1100,6 +1421,7 @@ export default function Home() {
           localStorage.removeItem(`usick-schedules-${user.id}`);
           localStorage.removeItem(`usick-code-blueprint-${user.id}`);
           localStorage.removeItem(`usick-image-history-${user.id}`);
+          clearLocalNavigationPreferences(user.id);
           localStorage.removeItem("usick-active-view");
           localStorage.removeItem("usick-user-subscription");
         } catch {}
@@ -1107,6 +1429,12 @@ export default function Home() {
 
       // Logout dari Clerk
       await clerkSignOut();
+      navPrefsSaveAbortRef.current?.abort();
+      navPrefsSaveAbortRef.current = null;
+      navPrefsOwnerRef.current = null;
+      navPrefsRevisionRef.current = 0;
+      navPrefsLastCloudSyncAtRef.current = 0;
+      setNavPrefs(createDefaultNavigationPreferences());
       sessionsOwnerIdRef.current = null;
       historySyncedForRef.current = null;
       setUser(null);
@@ -1647,14 +1975,14 @@ export default function Home() {
 
     const handleTouchStart = (e: TouchEvent) => {
       if (typeof window === "undefined" || window.innerWidth >= 768) return;
-      if (e.touches.length > 1) {
+      if (settingsOpen || e.touches.length > 1) {
         isTracking = false;
         return;
       }
 
-      // Jangan intercept swipe jika menyentuh input/textarea/editable
+      // Jangan intercept swipe jika menyentuh input/textarea/editable/area bebas-swipe (mis. Pengaturan Customize Tab)
       const target = e.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable='true']")) {
+      if (target?.closest("input, textarea, [contenteditable='true'], [data-no-sidebar-swipe]")) {
         isTracking = false;
         return;
       }
@@ -1867,7 +2195,7 @@ export default function Home() {
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
-  }, [sidebarOpen, clearDragStyles]);
+  }, [sidebarOpen, settingsOpen, clearDragStyles]);
 
   // Load models from API
   useEffect(() => {
@@ -3604,44 +3932,194 @@ export default function Home() {
   </div>
   );
 
-  const halamanSubTabsBar = (
-    <div
-      className={`inline-flex items-center p-0.5 sm:p-1 rounded-full backdrop-blur-md border shadow-sm ${
-        isDark
-          ? "bg-zinc-900/80 border-white/10 shadow-black/40"
-          : "bg-white/80 border-black/10 shadow-zinc-900/10"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={() => setHalamanSubTab("game")}
-        className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-          halamanSubTab === "game"
-            ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-            : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black")
+  const renderSidebarSlotIcon = (slotId: MainNavSlotId, className: string) => {
+    switch (slotId) {
+      case "chat":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        );
+      case "code":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        );
+      case "schedule":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case "image":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case "messages":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+          </svg>
+        );
+      case "music":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
+          </svg>
+        );
+      case "emergency":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        );
+      case "game":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
+          </svg>
+        );
+      case "faith":
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+          </svg>
+        );
+      case "lainnya":
+        return (
+          <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
+          </svg>
+        );
+    }
+  };
+
+  const isNavTabActive = (tabId: NavTabId): boolean => {
+    switch (tabId) {
+      case "chat":
+        return activeView === "chats";
+      case "code":
+        return activeView === "code";
+      case "schedule":
+        return activeView === "schedule";
+      case "image":
+        return activeView === "image";
+      case "messages":
+        return activeView === "messages";
+      case "music":
+        return activeView === "music";
+      case "emergency":
+        return activeView === "emergency";
+      case "game":
+        return isHalamanActive && halamanSubTab === "game";
+      case "faith":
+        return isHalamanActive && halamanSubTab === "faith";
+    }
+  };
+
+  const activateNavTab = (tabId: NavTabId) => {
+    const isFreePlan = (subscription?.plan || "free") === "free";
+    switch (tabId) {
+      case "chat":
+        setActiveView("chats");
+        closeSidebarOnMobile();
+        return;
+      case "code":
+        setActiveView("code");
+        closeSidebarOnMobile();
+        return;
+      case "schedule":
+        setActiveView("schedule");
+        closeSidebarOnMobile();
+        return;
+      case "image":
+        if (isFreePlan) {
+          setSelectedLockedModelName("Image Generator & Translator (Pro)");
+          setShowUpgradeModal(true);
+          return;
+        }
+        setActiveView("image");
+        closeSidebarOnMobile();
+        return;
+      case "messages":
+        if (isFreePlan) {
+          setSelectedLockedModelName("Messages (Pro)");
+          setShowUpgradeModal(true);
+          return;
+        }
+        setActiveView("messages");
+        setMessagesResetNonce((prev) => prev + 1);
+        closeSidebarOnMobile();
+        return;
+      case "music":
+        if (isFreePlan) {
+          setSelectedLockedModelName("Music One & Connect (Pro)");
+          setShowUpgradeModal(true);
+          return;
+        }
+        setActiveView("music");
+        closeSidebarOnMobile();
+        return;
+      case "emergency":
+        setActiveView("emergency");
+        closeSidebarOnMobile();
+        return;
+      case "game":
+        setActiveView("halaman");
+        setHalamanSubTab("game");
+        closeSidebarOnMobile();
+        return;
+      case "faith":
+        if (isFreePlan) {
+          setSelectedLockedModelName("Faith Space (Pro)");
+          setShowUpgradeModal(true);
+          return;
+        }
+        setActiveView("halaman");
+        setHalamanSubTab("faith");
+        closeSidebarOnMobile();
+        return;
+    }
+  };
+
+  const halamanSubTabsBar =
+    navPrefs.lainnyaOrder.length === 2 ? (
+      <div
+        className={`inline-flex items-center p-0.5 sm:p-1 rounded-full backdrop-blur-md border shadow-sm ${
+          isDark
+            ? "bg-zinc-900/80 border-white/10 shadow-black/40"
+            : "bg-white/80 border-black/10 shadow-zinc-900/10"
         }`}
       >
-        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
-        </svg>
-        <span>Game</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => setHalamanSubTab("faith")}
-        className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-          halamanSubTab === "faith"
-            ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
-            : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black")
-        }`}
-      >
-        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
-        </svg>
-        <span>Faith</span>
-      </button>
-    </div>
-  );
+        {navPrefs.lainnyaOrder.map((subId) => (
+          <button
+            key={subId}
+            type="button"
+            onClick={() => {
+              if (subId === "faith" && (subscription?.plan || "free") === "free") {
+                setSelectedLockedModelName("Faith Space (Pro)");
+                setShowUpgradeModal(true);
+                return;
+              }
+              setHalamanSubTab(subId);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+              halamanSubTab === subId
+                ? (isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs")
+                : (isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black")
+            }`}
+          >
+            {renderSidebarSlotIcon(subId, "w-3.5 h-3.5 shrink-0")}
+            <span>{NAV_TAB_METADATA[subId].sidebarLabel}</span>
+          </button>
+        ))}
+      </div>
+    ) : undefined;
 
   const renderDeviceSessionsList = (showTitle: boolean = true) => {
     return (
@@ -3953,292 +4431,130 @@ export default function Home() {
 
           {/* Unified Scrollable Sidebar Body: Feature tabs + History all scroll together */}
           <div className="flex-1 min-h-0 overflow-y-auto px-3 md:px-3.5 py-3 md:py-4 overscroll-contain">
-            {/* Quick Navigation Sections */}
+            {/* Quick Navigation Sections (Dynamic Per-User Order & Lainnya Grouping) */}
             <div className="space-y-1.5 md:space-y-1 text-[15px] md:text-sm font-medium pb-1">
-              <div
-                onClick={() => {
-                  setActiveView("chats");
-                  closeSidebarOnMobile();
-                }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "chats"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              <span>Chats</span>
-            </div>
+              {navPrefs.mainOrder.map((slotId) => {
+                if (slotId === LAINNYA_GROUP_SLOT_ID) {
+                  if (navPrefs.lainnyaOrder.length === 0) {
+                    return null;
+                  }
+                  const isLainnyaGroupActive = navPrefs.lainnyaOrder.some((subId) =>
+                    isNavTabActive(subId)
+                  );
+                  return (
+                    <div key="lainnya" className="space-y-1">
+                      <div
+                        onClick={() => {
+                          setLainnyaExpanded((prev) => !prev);
+                        }}
+                        className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                          isLainnyaGroupActive
+                            ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                            : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 md:gap-3">
+                          {renderSidebarSlotIcon("lainnya", "w-5 h-5 md:w-5 md:h-5 shrink-0")}
+                          <span>Lainnya</span>
+                        </div>
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${
+                            lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
 
-            {/* Code Feature Button (Ngoding Pakai AI) */}
-            <div
-              onClick={() => {
-                setActiveView("code");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "code"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              <span>Code</span>
-            </div>
-
-            {/* Schedule Feature Button */}
-            <div
-              onClick={() => {
-                setActiveView("schedule");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center gap-3 md:gap-3 rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "schedule"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>Schedule</span>
-            </div>
-
-            {/* Image Feature Button (Generator & Terjemahan Gambar AI) */}
-            <div
-              onClick={() => {
-                if ((subscription?.plan || "free") === "free") {
-                  setSelectedLockedModelName("Image Generator & Translator (Pro)");
-                  setShowUpgradeModal(true);
-                  return;
+                      {lainnyaExpanded && (
+                        <div className="pl-6 pr-1 space-y-1 pt-0.5">
+                          {navPrefs.lainnyaOrder.map((subId) => {
+                            const isSubActive = isNavTabActive(subId);
+                            const isSubProLocked =
+                              subId === "faith" && (subscription?.plan || "free") === "free";
+                            return (
+                              <div
+                                key={subId}
+                                onClick={() => activateNavTab(subId)}
+                                className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
+                                  isSubActive
+                                    ? (isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200 text-black font-medium")
+                                    : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900")
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  {renderSidebarSlotIcon(subId, "w-4 h-4 shrink-0")}
+                                  <span>{NAV_TAB_METADATA[subId].sidebarLabel}</span>
+                                </div>
+                                {isSubProLocked && (
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                                      isDark
+                                        ? "bg-zinc-800 text-amber-400 border-zinc-700/80"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}
+                                  >
+                                    PRO
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
                 }
-                setActiveView("image");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "image"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <div className="flex items-center gap-3 md:gap-3">
-                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>Image</span>
-              </div>
-              {(subscription?.plan || "free") === "free" && (
-                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                  isDark
-                    ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
-                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                }`}>
-                  <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  PRO
-                </span>
-              )}
-            </div>
 
-            {/* Messages Feature Button (Chat pribadi antar teman) */}
-            <div
-              onClick={() => {
-                if ((subscription?.plan || "free") === "free") {
-                  setSelectedLockedModelName("Messages (Pro)");
-                  setShowUpgradeModal(true);
-                  return;
-                }
-                setActiveView("messages");
-                setMessagesResetNonce((prev) => prev + 1);
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "messages"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <div className="flex items-center gap-3 md:gap-3">
-                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-                </svg>
-                <span>Messages</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {(subscription?.plan || "free") === "free" ? (
-                  <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                    isDark
-                      ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
-                      : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                  }`}>
-                    <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    PRO
-                  </span>
-                ) : unreadMessagesCount > 0 ? (
-                  <span className={`inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ${
-                    isDark ? "bg-white text-black" : "bg-black text-white"
-                  }`}>
-                    {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
-                  </span>
-                ) : null}
-              </div>
-            </div>
+                const isActive = isNavTabActive(slotId);
+                const isFreePlan = (subscription?.plan || "free") === "free";
+                const showProLock = isFreePlan && NAV_TAB_METADATA[slotId].isProBadgeTab;
+                const showUnreadBadge =
+                  slotId === "messages" && !isFreePlan && unreadMessagesCount > 0;
 
-            {/* Music Feature Button (Music One Player, Lirik & Music Connect - Pro) */}
-            <div
-              onClick={() => {
-                if ((subscription?.plan || "free") === "free") {
-                  setSelectedLockedModelName("Music One & Connect (Pro)");
-                  setShowUpgradeModal(true);
-                  return;
-                }
-                setActiveView("music");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "music"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <div className="flex items-center gap-3 md:gap-3">
-                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-                </svg>
-                <span>Music</span>
-              </div>
-              {(subscription?.plan || "free") === "free" && (
-                <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                  isDark
-                    ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
-                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                }`}>
-                  <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  PRO
-                </span>
-              )}
-            </div>
-
-            {/* Emergency Feature Button (Pusat Bantuan & Panduan Darurat - Bebas Akses Tanpa Login/Pro) */}
-            <div
-              onClick={() => {
-                setActiveView("emergency");
-                closeSidebarOnMobile();
-              }}
-              className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                activeView === "emergency"
-                  ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                  : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-              }`}
-            >
-              <div className="flex items-center gap-3 md:gap-3">
-                <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>Emergency</span>
-              </div>
-            </div>
-
-            {/* Lainnya Tab (Dropdown/Accordion Fitur: Game & Faith) */}
-            <div className="space-y-1">
-              <div
-                onClick={() => {
-                  setLainnyaExpanded((prev) => !prev);
-                }}
-                className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
-                  isHalamanActive
-                    ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
-                    : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
-                }`}
-              >
-                <div className="flex items-center gap-3 md:gap-3">
-                  {/* Icon Titik 3 (•••) */}
-                  <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="5" cy="12" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="19" cy="12" r="2" />
-                  </svg>
-                  <span>Lainnya</span>
-                </div>
-                <svg
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-
-              {/* Sub-tabs: Game & Faith (Hanya muncul jika diklik 'Lainnya') */}
-              {lainnyaExpanded && (
-                <div className="pl-6 pr-1 space-y-1 pt-0.5">
+                return (
                   <div
-                    onClick={() => {
-                      setActiveView("halaman");
-                      setHalamanSubTab("game");
-                      closeSidebarOnMobile();
-                    }}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
-                      isHalamanActive && halamanSubTab === "game"
-                        ? (isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200 text-black font-medium")
-                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900")
+                    key={slotId}
+                    onClick={() => activateNavTab(slotId)}
+                    className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                      isActive
+                        ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                        : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
-                      </svg>
-                      <span>Game</span>
+                    <div className="flex items-center gap-3 md:gap-3">
+                      {renderSidebarSlotIcon(slotId, "w-5 h-5 md:w-5 md:h-5 shrink-0")}
+                      <span>{NAV_TAB_METADATA[slotId].sidebarLabel}</span>
                     </div>
-                  </div>
-
-                  <div
-                    onClick={() => {
-                      if ((subscription?.plan || "free") === "free") {
-                        setSelectedLockedModelName("Faith Space (Pro)");
-                        setShowUpgradeModal(true);
-                        return;
-                      }
-                      setActiveView("halaman");
-                      setHalamanSubTab("faith");
-                      closeSidebarOnMobile();
-                    }}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer transition text-[14px] md:text-xs ${
-                      isHalamanActive && halamanSubTab === "faith"
-                        ? (isDark ? "bg-zinc-800 text-white font-medium" : "bg-zinc-200 text-black font-medium")
-                        : (isDark ? "hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900")
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
-                      </svg>
-                      <span>Faith</span>
-                    </div>
-                    {(subscription?.plan || "free") === "free" && (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                        isDark ? "bg-zinc-800 text-amber-400 border-zinc-700/80" : "bg-amber-50 text-amber-700 border-amber-200"
-                      }`}>
+                    {showProLock ? (
+                      <span
+                        className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDark
+                            ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                        }`}
+                      >
+                        <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
                         PRO
                       </span>
-                    )}
+                    ) : showUnreadBadge ? (
+                      <span
+                        className={`inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ${
+                          isDark ? "bg-white text-black" : "bg-black text-white"
+                        }`}
+                      >
+                        {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
-          </div>
 
           {/* ─── SECTION CATATAN (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
           <div className="pt-3 pb-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2 space-y-1">
@@ -5304,6 +5620,7 @@ export default function Home() {
           role="dialog"
           aria-modal="true"
           aria-label="Halaman Pengaturan"
+          data-no-sidebar-swipe="true"
           className={`fixed inset-0 z-50 flex flex-col animate-in fade-in-0 duration-200 select-none md:select-auto ${
             isDark ? "bg-[#121215] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
           }`}
@@ -5569,6 +5886,23 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
+                )}
+
+                {/* ─── TAB: CUSTOMIZE TAB ─── */}
+                {settingsTab === "customize-tab" && (
+                  <CustomizeTabSettings
+                    key={user?.id || "guest"}
+                    isDark={isDark}
+                    isAuthenticated={Boolean(user)}
+                    isLoadingCloud={navPrefsLoadingCloud}
+                    savedPreferences={navPrefs}
+                    onSavePreferences={handleSaveNavPreferences}
+                    onResetPreferences={handleResetNavPreferences}
+                    onRequireAuth={() => {
+                      setSettingsOpen(false);
+                      setShowAuthModal(true);
+                    }}
+                  />
                 )}
 
                 {/* ─── TAB: BILLING & USAGE ─── */}

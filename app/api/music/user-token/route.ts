@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 // Cache the refreshed access token until near expiration
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
 
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const primaryPair = {
     id: process.env.SPOTIFY_CLIENT_ID?.trim(),
     secret: process.env.SPOTIFY_CLIENT_SECRET?.trim(),

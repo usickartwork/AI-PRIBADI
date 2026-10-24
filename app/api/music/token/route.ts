@@ -2,16 +2,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 // ─── Spotify Client Credentials Token Endpoint ────────────────────────────────
-// Obtains an access token using the Client Credentials flow.
-// This does NOT require user login — it grants access to public Spotify data
-// (search, browse, metadata) but NOT user-specific data or playback.
+// Restricted to authenticated sessions to prevent unauthenticated token scraping.
 
 let cachedToken: { access_token: string; expires_at: number } | null = null;
 
 export async function GET(req: NextRequest) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 

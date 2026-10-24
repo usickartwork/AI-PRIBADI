@@ -13,51 +13,31 @@ import {
   mapSpotifyPlaylist,
   MusicItem,
 } from "@/lib/music";
+import {
+  BoundedLRUCache,
+  enrichTracksWithArtistGenres,
+  mapITunesCatalogTrack,
+  recordArtistGenresInCache,
+} from "@/lib/musicTasteServer";
 
-// ─── Server-Side Search Cache ────────────────────────────────────────────────
+// ─── Server-Side Search Cache (Bounded LRU) ──────────────────────────────────
 // Mencegah pemborosan kuota API Spotify untuk pencarian berulang dan lagu trending.
-interface CacheEntry {
-  data: {
-    tracks: any[];
-    artists: any[];
-    albums: any[];
-    playlists: any[];
-  };
-  expiresAt: number;
+interface CachedSearchData {
+  tracks: MusicItem[];
+  artists: MusicItem[];
+  albums: MusicItem[];
+  playlists: MusicItem[];
 }
 
-const searchCache = new Map<string, CacheEntry>();
-
-function cleanExpiredCache() {
-  const now = Date.now();
-  for (const [key, entry] of searchCache.entries()) {
-    if (entry.expiresAt <= now) {
-      searchCache.delete(key);
-    }
-  }
-}
+const searchCache = new BoundedLRUCache<string, CachedSearchData>(
+  400,
+  30 * 60 * 1000
+);
 
 // ─── Fallback Engine: iTunes Search API ──────────────────────────────────────
 // Mengamankan aplikasi agar tidak pernah kosong jika Spotify mengalami 429 Quota Exceeded.
 function mapITunesTrack(item: any): MusicItem {
-  const artwork = item.artworkUrl100
-    ? item.artworkUrl100.replace("100x100bb", "600x600bb")
-    : item.artworkUrl60;
-  const trackId = String(item.trackId || item.collectionId || Math.random().toString(36).slice(2));
-  return {
-    id: `spotify:track:itunes_${trackId}`,
-    provider: "spotify",
-    providerItemId: `itunes_${trackId}`,
-    itemType: "track",
-    title: item.trackName || item.collectionName || "Unknown Track",
-    artistNames: [item.artistName || "Unknown Artist"],
-    albumTitle: item.collectionName,
-    artworkUrl: artwork,
-    durationMs: item.trackTimeMillis || 210000,
-    externalUrl: item.trackViewUrl || item.collectionViewUrl || "https://music.apple.com",
-    previewUrl: item.previewUrl || null,
-    uri: `spotify:track:itunes_${trackId}`,
-  };
+  return mapITunesCatalogTrack(item);
 }
 
 // ─── Curated Rotating Trending Pools (Anti-Saturation & Continuous Randomization) ───
@@ -212,8 +192,6 @@ async function fetchITunesFallback(
 
 export async function GET(req: NextRequest) {
   try {
-    cleanExpiredCache();
-
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim() || "";
     const type = searchParams.get("type") || "track,artist,album,playlist";
@@ -250,19 +228,15 @@ export async function GET(req: NextRequest) {
     const minRequiredTracks = isDiscovery ? Math.min(requestedLimit, 20) : Math.min(requestedLimit, 15);
     const cacheKey = `v2_${effectiveQuery.toLowerCase()}_${type}_${requestedLimit}_${category}`;
 
-    // Cek in-memory cache (pastikan jumlah lagu memenuhi batas minimum)
+    // Cek bounded LRU cache (pastikan jumlah lagu memenuhi batas minimum)
     const cachedResult = searchCache.get(cacheKey);
-    if (
-      cachedResult &&
-      Date.now() < cachedResult.expiresAt &&
-      cachedResult.data.tracks.length >= minRequiredTracks
-    ) {
+    if (cachedResult && cachedResult.tracks.length >= minRequiredTracks) {
       const responseData = isDiscovery
         ? {
-            ...cachedResult.data,
-            tracks: [...cachedResult.data.tracks].sort(() => 0.5 - Math.random()),
+            ...cachedResult,
+            tracks: [...cachedResult.tracks].sort(() => 0.5 - Math.random()),
           }
-        : cachedResult.data;
+        : cachedResult;
 
       return NextResponse.json({
         success: true,
@@ -399,12 +373,15 @@ export async function GET(req: NextRequest) {
       if (tracks.length >= requestedLimit) break;
     }
 
-    // Deduplicate artists
+    // Deduplicate artists & opportunistically cache any artist genres returned by Spotify
     const seenArtists = new Set<string>();
     const artists: MusicItem[] = rawArtists
       .filter((a) => {
         if (!a?.id || seenArtists.has(a.id)) return false;
         seenArtists.add(a.id);
+        if (Array.isArray(a.genres) && a.genres.length > 0) {
+          recordArtistGenresInCache(a.id, a.genres, a.name);
+        }
         return true;
       })
       .slice(0, 15)
@@ -486,15 +463,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const resultData = { tracks, artists, albums, playlists };
+    const enrichedTracks = await enrichTracksWithArtistGenres(tracks);
+    const resultData = { tracks: enrichedTracks, artists, albums, playlists };
 
-    // Simpan ke cache jika menghasilkan lagu yang cukup
-    if (tracks.length >= minRequiredTracks) {
+    // Simpan ke bounded LRU cache jika menghasilkan lagu yang cukup
+    if (enrichedTracks.length >= minRequiredTracks) {
       const ttlMs = isDefaultPool || category ? 60 * 60 * 1000 : 30 * 60 * 1000;
-      searchCache.set(cacheKey, {
-        data: resultData,
-        expiresAt: Date.now() + ttlMs,
-      });
+      searchCache.set(cacheKey, resultData, ttlMs);
     }
 
     return NextResponse.json({

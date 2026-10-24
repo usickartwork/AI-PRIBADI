@@ -4,6 +4,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyTokenWithMetadata, markSpotifyKeyRateLimited } from "@/lib/spotifyServer";
 import { mapSpotifyTrack, AlbumDetailData, MusicItem } from "@/lib/music";
+import { BoundedLRUCache, mapITunesCatalogTrack } from "@/lib/musicTasteServer";
+
+const albumDetailCache = new BoundedLRUCache<
+  string,
+  { data: AlbumDetailData; source?: string }
+>(250, 60 * 60 * 1000);
 
 /**
  * Fallback Engine untuk Album: Mengambil data lagu dan metadata album dari iTunes
@@ -25,20 +31,21 @@ async function fetchAlbumFallback(albumId: string): Promise<AlbumDetailData | nu
       ? collection.artworkUrl100.replace("100x100bb", "600x600bb")
       : undefined;
 
-    const tracks: MusicItem[] = rawTracks.map((t: any) => ({
-      id: `spotify:track:itunes_${t.trackId}`,
-      provider: "spotify" as const,
-      providerItemId: `itunes_${t.trackId}`,
-      itemType: "track" as const,
-      title: t.trackName || "Unknown Track",
-      artistNames: [t.artistName || collection.artistName || "Unknown Artist"],
-      albumTitle: collection.collectionName,
-      artworkUrl: t.artworkUrl100 ? t.artworkUrl100.replace("100x100bb", "600x600bb") : artworkUrl,
-      durationMs: t.trackTimeMillis || 210000,
-      externalUrl: t.trackViewUrl || collection.collectionViewUrl || "https://music.apple.com",
-      previewUrl: t.previewUrl || null,
-      uri: `spotify:track:itunes_${t.trackId}`,
-    }));
+    const tracks: MusicItem[] = rawTracks.map((t: any) => {
+      const mapped = mapITunesCatalogTrack(
+        {
+          ...t,
+          collectionName: t.collectionName || collection.collectionName,
+          releaseDate: t.releaseDate || collection.releaseDate,
+          primaryGenreName: t.primaryGenreName || collection.primaryGenreName,
+        },
+        collection.artistName || "Unknown Artist"
+      );
+      return {
+        ...mapped,
+        artworkUrl: mapped.artworkUrl || artworkUrl,
+      };
+    });
 
     return {
       id: `spotify:album:itunes_${collection.collectionId}`,
@@ -77,10 +84,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const cacheKey = albumId.toLowerCase();
+    const cachedAlbum = albumDetailCache.get(cacheKey);
+    if (cachedAlbum) {
+      return NextResponse.json({
+        success: true,
+        cached: true,
+        data: cachedAlbum.data,
+        ...(cachedAlbum.source ? { source: cachedAlbum.source } : {}),
+      });
+    }
+
     // Jika ID berasal dari iTunes fallback, langsung gunakan iTunes Lookup
     if (albumId.startsWith("itunes_") || /^\d+$/.test(albumId)) {
       const fallbackAlbum = await fetchAlbumFallback(albumId);
       if (fallbackAlbum) {
+        albumDetailCache.set(cacheKey, { data: fallbackAlbum, source: "fallback" });
         return NextResponse.json({
           success: true,
           data: fallbackAlbum,
@@ -111,8 +130,10 @@ export async function GET(req: NextRequest) {
             mapSpotifyTrack({
               ...trackItem,
               album: {
+                id: albumJson.id,
                 name: albumTitle,
                 images: albumJson.images,
+                release_date: albumJson.release_date,
               },
             })
           );
@@ -130,6 +151,8 @@ export async function GET(req: NextRequest) {
             tracks,
           };
 
+          albumDetailCache.set(cacheKey, { data: albumData });
+
           return NextResponse.json({
             success: true,
             data: albumData,
@@ -143,6 +166,7 @@ export async function GET(req: NextRequest) {
     // Fallback: jika album gagal dari Spotify, coba cari di iTunes
     const fallbackAlbum = await fetchAlbumFallback(albumId);
     if (fallbackAlbum) {
+      albumDetailCache.set(cacheKey, { data: fallbackAlbum, source: "fallback" });
       return NextResponse.json({
         success: true,
         data: fallbackAlbum,

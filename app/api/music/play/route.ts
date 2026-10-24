@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
 
 // Cache in-memory for fast responses (persists across warm serverless invocations)
+const MAX_VIDEO_CACHE_ENTRIES = 1000;
 const videoCache = new Map<string, string>();
+
+function setCachedVideoId(key: string, videoId: string): void {
+  if (videoCache.has(key)) {
+    videoCache.delete(key);
+  } else if (videoCache.size >= MAX_VIDEO_CACHE_ENTRIES) {
+    const oldest = videoCache.keys().next().value;
+    if (oldest !== undefined) videoCache.delete(oldest);
+  }
+  videoCache.set(key, videoId);
+}
 
 function normalizeKey(title: string, artist: string = ""): string {
   return `${title.toLowerCase().trim()} - ${artist.toLowerCase().trim()}`
@@ -153,7 +164,7 @@ export async function GET(request: Request) {
   try {
     const videoId = await searchInnerTube(query);
     if (videoId) {
-      videoCache.set(keyWithArtist, videoId);
+      setCachedVideoId(keyWithArtist, videoId);
       return NextResponse.json({
         success: true,
         videoId,
@@ -165,13 +176,14 @@ export async function GET(request: Request) {
     console.warn("[Music Play Resolution Error]:", err);
   }
 
-  // 3. Fallback: return a verified safe audio ID so playback NEVER crashes or fails
-  const fallbackId = "JGwWNGJdvx8"; // Ed Sheeran - Shape of You
+  // 3. Honest unresolved fallback: never substitute a random unrelated song (e.g. Shape of You),
+  // allowing the client player to fall back to genuine previewUrl or skip cleanly during Autoplay.
   return NextResponse.json({
-    success: true,
-    videoId: fallbackId,
+    success: false,
+    videoId: null,
     title,
     artist,
     fallback: true,
+    error: "Could not resolve audio track",
   });
 }

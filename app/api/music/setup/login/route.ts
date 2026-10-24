@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 export async function GET(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { origin, searchParams } = new URL(request.url);
   const keyParam = searchParams.get("key") || searchParams.get("app");
 

@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyTokenWithMetadata, markSpotifyKeyRateLimited } from "@/lib/spotifyServer";
-import { mapSpotifyTrack, mapSpotifyAlbum, ArtistProfileData, MusicItem } from "@/lib/music";
+import { mapSpotifyTrack, mapSpotifyAlbum, ArtistProfileData, MusicItem, normalizeGenreTag } from "@/lib/music";
+import { BoundedLRUCache, mapITunesCatalogTrack, recordArtistGenresInCache } from "@/lib/musicTasteServer";
+
+const artistProfileCache = new BoundedLRUCache<
+  string,
+  { data: ArtistProfileData; source?: string }
+>(250, 60 * 60 * 1000);
 
 /**
  * Fallback Engine untuk profil musisi:
@@ -52,23 +58,11 @@ async function fetchArtistFallback(name: string): Promise<ArtistProfileData> {
           seenTrackIds.add(trackId);
           return true;
         })
-        .map((t: any) => ({
-          id: `spotify:track:itunes_${t.trackId}`,
-          provider: "spotify" as const,
-          providerItemId: `itunes_${t.trackId}`,
-          itemType: "track" as const,
-          title: t.trackName || "Unknown Track",
-          artistNames: [t.artistName || name],
-          albumTitle: t.collectionName || "",
-          artworkUrl: t.artworkUrl100 ? t.artworkUrl100.replace("100x100bb", "600x600bb") : undefined,
-          durationMs: t.trackTimeMillis || 210000,
-          externalUrl: t.trackViewUrl || "https://music.apple.com",
-          previewUrl: t.previewUrl || null,
-          uri: `spotify:track:itunes_${t.trackId}`,
-        }));
+        .map((t: any) => mapITunesCatalogTrack(t, name));
 
       if (tracksJson.results?.[0]?.primaryGenreName) {
-        genres.push(tracksJson.results[0].primaryGenreName);
+        const g = normalizeGenreTag(tracksJson.results[0].primaryGenreName);
+        if (g) genres.push(g);
       }
     }
   } catch (err) {
@@ -156,6 +150,17 @@ export async function GET(req: NextRequest) {
         { success: false, error: "ID atau nama artis diperlukan." },
         { status: 400 }
       );
+    }
+
+    const cacheKey = `${artistId.toLowerCase()}::${targetSearchName.toLowerCase()}`;
+    const cachedArtist = artistProfileCache.get(cacheKey);
+    if (cachedArtist) {
+      return NextResponse.json({
+        success: true,
+        cached: true,
+        data: cachedArtist.data,
+        ...(cachedArtist.source ? { source: cachedArtist.source } : {}),
+      });
     }
 
     // Coba Spotify terlebih dahulu jika konfigurasi tersedia
@@ -253,13 +258,28 @@ export async function GET(req: NextRequest) {
             ]);
 
             const seenTracks = new Set<string>();
+            const normalizedArtistGenres: string[] = Array.from(
+              new Set(
+                (Array.isArray(artistJson.genres) ? (artistJson.genres as unknown[]) : [])
+                  .filter((g): g is string => typeof g === "string")
+                  .map((g) => normalizeGenreTag(g))
+                  .filter(Boolean)
+              )
+            );
+            recordArtistGenresInCache(artistJson.id, normalizedArtistGenres, resolvedName);
+
             const topTracks = trackPages.flat()
               .filter((t) => {
                 if (!t?.id || seenTracks.has(t.id)) return false;
                 seenTracks.add(t.id);
                 return true;
               })
-              .map(mapSpotifyTrack);
+              .map((t) => {
+                const mapped = mapSpotifyTrack(t);
+                return normalizedArtistGenres.length > 0 && (!mapped.genres || mapped.genres.length === 0)
+                  ? { ...mapped, genres: normalizedArtistGenres }
+                  : mapped;
+              });
 
             const seenAlbumNames = new Set<string>();
             const albums = albumPages.flat()
@@ -272,18 +292,22 @@ export async function GET(req: NextRequest) {
               })
               .map(mapSpotifyAlbum);
 
+            const profileData: ArtistProfileData = {
+              id: `spotify:artist:${artistJson.id}`,
+              spotifyId: artistJson.id,
+              name: resolvedName,
+              imageUrl: artistJson.images?.[0]?.url || artistJson.images?.[1]?.url || null,
+              genres: artistJson.genres || [],
+              externalUrl: artistJson.external_urls?.spotify || `https://open.spotify.com/artist/${artistJson.id}`,
+              topTracks,
+              albums,
+            };
+
+            artistProfileCache.set(cacheKey, { data: profileData });
+
             return NextResponse.json({
               success: true,
-              data: {
-                id: `spotify:artist:${artistJson.id}`,
-                spotifyId: artistJson.id,
-                name: resolvedName,
-                imageUrl: artistJson.images?.[0]?.url || artistJson.images?.[1]?.url || null,
-                genres: artistJson.genres || [],
-                externalUrl: artistJson.external_urls?.spotify || `https://open.spotify.com/artist/${artistJson.id}`,
-                topTracks,
-                albums,
-              },
+              data: profileData,
             });
           }
         }
@@ -296,6 +320,12 @@ export async function GET(req: NextRequest) {
     // Berfungsi saat Spotify terkena 429 rate limit atau nama artis dari iTunes search
     console.log(`[music/artist] Menggunakan Fallback Engine untuk artis: "${targetSearchName}"`);
     const fallbackData = await fetchArtistFallback(targetSearchName);
+    if (fallbackData.genres.length > 0) {
+      recordArtistGenresInCache(undefined, fallbackData.genres, targetSearchName);
+    }
+    if (fallbackData.topTracks.length > 0 || fallbackData.albums.length > 0) {
+      artistProfileCache.set(cacheKey, { data: fallbackData, source: "fallback" });
+    }
 
     return NextResponse.json({
       success: true,

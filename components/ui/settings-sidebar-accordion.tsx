@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCardIcon, MonitorSmartphone, PaletteIcon, Share2, ShieldIcon, SparklesIcon, UserIcon } from "lucide-react";
+import { CreditCardIcon, MonitorSmartphone, PaletteIcon, Share2, ShieldIcon, SlidersHorizontal, SparklesIcon, UserIcon } from "lucide-react";
 
 export interface SettingsNavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -23,6 +23,11 @@ export const defaultNavItems: SettingsNavItem[] = [
     icon: PaletteIcon,
     label: "Appearance",
     value: "appearance",
+  },
+  {
+    icon: SlidersHorizontal,
+    label: "Customize Tab",
+    value: "customize-tab",
   },
   {
     icon: CreditCardIcon,

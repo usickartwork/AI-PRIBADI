@@ -4,6 +4,8 @@
 
 export type MusicItemType = "track" | "artist" | "album" | "playlist";
 
+export type MusicCatalogSource = "spotify" | "itunes" | "starter" | "import" | "radio";
+
 export interface MusicItem {
   id: string;
   provider: "spotify" | "radio";
@@ -11,7 +13,15 @@ export interface MusicItem {
   itemType: MusicItemType;
   title: string;
   artistNames: string[];
+  artistIds?: string[]; // Optional provider artist IDs preserved from catalog
   albumTitle?: string;
+  albumId?: string; // Optional provider album ID preserved from catalog
+  releaseYear?: number; // Optional 4-digit release year when available
+  popularity?: number | null; // Genuine Spotify popularity (0-100); null/undefined when provider omits it
+  genres?: string[]; // Optional normalized genre tags when provided by catalog/artist metadata
+  catalogSource?: MusicCatalogSource; // Origin catalog adapter
+  canonicalKey?: string; // Cross-source normalized track identity
+  isFallbackAudio?: boolean; // True if playback audio could not be resolved to an exact match
   artworkUrl?: string;
   durationMs?: number;
   externalUrl: string;
@@ -246,25 +256,143 @@ export function getSpotifyEmbedUrl(uri: string, type: MusicItemType = "track"): 
   return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
 }
 
+// Normalize artist name into a Unicode-safe canonical key (supports Latin, Hangul, CJK, etc.)
+export function normalizeArtistKey(name: string | undefined | null): string {
+  if (!name) return "";
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Strip non-musical edition/featuring suffixes while keeping remixes, live, acoustic, and sped-up distinct
+export function normalizeTrackTitleForKey(title: string | undefined | null): string {
+  if (!title) return "";
+  let cleaned = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFC")
+    .toLowerCase();
+
+  // Remove parenthetical or bracketed noisy suffixes that cause Spotify/iTunes duplicates
+  cleaned = cleaned.replace(
+    /\s*[\(\[](?:feat\.?|ft\.?|with\s|official\s*(?:audio|music\s*video|video|lyric\s*video)?|audio|video|lyric\s*video|remaster(?:ed)?(?:\s*\d{2,4})?|from\s+["']?[^)\]]+["']?|original\s+soundtrack|ost|explicit|clean|radio\s+edit|album\s+version|single\s+version)[^)\]]*[\)\]]/gi,
+    " "
+  );
+
+  // Remove trailing dash suffixes like "- Remastered 2021", "- Official Audio", "- feat. X"
+  cleaned = cleaned.replace(
+    /\s+-\s+(?:remaster(?:ed)?(?:\s*\d{2,4})?|official\s*(?:audio|video|music\s*video)?|feat\.?\s+.*|ft\.?\s+.*|from\s+.*|single\s+version|album\s+version|radio\s+edit)$/gi,
+    " "
+  );
+
+  // Remove inline trailing feat./ft. without parentheses
+  cleaned = cleaned.replace(/\s+(?:feat\.?|ft\.?)\s+.*$/gi, " ");
+
+  return cleaned
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Compute a stable cross-catalog track identity (bridges Spotify track IDs and iTunes fallback IDs)
+export function getCanonicalTrackKey(
+  track: Pick<MusicItem, "title" | "artistNames"> & { id?: string; canonicalKey?: string }
+): string {
+  if (track.canonicalKey && track.canonicalKey.includes("::")) {
+    return track.canonicalKey;
+  }
+  const primaryArtist = normalizeArtistKey(track.artistNames?.[0] || "");
+  const normalizedTitle = normalizeTrackTitleForKey(track.title || "");
+  if (primaryArtist && normalizedTitle) {
+    return `${primaryArtist}::${normalizedTitle}`;
+  }
+  if (normalizedTitle) {
+    return `unknown::${normalizedTitle}`;
+  }
+  return track.id || "unknown::track";
+}
+
+export function parseReleaseYear(releaseDate: string | undefined | null): number | undefined {
+  if (!releaseDate || typeof releaseDate !== "string") return undefined;
+  const match = releaseDate.trim().match(/^(\d{4})/);
+  if (!match) return undefined;
+  const year = Number(match[1]);
+  return year >= 1900 && year <= 2100 ? year : undefined;
+}
+
+export function normalizeGenreTag(genre: string | undefined | null): string {
+  if (!genre || typeof genre !== "string") return "";
+  const g = genre
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[\/_]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!g || g === "music" || g === "musik" || g === "track") return "";
+  if (g === "r and b" || g === "r and b soul" || g === "rnb" || g === "r b") return "r-n-b";
+  if (g === "hip hop rap" || g === "hip hop") return "hip-hop";
+  if (g === "k pop" || g === "korean pop") return "k-pop";
+  if (g === "indo pop" || g === "indonesian pop" || g === "pop indonesia") return "indonesian pop";
+  if (g === "indonesian indie" || g === "indie indonesia") return "indonesian indie";
+  return g;
+}
+
 // Map Spotify API response to our MusicItem
 export function mapSpotifyTrack(track: any): MusicItem {
+  const title = track.name || "Unknown Track";
+  const artistNames: string[] =
+    Array.isArray(track.artists) && track.artists.length > 0
+      ? track.artists.map((a: any) => a?.name).filter(Boolean)
+      : ["Unknown Artist"];
+  const artistIds: string[] = Array.isArray(track.artists)
+    ? track.artists.map((a: any) => a?.id).filter((id: any): id is string => typeof id === "string" && id.length > 0)
+    : [];
+  const releaseYear = parseReleaseYear(track.album?.release_date);
+  const popularity =
+    typeof track.popularity === "number" && Number.isFinite(track.popularity)
+      ? Math.max(0, Math.min(100, Math.round(track.popularity)))
+      : null;
+  const id = `spotify:track:${track.id}`;
+
   return {
-    id: `spotify:track:${track.id}`,
+    id,
     provider: "spotify",
     providerItemId: track.id,
     itemType: "track",
-    title: track.name || "Unknown Track",
-    artistNames: track.artists?.map((a: any) => a.name) || ["Unknown Artist"],
+    title,
+    artistNames: artistNames.length > 0 ? artistNames : ["Unknown Artist"],
+    artistIds: artistIds.length > 0 ? artistIds : undefined,
     albumTitle: track.album?.name,
+    albumId: typeof track.album?.id === "string" ? track.album.id : undefined,
+    releaseYear,
+    popularity,
+    catalogSource: "spotify",
+    canonicalKey: getCanonicalTrackKey({ id, title, artistNames }),
     artworkUrl: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url,
     durationMs: track.duration_ms,
     externalUrl: track.external_urls?.spotify || `https://open.spotify.com/track/${track.id}`,
     previewUrl: track.preview_url,
-    uri: track.uri || `spotify:track:${track.id}`,
+    uri: track.uri || id,
   };
 }
 
 export function mapSpotifyArtist(artist: any): MusicItem {
+  const rawGenres: string[] = Array.isArray(artist.genres)
+    ? Array.from(new Set(artist.genres.map((g: any) => normalizeGenreTag(g)).filter(Boolean)))
+    : [];
+  const popularity =
+    typeof artist.popularity === "number" && Number.isFinite(artist.popularity)
+      ? Math.max(0, Math.min(100, Math.round(artist.popularity)))
+      : null;
   return {
     id: `spotify:artist:${artist.id}`,
     provider: "spotify",
@@ -272,6 +400,10 @@ export function mapSpotifyArtist(artist: any): MusicItem {
     itemType: "artist",
     title: artist.name || "Unknown Artist",
     artistNames: [artist.name || "Unknown Artist"],
+    artistIds: artist.id ? [String(artist.id)] : undefined,
+    genres: rawGenres.length > 0 ? rawGenres : undefined,
+    popularity,
+    catalogSource: "spotify",
     artworkUrl: artist.images?.[0]?.url || artist.images?.[1]?.url,
     externalUrl: artist.external_urls?.spotify || `https://open.spotify.com/artist/${artist.id}`,
     uri: artist.uri || `spotify:artist:${artist.id}`,
