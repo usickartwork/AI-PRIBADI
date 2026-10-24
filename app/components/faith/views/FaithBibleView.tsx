@@ -650,7 +650,7 @@ export default function BiblePage() {
               <button
                 onClick={() => setFontSize(fontSize === 'lg' ? 'md' : fontSize === 'md' ? 'sm' : 'sm')}
                 disabled={fontSize === 'sm'}
-                className="px-2 py-1 text-[11px] font-semibold text-[#66666E] hover:text-[#111113] disabled:opacity-30 cursor-pointer"
+                className="px-2 py-1 text-[11px] font-semibold text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white disabled:opacity-30 cursor-pointer"
                 title="Perkecil Teks"
               >
                 A-
@@ -659,7 +659,7 @@ export default function BiblePage() {
               <button
                 onClick={() => setFontSize(fontSize === 'sm' ? 'md' : fontSize === 'md' ? 'lg' : 'lg')}
                 disabled={fontSize === 'lg'}
-                className="px-2 py-1 text-[12px] font-bold text-[#66666E] hover:text-[#111113] disabled:opacity-30 cursor-pointer"
+                className="px-2 py-1 text-[12px] font-bold text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white disabled:opacity-30 cursor-pointer"
                 title="Perbesar Teks"
               >
                 A+
@@ -676,7 +676,7 @@ export default function BiblePage() {
                   setSelectedChapter(random.chapter);
                 }
               }}
-              className="w-8 h-8 rounded-full bg-[#F2F2F4] hover:bg-[#EAEAEB] active:scale-95 border border-[#DCDCE0] text-[#66666E] hover:text-[#111113] flex items-center justify-center transition cursor-pointer"
+              className="w-8 h-8 rounded-full bg-[#F2F2F4] dark:bg-[#1C1C20] hover:bg-[#EAEAEB] dark:hover:bg-[#25252A] active:scale-95 border border-[#DCDCE0] dark:border-[#2C2C32] text-[#66666E] dark:text-[#A1A1AA] hover:text-[#111113] dark:hover:text-white flex items-center justify-center transition cursor-pointer"
               title="Baca Ayat Acak"
               aria-label="Ayat Acak"
             >
@@ -689,7 +689,7 @@ export default function BiblePage() {
                 const chapterRef = `${selectedBook.name} ${selectedChapter}`;
                 openAiModalWithVerse(chapterRef, `Seluruh perikop ${chapterRef}`);
               }}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#111113] hover:bg-black text-white text-xs font-medium shadow-2xs transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#111113] hover:bg-black dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black text-xs font-semibold shadow-2xs transition active:scale-95 cursor-pointer"
               title="Refleksi AI Pasal Ini"
             >
               <Sparkles size={12} />
@@ -738,16 +738,16 @@ export default function BiblePage() {
           {/* Loading State */}
           {isLoadingVerses ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-[#111113]" />
-              <p className="text-xs text-[#8E8E93] font-medium">Memuat naskah Alkitab TB...</p>
+              <Loader2 className="w-6 h-6 animate-spin text-[#111113] dark:text-white" />
+              <p className="text-xs text-[#8E8E93] dark:text-[#A1A1AA] font-medium">Memuat naskah Alkitab TB...</p>
             </div>
           ) : verses.length === 0 ? (
             <div className="text-center py-16 px-4 max-w-sm mx-auto space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#F2F2F4] text-[#111113] flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-[#F2F2F4] dark:bg-[#1C1C20] text-[#111113] dark:text-white flex items-center justify-center mx-auto border border-[#DCDCE0] dark:border-[#2C2C32]">
                 <BookOpen size={20} />
               </div>
-              <h4 className="text-sm font-bold text-[#111113]">Belum Dapat Memuat Ayat</h4>
-              <p className="text-xs text-[#66666E]">
+              <h4 className="text-sm font-bold text-[#111113] dark:text-white">Belum Dapat Memuat Ayat</h4>
+              <p className="text-xs text-[#66666E] dark:text-[#A1A1AA]">
                 Koneksi server ke naskah {selectedBook.name} {selectedChapter} sedang sibuk atau offline.
               </p>
               <button

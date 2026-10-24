@@ -1,7 +1,7 @@
 'use client';
 
 import { User } from '@/types/database';
-import { SquarePen, Menu, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useFaithNav } from '@/lib/faith/navigationContext';
 
 interface HeaderProps {
@@ -10,16 +10,8 @@ interface HeaderProps {
   onNewChat?: () => void;
 }
 
-export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) {
-  const { setActiveTab, onTogglePanel, isDark } = useFaithNav();
-
-  const handleMenuClick = () => {
-    if (onOpenHistory) {
-      onOpenHistory();
-    } else if (onTogglePanel) {
-      onTogglePanel();
-    }
-  };
+export default function Header({ user, onNewChat }: HeaderProps) {
+  const { setActiveTab, isDark } = useFaithNav();
 
   return (
     <header
@@ -30,24 +22,8 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
       }`}
     >
       <div className="flex items-center justify-between">
-        {/* Left: 3-Lines (Garis 3) Menu Button + Brand */}
+        {/* Left: Brand */}
         <div className="flex items-center gap-2.5">
-          {(onOpenHistory || onTogglePanel) && (
-            <button
-              type="button"
-              onClick={handleMenuClick}
-              className={`w-8 h-8 rounded-xl flex items-center justify-center border transition cursor-pointer active:scale-95 ${
-                isDark
-                  ? 'bg-[#1C1C20] hover:bg-[#25252A] border-[#2C2C32] text-white'
-                  : 'bg-[#F2F2F3] hover:bg-[#EAEAEB] border-[#DCDCE0] text-[#111113]'
-              }`}
-              title="Riwayat Saat Teduh (Buka menu garis 3)"
-              aria-label="Buka riwayat percakapan"
-            >
-              <Menu size={18} strokeWidth={2.2} />
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setActiveTab('tanya')}
@@ -60,13 +36,13 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
             >
               Faith Hub
             </span>
-            <span className="text-[10px] text-[#8E8E93] font-medium leading-none">
+            <span className="text-[10px] text-[#8E8E93] dark:text-[#A1A1AA] font-medium leading-none">
               Ruang Hening Pribadi
             </span>
           </button>
         </div>
 
-        {/* Right: New Chat (+) and Catatan / Notes Button */}
+        {/* Right: New Chat (+) Button */}
         <div className="flex items-center gap-1.5">
           {onNewChat && (
             <button
@@ -83,19 +59,6 @@ export default function Header({ user, onOpenHistory, onNewChat }: HeaderProps) 
               <Plus size={15} strokeWidth={2.2} />
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('notes')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-2xs transition cursor-pointer active:scale-95 ${
-              isDark
-                ? 'bg-white hover:bg-neutral-200 text-black'
-                : 'bg-[#111113] hover:bg-black text-white'
-            }`}
-          >
-            <SquarePen size={13} />
-            <span>Catatan</span>
-          </button>
         </div>
       </div>
     </header>

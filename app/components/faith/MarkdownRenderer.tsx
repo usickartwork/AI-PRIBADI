@@ -61,43 +61,43 @@ function CodeBlock({
 
 export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps) {
   return (
-    <div className="markdown-content text-[13.5px] leading-relaxed text-[#111113] space-y-2">
+    <div className="markdown-content text-[13.5px] leading-relaxed text-[#111113] dark:text-zinc-100 space-y-2">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false, errorColor: 'currentColor' }]]}
         components={{
           // Headings (Unified clean sans-serif)
           h1: ({ children }) => (
-            <h1 className="text-base font-bold text-[#111113] mt-3 mb-1 first:mt-0 tracking-tight">
+            <h1 className="text-base font-bold text-[#111113] dark:text-white mt-3 mb-1 first:mt-0 tracking-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-[14.5px] font-bold text-[#111113] mt-2.5 mb-1 first:mt-0 tracking-tight">
+            <h2 className="text-[14.5px] font-bold text-[#111113] dark:text-white mt-2.5 mb-1 first:mt-0 tracking-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-xs font-semibold text-[#111113] mt-2 mb-0.5 first:mt-0">
+            <h3 className="text-xs font-semibold text-[#111113] dark:text-zinc-200 mt-2 mb-0.5 first:mt-0">
               {children}
             </h3>
           ),
 
           // Paragraphs (Unified clean sans-serif)
           p: ({ children }) => (
-            <p className="my-1.5 leading-relaxed text-[#111113]">
+            <p className="my-1.5 leading-relaxed text-[#111113] dark:text-zinc-100">
               {children}
             </p>
           ),
 
           // Lists (Unified clean sans-serif)
           ul: ({ children }) => (
-            <ul className="my-2 ml-4 list-disc space-y-1 pl-1 text-[#111113] marker:text-[#111113]">
+            <ul className="my-2 ml-4 list-disc space-y-1 pl-1 text-[#111113] dark:text-zinc-100 marker:text-[#111113] dark:marker:text-zinc-400">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="my-2 ml-4 list-decimal space-y-1 pl-1 text-[#111113] marker:text-[#111113] marker:font-semibold">
+            <ol className="my-2 ml-4 list-decimal space-y-1 pl-1 text-[#111113] dark:text-zinc-100 marker:text-[#111113] dark:marker:text-zinc-400 marker:font-semibold">
               {children}
             </ol>
           ),
@@ -107,7 +107,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
 
           // Blockquote (for Scripture or key reflections)
           blockquote: ({ children }) => (
-            <blockquote className="my-2.5 rounded-r-xl border-l-2 border-[#111113] bg-[#E5E5E8]/60 px-3.5 py-2 text-[#222225] italic">
+            <blockquote className="my-2.5 rounded-r-xl border-l-2 border-[#111113] dark:border-zinc-400 bg-[#E5E5E8]/60 dark:bg-zinc-800/60 px-3.5 py-2 text-[#222225] dark:text-zinc-200 italic">
               {children}
             </blockquote>
           ),
@@ -130,7 +130,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
 
             return (
               <code
-                className="rounded-md bg-[#DFDFE3] px-1.5 py-0.5 text-[12px] font-medium text-[#111113]"
+                className="rounded-md bg-[#DFDFE3] dark:bg-zinc-800 border border-transparent dark:border-zinc-700/60 px-1.5 py-0.5 text-[12px] font-medium text-[#111113] dark:text-zinc-200"
                 {...props}
               >
                 {children}
@@ -140,28 +140,28 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
 
           // Tables
           table: ({ children }) => (
-            <div className="my-2.5 w-full overflow-x-auto rounded-xl border border-[#DCDCE0]">
-              <table className="w-full text-left text-xs divide-y divide-[#DCDCE0]">
+            <div className="my-2.5 w-full overflow-x-auto rounded-xl border border-[#DCDCE0] dark:border-zinc-700">
+              <table className="w-full text-left text-xs divide-y divide-[#DCDCE0] dark:divide-zinc-700">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-[#EAEAEB] text-[#111113] font-semibold uppercase text-[10px] tracking-wider">
+            <thead className="bg-[#EAEAEB] dark:bg-zinc-800 text-[#111113] dark:text-zinc-200 font-semibold uppercase text-[10px] tracking-wider">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="divide-y divide-[#EAEAEB] bg-white text-[#111113]">
+            <tbody className="divide-y divide-[#EAEAEB] dark:divide-zinc-700 bg-white dark:bg-zinc-900/60 text-[#111113] dark:text-zinc-200">
               {children}
             </tbody>
           ),
           tr: ({ children }) => <tr>{children}</tr>,
           th: ({ children }) => (
-            <th className="px-3 py-2 font-semibold text-[#111113]">{children}</th>
+            <th className="px-3 py-2 font-semibold text-[#111113] dark:text-zinc-200">{children}</th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-2 text-[#111113] whitespace-nowrap sm:whitespace-normal">
+            <td className="px-3 py-2 text-[#111113] dark:text-zinc-200 whitespace-nowrap sm:whitespace-normal">
               {children}
             </td>
           ),
@@ -172,18 +172,18 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#111113] font-semibold underline underline-offset-3 hover:opacity-75 transition"
+              className="text-[#111113] dark:text-white font-semibold underline underline-offset-3 hover:opacity-75 transition"
             >
               {children}
             </a>
           ),
 
           // Horizontal rule
-          hr: () => <hr className="my-3 border-[#DCDCE0]" />,
+          hr: () => <hr className="my-3 border-[#DCDCE0] dark:border-zinc-700" />,
 
           // Emphasis
           strong: ({ children }) => (
-            <strong className="font-bold text-black">{children}</strong>
+            <strong className="font-bold text-black dark:text-white">{children}</strong>
           ),
         }}
       >
@@ -192,7 +192,7 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
 
       {/* Streaming cursor indicator */}
       {isStreaming && (
-        <span className="inline-block w-1.5 h-3.5 bg-[#111113] animate-pulse ml-0.5 align-middle" />
+        <span className="inline-block w-1.5 h-3.5 bg-[#111113] dark:bg-white animate-pulse ml-0.5 align-middle" />
       )}
     </div>
   );

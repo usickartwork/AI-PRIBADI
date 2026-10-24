@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { MessageSquare, BookOpen, Gamepad2, User } from 'lucide-react';
+import { MessageSquare, BookOpen } from 'lucide-react';
 import { useFaithNav, FaithTabType } from '@/lib/faith/navigationContext';
 
 interface PillStyle {
@@ -24,8 +24,6 @@ export interface NavItemConfig {
 export const NAV_ITEMS: NavItemConfig[] = [
   { id: 'tanya', label: 'Tanya', fullLabel: 'Tanya Rohani', icon: MessageSquare },
   { id: 'bible', label: 'Alkitab', fullLabel: 'Alkitab', icon: BookOpen },
-  { id: 'games', label: 'Games', fullLabel: 'Faith Arcade', icon: Gamepad2 },
-  { id: 'profile', label: 'Profil', fullLabel: 'Profil CG', icon: User },
 ];
 
 function getTabIndex(tabId: string): number {
@@ -145,7 +143,7 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
     >
       <div
         ref={containerRef}
-        className="relative flex items-center justify-around max-w-sm mx-auto"
+        className="relative flex items-center justify-around max-w-[260px] mx-auto"
       >
         {/* Sliding Morph Pill Indicator */}
         <div
