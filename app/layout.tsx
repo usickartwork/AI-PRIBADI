@@ -50,12 +50,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon.svg?v=4", type: "image/svg+xml" },
-      { url: "/favicon-32x32.png?v=4", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png?v=4", sizes: "16x16", type: "image/png" },
+      { url: "/icon.svg?v=5", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png?v=5", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=5", sizes: "16x16", type: "image/png" },
     ],
-    shortcut: "/favicon.ico?v=4",
-    apple: "/apple-icon.png?v=4",
+    shortcut: "/favicon.ico?v=5",
+    apple: "/apple-icon.png?v=5",
   },
 };
 
@@ -80,11 +80,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
       >
         <head>
-          <link rel="icon" type="image/svg+xml" href="/icon.svg?v=4" />
-          <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=4" />
-          <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=4" />
-          <link rel="shortcut icon" href="/favicon.ico?v=4" />
-          <link rel="apple-touch-icon" href="/apple-icon.png?v=4" />
+          <link rel="icon" type="image/svg+xml" href="/icon.svg?v=5" />
+          <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=5" />
+          <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=5" />
+          <link rel="shortcut icon" href="/favicon.ico?v=5" />
+          <link rel="apple-touch-icon" href="/apple-icon.png?v=5" />
           <script
             dangerouslySetInnerHTML={{
               __html: `
