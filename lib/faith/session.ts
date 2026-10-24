@@ -3,19 +3,19 @@
 import { User } from '@/types/database';
 
 export const DEFAULT_USER: User = {
-  id: 'user-filius-demo',
-  token: 'A8X29K',
-  name: 'Filius Kristanto',
+  id: 'user-onemind',
+  token: 'CY3077',
+  name: 'Anggota OneMind',
   age: 20,
-  phone: '+62 812-3456-7890',
-  email: 'filius.kristanto@faithhub.id',
+  phone: '',
+  email: '',
   community_group: {
     name: 'CG Central Youth 30',
     leader: 'Daniel Kristianto',
     schedule: 'Jumat, 19.00',
     location: 'Jl. Kartini no 118, Surabaya',
   },
-  role: 'leader',
+  role: 'member',
   status: 'active',
   created_at: new Date().toISOString(),
 };
@@ -37,8 +37,8 @@ export interface RegisteredAccount {
   };
 }
 
-export function getStoredUser(): User | null {
-  if (typeof window === 'undefined') return null;
+export function getStoredUser(): User {
+  if (typeof window === 'undefined') return DEFAULT_USER;
   try {
     const raw = localStorage.getItem(USER_STORAGE_KEY);
     if (raw) {
@@ -55,7 +55,7 @@ export function getStoredUser(): User | null {
   } catch {
     // fallback
   }
-  return null;
+  return DEFAULT_USER;
 }
 
 export function setStoredUser(user: User) {

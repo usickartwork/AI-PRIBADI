@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/app/components/faith/Header';
 import Navigation from '@/app/components/faith/Navigation';
-import { getStoredUser, setStoredUser, clearStoredUser, DEFAULT_USER } from '@/lib/faith/session';
+import { getStoredUser, setStoredUser, DEFAULT_USER } from '@/lib/faith/session';
 import { User } from '@/types/database';
 import { 
   User as UserIcon, 
@@ -13,7 +13,6 @@ import {
   Users, 
   Clock, 
   MapPin, 
-  LogOut, 
   Edit3, 
   Check 
 } from 'lucide-react';
@@ -22,7 +21,6 @@ export default function ProfileCGPage() {
   const router = useRouter();
   const [user, setUser] = useState<User>(DEFAULT_USER);
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Form states
@@ -57,17 +55,6 @@ export default function ProfileCGPage() {
     setIsEditing(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
-  }
-
-  function handleLogout() {
-    setIsLoggingOut(true);
-    clearStoredUser();
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('faith_hub_auth_changed'));
-    }
-    setTimeout(() => {
-      setIsLoggingOut(false);
-    }, 300);
   }
 
   return (
@@ -262,16 +249,17 @@ export default function ProfileCGPage() {
             </div>
           </section>
 
-          {/* Section: Tombol Logout (Monochrome) */}
+          {/* Section: Status Akun OneMind Terhubung */}
           <section className="pt-1 pb-4">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="w-full py-3 px-4 rounded-2xl border border-[#DCDCE0] dark:border-[#2C2C32] bg-white dark:bg-[#18181D] hover:bg-[#F2F2F4] dark:hover:bg-[#222228] active:scale-[0.99] text-[#111113] dark:text-white font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs disabled:opacity-50"
-            >
-              <LogOut size={14} className="text-[#66666E] dark:text-[#A1A1AA]" />
-              <span>{isLoggingOut ? 'Mengakhiri sesi...' : 'Keluar dari Akun (Logout)'}</span>
-            </button>
+            <div className="w-full py-3 px-4 rounded-2xl border border-[#DCDCE0] dark:border-[#2C2C32] bg-white dark:bg-[#18181D] text-[#111113] dark:text-white font-medium text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#66666E] dark:text-[#A1A1AA]">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Akun OneMind Terhubung</span>
+              </div>
+              <span className="font-semibold font-mono text-[11px] text-zinc-900 dark:text-zinc-100 truncate max-w-[200px]">
+                {user.email || user.name || "Akun Aktif"}
+              </span>
+            </div>
           </section>
         </main>
 

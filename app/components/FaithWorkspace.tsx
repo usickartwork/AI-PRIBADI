@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useUser } from "@clerk/nextjs";
 import { FaithNavProvider, FaithTabType } from "@/lib/faith/navigationContext";
 import FaithChatView from "@/app/components/faith/views/FaithChatView";
 import FaithBibleView from "@/app/components/faith/views/FaithBibleView";
@@ -8,10 +9,9 @@ import FaithGamesView from "@/app/components/faith/views/FaithGamesView";
 import FaithNotesView from "@/app/components/faith/views/FaithNotesView";
 import FaithPrayerView from "@/app/components/faith/views/FaithPrayerView";
 import FaithProfileView from "@/app/components/faith/views/FaithProfileView";
-import FaithAuthView from "@/app/components/faith/views/FaithAuthView";
 import EntranceAnimation from "@/app/components/faith/EntranceAnimation";
-import { getStoredUser } from "@/lib/faith/session";
-import { User } from "@/types/database";
+import { getStoredUser, setStoredUser, DEFAULT_USER } from "@/lib/faith/session";
+import { User, UserRole } from "@/types/database";
 
 interface FaithWorkspaceProps {
   isDark: boolean;
@@ -26,24 +26,69 @@ export function FaithWorkspace({
   onTogglePanel,
   subTabsElement,
 }: FaithWorkspaceProps) {
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<FaithTabType>("tanya");
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+  const [user, setUser] = useState<User>(() => getStoredUser());
   const [showIntro, setShowIntro] = useState(false);
 
+  // Otomatis sinkronkan data profil dari akun yang didaftarkan ke web OneMind
   useEffect(() => {
-    const current = getStoredUser();
-    setUser(current);
-    setIsAuthLoaded(true);
+    const existing = getStoredUser();
 
-    if (current) {
-      try {
-        const seen = sessionStorage.getItem("faith_hub_intro_seen");
-        if (!seen) {
-          setShowIntro(true);
-        }
-      } catch {}
+    if (isClerkLoaded && clerkUser) {
+      const email = clerkUser.primaryEmailAddress?.emailAddress || "";
+      const name =
+        clerkUser.fullName ||
+        clerkUser.username ||
+        (clerkUser.publicMetadata?.username as string) ||
+        clerkUser.firstName ||
+        (email ? email.split("@")[0] : existing.name || "Anggota OneMind");
+      const phone = clerkUser.primaryPhoneNumber?.phoneNumber || existing.phone || "";
+      const avatarUrl = clerkUser.imageUrl || existing.avatar_url || null;
+      const role = ((clerkUser.publicMetadata?.role as UserRole) || existing.role || "member") as UserRole;
+      const token =
+        existing.token && existing.token !== "A8X29K"
+          ? existing.token
+          : `CY${clerkUser.id.replace(/[^0-9]/g, "").slice(-4).padStart(4, "7")}`;
+
+      const syncedUser: User = {
+        ...existing,
+        id: clerkUser.id,
+        token,
+        name,
+        email,
+        phone,
+        avatar_url: avatarUrl,
+        role,
+        status: "active",
+        community_group: existing.community_group || DEFAULT_USER.community_group,
+      };
+
+      setUser(syncedUser);
+      setStoredUser(syncedUser);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("faith_hub_auth_changed"));
+      }
+    } else if (isClerkLoaded && !clerkUser) {
+      // Jika mode tamu / belum login Clerk
+      const guestUser: User = {
+        ...existing,
+        id: existing.id || "onemind-user",
+        name: existing.name && existing.name !== "Filius Kristanto" ? existing.name : "Tamu OneMind",
+        email: existing.email && existing.email !== "filius.kristanto@faithhub.id" ? existing.email : "",
+      };
+      setUser(guestUser);
+      setStoredUser(guestUser);
     }
+  }, [clerkUser, isClerkLoaded]);
+
+  useEffect(() => {
+    try {
+      const seen = sessionStorage.getItem("faith_hub_intro_seen");
+      if (!seen) {
+        setShowIntro(true);
+      }
+    } catch {}
 
     const handleAuthChange = () => {
       const u = getStoredUser();
@@ -63,17 +108,6 @@ export function FaithWorkspace({
       sessionStorage.setItem("faith_hub_intro_seen", "true");
     } catch {}
     setShowIntro(false);
-  }, []);
-
-  const handleLoginSuccess = useCallback((loggedInUser: User) => {
-    setUser(loggedInUser);
-    setActiveTab("tanya");
-    try {
-      const seen = sessionStorage.getItem("faith_hub_intro_seen");
-      if (!seen) {
-        setShowIntro(true);
-      }
-    } catch {}
   }, []);
 
   return (
@@ -137,55 +171,37 @@ export function FaithWorkspace({
           </header>
         )}
 
-        {/* ─── BODY: AUTH GATE OR FAITH HUB TABS ─────────────────────────── */}
+        {/* ─── BODY: FAITH HUB TABS (LANGSUNG AKTIF TANPA GATE LOGIN/REGISTER) ─ */}
         <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:pb-3">
-          {!isAuthLoaded ? (
-            <div className="flex items-center justify-center h-full w-full">
-              <div className="w-8 h-8 rounded-full border-2 border-current border-t-transparent animate-spin opacity-40" />
-            </div>
-          ) : !user ? (
-            /* ============================================================= */
-            /* AUTHENTIC LOGIN & SURVEY ONBOARDING GATE                      */
-            /* ============================================================= */
-            <div className="h-full w-full flex flex-col items-center justify-center overflow-hidden">
-              <FaithAuthView onLoginSuccess={handleLoginSuccess} />
-            </div>
-          ) : (
-            /* ============================================================= */
-            /* AUTHENTICATED FAITH HUB WORKSPACE                             */
-            /* ============================================================= */
-            <>
-              {/* Tanya Rohani */}
-              <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                <FaithChatView />
-              </div>
+          {/* Tanya Rohani */}
+          <div className={`h-full w-full ${activeTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            <FaithChatView />
+          </div>
 
-              {/* Alkitab */}
-              <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                <FaithBibleView />
-              </div>
+          {/* Alkitab */}
+          <div className={`h-full w-full ${activeTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            <FaithBibleView />
+          </div>
 
-              {/* Faith Arcade */}
-              <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                {activeTab === "games" && <FaithGamesView />}
-              </div>
+          {/* Faith Arcade */}
+          <div className={`h-full w-full ${activeTab === "games" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            {activeTab === "games" && <FaithGamesView />}
+          </div>
 
-              {/* Catatan Khotbah */}
-              <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                {activeTab === "notes" && <FaithNotesView />}
-              </div>
+          {/* Catatan Khotbah */}
+          <div className={`h-full w-full ${activeTab === "notes" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            {activeTab === "notes" && <FaithNotesView />}
+          </div>
 
-              {/* Pokok Doa */}
-              <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                {activeTab === "prayer" && <FaithPrayerView />}
-              </div>
+          {/* Pokok Doa */}
+          <div className={`h-full w-full ${activeTab === "prayer" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            {activeTab === "prayer" && <FaithPrayerView />}
+          </div>
 
-              {/* Profil Komunitas CG */}
-              <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
-                {activeTab === "profile" && <FaithProfileView />}
-              </div>
-            </>
-          )}
+          {/* Profil Komunitas CG */}
+          <div className={`h-full w-full ${activeTab === "profile" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+            {activeTab === "profile" && <FaithProfileView />}
+          </div>
         </div>
       </div>
     </FaithNavProvider>
