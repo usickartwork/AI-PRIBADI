@@ -2,35 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
-import {
-  ProductBuilderStage,
-  StageStatus,
-  IdeaBrief,
-  DesignSpecification,
-  DesignRevisionEntry,
-  PrototypeState,
-  EnhancedProjectTask,
-  ProductBuilderData,
-  normalizeProductBuilderData,
-  DesignTokens,
-  BuildCheckpoint,
-  DiagnosticIssue,
-  DEFAULT_DESIGN_TOKENS,
-} from "./code/types";
-import { ProductBuilderHeader } from "./code/ProductBuilderHeader";
-import { ProjectDashboard } from "./code/ProjectDashboard";
-import { IdeaStage } from "./code/IdeaStage";
-import { PrdStage } from "./code/PrdStage";
-import { DesignStage } from "./code/DesignStage";
-import { PrototypeStage } from "./code/PrototypeStage";
-import { BuildAppStage } from "./code/BuildAppStage";
-import { CodeEditorStage } from "./code/CodeEditorStage";
-import { TestDebugStage } from "./code/TestDebugStage";
-import { AgentTasksStage } from "./code/AgentTasksStage";
-import { generateProjectFiles } from "./code/fileGenerator";
-import { createZeroDepZip, downloadZipBlob } from "./code/zipExporter";
-import { synthesizeDesignPlan, buildArtDirectionSystemPrompt } from "./code/designEngine";
-import { evaluateAndRepairHtml } from "./code/visualQa";
 
 export type TaskStatus =
   | "ready"
@@ -347,7 +318,6 @@ export type ProjectPRD = {
   userStories?: string[];
   functionalRequirements?: string[];
   nonFunctionalRequirements?: string[];
-  nonFunctional?: string[];
   classifiedRequirements?: ClassifiedRequirement[];
   requirementRegistry?: RequirementRegistryEntry[];
   userDerived?: {
@@ -374,7 +344,6 @@ export type ProjectPRD = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
-  productBuilder?: ProductBuilderData;
 };
 
 export type ProjectCategory =
@@ -547,7 +516,6 @@ export type ProjectItem = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
-  productBuilder?: ProductBuilderData;
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -3209,11 +3177,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"builder" | "mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("builder");
-  const [builderStage, setBuilderStage] = useState<ProductBuilderStage>("idea");
-  const [isDesignGenerating, setIsDesignGenerating] = useState(false);
-  const [isTasksGenerating, setIsTasksGenerating] = useState(false);
-  const [isPrdGenerating, setIsPrdGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -3541,878 +3505,6 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     setProjects((prev) =>
       prev.map((p) =>
         p.id === activeProjectId ? { ...p, generatedHtml: html } : p
-      )
-    );
-  };
-
-  // ── AI Product Builder State & Stage Workflow ─────────────────────────────────
-  const builderData = useMemo<ProductBuilderData>(() => {
-    if (!activeProject) {
-      return {
-        currentStage: "idea",
-        stageStatuses: {
-          idea: "in_progress",
-          prd: "not_started",
-          design: "not_started",
-          prototype: "not_started",
-          build: "not_started",
-          editor: "not_started",
-          test_debug: "not_started",
-        },
-        ideaBrief: {
-          idea: "",
-          targetPlatform: "website",
-        },
-        designTokens: DEFAULT_DESIGN_TOKENS,
-        designSpec: {
-          currentHtml: "",
-          version: 1,
-          revisions: [],
-        },
-        prototypeState: {},
-        appBuilder: {
-          files: {},
-          activeFilePath: "app/page.tsx",
-          buildStatus: "idle",
-          checkpoints: [],
-          issues: [],
-        },
-        approvals: {},
-      };
-    }
-    return normalizeProductBuilderData(activeProject);
-  }, [activeProject]);
-
-  // Sync builderStage with active project
-  useEffect(() => {
-    if (activeProject) {
-      const b = normalizeProductBuilderData(activeProject);
-      setBuilderStage(b.currentStage);
-    } else {
-      setBuilderStage("idea");
-    }
-  }, [activeProjectId]);
-
-  const handleSelectBuilderStage = (stage: ProductBuilderStage) => {
-    setBuilderStage(stage);
-    setActiveTab("builder");
-    if (activeProjectId) {
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === activeProjectId
-            ? {
-                ...p,
-                productBuilder: {
-                  ...normalizeProductBuilderData(p),
-                  currentStage: stage,
-                },
-                updatedAt: Date.now(),
-              }
-            : p
-        )
-      );
-    }
-  };
-
-  const [builderView, setBuilderView] = useState<"dashboard" | "idea">("dashboard");
-
-  const handleSelectProjectFromDashboard = (projId: string) => {
-    setActiveProjectId(projId);
-    const p = projects.find((item) => item.id === projId);
-    if (p) {
-      const b = normalizeProductBuilderData(p);
-      setBuilderStage(b.currentStage);
-      setActiveTab("builder");
-    }
-  };
-
-  const handleDuplicateProject = (projId: string) => {
-    const original = projects.find((p) => p.id === projId);
-    if (!original) return;
-    const newId = "proj-" + Date.now();
-    const duplicated: ProjectItem = {
-      ...original,
-      id: newId,
-      title: `${original.title} (Salinan)`,
-      updatedAt: Date.now(),
-      productBuilder: original.productBuilder
-        ? {
-            ...original.productBuilder,
-            approvals: {},
-          }
-        : undefined,
-    };
-    setProjects((prev) => [duplicated, ...prev]);
-    setActiveProjectId(newId);
-    setBuilderStage(duplicated.productBuilder?.currentStage || "idea");
-    setActiveTab("builder");
-    showCopyToast("Proyek berhasil diduplikasi!");
-  };
-
-  const handleDeleteProjectFromDashboard = (projId: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projId));
-    if (activeProjectId === projId) {
-      setActiveProjectId(null);
-    }
-    showCopyToast("Proyek berhasil dihapus.");
-  };
-
-  const handleRenameProjectFromDashboard = (projId: string, newTitle: string) => {
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === projId ? { ...p, title: newTitle, updatedAt: Date.now() } : p
-      )
-    );
-    showCopyToast("Nama proyek diperbarui.");
-  };
-
-  const handleUpdateIdeaBrief = (brief: IdeaBrief) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              description: brief.idea,
-              productBuilder: {
-                ...normalizeProductBuilderData(p),
-                ideaBrief: brief,
-              },
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-  };
-
-  const handleContinueFromIdeaToPrd = async (brief: IdeaBrief) => {
-    if (!activeProjectId) {
-      const newTitle = brief.idea.slice(0, 32).trim() || "Project Baru";
-      handleConfirmCreateProject(brief.idea, newTitle);
-      return;
-    }
-
-    setIsPrdGenerating(true);
-    try {
-      const current = projects.find((p) => p.id === activeProjectId);
-      if (current) {
-        const b = normalizeProductBuilderData(current);
-        const updatedStatuses = {
-          ...b.stageStatuses,
-          idea: "approved" as StageStatus,
-          prd: "in_progress" as StageStatus,
-        };
-
-        setProjects((prev) =>
-          prev.map((p) =>
-            p.id === activeProjectId
-              ? {
-                  ...p,
-                  description: brief.idea,
-                  productBuilder: {
-                    ...b,
-                    currentStage: "prd",
-                    stageStatuses: updatedStatuses,
-                    ideaBrief: brief,
-                  },
-                  updatedAt: Date.now(),
-                }
-              : p
-          )
-        );
-        setBuilderStage("prd");
-        setActiveTab("builder");
-
-        if (!current.prd || !current.prd.overview) {
-          await handleSendChatMessage(
-            `Berikut ide produk yang telah dirumuskan:\n\nIDE: ${brief.idea}\nTARGET: ${brief.targetPlatform}\nAUDIENS: ${brief.targetAudience || "-"}\nGOALS: ${brief.goals || "-"}\n\nSilakan generate dokumen PRD terstruktur lengkap untuk produk ini.`
-          );
-        }
-      }
-    } finally {
-      setIsPrdGenerating(false);
-    }
-  };
-
-  const handleUpdatePrd = (updatedPrd: ProjectPRD) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        return {
-          ...p,
-          prd: updatedPrd,
-          productBuilder: {
-            ...b,
-            stageStatuses: {
-              ...b.stageStatuses,
-              prd: "in_progress",
-              design: "needs_update",
-              tasks: "needs_update",
-            },
-          },
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleApprovePrdAndContinue = async () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    const b = normalizeProductBuilderData(current);
-    const updatedStatuses = {
-      ...b.stageStatuses,
-      prd: "approved" as StageStatus,
-      design: "in_progress" as StageStatus,
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              productBuilder: {
-                ...b,
-                currentStage: "design",
-                stageStatuses: updatedStatuses,
-                approvals: {
-                  ...b.approvals,
-                  prdApprovedAt: Date.now(),
-                },
-              },
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setBuilderStage("design");
-    setActiveTab("builder");
-
-    if (!current.generatedHtml || current.generatedHtml.trim().length === 0) {
-      handleGenerateDesignWithAI();
-    }
-  };
-
-  const handleGenerateDesignWithAI = async (customPrompt?: string) => {
-    if (!activeProjectId || isDesignGenerating) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    setIsDesignGenerating(true);
-    try {
-      const generated = await generateProjectPreviewHtmlWithAI(
-        current,
-        undefined,
-        userId,
-        customPrompt
-      );
-
-      if (generated && generated.length > 50) {
-        const b = normalizeProductBuilderData(current);
-        const newVersion = (b.designSpec.version || 1) + (customPrompt ? 1 : 0);
-        const newRevision: DesignRevisionEntry = {
-          version: newVersion,
-          timestamp: Date.now(),
-          prompt: customPrompt || "Desain Awal dari PRD",
-          html: generated,
-          summary: customPrompt || "Inisialisasi spesifikasi UI dari PRD",
-        };
-
-        const updatedStatuses = {
-          ...b.stageStatuses,
-          design: "ready_for_review" as StageStatus,
-        };
-
-        setProjects((prev) =>
-          prev.map((p) =>
-            p.id === activeProjectId
-              ? {
-                  ...p,
-                  generatedHtml: generated,
-                  productBuilder: {
-                    ...b,
-                    stageStatuses: updatedStatuses,
-                    designSpec: {
-                      currentHtml: generated,
-                      version: newVersion,
-                      revisions: [newRevision, ...(b.designSpec.revisions || [])],
-                      lastGeneratedAt: Date.now(),
-                    },
-                  },
-                  updatedAt: Date.now(),
-                }
-              : p
-          )
-        );
-      }
-    } catch (err: any) {
-      console.error("[CodeWorkspace] Design generation error:", err);
-    } finally {
-      setIsDesignGenerating(false);
-    }
-  };
-
-  const handleRestoreDesignVersion = (entry: DesignRevisionEntry) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        return {
-          ...p,
-          generatedHtml: entry.html,
-          productBuilder: {
-            ...b,
-            designSpec: {
-              ...b.designSpec,
-              currentHtml: entry.html,
-              version: entry.version,
-            },
-          },
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleApproveDesignAndContinue = () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    const b = normalizeProductBuilderData(current);
-    const updatedStatuses = {
-      ...b.stageStatuses,
-      design: "approved" as StageStatus,
-      prototype: "ready_for_review" as StageStatus,
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              productBuilder: {
-                ...b,
-                currentStage: "prototype",
-                stageStatuses: updatedStatuses,
-                approvals: {
-                  ...b.approvals,
-                  designApprovedAt: Date.now(),
-                },
-              },
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setBuilderStage("prototype");
-    setActiveTab("builder");
-  };
-
-  const [isBuildingApp, setIsBuildingApp] = useState(false);
-  const [isDiagnosticScanning, setIsDiagnosticScanning] = useState(false);
-  const [isRefiningFile, setIsRefiningFile] = useState(false);
-
-  const handleUpdateDesignTokens = (tokens: DesignTokens) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        return {
-          ...p,
-          productBuilder: {
-            ...b,
-            designTokens: tokens,
-          },
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleApprovePrototypeAndContinue = () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    const b = normalizeProductBuilderData(current);
-    const updatedStatuses = {
-      ...b.stageStatuses,
-      prototype: "approved" as StageStatus,
-      build: "in_progress" as StageStatus,
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              productBuilder: {
-                ...b,
-                currentStage: "build",
-                stageStatuses: updatedStatuses,
-                approvals: {
-                  ...b.approvals,
-                  prototypeApprovedAt: Date.now(),
-                },
-              },
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-
-    setBuilderStage("build");
-    setActiveTab("builder");
-    showCopyToast("Prototype disetujui! Memulai build aplikasi Next.js...");
-
-    // Otomatis jalankan pipeline build aplikasi Next.js step-by-step
-    setTimeout(() => {
-      handleStartBuildApp();
-    }, 200);
-  };
-
-  const handleStartBuildApp = async () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-    setIsBuildingApp(true);
-    try {
-      // Simulasi eksekusi pipeline 6-langkah secara transparan (4300ms)
-      await new Promise((resolve) => setTimeout(resolve, 4300));
-
-      const b = normalizeProductBuilderData(current);
-      const generatedFiles = generateProjectFiles(current, b.designTokens);
-      const initialCheckpoint: BuildCheckpoint = {
-        id: `cp_${Date.now()}`,
-        version: 1,
-        timestamp: Date.now(),
-        summary: "Build awal Next.js App Router dari PRD & Desain",
-        files: generatedFiles,
-      };
-
-      const updatedBuilder: ProductBuilderData = {
-        ...b,
-        currentStage: "editor",
-        stageStatuses: {
-          ...b.stageStatuses,
-          build: "approved",
-          editor: "ready_for_review",
-        },
-        appBuilder: {
-          files: generatedFiles,
-          activeFilePath: "app/page.tsx",
-          buildStatus: "completed",
-          checkpoints: [initialCheckpoint],
-          issues: [],
-        },
-      };
-
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === activeProjectId
-            ? {
-                ...p,
-                productBuilder: updatedBuilder,
-                updatedAt: Date.now(),
-              }
-            : p
-        )
-      );
-
-      setBuilderStage("editor");
-      showCopyToast("Build aplikasi selesai! Membuka Code Editor & Live Preview...");
-    } finally {
-      setIsBuildingApp(false);
-    }
-  };
-
-  const handleRefineFileWithAi = async (filePath: string, instruction: string) => {
-    if (!activeProjectId || !instruction.trim()) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-    const b = normalizeProductBuilderData(current);
-    const currentCode = b.appBuilder.files[filePath] || "";
-
-    setIsRefiningFile(true);
-    try {
-      const systemPrompt = `Anda adalah AI Code Refiner untuk aplikasi Next.js 15 App Router.
-Tugas Anda adalah memperbarui atau menambahkan fitur pada file '${filePath}' berdasarkan instruksi pengguna.
-HANYA berikan kode file yang telah diperbarui secara lengkap di dalam blok kode \`\`\`tsx (atau ekstensi sesuai file). JANGAN berikan teks obrolan di luar blok kode.`;
-
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: `File saat ini: ${filePath}\n\`\`\`\n${currentCode}\n\`\`\`\n\nInstruksi perubahan:\n${instruction}`,
-            },
-          ],
-          userId,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.text || data.reply || "";
-        const match = text.match(/```(?:tsx|typescript|ts|javascript|jsx|css|json)?\n([\s\S]*?)```/);
-        const refinedCode = match ? match[1].trim() : text.trim();
-
-        if (refinedCode && refinedCode.length > 20) {
-          handleUpdateFileContent(filePath, refinedCode);
-          handleCreateCheckpoint(`AI Refine: ${instruction.slice(0, 36)}`);
-          showCopyToast(`File ${filePath} berhasil diperbarui AI!`);
-          return;
-        }
-      }
-      showCopyToast("Gagal memperbarui file, silakan coba lagi.");
-    } catch (err) {
-      console.error("[CodeWorkspace] Refine error:", err);
-      showCopyToast("Terjadi kesalahan saat memproses instruksi AI.");
-    } finally {
-      setIsRefiningFile(false);
-    }
-  };
-
-  const handleAddVirtualFile = (path: string, initialContent: string = "") => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...b.appBuilder,
-            files: {
-              ...b.appBuilder.files,
-              [path]: initialContent,
-            },
-            activeFilePath: path,
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-    showCopyToast(`File baru ${path} berhasil dibuat!`);
-  };
-
-  const handleDeleteVirtualFile = (path: string) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const newFiles = { ...b.appBuilder.files };
-        delete newFiles[path];
-        const remainingKeys = Object.keys(newFiles);
-        const nextActive = remainingKeys[0] || "app/page.tsx";
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...b.appBuilder,
-            files: newFiles,
-            activeFilePath: nextActive,
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-    showCopyToast(`File ${path} dihapus dari workspace virtual.`);
-  };
-
-  const handleUpdateFileContent = (path: string, content: string) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const appBuilder = b.appBuilder;
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...appBuilder,
-            files: {
-              ...appBuilder.files,
-              [path]: content,
-            },
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleSelectActiveFile = (path: string) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...b.appBuilder,
-            activeFilePath: path,
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-        };
-      })
-    );
-  };
-
-  const handleCreateCheckpoint = (summary: string) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const appBuilder = b.appBuilder;
-        const nextVersion = appBuilder.checkpoints.length + 1;
-        const newCp: BuildCheckpoint = {
-          id: `cp_${Date.now()}`,
-          version: nextVersion,
-          timestamp: Date.now(),
-          summary,
-          files: { ...appBuilder.files },
-        };
-        showCopyToast(`Checkpoint #${nextVersion} dibuat!`);
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...appBuilder,
-            checkpoints: [newCp, ...appBuilder.checkpoints],
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleRestoreCheckpoint = (cp: BuildCheckpoint) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...b.appBuilder,
-            files: { ...cp.files },
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-    showCopyToast(`Checkpoint #${cp.version} berhasil dipulihkan!`);
-  };
-
-  const handleRunDiagnostics = () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-    setIsDiagnosticScanning(true);
-    setTimeout(() => {
-      const b = normalizeProductBuilderData(current);
-      const files = b.appBuilder.files;
-      const foundIssues: DiagnosticIssue[] = [];
-
-      Object.entries(files).forEach(([fPath, content]) => {
-        const openBraces = (content.match(/\{/g) || []).length;
-        const closeBraces = (content.match(/\}/g) || []).length;
-        if (openBraces !== closeBraces) {
-          foundIssues.push({
-            id: `issue_${fPath}_brace`,
-            filePath: fPath,
-            severity: "error",
-            message: `Ketidakseimbangan kurung kurawal: ditemukan ${openBraces} '{' dan ${closeBraces} '}'.`,
-            fixSuggestion: `Pastikan setiap blok kode ditutup dengan benar.`,
-          });
-        }
-
-        if (fPath.endsWith(".tsx") && (content.includes("useState") || content.includes("useEffect"))) {
-          if (!content.trim().startsWith('"use client"') && !content.trim().startsWith("'use client'")) {
-            foundIssues.push({
-              id: `issue_${fPath}_client`,
-              filePath: fPath,
-              severity: "warning",
-              message: `Komponen menggunakan React hooks tanpa direktif "use client" di baris pertama.`,
-              fixSuggestion: `Tambahkan "use client"; di baris teratas file.`,
-            });
-          }
-        }
-
-        if (fPath.endsWith(".tsx")) {
-          const divOpens = (content.match(/<div(\s|>)/g) || []).length;
-          const divCloses = (content.match(/<\/div>/g) || []).length;
-          if (divOpens > divCloses) {
-            foundIssues.push({
-              id: `issue_${fPath}_div`,
-              filePath: fPath,
-              severity: "error",
-              message: `Tag <div> tidak tertutup: ${divOpens} pembuka vs ${divCloses} penutup.`,
-              fixSuggestion: `Tutup tag </div> yang terbuka.`,
-            });
-          }
-        }
-      });
-
-      setProjects((prev) =>
-        prev.map((p) => {
-          if (p.id !== activeProjectId) return p;
-          const updatedBuilder: ProductBuilderData = {
-            ...b,
-            appBuilder: {
-              ...b.appBuilder,
-              issues: foundIssues,
-            },
-          };
-          return {
-            ...p,
-            productBuilder: updatedBuilder,
-          };
-        })
-      );
-      setIsDiagnosticScanning(false);
-      showCopyToast(
-        foundIssues.length === 0
-          ? "Diagnostik selesai: Semua file lolos verifikasi!"
-          : `Diagnostik selesai: Ditemukan ${foundIssues.length} catatan.`
-      );
-    }, 600);
-  };
-
-  const handleAutoFixIssue = (issue: DiagnosticIssue) => {
-    if (!activeProjectId) return;
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProjectId) return p;
-        const b = normalizeProductBuilderData(p);
-        const fPath = issue.filePath || issue.file || "";
-        const files = { ...b.appBuilder.files };
-        const content = files[fPath];
-        if (!content) return p;
-
-        let fixed = content;
-        if (issue.id.includes("_client")) {
-          fixed = `"use client";\n\n` + content;
-        } else if (issue.id.includes("_brace")) {
-          fixed = content + "\n}\n";
-        } else if (issue.id.includes("_div")) {
-          fixed = content + "\n</div>\n";
-        }
-
-        files[fPath] = fixed;
-        const remainingIssues = b.appBuilder.issues.filter((i) => i.id !== issue.id);
-
-        showCopyToast(`Perbaikan otomatis diterapkan pada ${fPath}`);
-        const updatedBuilder: ProductBuilderData = {
-          ...b,
-          appBuilder: {
-            ...b.appBuilder,
-            files,
-            issues: remainingIssues,
-          },
-        };
-        return {
-          ...p,
-          productBuilder: updatedBuilder,
-          updatedAt: Date.now(),
-        };
-      })
-    );
-  };
-
-  const handleApproveTestDebugStage = () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    const b = normalizeProductBuilderData(current);
-    const updatedStatuses = {
-      ...b.stageStatuses,
-      test_debug: "approved" as StageStatus,
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              productBuilder: {
-                ...b,
-                stageStatuses: updatedStatuses,
-              },
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-    );
-    showCopyToast("Tahap pengujian & produk telah disetujui!");
-  };
-
-  const handleApproveTasksPlan = () => {
-    if (!activeProjectId) return;
-    const current = projects.find((p) => p.id === activeProjectId);
-    if (!current) return;
-
-    const b = normalizeProductBuilderData(current);
-    const updatedStatuses = {
-      ...b.stageStatuses,
-      test_debug: "approved" as StageStatus,
-    };
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProjectId
-          ? {
-              ...p,
-              productBuilder: {
-                ...b,
-                stageStatuses: updatedStatuses,
-                approvals: {
-                  ...b.approvals,
-                  tasksApprovedAt: Date.now(),
-                },
-              },
-              updatedAt: Date.now(),
-            }
-          : p
       )
     );
   };
@@ -8073,198 +7165,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     showCopyToast("File Blueprint (.txt) berhasil didownload!");
   };
 
-  const downloadPrdMarkdown = () => {
-    if (!activeProject) return;
-    const prd = activeProject.prd;
-    const title = activeProject.title || "Project";
-    let md = `# Product Requirements Document (PRD)\n## ${title}\n\n`;
-    md += `*Terakhir Diperbarui: ${new Date().toLocaleDateString("id-ID")}*\n\n`;
-    md += `### 1. Ringkasan & Problem Statement\n${prd?.overview || activeProject.description || "Belum ada ringkasan."}\n\n`;
-    if (prd?.problemStatement) md += `**Problem Statement:**\n${prd.problemStatement}\n\n`;
-    md += `### 2. Goals & Sasaran Produk\n${(prd?.goals || []).map((g) => `- ${g}`).join("\n") || "- Memenuhi kebutuhan pengguna."}\n\n`;
-    md += `### 3. Target Pengguna (Audience)\n${(prd?.targetUsers || []).map((u) => `- ${u}`).join("\n") || "- Pengguna umum & profesional."}\n\n`;
-    md += `### 4. Kebutuhan Fungsional & Fitur\n${(prd?.functionalRequirements || activeProject.features?.map(f => f.name + ': ' + f.description) || []).map((f) => `- ${f}`).join("\n") || "- Fitur inti aplikasi."}\n\n`;
-    md += `### 5. Alur Pengguna (User Journey)\n${activeProject.userFlow || "Standard primary user flow."}\n\n`;
-    md += `### 6. Kebutuhan Non-Fungsional (NFR)\n${(prd?.nonFunctional || prd?.nonFunctionalRequirements || []).map((n) => `- ${n}`).join("\n") || "- Responsivitas mobile & desktop, keamanan data."}\n\n`;
-
-    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    link.download = `${slug || "project"}-prd.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File PRD.md berhasil didownload!");
-  };
-
-  const downloadDesignSpecJson = () => {
-    if (!activeProject) return;
-    const b = normalizeProductBuilderData(activeProject);
-    const spec = {
-      projectTitle: activeProject.title,
-      version: b.designSpec.version,
-      targetPlatform: b.ideaBrief?.targetPlatform || "website",
-      revisionsCount: b.designSpec.revisions?.length || 1,
-      revisions: b.designSpec.revisions || [],
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(spec, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${slug}-design-spec.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File Design Spec (.json) berhasil didownload!");
-  };
-
-  const downloadDesignMd = () => {
-    if (!activeProject) return;
-    const title = activeProject.title || "Project";
-    const b = normalizeProductBuilderData(activeProject);
-    const pType = activeProject.prd?.primaryType || "Web Application";
-    let md = `# DESIGN SPECIFICATION & DESIGN SYSTEM\n## ${title}\n\n`;
-    md += `**Platform Target:** ${b.ideaBrief?.targetPlatform || "Website"}\n`;
-    md += `**Tipe Produk:** ${pType}\n`;
-    md += `**Versi Desain:** v${b.designSpec.version || 1}\n\n`;
-    md += `### 1. Prinsip Desain & Visual Hierarchy\n`;
-    md += `- **Theme Foundation:** Monochrome dark-mode zinc dengan aksen netral yang elegan.\n`;
-    md += `- **Tipografi:** Plus Jakarta Sans / Inter font family untuk keterbacaan tinggi.\n`;
-    md += `- **Layout Strategy:** Responsive Bento Grid & dynamic multi-column layouts.\n`;
-    md += `- **Border & Radius:** Rounded-2xl hingga rounded-3xl dengan border halus 1px white/10.\n\n`;
-    md += `### 2. Riwayat Revisi Desain\n`;
-    (b.designSpec.revisions || []).forEach((r) => {
-      md += `- **v${r.version}** (${new Date(r.timestamp).toLocaleDateString()}): ${r.changeSummary || r.summary || r.prompt || "Revisi desain"}\n`;
-    });
-    md += `\n### 3. Komponen yang Didukung\n`;
-    md += `- Header Navbar dengan Nav Links & Quick Action CTA\n`;
-    md += `- High-Impact Hero Section dengan Headline & Dual CTA Buttons\n`;
-    md += `- Interactive Data / Entity Cards dengan status pills\n`;
-    md += `- Interactive Modals & Toast Confirmations\n`;
-    md += `- Responsive Mobile Drawer Navigation\n`;
-
-    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${slug}-DESIGN.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File DESIGN.md berhasil didownload!");
-  };
-
-  const downloadTasksMarkdown = () => {
-    if (!activeProject) return;
-    const b = normalizeProductBuilderData(activeProject);
-    const tasks = b.enhancedTasks || activeProject.tasks || [];
-    const title = activeProject.title || "Project";
-    let md = `# Implementation Tasks & Verification Checklist\n## ${title}\n\n`;
-    tasks.forEach((item) => {
-      const t = item as EnhancedProjectTask;
-      md += `### [${String(t.status).toUpperCase()}] ${t.id}: ${t.title}\n`;
-      md += `- **Prioritas:** ${t.priority || "MEDIUM"}\n`;
-      md += `- **Deskripsi:** ${t.description}\n`;
-      if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
-        md += `- **Kriteria Penerimaan:**\n`;
-        t.acceptanceCriteria.forEach((crit) => {
-          md += `  - [ ] ${crit}\n`;
-        });
-      }
-      if (t.suggestedFiles && t.suggestedFiles.length > 0) {
-        md += `- **File Terkait:** ${t.suggestedFiles.join(", ")}\n`;
-      }
-      if (t.suggestedTests && t.suggestedTests.length > 0) {
-        md += `- **Pengujian:** ${t.suggestedTests.join("; ")}\n`;
-      }
-      md += `\n`;
-    });
-
-    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${slug}-tasks.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File Tasks (.md) berhasil didownload!");
-  };
-
-  const downloadPrototypeHtml = () => {
-    if (!activeProject) return;
-    const b = normalizeProductBuilderData(activeProject);
-    const html = activeProject.generatedHtml || b.designSpec.currentHtml;
-    if (!html || !html.trim()) {
-      showCopyToast("Belum ada HTML prototype yang digenerate untuk proyek ini.");
-      return;
-    }
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${slug}-prototype.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File prototype.html berhasil didownload!");
-  };
-
-  const downloadTokensJson = () => {
-    if (!activeProject) return;
-    const b = normalizeProductBuilderData(activeProject);
-    const tokens = b.designTokens || DEFAULT_DESIGN_TOKENS;
-    const blob = new Blob([JSON.stringify(tokens, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${slug}-tokens.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showCopyToast("File tokens.json berhasil didownload!");
-  };
-
-  const downloadFullProjectZip = () => {
-    if (!activeProject) return;
-    const b = normalizeProductBuilderData(activeProject);
-    let files = b.appBuilder?.files || {};
-    if (Object.keys(files).length === 0) {
-      files = generateProjectFiles(activeProject, b.designTokens);
-    }
-    const zipEntries = Object.entries(files).map(([name, content]) => ({ name, content }));
-    if (activeProject.prd?.overview || activeProject.description) {
-      zipEntries.push({
-        name: "docs/PRD.md",
-        content: `# PRD - ${activeProject.title}\n\n${activeProject.prd?.overview || activeProject.description}`,
-      });
-    }
-    if (activeProject.generatedHtml || b.designSpec.currentHtml) {
-      zipEntries.push({
-        name: "public/prototype.html",
-        content: activeProject.generatedHtml || b.designSpec.currentHtml,
-      });
-    }
-    const zipBlob = createZeroDepZip(zipEntries);
-    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    downloadZipBlob(zipBlob, `${slug}-project.zip`);
-    showCopyToast("Full Project ZIP berhasil didownload!");
-  };
-
   const downloadProjectPdf = () => {
     if (!activeProject) return;
     if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
@@ -8474,7 +7374,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     isBlueprintReady &&
     !hasPendingDiscoveryQuestions
   );
-  const currentTab = activeTab;
+  const currentTab = (!activeProject || !isPlannerFinished) ? "chat" : activeTab;
   const domain = activeProject
     ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
     : "saas";
@@ -8495,558 +7395,205 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       )}
 
-      {/* ─── Top Header Bar for Legacy Views (Chat / Mindmap / PRD / Tasks) ─── */}
-      {currentTab !== "builder" && (
-        <header
-          className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
-            isDark ? "text-white" : "text-zinc-900"
-          }`}
-        >
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {onTogglePanel && (
-              <button
-                onClick={onTogglePanel}
-                className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                  isDark
-                    ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                    : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-                }`}
-                title="Menu Panel"
-                aria-label="Menu Panel"
-              >
-                <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            )}
-
-            {/* Quick button to return to 5-Stage Product Builder */}
+      {/* ─── Top Header Bar (Clean, Floating, Serasi Tab Chat) ─── */}
+      <header
+        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+          isDark ? "text-white" : "text-zinc-900"
+        }`}
+      >
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {onTogglePanel && (
             <button
-              type="button"
-              onClick={() => setActiveTab("builder")}
-              className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
-                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
-              }`}
-              title="Kembali ke Alur 5-Tahap Product Builder"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span>Product Builder</span>
-            </button>
-          </div>
-
-          {/* Center: Tabs switcher only if activeProject */}
-          <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
-            {activeProject && (
-              <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
-                isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
-              }`}>
-                <button
-                  onClick={() => setActiveTab("chat")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                    currentTab === "chat"
-                      ? isDark ? "bg-white text-black shadow-xs font-bold" : "bg-black text-white shadow-xs font-bold"
-                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                  }`}
-                  title="Diskusi & Tanya AI"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  <span className="hidden sm:inline">Tanya AI</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("mindmap")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                    currentTab === "mindmap"
-                      ? isDark ? "bg-white text-black shadow-xs font-bold" : "bg-black text-white shadow-xs font-bold"
-                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                  }`}
-                  title="Peta Rencana (Visual Mindmap)"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Peta Rencana</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Right side: Export + Tombol File Project di Kanan Atas */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {activeProject && (
-              <div className="relative" ref={exportMenuRef}>
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
-                    !isSourceExportAllowed(activeProject?.qualityGate)
-                      ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
-                      : isDark
-                      ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
-                      : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
-                  }`}
-                  title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  <span className="hidden sm:inline">Export</span>
-                </button>
-
-                {showExportMenu && (
-                  <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
-                    isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
-                  }`}>
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadFullProjectZip();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      <div>
-                        <div className="font-semibold text-white dark:text-white">Full Project (.zip)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Next.js 15 App + Tokens + PRD</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        copyEverythingText();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      <div>
-                        <div className="font-semibold">Salin Text Project</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadProjectTxt();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <div>
-                        <div className="font-semibold">Export File (.txt)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Download blueprint format text</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadProjectPdf();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <div>
-                        <div className="font-semibold">Download PDF</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Dokumen cetak PDF</div>
-                      </div>
-                    </button>
-
-                    <div className="my-1 border-t border-white/5" />
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadPrdMarkdown();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">📄</span>
-                      <div>
-                        <div className="font-semibold">PRD (.md)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Spesifikasi format Markdown</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadDesignSpecJson();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">{`{ }`}</span>
-                      <div>
-                        <div className="font-semibold">Design Spec (.json)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Spesifikasi UI terstruktur</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadDesignMd();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">🎨</span>
-                      <div>
-                        <div className="font-semibold">Design Tokens (DESIGN.md)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Design system &amp; visual guide</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadTokensJson();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">📦</span>
-                      <div>
-                        <div className="font-semibold">Tokens (tokens.json)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">JSON Design Tokens</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadTasksMarkdown();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">📋</span>
-                      <div>
-                        <div className="font-semibold">Tasks Checklist (.md)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Daftar tugas implementasi</div>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        downloadPrototypeHtml();
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="font-mono text-zinc-400 text-xs shrink-0">🌐</span>
-                      <div>
-                        <div className="font-semibold">Prototype Offline (.html)</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Aplikasi interaktif mandiri</div>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tombol File Project di Kanan Atas */}
-            <button
-              onClick={() => setShowProjectDrawer((prev) => !prev)}
+              onClick={onTogglePanel}
               className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                showProjectDrawer
-                  ? isDark
-                    ? "bg-white text-black shadow-xs font-bold"
-                    : "bg-black text-white shadow-xs font-bold"
-                  : isDark
+                isDark
                   ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                   : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
-              title="File & Project"
-              aria-label="File & Project"
+              title="Menu Panel"
+              aria-label="Menu Panel"
             >
               <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-          </div>
-        </header>
-      )}
+          )}
+        </div>
 
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* AI PRODUCT BUILDER 5-STAGE WORKSPACE (Idea -> PRD -> Design -> Prototype -> Tasks) */}
-      {/* ────────────────────────────────────────────────────────────────────────── */}
-      {currentTab === "builder" && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          {activeProject ? (
-            <>
-              <ProductBuilderHeader
-                isDark={isDark}
-                projectTitle={activeProject.title}
-                onRenameProject={(newTitle) => {
-                  setProjects((prev) =>
-                    prev.map((p) =>
-                      p.id === activeProject.id
-                        ? { ...p, title: newTitle, updatedAt: Date.now() }
-                        : p
-                    )
-                  );
-                }}
-                currentStage={builderStage}
-                stageStatuses={builderData.stageStatuses}
-                onSelectStage={handleSelectBuilderStage}
-                onBackToProjects={() => setActiveProjectId(null)}
-                onTogglePanel={onTogglePanel}
-                onOpenLegacyView={(view) => setActiveTab(view)}
-                onExportClick={() => setShowExportMenu(true)}
-              />
+        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) only if activeProject & isPlannerFinished */}
+        <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
+          {activeProject && isPlannerFinished && (
+            <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
+              isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
+            }`}>
+              <button
+                onClick={() => setActiveTab("chat")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "chat"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Diskusi & Tanya AI"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <span className="hidden sm:inline">Tanya AI</span>
+              </button>
 
-              {builderStage === "idea" && (
-                <IdeaStage
-                  isDark={isDark}
-                  ideaBrief={builderData.ideaBrief}
-                  onUpdateIdeaBrief={handleUpdateIdeaBrief}
-                  onContinueToPrd={handleContinueFromIdeaToPrd}
-                  isGeneratingPrd={isPrdGenerating || estafetStage !== "idle"}
-                />
-              )}
+              <button
+                onClick={() => setActiveTab("mindmap")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "mindmap"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Peta Rencana (Visual Mindmap)"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span className="hidden sm:inline">Peta Rencana</span>
+              </button>
 
-              {builderStage === "prd" && (
-                <PrdStage
-                  isDark={isDark}
-                  prd={activeProject.prd}
-                  features={activeProject.features}
-                  userFlow={activeProject.userFlow}
-                  architecture={activeProject.architecture}
-                  status={builderData.stageStatuses.prd}
-                  onUpdatePrd={handleUpdatePrd}
-                  onApprovePrdAndContinue={handleApprovePrdAndContinue}
-                  onRegeneratePrd={() => {
-                    handleSendChatMessage("Perbarui dan sempurnakan dokumen PRD untuk proyek ini.");
-                  }}
-                  isRegenerating={isPrdGenerating || estafetStage !== "idle"}
-                />
-              )}
+              <button
+                onClick={() => setActiveTab("prd")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "prd"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Wiki Dokumen PRD"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Wiki</span>
+              </button>
 
-              {builderStage === "design" && (
-                <DesignStage
-                  isDark={isDark}
-                  projectTitle={activeProject.title}
-                  designSpec={builderData.designSpec}
-                  status={builderData.stageStatuses.design}
-                  designTokens={builderData.designTokens}
-                  onUpdateTokens={handleUpdateDesignTokens}
-                  onDownloadTokens={downloadTokensJson}
-                  onUpdateHtml={(html) => {
-                    handleUpdateProjectHtml(html);
-                  }}
-                  onRestoreVersion={handleRestoreDesignVersion}
-                  onApproveDesignAndContinue={handleApproveDesignAndContinue}
-                  onGenerateWithAI={handleGenerateDesignWithAI}
-                  isGenerating={isDesignGenerating}
-                />
-              )}
-
-              {builderStage === "prototype" && (
-                <PrototypeStage
-                  isDark={isDark}
-                  projectTitle={activeProject.title}
-                  prototypeHtml={activeProject.generatedHtml || builderData.designSpec.currentHtml || ""}
-                  prototypeState={builderData.prototypeState}
-                  status={builderData.stageStatuses.prototype}
-                  onUpdatePrototypeState={(newState) => {
-                    setProjects((prev) =>
-                      prev.map((p) =>
-                        p.id === activeProject.id
-                          ? {
-                              ...p,
-                              productBuilder: {
-                                ...normalizeProductBuilderData(p),
-                                prototypeState: newState,
-                              },
-                              updatedAt: Date.now(),
-                            }
-                          : p
-                      )
-                    );
-                  }}
-                  onApprovePrototypeAndContinue={handleApprovePrototypeAndContinue}
-                  onBackToDesign={() => handleSelectBuilderStage("design")}
-                />
-              )}
-
-              {builderStage === "build" && (
-                <BuildAppStage
-                  isDark={isDark}
-                  project={activeProject}
-                  status={builderData.stageStatuses.build}
-                  designTokens={builderData.designTokens}
-                  appBuilderState={builderData.appBuilder}
-                  onStartBuild={handleStartBuildApp}
-                  onOpenCodeEditor={() => handleSelectBuilderStage("editor")}
-                  onDownloadZip={downloadFullProjectZip}
-                  isBuilding={isBuildingApp}
-                />
-              )}
-
-              {builderStage === "editor" && (
-                <CodeEditorStage
-                  isDark={isDark}
-                  project={activeProject}
-                  appBuilderState={builderData.appBuilder}
-                  onUpdateFile={handleUpdateFileContent}
-                  onSelectFile={handleSelectActiveFile}
-                  onAddFile={handleAddVirtualFile}
-                  onDeleteFile={handleDeleteVirtualFile}
-                  onRefineWithAi={handleRefineFileWithAi}
-                  isRefining={isRefiningFile}
-                  onCreateCheckpoint={handleCreateCheckpoint}
-                  onRestoreCheckpoint={handleRestoreCheckpoint}
-                  onProceedToTestDebug={() => handleSelectBuilderStage("test_debug")}
-                  onDownloadZip={downloadFullProjectZip}
-                />
-              )}
-
-              {builderStage === "test_debug" && (
-                <TestDebugStage
-                  isDark={isDark}
-                  project={activeProject}
-                  appBuilderState={builderData.appBuilder}
-                  status={builderData.stageStatuses.test_debug}
-                  tasks={builderData.enhancedTasks || []}
-                  onRunDiagnostics={handleRunDiagnostics}
-                  onAutoFixIssue={handleAutoFixIssue}
-                  onUpdateTasks={(updated) => {
-                    setProjects((prev) =>
-                      prev.map((p) =>
-                        p.id === activeProject.id
-                          ? {
-                              ...p,
-                              tasks: updated,
-                              productBuilder: {
-                                ...normalizeProductBuilderData(p),
-                                enhancedTasks: updated,
-                              },
-                              updatedAt: Date.now(),
-                            }
-                          : p
-                      )
-                    );
-                  }}
-                  onApproveStage={handleApproveTestDebugStage}
-                  onDownloadZip={downloadFullProjectZip}
-                  onDownloadPrd={downloadPrdMarkdown}
-                  onDownloadDesign={downloadDesignMd}
-                  onDownloadTokens={downloadTokensJson}
-                  onDownloadTasks={downloadTasksMarkdown}
-                  onDownloadPrototype={downloadPrototypeHtml}
-                  isScanning={isDiagnosticScanning}
-                />
-              )}
-            </>
-          ) : builderView === "dashboard" && projects.length > 0 ? (
-            <ProjectDashboard
-              isDark={isDark}
-              projects={projects}
-              onSelectProject={handleSelectProjectFromDashboard}
-              onCreateNewProject={() => setBuilderView("idea")}
-              onRenameProject={handleRenameProjectFromDashboard}
-              onDuplicateProject={handleDuplicateProject}
-              onDeleteProject={handleDeleteProjectFromDashboard}
-              onTogglePanel={onTogglePanel}
-            />
-          ) : (
-            /* Clean Initial Idea Canvas when !activeProject or starting new */
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="px-4 py-3 flex items-center justify-between border-b border-black/5 dark:border-white/5 shrink-0">
-                <div className="flex items-center gap-2">
-                  {onTogglePanel && (
-                    <button
-                      type="button"
-                      onClick={onTogglePanel}
-                      className={`p-2 rounded-xl transition cursor-pointer ${
-                        isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                      }`}
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                  )}
-
-                  {projects.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setBuilderView("dashboard")}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
-                        isDark ? "bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300" : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-700"
-                      }`}
-                    >
-                      ← Dashboard Proyek
-                    </button>
-                  )}
-
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-                    Mulai Ide Produk Baru
-                  </span>
-                </div>
-
-                {projects.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setBuilderView("dashboard")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
-                      isDark
-                        ? "bg-white/5 hover:bg-white/10 border-white/10 text-white"
-                        : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <span>Daftar Proyek ({projects.length})</span>
-                  </button>
-                )}
-              </div>
-
-              <IdeaStage
-                isDark={isDark}
-                ideaBrief={{ idea: "", targetPlatform: "website" }}
-                onUpdateIdeaBrief={() => {}}
-                onContinueToPrd={(brief) => {
-                  const title = brief.idea.slice(0, 32).trim() || "Project Baru";
-                  handleConfirmCreateProject(brief.idea, title);
-                }}
-              />
+              <button
+                onClick={() => setActiveTab("tasks")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "tasks"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Task Board"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span className="hidden sm:inline">Tasks</span>
+              </button>
             </div>
           )}
         </div>
-      )}
+
+        {/* Right side: Export (if planner finished) + Tombol File Project di Kanan Atas */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {activeProject && isPlannerFinished && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
+                  !isSourceExportAllowed(activeProject?.qualityGate)
+                    ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
+                    : isDark
+                    ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
+                    : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
+                }`}
+                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span className="hidden sm:inline">Export</span>
+              </button>
+
+              {showExportMenu && (
+                <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
+                  isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
+                }`}>
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      copyEverythingText();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Salin Text Project</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadProjectTxt();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Export File (.txt)</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Download blueprint format text</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      downloadProjectPdf();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-semibold">Download PDF</div>
+                      <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tombol File Project di Kanan Atas (liquid glass circle identik tab chat) */}
+          <button
+            onClick={() => setShowProjectDrawer((prev) => !prev)}
+            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+              showProjectDrawer
+                ? isDark
+                  ? "bg-white text-black shadow-xs"
+                  : "bg-black text-white shadow-xs"
+                : isDark
+                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+            }`}
+            title="File &amp; Project"
+            aria-label="File &amp; Project"
+          >
+            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </button>
+        </div>
+      </header>
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
@@ -13671,12 +12218,8 @@ export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
 export async function generateProjectPreviewHtmlWithAI(
   project: ProjectItem,
   onChunk?: (streamedText: string) => void,
-  userId?: string,
-  customInstruction?: string
+  userId?: string
 ): Promise<string> {
-  // 1. Synthesize Bespoke Art Direction Plan prior to code generation
-  const designPlan = synthesizeDesignPlan(project);
-
   const prdText = project.prd?.overview || project.description || "";
   const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
   const targetUsersText = (project.prd?.targetUsers || []).map((u) => `- ${u}`).join("\n");
@@ -13689,13 +12232,38 @@ export async function generateProjectPreviewHtmlWithAI(
     .join("\n");
   const flowText = project.userFlow || "Standard Primary User Journey";
 
-  // 2. Build Authoritative Art Direction System Prompt
-  const systemPrompt = buildArtDirectionSystemPrompt(designPlan);
+  const systemPrompt = `You are an elite Principal Frontend Engineer and Award-Winning UI/UX Designer.
+Your sole mission is to generate the COMPLETE, single-file HTML/CSS/JS frontend application prototype representing the ACTUAL digital product described by the user's PRD, Features, and Tasks.
 
-  const userPrompt = `Buatkan prototype website/aplikasi berstandar industri kelas dunia (Single-File HTML + Tailwind CSS CDN + Vanilla JS) untuk produk berikut:
+CRITICAL PRODUCT PROTOTYPE RULES:
+1. RENDER THE ACTUAL PRODUCT ITSELF:
+   - Build the REAL website or application interface (e.g. real store, real booking app, real SaaS, real portfolio, real news portal, real service business, etc.).
+   - NEVER render planning documentation, PRD text, task management boards, acceptance criteria, requirement IDs (e.g. "FR-01", "TASK-001"), or quality gate reports.
+   - Do NOT render a project management tool unless the product itself IS a project management tool.
+
+2. AESTHETICS & VISUAL DESIGN:
+   - Include Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+   - Include Google Fonts (<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">) with body font styled font-sans.
+   - Use clean, modern SVG icons or Lucide icons.
+   - Design with premium visual polish: generous whitespace, elegant cards, subtle borders, backdrop blurs, clean shadows, and domain-appropriate color palettes.
+   - Use high-fidelity realistic mock data (realistic prices, realistic names, realistic photography via Unsplash URLs e.g. https://images.unsplash.com/...).
+
+3. RICH INTERACTIVITY (VANILLA JAVASCRIPT):
+   - Provide working, responsive JavaScript for all key user interactions in a <script> tag at the bottom of <body>:
+     * Interactive tabs or filter toggles (active states)
+     * Working booking / cart / inquiry selection with live summary updates
+     * Functional modals (e.g., detail modal, booking modal, checkout modal) that open and close smoothly
+     * Interactive form submission with validation and a beautiful confirmation toast / alert
+     * Smooth scrolling navigation
+
+4. OUTPUT FORMAT:
+   - Output ONLY the complete, valid <!DOCTYPE html> ... </html> code inside a single \`\`\`html ... \`\`\` block.
+   - Include the marker <!-- AI_GENERATED_PROTOTYPE --> inside the <head>.
+   - Do NOT include conversational explanations outside the code block.`;
+
+  const userPrompt = `Buatkan prototype website/aplikasi interaktif lengkap (Single-File HTML + Tailwind CSS + Vanilla JS) untuk produk berikut:
 
 NAMA PRODUK: ${project.title}
-DOMAIN: ${designPlan.domain.toUpperCase()} (Archetype: ${designPlan.visualArchetype})
 DESKRIPSI PRODUK:
 ${prdText}
 
@@ -13711,19 +12279,10 @@ ${featuresText || "- Fitur inti sesuai deskripsi produk"}
 ALUR PENGGUNA (USER FLOW):
 ${flowText}
 
-FOKUS TASK:
-${tasksText || "- Implementasi antarmuka dan interaksi utama"}${
-    customInstruction
-      ? `\n\nINSTRUKSI REVISI SPESIFIK DARI PENGGUNA:\n"${customInstruction}"\nPrioritaskan instruksi ini untuk memperbarui dan menyempurnakan desain prototype.`
-      : ""
-  }
+FOKUS IMPLEMENTASI MODUL (DARI TASK):
+${tasksText || "- Implementasi antarmuka dan interaksi utama"}
 
-PANDUAN EKSEKUSI TINGKAT TINGGI:
-1. Ikuti arsitektur dan urutan seksi: ${designPlan.layoutStrategy.sectionSequence.join(" -> ")}
-2. Gunakan tipografi Google Fonts '${designPlan.typography.primaryFont}' dan skema warna ${designPlan.colorPalette.background}.
-3. Tampilkan produk NYATA dan HIDUP (bukan dokumen PRD atau checklist).
-4. Gunakan foto resolusi tinggi Unsplash yang diberikan dalam system prompt dengan fallback onerror.
-5. Pastikan semua JavaScript interaktif (tab switcher, modal konfirmasi, kalkulasi harga/data real-time, form toast) berfungsi saat diklik di browser!`;
+PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tugas teknis. Pastikan antarmuka memiliki alur interaksi yang dapat dicoba langsung di browser!`;
 
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -13790,9 +12349,15 @@ PANDUAN EKSEKUSI TINGKAT TINGGI:
     finalHtml = rawStream.trim();
   }
 
-  // 3. Run Automated Visual QA & Auto-Repair Loop
-  const qaResult = evaluateAndRepairHtml(finalHtml, designPlan);
-  return qaResult.html;
+  if (finalHtml && !finalHtml.includes("AI_GENERATED_PROTOTYPE")) {
+    if (finalHtml.includes("<head>")) {
+      finalHtml = finalHtml.replace("<head>", "<head>\n  <!-- AI_GENERATED_PROTOTYPE -->");
+    } else {
+      finalHtml = "<!-- AI_GENERATED_PROTOTYPE -->\n" + finalHtml;
+    }
+  }
+
+  return finalHtml;
 }
 
 export function QuickHtmlPreview({
