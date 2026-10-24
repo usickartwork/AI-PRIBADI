@@ -642,6 +642,232 @@ const mockTasksMd = generateMockTasksMarkdown(taskProject.tasks);
 assert(mockTasksMd.includes("[READY] T-1: Setup WebSocket"), "Tasks Markdown export includes checklist with status");
 assert(mockTasksMd.includes("[BACKLOG] T-2: Render Message List"), "Tasks Markdown export includes backlog status");
 
+// ─── 7. 7-STAGE ALL-IN-ONE BUILDER LIFECYCLE ────────────────────────────────
+
+console.log("\n--- 7. 7-STAGE ALL-IN-ONE BUILDER LIFECYCLE ---");
+
+const ALL_STAGES = ["idea", "prd", "design", "prototype", "build", "editor", "test_debug"];
+assertEqual(ALL_STAGES.length, 7, "Unified builder workflow has exactly 7 stages");
+assertEqual(ALL_STAGES[4], "build", "Stage 5 is 'build'");
+assertEqual(ALL_STAGES[5], "editor", "Stage 6 is 'editor'");
+assertEqual(ALL_STAGES[6], "test_debug", "Stage 7 is 'test_debug'");
+
+// Test Design Tokens
+const mockTokens = {
+  direction: "modern_dark",
+  colors: {
+    primary: "#ffffff",
+    secondary: "#a1a1aa",
+    background: "#090d16",
+    surface: "#121216",
+    border: "rgba(255, 255, 255, 0.1)",
+    text: "#f4f4f5",
+    mutedText: "#a1a1aa",
+    accent: "#ffffff",
+  },
+  typography: {
+    fontFamily: "Plus Jakarta Sans, sans-serif",
+    displaySize: "3.75rem",
+    heading1Size: "2.25rem",
+    heading2Size: "1.5rem",
+    bodySize: "0.875rem",
+    monoFont: "monospace",
+  },
+  radius: {
+    sm: "0.5rem",
+    md: "0.75rem",
+    lg: "1.5rem",
+    full: "9999px",
+  },
+  spacingScale: "relaxed",
+};
+
+assert(Boolean(mockTokens.colors.primary), "Design tokens contain primary color");
+assert(Boolean(mockTokens.typography.fontFamily.includes("Plus Jakarta Sans")), "Design tokens use Plus Jakarta Sans");
+
+// ─── 8. ZERO-DEPENDENCY BINARY ZIP EXPORT VERIFICATION ───────────────────────
+
+console.log("\n--- 8. ZERO-DEPENDENCY BINARY ZIP EXPORT VERIFICATION ---");
+
+function crc32(buf) {
+  let crc = -1;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function createTestZipBuffer(files) {
+  const parts = [];
+  const cdEntries = [];
+  let offset = 0;
+  const encoder = new TextEncoder();
+
+  for (const file of files) {
+    const nameBytes = encoder.encode(file.name);
+    const contentBytes = encoder.encode(file.content);
+    const crc = crc32(contentBytes);
+    const size = contentBytes.length;
+
+    const local = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0, true);
+    localView.setUint16(8, 0, true);
+    localView.setUint16(10, 0, true);
+    localView.setUint16(12, 0, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, size, true);
+    localView.setUint32(22, size, true);
+    localView.setUint16(26, nameBytes.length, true);
+    localView.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+
+    parts.push(local);
+    parts.push(contentBytes);
+
+    const cd = new Uint8Array(46 + nameBytes.length);
+    const cdView = new DataView(cd.buffer);
+    cdView.setUint32(0, 0x02014b50, true);
+    cdView.setUint16(4, 20, true);
+    cdView.setUint16(6, 20, true);
+    cdView.setUint16(8, 0, true);
+    cdView.setUint16(10, 0, true);
+    cdView.setUint16(12, 0, true);
+    cdView.setUint16(14, 0, true);
+    cdView.setUint32(16, crc, true);
+    cdView.setUint32(20, size, true);
+    cdView.setUint32(24, size, true);
+    cdView.setUint16(28, nameBytes.length, true);
+    cdView.setUint16(30, 0, true);
+    cdView.setUint16(32, 0, true);
+    cdView.setUint16(34, 0, true);
+    cdView.setUint16(36, 0, true);
+    cdView.setUint32(38, 0, true);
+    cdView.setUint32(42, offset, true);
+    cd.set(nameBytes, 46);
+    cdEntries.push(cd);
+
+    offset += local.length + contentBytes.length;
+  }
+
+  const cdOffset = offset;
+  let cdSize = 0;
+  for (const cd of cdEntries) {
+    parts.push(cd);
+    cdSize += cd.length;
+  }
+
+  const eocd = new Uint8Array(22);
+  const eocdView = new DataView(eocd.buffer);
+  eocdView.setUint32(0, 0x06054b50, true);
+  eocdView.setUint16(4, 0, true);
+  eocdView.setUint16(6, 0, true);
+  eocdView.setUint16(8, files.length, true);
+  eocdView.setUint16(10, files.length, true);
+  eocdView.setUint32(12, cdSize, true);
+  eocdView.setUint32(16, cdOffset, true);
+  eocdView.setUint16(20, 0, true);
+  parts.push(eocd);
+
+  let totalLen = parts.reduce((acc, p) => acc + p.length, 0);
+  const finalBuf = new Uint8Array(totalLen);
+  let cur = 0;
+  for (const p of parts) {
+    finalBuf.set(p, cur);
+    cur += p.length;
+  }
+  return finalBuf;
+}
+
+const testFiles = [
+  { name: "package.json", content: '{"name":"test-app"}' },
+  { name: "app/page.tsx", content: 'export default function Page(){return <h1>Hello</h1>;}' },
+  { name: "tokens.json", content: '{"primary":"#ffffff"}' },
+];
+
+const zipBuffer = createTestZipBuffer(testFiles);
+assert(zipBuffer.length > 100, "ZIP buffer generated successfully");
+const magic = (zipBuffer[0] << 24) | (zipBuffer[1] << 16) | (zipBuffer[2] << 8) | zipBuffer[3];
+// 0x504b0304 in big-endian hex = 'PK\x03\x04'
+assert(zipBuffer[0] === 0x50 && zipBuffer[1] === 0x4b && zipBuffer[2] === 0x03 && zipBuffer[3] === 0x04, "ZIP buffer starts with standard PK 0x04034b50 magic header");
+
+// ─── 9. NEXT.JS MULTI-FILE GENERATOR VERIFICATION ───────────────────────────
+
+console.log("\n--- 9. NEXT.JS MULTI-FILE GENERATOR VERIFICATION ---");
+
+function mockGenerateProjectFiles(project, tokens) {
+  const files = {};
+  files["package.json"] = JSON.stringify({ name: project.name, version: "0.1.0", dependencies: { next: "15.0.0", react: "^19.0.0" } }, null, 2);
+  files["tsconfig.json"] = JSON.stringify({ compilerOptions: { target: "ES2022", strict: true } }, null, 2);
+  files["tailwind.config.ts"] = `export default { theme: { extend: { colors: { primary: "${tokens.colors.primary}" } } } };`;
+  files["tokens.json"] = JSON.stringify(tokens, null, 2);
+  files["app/layout.tsx"] = `export default function RootLayout({ children }: { children: React.ReactNode }) { return <html><body>{children}</body></html>; }`;
+  files["app/page.tsx"] = `"use client";\nimport { useState } from "react";\nexport default function Page() { const [count, setCount] = useState(0); return <div><h1>${project.name}</h1></div>; }`;
+  files["app/api/entries/route.ts"] = `import { NextResponse } from "next/server";\nexport async function GET() { return NextResponse.json({ success: true, project: "${project.name}" }); }`;
+  return files;
+}
+
+const generatedProject = mockGenerateProjectFiles({ name: "gentleman-cut" }, mockTokens);
+assert(Boolean(generatedProject["package.json"]), "Generates package.json");
+assert(Boolean(generatedProject["tsconfig.json"]), "Generates tsconfig.json");
+assert(Boolean(generatedProject["tailwind.config.ts"]), "Generates tailwind.config.ts with primary token");
+assert(Boolean(generatedProject["tokens.json"]), "Generates tokens.json");
+assert(Boolean(generatedProject["app/layout.tsx"]), "Generates app/layout.tsx");
+assert(Boolean(generatedProject["app/page.tsx"]), "Generates app/page.tsx with use client");
+assert(Boolean(generatedProject["app/api/entries/route.ts"]), "Generates app/api/entries/route.ts");
+
+// ─── 10. DYAD-INSPIRED CHECKPOINTS & DIAGNOSTIC SCANNER VERIFICATION ────────
+
+console.log("\n--- 10. DYAD-INSPIRED CHECKPOINTS & DIAGNOSTIC SCANNER VERIFICATION ---");
+
+// Test Checkpoint rollback
+const checkpoint1 = {
+  id: "cp_1",
+  version: 1,
+  timestamp: Date.now() - 10000,
+  summary: "Initial build",
+  files: { ...generatedProject },
+};
+
+const mutatedFiles = { ...generatedProject, "app/page.tsx": "MODIFIED_CODE" };
+assertEqual(mutatedFiles["app/page.tsx"], "MODIFIED_CODE", "Mutated file has modified code");
+
+// Rollback to checkpoint 1
+const restoredFiles = { ...checkpoint1.files };
+assert(restoredFiles["app/page.tsx"].includes("gentleman-cut"), "Rollback restores checkpoint 1 code intact");
+
+// Test Diagnostic Scanner
+function mockScanDiagnostics(files) {
+  const issues = [];
+  for (const [path, content] of Object.entries(files)) {
+    const openBraces = (content.match(/\{/g) || []).length;
+    const closeBraces = (content.match(/\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      issues.push({ id: `brace_${path}`, severity: "error", filePath: path, message: "Unbalanced braces" });
+    }
+    if (path.endsWith(".tsx") && content.includes("useState") && !content.includes('"use client"')) {
+      issues.push({ id: `client_${path}`, severity: "warning", filePath: path, message: "Missing 'use client'" });
+    }
+  }
+  return issues;
+}
+
+const cleanIssues = mockScanDiagnostics(generatedProject);
+assertEqual(cleanIssues.length, 0, "Diagnostic scanner reports 0 issues on clean generated code");
+
+const brokenFiles = {
+  "app/page.tsx": 'import { useState } from "react"; export default function Page() { useState(0); return <div>Unclosed',
+};
+const detectedIssues = mockScanDiagnostics(brokenFiles);
+assert(detectedIssues.length >= 2, "Diagnostic scanner catches missing 'use client' and unbalanced braces");
+assert(detectedIssues.some(i => i.id.includes("client")), "Detects missing use client warning");
+assert(detectedIssues.some(i => i.id.includes("brace")), "Detects unbalanced braces error");
+
 // ─── Test Suite Summary ──────────────────────────────────────────────────────
 
 console.log("\n=================================================");

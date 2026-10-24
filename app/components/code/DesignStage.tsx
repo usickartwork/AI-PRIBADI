@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { DesignSpecification, DesignRevisionEntry, StageStatus } from "./types";
+import {
+  DesignSpecification,
+  DesignRevisionEntry,
+  StageStatus,
+  DesignTokens,
+  VisualDirection,
+  VISUAL_DIRECTIONS,
+  DEFAULT_DESIGN_TOKENS,
+} from "./types";
 import { injectSandboxSecurity, PreviewDevice, DEVICE_PRESETS, ZOOM_PRESETS } from "../CodeWorkspace";
 
 interface DesignStageProps {
@@ -9,6 +17,9 @@ interface DesignStageProps {
   projectTitle?: string;
   designSpec: DesignSpecification;
   status: StageStatus;
+  designTokens?: DesignTokens;
+  onUpdateTokens?: (tokens: DesignTokens) => void;
+  onDownloadTokens?: () => void;
   onUpdateHtml: (newHtml: string, promptUsed?: string) => void;
   onRestoreVersion: (version: DesignRevisionEntry) => void;
   onApproveDesignAndContinue: () => void;
@@ -30,6 +41,9 @@ export function DesignStage({
   projectTitle,
   designSpec,
   status,
+  designTokens = DEFAULT_DESIGN_TOKENS,
+  onUpdateTokens,
+  onDownloadTokens,
   onUpdateHtml,
   onRestoreVersion,
   onApproveDesignAndContinue,
@@ -38,7 +52,8 @@ export function DesignStage({
 }: DesignStageProps) {
   const [device, setDevice] = useState<PreviewDevice>("desktop");
   const [zoom, setZoom] = useState<number>(100);
-  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [viewMode, setViewMode] = useState<"preview" | "tokens" | "code">("preview");
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [revisionPrompt, setRevisionPrompt] = useState("");
   const [showRevisionPanel, setShowRevisionPanel] = useState(true);
@@ -109,7 +124,7 @@ export function DesignStage({
       >
         {/* Left: View Mode Toggle & Device Switcher */}
         <div className="flex items-center gap-2">
-          {/* View Mode (Preview vs Code) */}
+          {/* View Mode (Preview vs Tokens vs Code) */}
           <div
             className={`flex items-center p-0.5 rounded-xl border ${
               isDark ? "bg-zinc-900 border-white/10" : "bg-zinc-100 border-black/10"
@@ -133,6 +148,25 @@ export function DesignStage({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               <span>Visual</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("tokens")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                viewMode === "tokens"
+                  ? isDark
+                    ? "bg-white text-black shadow-xs font-bold"
+                    : "bg-black text-white shadow-xs font-bold"
+                  : isDark
+                  ? "text-zinc-400 hover:text-white"
+                  : "text-zinc-600 hover:text-black"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              <span>Tokens & Style</span>
             </button>
 
             <button
@@ -342,21 +376,230 @@ export function DesignStage({
               )}
 
               {viewMode === "code" ? (
-            /* Code View */
-            <div className="w-full h-full max-w-5xl rounded-2xl overflow-hidden border border-white/10 flex flex-col bg-[#0f0f13]">
-              <div className="px-4 py-2 border-b border-white/10 flex items-center justify-between text-xs font-mono text-zinc-400 bg-black/40">
-                <span>spec.html (Single-File Renderable UI)</span>
-                <span>{designSpec.currentHtml.length} karakter</span>
-              </div>
-              <textarea
-                value={designSpec.currentHtml}
-                onChange={(e) => onUpdateHtml(e.target.value)}
-                className="flex-1 w-full p-4 font-mono text-xs text-zinc-200 bg-transparent outline-none resize-none leading-relaxed"
-                spellCheck={false}
-              />
-            </div>
-          ) : (
-            /* Sandboxed Visual Iframe */
+                /* Code View */
+                <div className="w-full h-full max-w-5xl rounded-2xl overflow-hidden border border-white/10 flex flex-col bg-[#0f0f13]">
+                  <div className="px-4 py-2 border-b border-white/10 flex items-center justify-between text-xs font-mono text-zinc-400 bg-black/40">
+                    <span>spec.html (Single-File Renderable UI)</span>
+                    <span>{designSpec.currentHtml.length} karakter</span>
+                  </div>
+                  <textarea
+                    value={designSpec.currentHtml}
+                    onChange={(e) => onUpdateHtml(e.target.value)}
+                    className="flex-1 w-full p-4 font-mono text-xs text-zinc-200 bg-transparent outline-none resize-none leading-relaxed"
+                    spellCheck={false}
+                  />
+                </div>
+              ) : viewMode === "tokens" ? (
+                /* Tokens & Visual Direction Studio */
+                <div className="w-full h-full max-w-4xl overflow-y-auto space-y-6 p-2 sm:p-4 animate-in fade-in">
+                  {/* Top Intro & Export */}
+                  <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                    isDark ? "bg-[#141418] border-white/10" : "bg-white border-black/10"
+                  }`}>
+                    <div>
+                      <h3 className="text-sm font-bold flex items-center gap-2">
+                        <span>🎨 Design System & Visual Direction</span>
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300">
+                          tokens.json
+                        </span>
+                      </h3>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        Pilih tema visual produk Anda. Token ini langsung disinkronkan ke Tailwind CSS dan kode Next.js yang di-generate.
+                      </p>
+                    </div>
+
+                    {onDownloadTokens && (
+                      <button
+                        type="button"
+                        onClick={onDownloadTokens}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                          isDark ? "bg-white/10 hover:bg-white/20 text-white border border-white/15" : "bg-black/5 hover:bg-black/10 text-black border border-black/15"
+                        }`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Download tokens.json</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Visual Direction Selector */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                      Pilih Visual Direction
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(Object.keys(VISUAL_DIRECTIONS) as VisualDirection[]).map((dirKey) => {
+                        const item = VISUAL_DIRECTIONS[dirKey];
+                        const isSelected = (designTokens.direction || "modern_dark") === dirKey;
+                        return (
+                          <button
+                            key={dirKey}
+                            type="button"
+                            onClick={() => {
+                              if (onUpdateTokens) {
+                                onUpdateTokens({
+                                  ...designTokens,
+                                  direction: dirKey,
+                                  colors: {
+                                    ...designTokens.colors,
+                                    ...item.colors,
+                                  },
+                                });
+                              }
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition cursor-pointer relative group flex flex-col justify-between ${
+                              isSelected
+                                ? isDark
+                                  ? "bg-white/10 border-white text-white shadow-lg"
+                                  : "bg-black/5 border-black text-black shadow-lg"
+                                : isDark
+                                ? "bg-[#121216] border-white/10 text-zinc-300 hover:border-white/30"
+                                : "bg-white border-black/10 text-zinc-700 hover:border-black/30"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-bold">{item.name}</span>
+                                {isSelected && (
+                                  <span className="w-4 h-4 rounded-full bg-white text-black flex items-center justify-center text-[10px] font-bold">
+                                    ✓
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-zinc-400 leading-relaxed mb-3">
+                                {item.description}
+                              </p>
+                            </div>
+
+                            {/* Color preview dots */}
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                              <span
+                                className="w-4 h-4 rounded-full border border-white/20"
+                                style={{ backgroundColor: item.colors.background }}
+                                title="Background"
+                              />
+                              <span
+                                className="w-4 h-4 rounded-full border border-white/20"
+                                style={{ backgroundColor: item.colors.surface }}
+                                title="Surface"
+                              />
+                              <span
+                                className="w-4 h-4 rounded-full border border-white/20"
+                                style={{ backgroundColor: item.colors.primary }}
+                                title="Primary"
+                              />
+                              <span
+                                className="w-4 h-4 rounded-full border border-white/20"
+                                style={{ backgroundColor: item.colors.accent }}
+                                title="Accent"
+                              />
+                              <span className="text-[10px] font-mono text-zinc-500 ml-auto">
+                                {item.colors.primary}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Token Palette Inspection */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-[#141418] border-white/10" : "bg-white border-black/10"
+                  }`}>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                      Palet Warna Token Aktif
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Object.entries(designTokens.colors || {}).map(([key, val]) => (
+                        <div
+                          key={key}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(val);
+                            setCopiedToken(key);
+                            setTimeout(() => setCopiedToken(null), 1500);
+                          }}
+                          className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition ${
+                            isDark ? "bg-zinc-900 border-white/5 hover:border-white/20" : "bg-zinc-50 border-black/5 hover:border-black/20"
+                          }`}
+                          title="Klik untuk salin hex"
+                        >
+                          <span
+                            className="w-7 h-7 rounded-lg border border-white/20 shrink-0 shadow-xs"
+                            style={{ backgroundColor: val }}
+                          />
+                          <div className="min-w-0">
+                            <span className="block text-[11px] font-medium capitalize truncate text-zinc-300">
+                              {key}
+                            </span>
+                            <span className="block text-[10px] font-mono text-zinc-500">
+                              {copiedToken === key ? "Tersalin!" : val}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Typography & Spacing */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className={`p-5 rounded-2xl border space-y-3 ${
+                      isDark ? "bg-[#141418] border-white/10" : "bg-white border-black/10"
+                    }`}>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                        Tipografi
+                      </h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between py-1 border-b border-white/5">
+                          <span className="text-zinc-400">Font Family</span>
+                          <span className="font-mono text-zinc-200">{designTokens.typography.fontFamily}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-white/5">
+                          <span className="text-zinc-400">Display Size</span>
+                          <span className="font-mono text-zinc-200">{designTokens.typography.displaySize}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-white/5">
+                          <span className="text-zinc-400">Heading 1</span>
+                          <span className="font-mono text-zinc-200">{designTokens.typography.heading1Size}</span>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-zinc-400">Mono Font</span>
+                          <span className="font-mono text-zinc-200">{designTokens.typography.monoFont}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`p-5 rounded-2xl border space-y-3 ${
+                      isDark ? "bg-[#141418] border-white/10" : "bg-white border-black/10"
+                    }`}>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                        Border Radius Scale
+                      </h4>
+                      <div className="grid grid-cols-4 gap-2 pt-2 text-center">
+                        <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                          <div className="w-8 h-8 mx-auto bg-white/20 mb-1 rounded-[0.5rem]" />
+                          <span className="text-[10px] font-mono text-zinc-400">sm</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                          <div className="w-8 h-8 mx-auto bg-white/20 mb-1 rounded-[0.75rem]" />
+                          <span className="text-[10px] font-mono text-zinc-400">md</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                          <div className="w-8 h-8 mx-auto bg-white/20 mb-1 rounded-[1.5rem]" />
+                          <span className="text-[10px] font-mono text-zinc-400">lg</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+                          <div className="w-8 h-8 mx-auto bg-white/20 mb-1 rounded-full" />
+                          <span className="text-[10px] font-mono text-zinc-400">full</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Sandboxed Visual Iframe */
             <div
               className="relative transition-all duration-300 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-white"
               style={{

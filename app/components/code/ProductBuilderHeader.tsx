@@ -99,7 +99,15 @@ export function ProductBuilderHeader({
     }
   };
 
-  const stages: ProductBuilderStage[] = ["idea", "prd", "design", "prototype", "tasks"];
+  const stages: ProductBuilderStage[] = [
+    "idea",
+    "prd",
+    "design",
+    "prototype",
+    "build",
+    "editor",
+    "test_debug",
+  ];
 
   return (
     <header

@@ -18,9 +18,11 @@ interface ProjectDashboardProps {
 const STAGE_LABELS: Record<ProductBuilderStage, { label: string; step: number }> = {
   idea: { label: "1. Idea", step: 1 },
   prd: { label: "2. PRD", step: 2 },
-  design: { label: "3. Design", step: 3 },
+  design: { label: "3. Design System", step: 3 },
   prototype: { label: "4. Prototype", step: 4 },
-  tasks: { label: "5. Agent & Tasks", step: 5 },
+  build: { label: "5. Build App", step: 5 },
+  editor: { label: "6. Code Editor", step: 6 },
+  test_debug: { label: "7. Test & Debug", step: 7 },
 };
 
 function formatRelativeTime(timestamp?: number): string {

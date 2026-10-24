@@ -12,6 +12,10 @@ import {
   EnhancedProjectTask,
   ProductBuilderData,
   normalizeProductBuilderData,
+  DesignTokens,
+  BuildCheckpoint,
+  DiagnosticIssue,
+  DEFAULT_DESIGN_TOKENS,
 } from "./code/types";
 import { ProductBuilderHeader } from "./code/ProductBuilderHeader";
 import { ProjectDashboard } from "./code/ProjectDashboard";
@@ -19,7 +23,12 @@ import { IdeaStage } from "./code/IdeaStage";
 import { PrdStage } from "./code/PrdStage";
 import { DesignStage } from "./code/DesignStage";
 import { PrototypeStage } from "./code/PrototypeStage";
+import { BuildAppStage } from "./code/BuildAppStage";
+import { CodeEditorStage } from "./code/CodeEditorStage";
+import { TestDebugStage } from "./code/TestDebugStage";
 import { AgentTasksStage } from "./code/AgentTasksStage";
+import { generateProjectFiles } from "./code/fileGenerator";
+import { createZeroDepZip, downloadZipBlob } from "./code/zipExporter";
 
 export type TaskStatus =
   | "ready"
@@ -3544,18 +3553,28 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
           prd: "not_started",
           design: "not_started",
           prototype: "not_started",
-          tasks: "not_started",
+          build: "not_started",
+          editor: "not_started",
+          test_debug: "not_started",
         },
         ideaBrief: {
           idea: "",
           targetPlatform: "website",
         },
+        designTokens: DEFAULT_DESIGN_TOKENS,
         designSpec: {
           currentHtml: "",
           version: 1,
           revisions: [],
         },
         prototypeState: {},
+        appBuilder: {
+          files: {},
+          activeFilePath: "app/page.tsx",
+          buildStatus: "idle",
+          checkpoints: [],
+          issues: [],
+        },
         approvals: {},
       };
     }
@@ -3895,6 +3914,27 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     setActiveTab("builder");
   };
 
+  const [isBuildingApp, setIsBuildingApp] = useState(false);
+  const [isDiagnosticScanning, setIsDiagnosticScanning] = useState(false);
+
+  const handleUpdateDesignTokens = (tokens: DesignTokens) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        return {
+          ...p,
+          productBuilder: {
+            ...b,
+            designTokens: tokens,
+          },
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
   const handleApprovePrototypeAndContinue = () => {
     if (!activeProjectId) return;
     const current = projects.find((p) => p.id === activeProjectId);
@@ -3904,7 +3944,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     const updatedStatuses = {
       ...b.stageStatuses,
       prototype: "approved" as StageStatus,
-      tasks: "ready_for_review" as StageStatus,
+      build: "ready_for_review" as StageStatus,
     };
 
     setProjects((prev) =>
@@ -3914,7 +3954,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
               ...p,
               productBuilder: {
                 ...b,
-                currentStage: "tasks",
+                currentStage: "build",
                 stageStatuses: updatedStatuses,
                 approvals: {
                   ...b.approvals,
@@ -3927,8 +3967,306 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
       )
     );
 
-    setBuilderStage("tasks");
+    setBuilderStage("build");
     setActiveTab("builder");
+  };
+
+  const handleStartBuildApp = async () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+    setIsBuildingApp(true);
+    try {
+      const b = normalizeProductBuilderData(current);
+      const generatedFiles = generateProjectFiles(current, b.designTokens);
+      const initialCheckpoint: BuildCheckpoint = {
+        id: `cp_${Date.now()}`,
+        version: 1,
+        timestamp: Date.now(),
+        summary: "Build awal Next.js App Router dari PRD & Desain",
+        files: generatedFiles,
+      };
+
+      const updatedBuilder: ProductBuilderData = {
+        ...b,
+        currentStage: "editor",
+        stageStatuses: {
+          ...b.stageStatuses,
+          build: "approved",
+          editor: "ready_for_review",
+        },
+        appBuilder: {
+          files: generatedFiles,
+          activeFilePath: "app/page.tsx",
+          buildStatus: "completed",
+          checkpoints: [initialCheckpoint],
+          issues: [],
+        },
+      };
+
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProjectId
+            ? {
+                ...p,
+                productBuilder: updatedBuilder,
+                updatedAt: Date.now(),
+              }
+            : p
+        )
+      );
+
+      setBuilderStage("editor");
+      showCopyToast("Aplikasi Next.js berhasil dibangun!");
+    } finally {
+      setIsBuildingApp(false);
+    }
+  };
+
+  const handleUpdateFileContent = (path: string, content: string) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const appBuilder = b.appBuilder;
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...appBuilder,
+            files: {
+              ...appBuilder.files,
+              [path]: content,
+            },
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
+  const handleSelectActiveFile = (path: string) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...b.appBuilder,
+            activeFilePath: path,
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+        };
+      })
+    );
+  };
+
+  const handleCreateCheckpoint = (summary: string) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const appBuilder = b.appBuilder;
+        const nextVersion = appBuilder.checkpoints.length + 1;
+        const newCp: BuildCheckpoint = {
+          id: `cp_${Date.now()}`,
+          version: nextVersion,
+          timestamp: Date.now(),
+          summary,
+          files: { ...appBuilder.files },
+        };
+        showCopyToast(`Checkpoint #${nextVersion} dibuat!`);
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...appBuilder,
+            checkpoints: [newCp, ...appBuilder.checkpoints],
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
+  const handleRestoreCheckpoint = (cp: BuildCheckpoint) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...b.appBuilder,
+            files: { ...cp.files },
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+    showCopyToast(`Checkpoint #${cp.version} berhasil dipulihkan!`);
+  };
+
+  const handleRunDiagnostics = () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+    setIsDiagnosticScanning(true);
+    setTimeout(() => {
+      const b = normalizeProductBuilderData(current);
+      const files = b.appBuilder.files;
+      const foundIssues: DiagnosticIssue[] = [];
+
+      Object.entries(files).forEach(([fPath, content]) => {
+        const openBraces = (content.match(/\{/g) || []).length;
+        const closeBraces = (content.match(/\}/g) || []).length;
+        if (openBraces !== closeBraces) {
+          foundIssues.push({
+            id: `issue_${fPath}_brace`,
+            filePath: fPath,
+            severity: "error",
+            message: `Ketidakseimbangan kurung kurawal: ditemukan ${openBraces} '{' dan ${closeBraces} '}'.`,
+            fixSuggestion: `Pastikan setiap blok kode ditutup dengan benar.`,
+          });
+        }
+
+        if (fPath.endsWith(".tsx") && (content.includes("useState") || content.includes("useEffect"))) {
+          if (!content.trim().startsWith('"use client"') && !content.trim().startsWith("'use client'")) {
+            foundIssues.push({
+              id: `issue_${fPath}_client`,
+              filePath: fPath,
+              severity: "warning",
+              message: `Komponen menggunakan React hooks tanpa direktif "use client" di baris pertama.`,
+              fixSuggestion: `Tambahkan "use client"; di baris teratas file.`,
+            });
+          }
+        }
+
+        if (fPath.endsWith(".tsx")) {
+          const divOpens = (content.match(/<div(\s|>)/g) || []).length;
+          const divCloses = (content.match(/<\/div>/g) || []).length;
+          if (divOpens > divCloses) {
+            foundIssues.push({
+              id: `issue_${fPath}_div`,
+              filePath: fPath,
+              severity: "error",
+              message: `Tag <div> tidak tertutup: ${divOpens} pembuka vs ${divCloses} penutup.`,
+              fixSuggestion: `Tutup tag </div> yang terbuka.`,
+            });
+          }
+        }
+      });
+
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== activeProjectId) return p;
+          const updatedBuilder: ProductBuilderData = {
+            ...b,
+            appBuilder: {
+              ...b.appBuilder,
+              issues: foundIssues,
+            },
+          };
+          return {
+            ...p,
+            productBuilder: updatedBuilder,
+          };
+        })
+      );
+      setIsDiagnosticScanning(false);
+      showCopyToast(
+        foundIssues.length === 0
+          ? "Diagnostik selesai: Semua file lolos verifikasi!"
+          : `Diagnostik selesai: Ditemukan ${foundIssues.length} catatan.`
+      );
+    }, 600);
+  };
+
+  const handleAutoFixIssue = (issue: DiagnosticIssue) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        const fPath = issue.filePath || issue.file || "";
+        const files = { ...b.appBuilder.files };
+        const content = files[fPath];
+        if (!content) return p;
+
+        let fixed = content;
+        if (issue.id.includes("_client")) {
+          fixed = `"use client";\n\n` + content;
+        } else if (issue.id.includes("_brace")) {
+          fixed = content + "\n}\n";
+        } else if (issue.id.includes("_div")) {
+          fixed = content + "\n</div>\n";
+        }
+
+        files[fPath] = fixed;
+        const remainingIssues = b.appBuilder.issues.filter((i) => i.id !== issue.id);
+
+        showCopyToast(`Perbaikan otomatis diterapkan pada ${fPath}`);
+        const updatedBuilder: ProductBuilderData = {
+          ...b,
+          appBuilder: {
+            ...b.appBuilder,
+            files,
+            issues: remainingIssues,
+          },
+        };
+        return {
+          ...p,
+          productBuilder: updatedBuilder,
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
+  const handleApproveTestDebugStage = () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    const b = normalizeProductBuilderData(current);
+    const updatedStatuses = {
+      ...b.stageStatuses,
+      test_debug: "approved" as StageStatus,
+    };
+
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              productBuilder: {
+                ...b,
+                stageStatuses: updatedStatuses,
+              },
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+    showCopyToast("Tahap pengujian & produk telah disetujui!");
   };
 
   const handleApproveTasksPlan = () => {
@@ -3939,7 +4277,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     const b = normalizeProductBuilderData(current);
     const updatedStatuses = {
       ...b.stageStatuses,
-      tasks: "approved" as StageStatus,
+      test_debug: "approved" as StageStatus,
     };
 
     setProjects((prev) =>
@@ -7767,6 +8105,49 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     showCopyToast("File prototype.html berhasil didownload!");
   };
 
+  const downloadTokensJson = () => {
+    if (!activeProject) return;
+    const b = normalizeProductBuilderData(activeProject);
+    const tokens = b.designTokens || DEFAULT_DESIGN_TOKENS;
+    const blob = new Blob([JSON.stringify(tokens, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.download = `${slug}-tokens.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File tokens.json berhasil didownload!");
+  };
+
+  const downloadFullProjectZip = () => {
+    if (!activeProject) return;
+    const b = normalizeProductBuilderData(activeProject);
+    let files = b.appBuilder?.files || {};
+    if (Object.keys(files).length === 0) {
+      files = generateProjectFiles(activeProject, b.designTokens);
+    }
+    const zipEntries = Object.entries(files).map(([name, content]) => ({ name, content }));
+    if (activeProject.prd?.overview || activeProject.description) {
+      zipEntries.push({
+        name: "docs/PRD.md",
+        content: `# PRD - ${activeProject.title}\n\n${activeProject.prd?.overview || activeProject.description}`,
+      });
+    }
+    if (activeProject.generatedHtml || b.designSpec.currentHtml) {
+      zipEntries.push({
+        name: "public/prototype.html",
+        content: activeProject.generatedHtml || b.designSpec.currentHtml,
+      });
+    }
+    const zipBlob = createZeroDepZip(zipEntries);
+    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    downloadZipBlob(zipBlob, `${slug}-project.zip`);
+    showCopyToast("Full Project ZIP berhasil didownload!");
+  };
+
   const downloadProjectPdf = () => {
     if (!activeProject) return;
     if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
@@ -8106,6 +8487,24 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                     <button
                       onClick={() => {
                         setShowExportMenu(false);
+                        downloadFullProjectZip();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <div>
+                        <div className="font-semibold text-white dark:text-white">Full Project (.zip)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Next.js 15 App + Tokens + PRD</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
                         copyEverythingText();
                       }}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
@@ -8204,6 +8603,22 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       <div>
                         <div className="font-semibold">Design Tokens (DESIGN.md)</div>
                         <div className="text-[10px] text-zinc-400 font-normal">Design system &amp; visual guide</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadTokensJson();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">📦</span>
+                      <div>
+                        <div className="font-semibold">Tokens (tokens.json)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">JSON Design Tokens</div>
                       </div>
                     </button>
 
@@ -8327,6 +8742,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                   projectTitle={activeProject.title}
                   designSpec={builderData.designSpec}
                   status={builderData.stageStatuses.design}
+                  designTokens={builderData.designTokens}
+                  onUpdateTokens={handleUpdateDesignTokens}
+                  onDownloadTokens={downloadTokensJson}
                   onUpdateHtml={(html) => {
                     handleUpdateProjectHtml(html);
                   }}
@@ -8365,12 +8783,43 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 />
               )}
 
-              {builderStage === "tasks" && (
-                <AgentTasksStage
+              {builderStage === "build" && (
+                <BuildAppStage
                   isDark={isDark}
-                  projectTitle={activeProject.title}
+                  project={activeProject}
+                  status={builderData.stageStatuses.build}
+                  designTokens={builderData.designTokens}
+                  appBuilderState={builderData.appBuilder}
+                  onStartBuild={handleStartBuildApp}
+                  onOpenCodeEditor={() => handleSelectBuilderStage("editor")}
+                  onDownloadZip={downloadFullProjectZip}
+                  isBuilding={isBuildingApp}
+                />
+              )}
+
+              {builderStage === "editor" && (
+                <CodeEditorStage
+                  isDark={isDark}
+                  project={activeProject}
+                  appBuilderState={builderData.appBuilder}
+                  onUpdateFile={handleUpdateFileContent}
+                  onSelectFile={handleSelectActiveFile}
+                  onCreateCheckpoint={handleCreateCheckpoint}
+                  onRestoreCheckpoint={handleRestoreCheckpoint}
+                  onProceedToTestDebug={() => handleSelectBuilderStage("test_debug")}
+                  onDownloadZip={downloadFullProjectZip}
+                />
+              )}
+
+              {builderStage === "test_debug" && (
+                <TestDebugStage
+                  isDark={isDark}
+                  project={activeProject}
+                  appBuilderState={builderData.appBuilder}
+                  status={builderData.stageStatuses.test_debug}
                   tasks={builderData.enhancedTasks || []}
-                  status={builderData.stageStatuses.tasks}
+                  onRunDiagnostics={handleRunDiagnostics}
+                  onAutoFixIssue={handleAutoFixIssue}
                   onUpdateTasks={(updated) => {
                     setProjects((prev) =>
                       prev.map((p) =>
@@ -8388,16 +8837,14 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       )
                     );
                   }}
-                  onApproveTasksPlan={handleApproveTasksPlan}
-                  onGenerateTasksWithAI={async () => {
-                    setIsTasksGenerating(true);
-                    try {
-                      await handleSendChatMessage("Susun rencana task implementasi terstruktur lengkap untuk produk ini.");
-                    } finally {
-                      setIsTasksGenerating(false);
-                    }
-                  }}
-                  isGenerating={isTasksGenerating}
+                  onApproveStage={handleApproveTestDebugStage}
+                  onDownloadZip={downloadFullProjectZip}
+                  onDownloadPrd={downloadPrdMarkdown}
+                  onDownloadDesign={downloadDesignMd}
+                  onDownloadTokens={downloadTokensJson}
+                  onDownloadTasks={downloadTasksMarkdown}
+                  onDownloadPrototype={downloadPrototypeHtml}
+                  isScanning={isDiagnosticScanning}
                 />
               )}
             </>
