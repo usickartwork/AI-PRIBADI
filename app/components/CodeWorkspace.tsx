@@ -2,6 +2,23 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
+import {
+  ProductBuilderStage,
+  StageStatus,
+  IdeaBrief,
+  DesignSpecification,
+  DesignRevisionEntry,
+  PrototypeState,
+  EnhancedProjectTask,
+  ProductBuilderData,
+  normalizeProductBuilderData,
+} from "./code/types";
+import { ProductBuilderHeader } from "./code/ProductBuilderHeader";
+import { IdeaStage } from "./code/IdeaStage";
+import { PrdStage } from "./code/PrdStage";
+import { DesignStage } from "./code/DesignStage";
+import { PrototypeStage } from "./code/PrototypeStage";
+import { AgentTasksStage } from "./code/AgentTasksStage";
 
 export type TaskStatus =
   | "ready"
@@ -318,6 +335,7 @@ export type ProjectPRD = {
   userStories?: string[];
   functionalRequirements?: string[];
   nonFunctionalRequirements?: string[];
+  nonFunctional?: string[];
   classifiedRequirements?: ClassifiedRequirement[];
   requirementRegistry?: RequirementRegistryEntry[];
   userDerived?: {
@@ -344,6 +362,7 @@ export type ProjectPRD = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
+  productBuilder?: ProductBuilderData;
 };
 
 export type ProjectCategory =
@@ -516,6 +535,7 @@ export type ProjectItem = {
   scopeLedger?: ScopeLedger;
   stackDecisionLog?: StackDecisionEntry[];
   previewQualityGate?: PreviewQualityGateCheck[];
+  productBuilder?: ProductBuilderData;
 };
 
 const STORAGE_KEY = "usick_code_projects_v2";
@@ -3177,7 +3197,11 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
+  const [activeTab, setActiveTab] = useState<"builder" | "mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("builder");
+  const [builderStage, setBuilderStage] = useState<ProductBuilderStage>("idea");
+  const [isDesignGenerating, setIsDesignGenerating] = useState(false);
+  const [isTasksGenerating, setIsTasksGenerating] = useState(false);
+  const [isPrdGenerating, setIsPrdGenerating] = useState(false);
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -3505,6 +3529,382 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     setProjects((prev) =>
       prev.map((p) =>
         p.id === activeProjectId ? { ...p, generatedHtml: html } : p
+      )
+    );
+  };
+
+  // ── AI Product Builder State & Stage Workflow ─────────────────────────────────
+  const builderData = useMemo<ProductBuilderData>(() => {
+    if (!activeProject) {
+      return {
+        currentStage: "idea",
+        stageStatuses: {
+          idea: "in_progress",
+          prd: "not_started",
+          design: "not_started",
+          prototype: "not_started",
+          tasks: "not_started",
+        },
+        ideaBrief: {
+          idea: "",
+          targetPlatform: "website",
+        },
+        designSpec: {
+          currentHtml: "",
+          version: 1,
+          revisions: [],
+        },
+        prototypeState: {},
+        approvals: {},
+      };
+    }
+    return normalizeProductBuilderData(activeProject);
+  }, [activeProject]);
+
+  // Sync builderStage with active project
+  useEffect(() => {
+    if (activeProject) {
+      const b = normalizeProductBuilderData(activeProject);
+      setBuilderStage(b.currentStage);
+    } else {
+      setBuilderStage("idea");
+    }
+  }, [activeProjectId]);
+
+  const handleSelectBuilderStage = (stage: ProductBuilderStage) => {
+    setBuilderStage(stage);
+    setActiveTab("builder");
+    if (activeProjectId) {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProjectId
+            ? {
+                ...p,
+                productBuilder: {
+                  ...normalizeProductBuilderData(p),
+                  currentStage: stage,
+                },
+                updatedAt: Date.now(),
+              }
+            : p
+        )
+      );
+    }
+  };
+
+  const handleUpdateIdeaBrief = (brief: IdeaBrief) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              description: brief.idea,
+              productBuilder: {
+                ...normalizeProductBuilderData(p),
+                ideaBrief: brief,
+              },
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+  };
+
+  const handleContinueFromIdeaToPrd = async (brief: IdeaBrief) => {
+    if (!activeProjectId) {
+      const newTitle = brief.idea.slice(0, 32).trim() || "Project Baru";
+      handleConfirmCreateProject(brief.idea, newTitle);
+      return;
+    }
+
+    setIsPrdGenerating(true);
+    try {
+      const current = projects.find((p) => p.id === activeProjectId);
+      if (current) {
+        const b = normalizeProductBuilderData(current);
+        const updatedStatuses = {
+          ...b.stageStatuses,
+          idea: "approved" as StageStatus,
+          prd: "in_progress" as StageStatus,
+        };
+
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === activeProjectId
+              ? {
+                  ...p,
+                  description: brief.idea,
+                  productBuilder: {
+                    ...b,
+                    currentStage: "prd",
+                    stageStatuses: updatedStatuses,
+                    ideaBrief: brief,
+                  },
+                  updatedAt: Date.now(),
+                }
+              : p
+          )
+        );
+        setBuilderStage("prd");
+        setActiveTab("builder");
+
+        if (!current.prd || !current.prd.overview) {
+          await handleSendChatMessage(
+            `Berikut ide produk yang telah dirumuskan:\n\nIDE: ${brief.idea}\nTARGET: ${brief.targetPlatform}\nAUDIENS: ${brief.targetAudience || "-"}\nGOALS: ${brief.goals || "-"}\n\nSilakan generate dokumen PRD terstruktur lengkap untuk produk ini.`
+          );
+        }
+      }
+    } finally {
+      setIsPrdGenerating(false);
+    }
+  };
+
+  const handleUpdatePrd = (updatedPrd: ProjectPRD) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        return {
+          ...p,
+          prd: updatedPrd,
+          productBuilder: {
+            ...b,
+            stageStatuses: {
+              ...b.stageStatuses,
+              prd: "in_progress",
+              design: "needs_update",
+              tasks: "needs_update",
+            },
+          },
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
+  const handleApprovePrdAndContinue = async () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    const b = normalizeProductBuilderData(current);
+    const updatedStatuses = {
+      ...b.stageStatuses,
+      prd: "approved" as StageStatus,
+      design: "in_progress" as StageStatus,
+    };
+
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              productBuilder: {
+                ...b,
+                currentStage: "design",
+                stageStatuses: updatedStatuses,
+                approvals: {
+                  ...b.approvals,
+                  prdApprovedAt: Date.now(),
+                },
+              },
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+
+    setBuilderStage("design");
+    setActiveTab("builder");
+
+    if (!current.generatedHtml || current.generatedHtml.trim().length === 0) {
+      handleGenerateDesignWithAI();
+    }
+  };
+
+  const handleGenerateDesignWithAI = async (customPrompt?: string) => {
+    if (!activeProjectId || isDesignGenerating) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    setIsDesignGenerating(true);
+    try {
+      const generated = await generateProjectPreviewHtmlWithAI(
+        current,
+        undefined,
+        userId,
+        customPrompt
+      );
+
+      if (generated && generated.length > 50) {
+        const b = normalizeProductBuilderData(current);
+        const newVersion = (b.designSpec.version || 1) + (customPrompt ? 1 : 0);
+        const newRevision: DesignRevisionEntry = {
+          version: newVersion,
+          timestamp: Date.now(),
+          prompt: customPrompt || "Desain Awal dari PRD",
+          html: generated,
+          summary: customPrompt || "Inisialisasi spesifikasi UI dari PRD",
+        };
+
+        const updatedStatuses = {
+          ...b.stageStatuses,
+          design: "ready_for_review" as StageStatus,
+        };
+
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === activeProjectId
+              ? {
+                  ...p,
+                  generatedHtml: generated,
+                  productBuilder: {
+                    ...b,
+                    stageStatuses: updatedStatuses,
+                    designSpec: {
+                      currentHtml: generated,
+                      version: newVersion,
+                      revisions: [newRevision, ...(b.designSpec.revisions || [])],
+                      lastGeneratedAt: Date.now(),
+                    },
+                  },
+                  updatedAt: Date.now(),
+                }
+              : p
+          )
+        );
+      }
+    } catch (err: any) {
+      console.error("[CodeWorkspace] Design generation error:", err);
+    } finally {
+      setIsDesignGenerating(false);
+    }
+  };
+
+  const handleRestoreDesignVersion = (entry: DesignRevisionEntry) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProjectId) return p;
+        const b = normalizeProductBuilderData(p);
+        return {
+          ...p,
+          generatedHtml: entry.html,
+          productBuilder: {
+            ...b,
+            designSpec: {
+              ...b.designSpec,
+              currentHtml: entry.html,
+              version: entry.version,
+            },
+          },
+          updatedAt: Date.now(),
+        };
+      })
+    );
+  };
+
+  const handleApproveDesignAndContinue = () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    const b = normalizeProductBuilderData(current);
+    const updatedStatuses = {
+      ...b.stageStatuses,
+      design: "approved" as StageStatus,
+      prototype: "ready_for_review" as StageStatus,
+    };
+
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              productBuilder: {
+                ...b,
+                currentStage: "prototype",
+                stageStatuses: updatedStatuses,
+                approvals: {
+                  ...b.approvals,
+                  designApprovedAt: Date.now(),
+                },
+              },
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+
+    setBuilderStage("prototype");
+    setActiveTab("builder");
+  };
+
+  const handleApprovePrototypeAndContinue = () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    const b = normalizeProductBuilderData(current);
+    const updatedStatuses = {
+      ...b.stageStatuses,
+      prototype: "approved" as StageStatus,
+      tasks: "ready_for_review" as StageStatus,
+    };
+
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              productBuilder: {
+                ...b,
+                currentStage: "tasks",
+                stageStatuses: updatedStatuses,
+                approvals: {
+                  ...b.approvals,
+                  prototypeApprovedAt: Date.now(),
+                },
+              },
+              updatedAt: Date.now(),
+            }
+          : p
+      )
+    );
+
+    setBuilderStage("tasks");
+    setActiveTab("builder");
+  };
+
+  const handleApproveTasksPlan = () => {
+    if (!activeProjectId) return;
+    const current = projects.find((p) => p.id === activeProjectId);
+    if (!current) return;
+
+    const b = normalizeProductBuilderData(current);
+    const updatedStatuses = {
+      ...b.stageStatuses,
+      tasks: "approved" as StageStatus,
+    };
+
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId
+          ? {
+              ...p,
+              productBuilder: {
+                ...b,
+                stageStatuses: updatedStatuses,
+                approvals: {
+                  ...b.approvals,
+                  tasksApprovedAt: Date.now(),
+                },
+              },
+              updatedAt: Date.now(),
+            }
+          : p
       )
     );
   };
@@ -7374,7 +7774,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     isBlueprintReady &&
     !hasPendingDiscoveryQuestions
   );
-  const currentTab = (!activeProject || !isPlannerFinished) ? "chat" : activeTab;
+  const currentTab = activeTab;
   const domain = activeProject
     ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
     : "saas";
@@ -7395,205 +7795,380 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
       )}
 
-      {/* ─── Top Header Bar (Clean, Floating, Serasi Tab Chat) ─── */}
-      <header
-        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
-          isDark ? "text-white" : "text-zinc-900"
-        }`}
-      >
-        <div className="flex items-center gap-2 pointer-events-auto">
-          {onTogglePanel && (
+      {/* ─── Top Header Bar for Legacy Views (Chat / Mindmap / PRD / Tasks) ─── */}
+      {currentTab !== "builder" && (
+        <header
+          className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] bg-transparent pointer-events-none ${
+            isDark ? "text-white" : "text-zinc-900"
+          }`}
+        >
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {onTogglePanel && (
+              <button
+                onClick={onTogglePanel}
+                className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                  isDark
+                    ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                    : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
+                }`}
+                title="Menu Panel"
+                aria-label="Menu Panel"
+              >
+                <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+
+            {/* Quick button to return to 5-Stage Product Builder */}
             <button
-              onClick={onTogglePanel}
+              type="button"
+              onClick={() => setActiveTab("builder")}
+              className={`px-3 py-1.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
+              }`}
+              title="Kembali ke Alur 5-Tahap Product Builder"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Product Builder</span>
+            </button>
+          </div>
+
+          {/* Center: Tabs switcher only if activeProject */}
+          <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
+            {activeProject && (
+              <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
+                isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
+              }`}>
+                <button
+                  onClick={() => setActiveTab("chat")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    currentTab === "chat"
+                      ? isDark ? "bg-white text-black shadow-xs font-bold" : "bg-black text-white shadow-xs font-bold"
+                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
+                  title="Diskusi & Tanya AI"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <span className="hidden sm:inline">Tanya AI</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("mindmap")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    currentTab === "mindmap"
+                      ? isDark ? "bg-white text-black shadow-xs font-bold" : "bg-black text-white shadow-xs font-bold"
+                      : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                  }`}
+                  title="Peta Rencana (Visual Mindmap)"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Peta Rencana</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right side: Export + Tombol File Project di Kanan Atas */}
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {activeProject && (
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
+                    !isSourceExportAllowed(activeProject?.qualityGate)
+                      ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
+                      : isDark
+                      ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
+                      : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
+                  }`}
+                  title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+
+                {showExportMenu && (
+                  <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
+                    isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
+                  }`}>
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        copyEverythingText();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-semibold">Salin Text Project</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadProjectTxt();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-semibold">Export File (.txt)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Download blueprint format text</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadProjectPdf();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-semibold">Download PDF</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tombol File Project di Kanan Atas */}
+            <button
+              onClick={() => setShowProjectDrawer((prev) => !prev)}
               className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-                isDark
+                showProjectDrawer
+                  ? isDark
+                    ? "bg-white text-black shadow-xs font-bold"
+                    : "bg-black text-white shadow-xs font-bold"
+                  : isDark
                   ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
                   : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
-              title="Menu Panel"
-              aria-label="Menu Panel"
+              title="File & Project"
+              aria-label="File & Project"
             >
               <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
             </button>
-          )}
-        </div>
+          </div>
+        </header>
+      )}
 
-        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) only if activeProject & isPlannerFinished */}
-        <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
-          {activeProject && isPlannerFinished && (
-            <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
-              isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
-            }`}>
-              <button
-                onClick={() => setActiveTab("chat")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "chat"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Diskusi & Tanya AI"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span className="hidden sm:inline">Tanya AI</span>
-              </button>
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {/* AI PRODUCT BUILDER 5-STAGE WORKSPACE (Idea -> PRD -> Design -> Prototype -> Tasks) */}
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {currentTab === "builder" && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          {activeProject ? (
+            <>
+              <ProductBuilderHeader
+                isDark={isDark}
+                projectTitle={activeProject.title}
+                onRenameProject={(newTitle) => {
+                  setProjects((prev) =>
+                    prev.map((p) =>
+                      p.id === activeProject.id
+                        ? { ...p, title: newTitle, updatedAt: Date.now() }
+                        : p
+                    )
+                  );
+                }}
+                currentStage={builderStage}
+                stageStatuses={builderData.stageStatuses}
+                onSelectStage={handleSelectBuilderStage}
+                onBackToProjects={() => setActiveProjectId(null)}
+                onTogglePanel={onTogglePanel}
+                onOpenLegacyView={(view) => setActiveTab(view)}
+                onExportClick={() => setShowExportMenu(true)}
+              />
 
-              <button
-                onClick={() => setActiveTab("mindmap")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "mindmap"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Peta Rencana (Visual Mindmap)"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                <span className="hidden sm:inline">Peta Rencana</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("prd")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "prd"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Wiki Dokumen PRD"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>Wiki</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("tasks")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  currentTab === "tasks"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Task Board"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span className="hidden sm:inline">Tasks</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Right side: Export (if planner finished) + Tombol File Project di Kanan Atas */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          {activeProject && isPlannerFinished && (
-            <div className="relative" ref={exportMenuRef}>
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
-                  !isSourceExportAllowed(activeProject?.qualityGate)
-                    ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
-                    : isDark
-                    ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
-                    : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
-                }`}
-                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span className="hidden sm:inline">Export</span>
-              </button>
-
-              {showExportMenu && (
-                <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-1.5 shadow-xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 ${
-                  isDark ? "bg-[#121216]/95 border-zinc-800 text-zinc-200" : "bg-white/95 border-zinc-200 text-zinc-800"
-                }`}>
-                  <button
-                    onClick={() => {
-                      setShowExportMenu(false);
-                      copyEverythingText();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <div>
-                      <div className="font-semibold">Salin Text Project</div>
-                      <div className="text-[10px] text-zinc-400 font-normal">Copy context lengkap ke clipboard</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowExportMenu(false);
-                      downloadProjectTxt();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <div>
-                      <div className="font-semibold">Export File (.txt)</div>
-                      <div className="text-[10px] text-zinc-400 font-normal">Download blueprint format text</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowExportMenu(false);
-                      downloadProjectPdf();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
-                      isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <div>
-                      <div className="font-semibold">Download PDF</div>
-                      <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
-                    </div>
-                  </button>
-                </div>
+              {builderStage === "idea" && (
+                <IdeaStage
+                  isDark={isDark}
+                  ideaBrief={builderData.ideaBrief}
+                  onUpdateIdeaBrief={handleUpdateIdeaBrief}
+                  onContinueToPrd={handleContinueFromIdeaToPrd}
+                  isGeneratingPrd={isPrdGenerating || estafetStage !== "idle"}
+                />
               )}
+
+              {builderStage === "prd" && (
+                <PrdStage
+                  isDark={isDark}
+                  prd={activeProject.prd}
+                  features={activeProject.features}
+                  userFlow={activeProject.userFlow}
+                  architecture={activeProject.architecture}
+                  status={builderData.stageStatuses.prd}
+                  onUpdatePrd={handleUpdatePrd}
+                  onApprovePrdAndContinue={handleApprovePrdAndContinue}
+                  onRegeneratePrd={() => {
+                    handleSendChatMessage("Perbarui dan sempurnakan dokumen PRD untuk proyek ini.");
+                  }}
+                  isRegenerating={isPrdGenerating || estafetStage !== "idle"}
+                />
+              )}
+
+              {builderStage === "design" && (
+                <DesignStage
+                  isDark={isDark}
+                  projectTitle={activeProject.title}
+                  designSpec={builderData.designSpec}
+                  status={builderData.stageStatuses.design}
+                  onUpdateHtml={(html) => {
+                    handleUpdateProjectHtml(html);
+                  }}
+                  onRestoreVersion={handleRestoreDesignVersion}
+                  onApproveDesignAndContinue={handleApproveDesignAndContinue}
+                  onGenerateWithAI={handleGenerateDesignWithAI}
+                  isGenerating={isDesignGenerating}
+                />
+              )}
+
+              {builderStage === "prototype" && (
+                <PrototypeStage
+                  isDark={isDark}
+                  projectTitle={activeProject.title}
+                  prototypeHtml={activeProject.generatedHtml || builderData.designSpec.currentHtml || ""}
+                  prototypeState={builderData.prototypeState}
+                  status={builderData.stageStatuses.prototype}
+                  onUpdatePrototypeState={(newState) => {
+                    setProjects((prev) =>
+                      prev.map((p) =>
+                        p.id === activeProject.id
+                          ? {
+                              ...p,
+                              productBuilder: {
+                                ...normalizeProductBuilderData(p),
+                                prototypeState: newState,
+                              },
+                              updatedAt: Date.now(),
+                            }
+                          : p
+                      )
+                    );
+                  }}
+                  onApprovePrototypeAndContinue={handleApprovePrototypeAndContinue}
+                  onBackToDesign={() => handleSelectBuilderStage("design")}
+                />
+              )}
+
+              {builderStage === "tasks" && (
+                <AgentTasksStage
+                  isDark={isDark}
+                  projectTitle={activeProject.title}
+                  tasks={builderData.enhancedTasks || []}
+                  status={builderData.stageStatuses.tasks}
+                  onUpdateTasks={(updated) => {
+                    setProjects((prev) =>
+                      prev.map((p) =>
+                        p.id === activeProject.id
+                          ? {
+                              ...p,
+                              tasks: updated,
+                              productBuilder: {
+                                ...normalizeProductBuilderData(p),
+                                enhancedTasks: updated,
+                              },
+                              updatedAt: Date.now(),
+                            }
+                          : p
+                      )
+                    );
+                  }}
+                  onApproveTasksPlan={handleApproveTasksPlan}
+                  onGenerateTasksWithAI={async () => {
+                    setIsTasksGenerating(true);
+                    try {
+                      await handleSendChatMessage("Susun rencana task implementasi terstruktur lengkap untuk produk ini.");
+                    } finally {
+                      setIsTasksGenerating(false);
+                    }
+                  }}
+                  isGenerating={isTasksGenerating}
+                />
+              )}
+            </>
+          ) : (
+            /* Clean Initial Idea Canvas when !activeProject */
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="px-4 py-3 flex items-center justify-between border-b border-black/5 dark:border-white/5 shrink-0">
+                <div className="flex items-center gap-2">
+                  {onTogglePanel && (
+                    <button
+                      type="button"
+                      onClick={onTogglePanel}
+                      className={`p-2 rounded-xl transition cursor-pointer ${
+                        isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
+                  )}
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
+                    One Code • AI Product Builder
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowProjectDrawer(true)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+                    isDark
+                      ? "bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                      : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <span>Daftar Project ({projects.length})</span>
+                </button>
+              </div>
+
+              <IdeaStage
+                isDark={isDark}
+                ideaBrief={{ idea: "", targetPlatform: "website" }}
+                onUpdateIdeaBrief={() => {}}
+                onContinueToPrd={(brief) => {
+                  const title = brief.idea.slice(0, 32).trim() || "Project Baru";
+                  handleConfirmCreateProject(brief.idea, title);
+                }}
+              />
             </div>
           )}
-
-          {/* Tombol File Project di Kanan Atas (liquid glass circle identik tab chat) */}
-          <button
-            onClick={() => setShowProjectDrawer((prev) => !prev)}
-            className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
-              showProjectDrawer
-                ? isDark
-                  ? "bg-white text-black shadow-xs"
-                  : "bg-black text-white shadow-xs"
-                : isDark
-                ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
-                : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
-            }`}
-            title="File &amp; Project"
-            aria-label="File &amp; Project"
-          >
-            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
-          </button>
         </div>
-      </header>
+      )}
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB: VISUAL MINDMAP TREE & PERENCANAAN DRAWER (Sesuai Gambar Referensi)    */}
@@ -12218,7 +12793,8 @@ export const ZOOM_PRESETS = [50, 75, 90, 100, 125, 150];
 export async function generateProjectPreviewHtmlWithAI(
   project: ProjectItem,
   onChunk?: (streamedText: string) => void,
-  userId?: string
+  userId?: string,
+  customInstruction?: string
 ): Promise<string> {
   const prdText = project.prd?.overview || project.description || "";
   const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
@@ -12280,7 +12856,11 @@ ALUR PENGGUNA (USER FLOW):
 ${flowText}
 
 FOKUS IMPLEMENTASI MODUL (DARI TASK):
-${tasksText || "- Implementasi antarmuka dan interaksi utama"}
+${tasksText || "- Implementasi antarmuka dan interaksi utama"}${
+    customInstruction
+      ? `\n\nINSTRUKSI REVISI SPESIFIK DARI PENGGUNA:\n"${customInstruction}"\nPrioritaskan instruksi ini untuk memperbarui dan menyempurnakan desain prototype.`
+      : ""
+  }
 
 PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tugas teknis. Pastikan antarmuka memiliki alur interaksi yang dapat dicoba langsung di browser!`;
 
