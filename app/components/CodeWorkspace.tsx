@@ -29,6 +29,8 @@ import { TestDebugStage } from "./code/TestDebugStage";
 import { AgentTasksStage } from "./code/AgentTasksStage";
 import { generateProjectFiles } from "./code/fileGenerator";
 import { createZeroDepZip, downloadZipBlob } from "./code/zipExporter";
+import { synthesizeDesignPlan, buildArtDirectionSystemPrompt } from "./code/designEngine";
+import { evaluateAndRepairHtml } from "./code/visualQa";
 
 export type TaskStatus =
   | "ready"
@@ -13672,6 +13674,9 @@ export async function generateProjectPreviewHtmlWithAI(
   userId?: string,
   customInstruction?: string
 ): Promise<string> {
+  // 1. Synthesize Bespoke Art Direction Plan prior to code generation
+  const designPlan = synthesizeDesignPlan(project);
+
   const prdText = project.prd?.overview || project.description || "";
   const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
   const targetUsersText = (project.prd?.targetUsers || []).map((u) => `- ${u}`).join("\n");
@@ -13684,58 +13689,13 @@ export async function generateProjectPreviewHtmlWithAI(
     .join("\n");
   const flowText = project.userFlow || "Standard Primary User Journey";
 
-  const systemPrompt = `You are an elite Principal Frontend Engineer and Award-Winning UI/UX Designer.
-Your sole mission is to generate the COMPLETE, single-file HTML/CSS/JS frontend application prototype representing the ACTUAL digital product described by the user's PRD, Features, and Tasks.
+  // 2. Build Authoritative Art Direction System Prompt
+  const systemPrompt = buildArtDirectionSystemPrompt(designPlan);
 
-CRITICAL PRODUCT PROTOTYPE RULES:
-1. RENDER THE ACTUAL PRODUCT ITSELF:
-   - Build the REAL website or application interface (e.g. real store, real booking app, real SaaS, real portfolio, real news portal, real service business, etc.).
-   - NEVER render planning documentation, PRD text, task management boards, acceptance criteria, requirement IDs (e.g. "FR-01", "TASK-001"), or quality gate reports.
-   - Do NOT render a project management tool unless the product itself IS a project management tool.
-
-2. AESTHETICS & HIGH-FIDELITY DESIGN SYSTEM:
-   - Include Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-   - Include Google Fonts (<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">) with body font styled font-sans.
-   - Design with premium visual polish: dark-canvas experience (slate-900 / zinc-950 / black with subtle 1px white/10 borders), glassmorphism navigation (backdrop-blur-md), generous spacing (py-16 sm:py-24), clean typography hierarchy, elevated cards with smooth hover elevation (hover:-translate-y-1 transition duration-200).
-   - Use high-fidelity realistic mock data (realistic prices, realistic names, realistic photography via Unsplash URLs e.g. https://images.unsplash.com/photo-...).
-   - Include crisp, semantic inline SVG icons for every action, feature, and navigation item.
-
-3. DOMAIN ARCHITECTURES & PATTERNS:
-   - For SaaS / Dashboard:
-     * Dark dashboard layout with sidebar navigation, active pill indicators, header search & user profile avatar.
-     * KPI Metrics Summary row (4 cards with +X% trend pills, metric figures, and sparkline or icon).
-     * Interactive Chart / Data Visualization (Sleek Canvas / SVG chart or bar graphs).
-     * Filterable data table with status badges (Active, Pending, Completed).
-   - For Booking / Reservation:
-     * High-impact hero with service highlights.
-     * Working service selector with realistic prices in IDR (Rp).
-     * Interactive date selector & time slots (e.g. 09:00, 11:30, 14:00, 16:30, 19:00) with selectable states.
-     * Live summary box computing total price dynamically.
-     * Working booking confirmation modal with generated booking ID.
-   - For Landing Page / Service / Portfolio:
-     * Sticky navbar with logo and CTA.
-     * Hero with glowing background mesh, eyebrow badge, high-contrast headline, and dual CTAs.
-     * Bento Grid of key features.
-     * Interactive pricing toggle (Bulanan vs Tahunan with 20% discount).
-     * Testimonial quote cards with verified reviewer badges.
-     * Interactive inquiry form & FAQ accordion.
-
-4. RICH VANILLA JAVASCRIPT INTERACTIVITY:
-   - Place all JavaScript inside a <script> tag at the bottom of <body>:
-     * Interactive tabs or filter toggles (active states update smoothly).
-     * Working booking / cart / inquiry selection with live summary updates.
-     * Functional modals (e.g., detail modal, booking modal, checkout modal) that open and close smoothly via backdrop or button.
-     * Interactive form submission with validation, 500ms simulated processing spinner, and a beautiful confirmation toast banner.
-     * Smooth scrolling navigation.
-
-5. OUTPUT FORMAT:
-   - Output ONLY the complete, valid <!DOCTYPE html> ... </html> code inside a single \`\`\`html ... \`\`\` block.
-   - Include the marker <!-- AI_GENERATED_PROTOTYPE --> inside the <head>.
-   - Do NOT include conversational explanations outside the code block.`;
-
-  const userPrompt = `Buatkan prototype website/aplikasi interaktif lengkap (Single-File HTML + Tailwind CSS + Vanilla JS) untuk produk berikut:
+  const userPrompt = `Buatkan prototype website/aplikasi berstandar industri kelas dunia (Single-File HTML + Tailwind CSS CDN + Vanilla JS) untuk produk berikut:
 
 NAMA PRODUK: ${project.title}
+DOMAIN: ${designPlan.domain.toUpperCase()} (Archetype: ${designPlan.visualArchetype})
 DESKRIPSI PRODUK:
 ${prdText}
 
@@ -13751,14 +13711,19 @@ ${featuresText || "- Fitur inti sesuai deskripsi produk"}
 ALUR PENGGUNA (USER FLOW):
 ${flowText}
 
-FOKUS IMPLEMENTASI MODUL (DARI TASK):
+FOKUS TASK:
 ${tasksText || "- Implementasi antarmuka dan interaksi utama"}${
     customInstruction
       ? `\n\nINSTRUKSI REVISI SPESIFIK DARI PENGGUNA:\n"${customInstruction}"\nPrioritaskan instruksi ini untuk memperbarui dan menyempurnakan desain prototype.`
       : ""
   }
 
-PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tugas teknis. Pastikan antarmuka memiliki alur interaksi yang dapat dicoba langsung di browser!`;
+PANDUAN EKSEKUSI TINGKAT TINGGI:
+1. Ikuti arsitektur dan urutan seksi: ${designPlan.layoutStrategy.sectionSequence.join(" -> ")}
+2. Gunakan tipografi Google Fonts '${designPlan.typography.primaryFont}' dan skema warna ${designPlan.colorPalette.background}.
+3. Tampilkan produk NYATA dan HIDUP (bukan dokumen PRD atau checklist).
+4. Gunakan foto resolusi tinggi Unsplash yang diberikan dalam system prompt dengan fallback onerror.
+5. Pastikan semua JavaScript interaktif (tab switcher, modal konfirmasi, kalkulasi harga/data real-time, form toast) berfungsi saat diklik di browser!`;
 
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -13825,15 +13790,9 @@ PENTING: Tampilkan produk yang nyata dan hidup, BUKAN dokumen PRD atau daftar tu
     finalHtml = rawStream.trim();
   }
 
-  if (finalHtml && !finalHtml.includes("AI_GENERATED_PROTOTYPE")) {
-    if (finalHtml.includes("<head>")) {
-      finalHtml = finalHtml.replace("<head>", "<head>\n  <!-- AI_GENERATED_PROTOTYPE -->");
-    } else {
-      finalHtml = "<!-- AI_GENERATED_PROTOTYPE -->\n" + finalHtml;
-    }
-  }
-
-  return finalHtml;
+  // 3. Run Automated Visual QA & Auto-Repair Loop
+  const qaResult = evaluateAndRepairHtml(finalHtml, designPlan);
+  return qaResult.html;
 }
 
 export function QuickHtmlPreview({

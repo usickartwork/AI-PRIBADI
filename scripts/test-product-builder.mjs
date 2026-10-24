@@ -868,6 +868,217 @@ assert(detectedIssues.length >= 2, "Diagnostic scanner catches missing 'use clie
 assert(detectedIssues.some(i => i.id.includes("client")), "Detects missing use client warning");
 assert(detectedIssues.some(i => i.id.includes("brace")), "Detects unbalanced braces error");
 
+// ─── 11. ART DIRECTION & DESIGN ENGINE VERIFICATION ──────────────────────────
+
+console.log("\n--- 11. ART DIRECTION & DESIGN ENGINE VERIFICATION ---");
+
+const { synthesizeDesignPlan, buildArtDirectionSystemPrompt } = await import("../app/components/code/designEngine.ts");
+
+const barberProject = {
+  id: "barber-01",
+  title: "Gentlemen Studio Barbershop",
+  description: "Aplikasi reservasi online jadwal cukur rambut dan grooming pria premium",
+  prd: {
+    overview: "Platform booking potong rambut eksklusif dengan pilihan kapster dan slot jam",
+    goals: ["Mempermudah booking tanpa antre", "Tingkatkan loyalitas pelanggan"],
+    targetUsers: ["Pria profesional urban", "Komunitas grooming"],
+  },
+};
+
+const barberPlan = synthesizeDesignPlan(barberProject);
+assertEqual(barberPlan.domain, "booking", "Synthesizes 'booking' domain for barbershop project");
+assertEqual(barberPlan.layoutStrategy.heroType, "booking-card-lead", "Uses booking-card-lead hero strategy");
+assert(barberPlan.layoutStrategy.sectionSequence.length >= 6, "Defines rich section sequence for booking");
+assert(barberPlan.curatedImages.length >= 3, "Attaches curated verified photography for booking");
+assert(barberPlan.fallbackImageUri.startsWith("data:image/svg+xml"), "Generates SVG Data-URI fallback");
+
+const promptOutput = buildArtDirectionSystemPrompt(barberPlan);
+assert(promptOutput.includes("DOMAIN: BOOKING"), "Art direction prompt encodes domain BOOKING");
+assert(promptOutput.includes("NO REPETITIVE 3-CARD BOXES"), "Art direction prompt bans repetitive 3-card boxes");
+assert(promptOutput.includes("NO EMOJIS AS ICONS"), "Art direction prompt bans emojis as icons");
+assert(promptOutput.includes("CURATED PHOTOGRAPHY"), "Art direction prompt includes curated photography URLs");
+
+const dashboardProject = {
+  id: "fintech-01",
+  title: "Apex Finance Analytics",
+  description: "Platform analitik transaksi keuangan kpi dan metrik real-time",
+  prd: { overview: "Trading terminal & dashboard portofolio", goals: ["Visualisasi KPI"], targetUsers: ["Trader"] },
+};
+
+const dashPlan = synthesizeDesignPlan(dashboardProject);
+assertEqual(dashPlan.domain, "dashboard", "Synthesizes 'dashboard' domain for analytics project");
+assertEqual(dashPlan.layoutStrategy.heroType, "analytics-ribbon", "Uses analytics-ribbon hero strategy for dashboard");
+assert(dashPlan.typography.primaryFont.includes("Inter"), "Uses hyper-dense Inter typography for dashboard");
+
+// ─── 12. CURATED ASSET PIPELINE & SVG FALLBACK GENERATOR ─────────────────────
+
+console.log("\n--- 12. CURATED ASSET PIPELINE & SVG FALLBACK GENERATOR ---");
+
+const { getDomainImages, generateSvgFallbackDataUri, SEMANTIC_SVG_ICONS } = await import("../app/components/code/assetLibrary.ts");
+
+const saasImages = getDomainImages("saas platform cloud collaboration");
+assert(saasImages.length >= 3, "Returns verified photography for SaaS domain");
+assert(saasImages.every(img => img.url.startsWith("https://images.unsplash.com/")), "All images use verified Unsplash CDN");
+
+const barberImages = getDomainImages("barbershop cukur rambut");
+assert(barberImages.some(img => img.category === "hero" || img.category === "service"), "Barber images include hero and service categories");
+
+const fallbackUri = generateSvgFallbackDataUri("Test Preview Card", 800, 500, "#090d16", "#ffffff");
+assert(fallbackUri.startsWith("data:image/svg+xml"), "Generates valid SVG data URI");
+assert(decodeURIComponent(fallbackUri).includes("TEST PREVIEW CARD"), "Fallback SVG encodes uppercase label");
+
+assert(Boolean(SEMANTIC_SVG_ICONS.check), "Semantic SVG library exports check icon");
+assert(Boolean(SEMANTIC_SVG_ICONS.arrowRight), "Semantic SVG library exports arrowRight icon");
+assert(Boolean(SEMANTIC_SVG_ICONS.star), "Semantic SVG library exports star icon");
+assert(Boolean(SEMANTIC_SVG_ICONS.chart), "Semantic SVG library exports chart icon");
+
+// ─── 13. VISUAL QA & AUTO-REPAIR ENGINE VERIFICATION ─────────────────────────
+
+console.log("\n--- 13. VISUAL QA & AUTO-REPAIR ENGINE VERIFICATION ---");
+
+const { evaluateAndRepairHtml } = await import("../app/components/code/visualQa.ts");
+
+// Case A: Broken Raw Fragment (Missing Doctype, Tailwind, Onerror, with Emojis & Low Contrast)
+const rawBrokenHtml = `
+<div class="bg-black text-zinc-600 p-8">
+  <h1 class="text-3xl font-bold">🚀 Super App Launch 🔥</h1>
+  <p class="text-zinc-600">Low contrast body text here.</p>
+  <img src="https://via.placeholder.com/600x400" alt="Demo">
+  <button data-filter="all">Filter</button>
+</div>
+`;
+
+const repairedResult = evaluateAndRepairHtml(rawBrokenHtml, barberPlan);
+assert(repairedResult.html.includes("<!DOCTYPE html>"), "Auto-repairs unclosed HTML fragment into <!DOCTYPE html>");
+assert(repairedResult.html.includes("cdn.tailwindcss.com"), "Auto-injects Tailwind CDN script");
+assert(repairedResult.html.includes("overflow-x-hidden"), "Auto-injects overflow-x-hidden for mobile viewport safety");
+assert(!repairedResult.html.includes("https://via.placeholder.com/"), "Replaces generic placeholder URLs with curated photography");
+assert(repairedResult.html.includes("onerror="), "Auto-injects onerror fallback to <img> tags");
+assert(!repairedResult.html.includes("🚀") && !repairedResult.html.includes("🔥"), "Sanitizes amateur emojis");
+assert(!repairedResult.html.includes("text-zinc-600"), "Elevates low-contrast text-zinc-600 to accessible text-zinc-400");
+assert(repairedResult.html.includes("<script>"), "Auto-injects resilient interactive vanilla runtime");
+assert(repairedResult.score.totalScore >= 85, `Repaired HTML passes QA with score >= 85 (Actual: ${repairedResult.score.totalScore})`);
+assert(repairedResult.score.repairsApplied.length >= 4, "Logs applied repairs in score report");
+
+// ─── 14. REAL DOMAIN NEXT.JS MULTI-FILE GENERATOR ────────────────────────────
+
+console.log("\n--- 14. REAL DOMAIN NEXT.JS MULTI-FILE GENERATOR ---");
+
+const { generateProjectFiles: generateRealFiles } = await import("../app/components/code/fileGenerator.ts");
+
+const realBarberFiles = generateRealFiles(barberProject);
+assert(Boolean(realBarberFiles["app/page.tsx"]), "Generates app/page.tsx for barbershop");
+assert(realBarberFiles["app/page.tsx"].includes("selectedService"), "Barbershop page includes dynamic service selection");
+assert(realBarberFiles["app/page.tsx"].includes("ActionModal"), "Barbershop page wires ActionModal");
+assert(realBarberFiles["app/components/Navbar.tsx"].includes("Buka Hari Ini"), "Barbershop navbar includes operating hours badge");
+assert(realBarberFiles["lib/types.ts"].includes("BookingAppointment"), "Generates domain BookingAppointment types");
+
+const realDashFiles = generateRealFiles(dashboardProject);
+assert(realDashFiles["app/page.tsx"].includes("MetricCardData"), "Dashboard page includes KPI Metric cards");
+assert(realDashFiles["app/page.tsx"].includes("<svg"), "Dashboard page includes clean inline SVG chart");
+assert(realDashFiles["lib/types.ts"].includes("TransactionEntry"), "Generates domain TransactionEntry types");
+
+// ─── 15. 3-DOMAIN BENCHMARK SCENARIO EVALUATION ──────────────────────────────
+
+console.log("\n--- 15. 3-DOMAIN BENCHMARK SCENARIO EVALUATION ---");
+
+// Benchmark 1: Modern SaaS
+const saasProject = {
+  id: "saas-bm-1",
+  title: "CloudPulse Observability",
+  description: "Next-gen cloud observability and tracing platform for distributed Kubernetes clusters",
+  prd: {
+    overview: "Real-time telemetry, anomaly alerts, and instant root cause analysis.",
+    goals: ["Zero-overhead tracing", "AI incident diagnosis"],
+    targetUsers: ["DevOps & SRE engineers"],
+  },
+};
+const saasPlan = synthesizeDesignPlan(saasProject);
+const saasRawCode = `
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="${saasPlan.typography.fontImportUrl}" rel="stylesheet">
+</head>
+<body class="bg-[#090d16] text-white overflow-x-hidden">
+  <header class="p-6 border-b border-white/10 backdrop-blur-md sticky top-0 flex justify-between">
+    <span class="font-bold">CloudPulse</span>
+    <button class="px-4 py-2 bg-white text-black rounded-xl text-xs font-bold">Start Free</button>
+  </header>
+  <main class="max-w-6xl mx-auto p-8 space-y-16">
+    <div class="grid grid-cols-2 gap-8 items-center">
+      <div class="space-y-4">
+        <h1 class="text-5xl font-extrabold tracking-tight">Zero-overhead telemetry.</h1>
+        <p class="text-zinc-300">Automate infrastructure diagnostics in real-time.</p>
+      </div>
+      <img src="${saasPlan.curatedImages[0].url}" alt="Preview" class="rounded-2xl" onerror="this.src='${saasPlan.fallbackImageUri}';">
+    </div>
+    <div class="grid grid-cols-3 gap-6">
+      <div class="p-6 rounded-2xl bg-white/5 border border-white/10">Feature 1</div>
+      <div class="p-6 rounded-2xl bg-white/5 border border-white/10">Feature 2</div>
+      <div class="p-6 rounded-2xl bg-white/5 border border-white/10">Feature 3</div>
+    </div>
+  </main>
+</body>
+</html>
+`;
+const saasQa = evaluateAndRepairHtml(saasRawCode, saasPlan);
+assert(saasQa.score.passed, `Benchmark 1 (SaaS) passed QA with score ${saasQa.score.totalScore}/100`);
+
+// Benchmark 2: Financial Dashboard
+const dashRawCode = `
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#080a10] text-zinc-100 overflow-x-hidden">
+  <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <div class="grid grid-cols-4 gap-4">
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">Metric A: Rp100.000.000</div>
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">Metric B: +12.4%</div>
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">Metric C: 99.9%</div>
+      <div class="p-4 rounded-xl bg-white/5 border border-white/10">Metric D: 14ms</div>
+    </div>
+    <button data-filter="all" class="px-3 py-1 bg-white text-black rounded-lg text-xs">Semua</button>
+  </div>
+</body>
+</html>
+`;
+const dashQa = evaluateAndRepairHtml(dashRawCode, dashPlan);
+assert(dashQa.score.passed, `Benchmark 2 (Dashboard) passed QA with score ${dashQa.score.totalScore}/100`);
+
+// Benchmark 3: Barbershop Booking
+const barberRawCode = `
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0c0d10] text-zinc-100 overflow-x-hidden">
+  <div class="max-w-6xl mx-auto p-6 space-y-8">
+    <div class="p-8 rounded-3xl bg-white/5 border border-white/10">
+      <h1 class="text-4xl font-extrabold tracking-tight">Gentlemen Studio</h1>
+      <p class="text-zinc-300">Reservasi Cukur & Grooming Premium</p>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="p-4 rounded-2xl border border-white/20 bg-white/5">Signature Haircut - Rp125.000</div>
+      <div class="p-4 rounded-2xl border border-white/10 bg-white/5">Beard Sculpting - Rp85.000</div>
+    </div>
+  </div>
+</body>
+</html>
+`;
+const barberQa = evaluateAndRepairHtml(barberRawCode, barberPlan);
+assert(barberQa.score.passed, `Benchmark 3 (Booking) passed QA with score ${barberQa.score.totalScore}/100`);
+
 // ─── Test Suite Summary ──────────────────────────────────────────────────────
 
 console.log("\n=================================================");
