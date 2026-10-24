@@ -39,6 +39,7 @@ export function AgentTasksStage({
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("HIGH");
   const [newCriteria, setNewCriteria] = useState("");
+  const [copiedTaskSnippet, setCopiedTaskSnippet] = useState(false);
 
   const isApproved = status === "approved";
 
@@ -284,10 +285,12 @@ export function AgentTasksStage({
                   }`}
                 >
                   <option value="ALL">Semua Status</option>
-                  <option value="Ready">Ready</option>
-                  <option value="Running">Running</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Pending">Pending</option>
+                  <option value="ready">Ready</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="done">Done</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="backlog">Backlog</option>
                 </select>
               </div>
             </div>
@@ -371,11 +374,12 @@ export function AgentTasksStage({
                           isDark ? "bg-zinc-900 border-white/20 text-white" : "bg-white border-black/20 text-zinc-900"
                         }`}
                       >
-                        <option value="Pending">Status: Pending</option>
-                        <option value="Ready">Status: Ready</option>
-                        <option value="Running">Status: Running</option>
-                        <option value="Completed">Status: Completed</option>
-                        <option value="Cancelled">Status: Cancelled</option>
+                        <option value="ready">Status: Ready</option>
+                        <option value="in_progress">Status: In Progress</option>
+                        <option value="review">Status: Review</option>
+                        <option value="done">Status: Done</option>
+                        <option value="blocked">Status: Blocked</option>
+                        <option value="backlog">Status: Backlog</option>
                       </select>
 
                       <button
@@ -462,6 +466,51 @@ export function AgentTasksStage({
                         <div className="text-xs text-zinc-500">Verifikasi render dan integrasi</div>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* Task Code Implementation Preview */}
+                <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                      Artefak Kode Implementasi Task
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const snippet = `// ${selectedTask.suggestedFiles?.[0] || 'app/components/Feature.tsx'}\n"use client";\n\nimport React, { useState } from "react";\n\nexport function ${selectedTask.title.replace(/[^a-zA-Z0-9]/g, "")}() {\n  // Implementasi: ${selectedTask.title}\n  // Kriteria: ${(selectedTask.acceptanceCriteria || []).join(", ")}\n  const [isLoading, setIsLoading] = useState(false);\n\n  return (\n    <div className="p-6 rounded-2xl border border-white/10 bg-[#121216] text-white">\n      <h3 className="text-base font-bold">${selectedTask.title}</h3>\n      <p className="text-xs text-zinc-400 mt-1">${selectedTask.description}</p>\n    </div>\n  );\n}`;
+                        navigator.clipboard.writeText(snippet);
+                        setCopiedTaskSnippet(true);
+                        setTimeout(() => setCopiedTaskSnippet(false), 2000);
+                      }}
+                      className="text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 transition cursor-pointer"
+                    >
+                      {copiedTaskSnippet ? "✓ Tersalin!" : "Salin Kode Task"}
+                    </button>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#0e0e12]">
+                    <div className="px-3.5 py-1.5 border-b border-white/10 flex items-center justify-between text-[11px] font-mono text-zinc-400 bg-black/40">
+                      <span>{selectedTask.suggestedFiles?.[0] || 'app/components/Feature.tsx'}</span>
+                      <span>TypeScript</span>
+                    </div>
+                    <pre className="p-3.5 text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed">
+{`"use client";
+
+import React, { useState } from "react";
+
+export function ${selectedTask.title.replace(/[^a-zA-Z0-9]/g, "")}() {
+  // ${selectedTask.title}: ${selectedTask.description}
+  const [isLoading, setIsLoading] = useState(false);
+
+  return (
+    <div className="p-6 rounded-2xl border border-white/10 bg-[#121216] text-white space-y-3">
+      <h3 className="text-base font-bold tracking-tight">${selectedTask.title}</h3>
+      <p className="text-xs text-zinc-400 leading-relaxed">${selectedTask.description}</p>
+      {/* Modul implementasi kriteria penerimaan */}
+    </div>
+  );
+}`}
+                    </pre>
                   </div>
                 </div>
               </div>

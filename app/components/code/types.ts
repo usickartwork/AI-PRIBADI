@@ -31,6 +31,7 @@ export interface DesignRevisionEntry {
   prompt: string;
   html: string;
   summary?: string;
+  changeSummary?: string;
 }
 
 export interface DesignSpecification {

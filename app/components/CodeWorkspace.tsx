@@ -14,6 +14,7 @@ import {
   normalizeProductBuilderData,
 } from "./code/types";
 import { ProductBuilderHeader } from "./code/ProductBuilderHeader";
+import { ProjectDashboard } from "./code/ProjectDashboard";
 import { IdeaStage } from "./code/IdeaStage";
 import { PrdStage } from "./code/PrdStage";
 import { DesignStage } from "./code/DesignStage";
@@ -3590,6 +3591,58 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
         )
       );
     }
+  };
+
+  const [builderView, setBuilderView] = useState<"dashboard" | "idea">("dashboard");
+
+  const handleSelectProjectFromDashboard = (projId: string) => {
+    setActiveProjectId(projId);
+    const p = projects.find((item) => item.id === projId);
+    if (p) {
+      const b = normalizeProductBuilderData(p);
+      setBuilderStage(b.currentStage);
+      setActiveTab("builder");
+    }
+  };
+
+  const handleDuplicateProject = (projId: string) => {
+    const original = projects.find((p) => p.id === projId);
+    if (!original) return;
+    const newId = "proj-" + Date.now();
+    const duplicated: ProjectItem = {
+      ...original,
+      id: newId,
+      title: `${original.title} (Salinan)`,
+      updatedAt: Date.now(),
+      productBuilder: original.productBuilder
+        ? {
+            ...original.productBuilder,
+            approvals: {},
+          }
+        : undefined,
+    };
+    setProjects((prev) => [duplicated, ...prev]);
+    setActiveProjectId(newId);
+    setBuilderStage(duplicated.productBuilder?.currentStage || "idea");
+    setActiveTab("builder");
+    showCopyToast("Proyek berhasil diduplikasi!");
+  };
+
+  const handleDeleteProjectFromDashboard = (projId: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== projId));
+    if (activeProjectId === projId) {
+      setActiveProjectId(null);
+    }
+    showCopyToast("Proyek berhasil dihapus.");
+  };
+
+  const handleRenameProjectFromDashboard = (projId: string, newTitle: string) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projId ? { ...p, title: newTitle, updatedAt: Date.now() } : p
+      )
+    );
+    showCopyToast("Nama proyek diperbarui.");
   };
 
   const handleUpdateIdeaBrief = (brief: IdeaBrief) => {
@@ -7565,6 +7618,155 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     showCopyToast("File Blueprint (.txt) berhasil didownload!");
   };
 
+  const downloadPrdMarkdown = () => {
+    if (!activeProject) return;
+    const prd = activeProject.prd;
+    const title = activeProject.title || "Project";
+    let md = `# Product Requirements Document (PRD)\n## ${title}\n\n`;
+    md += `*Terakhir Diperbarui: ${new Date().toLocaleDateString("id-ID")}*\n\n`;
+    md += `### 1. Ringkasan & Problem Statement\n${prd?.overview || activeProject.description || "Belum ada ringkasan."}\n\n`;
+    if (prd?.problemStatement) md += `**Problem Statement:**\n${prd.problemStatement}\n\n`;
+    md += `### 2. Goals & Sasaran Produk\n${(prd?.goals || []).map((g) => `- ${g}`).join("\n") || "- Memenuhi kebutuhan pengguna."}\n\n`;
+    md += `### 3. Target Pengguna (Audience)\n${(prd?.targetUsers || []).map((u) => `- ${u}`).join("\n") || "- Pengguna umum & profesional."}\n\n`;
+    md += `### 4. Kebutuhan Fungsional & Fitur\n${(prd?.functionalRequirements || activeProject.features?.map(f => f.name + ': ' + f.description) || []).map((f) => `- ${f}`).join("\n") || "- Fitur inti aplikasi."}\n\n`;
+    md += `### 5. Alur Pengguna (User Journey)\n${activeProject.userFlow || "Standard primary user flow."}\n\n`;
+    md += `### 6. Kebutuhan Non-Fungsional (NFR)\n${(prd?.nonFunctional || prd?.nonFunctionalRequirements || []).map((n) => `- ${n}`).join("\n") || "- Responsivitas mobile & desktop, keamanan data."}\n\n`;
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    link.download = `${slug || "project"}-prd.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File PRD.md berhasil didownload!");
+  };
+
+  const downloadDesignSpecJson = () => {
+    if (!activeProject) return;
+    const b = normalizeProductBuilderData(activeProject);
+    const spec = {
+      projectTitle: activeProject.title,
+      version: b.designSpec.version,
+      targetPlatform: b.ideaBrief?.targetPlatform || "website",
+      revisionsCount: b.designSpec.revisions?.length || 1,
+      revisions: b.designSpec.revisions || [],
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(spec, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.download = `${slug}-design-spec.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File Design Spec (.json) berhasil didownload!");
+  };
+
+  const downloadDesignMd = () => {
+    if (!activeProject) return;
+    const title = activeProject.title || "Project";
+    const b = normalizeProductBuilderData(activeProject);
+    const pType = activeProject.prd?.primaryType || "Web Application";
+    let md = `# DESIGN SPECIFICATION & DESIGN SYSTEM\n## ${title}\n\n`;
+    md += `**Platform Target:** ${b.ideaBrief?.targetPlatform || "Website"}\n`;
+    md += `**Tipe Produk:** ${pType}\n`;
+    md += `**Versi Desain:** v${b.designSpec.version || 1}\n\n`;
+    md += `### 1. Prinsip Desain & Visual Hierarchy\n`;
+    md += `- **Theme Foundation:** Monochrome dark-mode zinc dengan aksen netral yang elegan.\n`;
+    md += `- **Tipografi:** Plus Jakarta Sans / Inter font family untuk keterbacaan tinggi.\n`;
+    md += `- **Layout Strategy:** Responsive Bento Grid & dynamic multi-column layouts.\n`;
+    md += `- **Border & Radius:** Rounded-2xl hingga rounded-3xl dengan border halus 1px white/10.\n\n`;
+    md += `### 2. Riwayat Revisi Desain\n`;
+    (b.designSpec.revisions || []).forEach((r) => {
+      md += `- **v${r.version}** (${new Date(r.timestamp).toLocaleDateString()}): ${r.changeSummary || r.summary || r.prompt || "Revisi desain"}\n`;
+    });
+    md += `\n### 3. Komponen yang Didukung\n`;
+    md += `- Header Navbar dengan Nav Links & Quick Action CTA\n`;
+    md += `- High-Impact Hero Section dengan Headline & Dual CTA Buttons\n`;
+    md += `- Interactive Data / Entity Cards dengan status pills\n`;
+    md += `- Interactive Modals & Toast Confirmations\n`;
+    md += `- Responsive Mobile Drawer Navigation\n`;
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.download = `${slug}-DESIGN.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File DESIGN.md berhasil didownload!");
+  };
+
+  const downloadTasksMarkdown = () => {
+    if (!activeProject) return;
+    const b = normalizeProductBuilderData(activeProject);
+    const tasks = b.enhancedTasks || activeProject.tasks || [];
+    const title = activeProject.title || "Project";
+    let md = `# Implementation Tasks & Verification Checklist\n## ${title}\n\n`;
+    tasks.forEach((item) => {
+      const t = item as EnhancedProjectTask;
+      md += `### [${String(t.status).toUpperCase()}] ${t.id}: ${t.title}\n`;
+      md += `- **Prioritas:** ${t.priority || "MEDIUM"}\n`;
+      md += `- **Deskripsi:** ${t.description}\n`;
+      if (t.acceptanceCriteria && t.acceptanceCriteria.length > 0) {
+        md += `- **Kriteria Penerimaan:**\n`;
+        t.acceptanceCriteria.forEach((crit) => {
+          md += `  - [ ] ${crit}\n`;
+        });
+      }
+      if (t.suggestedFiles && t.suggestedFiles.length > 0) {
+        md += `- **File Terkait:** ${t.suggestedFiles.join(", ")}\n`;
+      }
+      if (t.suggestedTests && t.suggestedTests.length > 0) {
+        md += `- **Pengujian:** ${t.suggestedTests.join("; ")}\n`;
+      }
+      md += `\n`;
+    });
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.download = `${slug}-tasks.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File Tasks (.md) berhasil didownload!");
+  };
+
+  const downloadPrototypeHtml = () => {
+    if (!activeProject) return;
+    const b = normalizeProductBuilderData(activeProject);
+    const html = activeProject.generatedHtml || b.designSpec.currentHtml;
+    if (!html || !html.trim()) {
+      showCopyToast("Belum ada HTML prototype yang digenerate untuk proyek ini.");
+      return;
+    }
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = (activeProject.title || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    link.download = `${slug}-prototype.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showCopyToast("File prototype.html berhasil didownload!");
+  };
+
   const downloadProjectPdf = () => {
     if (!activeProject) return;
     if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
@@ -7951,7 +8153,89 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       </svg>
                       <div>
                         <div className="font-semibold">Download PDF</div>
-                        <div className="text-[10px] text-zinc-400 font-normal">Simpan sebagai dokumen PDF</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Dokumen cetak PDF</div>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-white/5" />
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadPrdMarkdown();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">📄</span>
+                      <div>
+                        <div className="font-semibold">PRD (.md)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Spesifikasi format Markdown</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadDesignSpecJson();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">{`{ }`}</span>
+                      <div>
+                        <div className="font-semibold">Design Spec (.json)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Spesifikasi UI terstruktur</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadDesignMd();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">🎨</span>
+                      <div>
+                        <div className="font-semibold">Design Tokens (DESIGN.md)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Design system &amp; visual guide</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadTasksMarkdown();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">📋</span>
+                      <div>
+                        <div className="font-semibold">Tasks Checklist (.md)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Daftar tugas implementasi</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        downloadPrototypeHtml();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition text-left cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800 hover:text-white" : "hover:bg-zinc-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="font-mono text-zinc-400 text-xs shrink-0">🌐</span>
+                      <div>
+                        <div className="font-semibold">Prototype Offline (.html)</div>
+                        <div className="text-[10px] text-zinc-400 font-normal">Aplikasi interaktif mandiri</div>
                       </div>
                     </button>
                   </div>
@@ -8117,8 +8401,19 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 />
               )}
             </>
+          ) : builderView === "dashboard" && projects.length > 0 ? (
+            <ProjectDashboard
+              isDark={isDark}
+              projects={projects}
+              onSelectProject={handleSelectProjectFromDashboard}
+              onCreateNewProject={() => setBuilderView("idea")}
+              onRenameProject={handleRenameProjectFromDashboard}
+              onDuplicateProject={handleDuplicateProject}
+              onDeleteProject={handleDeleteProjectFromDashboard}
+              onTogglePanel={onTogglePanel}
+            />
           ) : (
-            /* Clean Initial Idea Canvas when !activeProject */
+            /* Clean Initial Idea Canvas when !activeProject or starting new */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="px-4 py-3 flex items-center justify-between border-b border-black/5 dark:border-white/5 shrink-0">
                 <div className="flex items-center gap-2">
@@ -8135,25 +8430,40 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                       </svg>
                     </button>
                   )}
+
+                  {projects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setBuilderView("dashboard")}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+                        isDark ? "bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300" : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-700"
+                      }`}
+                    >
+                      ← Dashboard Proyek
+                    </button>
+                  )}
+
                   <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-                    One Code • AI Product Builder
+                    Mulai Ide Produk Baru
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowProjectDrawer(true)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
-                    isDark
-                      ? "bg-white/5 hover:bg-white/10 border-white/10 text-white"
-                      : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  <span>Daftar Project ({projects.length})</span>
-                </button>
+                {projects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setBuilderView("dashboard")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+                      isDark
+                        ? "bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                        : "bg-black/5 hover:bg-black/10 border-black/10 text-zinc-900"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                    <span>Daftar Proyek ({projects.length})</span>
+                  </button>
+                )}
               </div>
 
               <IdeaStage
@@ -12817,22 +13127,42 @@ CRITICAL PRODUCT PROTOTYPE RULES:
    - NEVER render planning documentation, PRD text, task management boards, acceptance criteria, requirement IDs (e.g. "FR-01", "TASK-001"), or quality gate reports.
    - Do NOT render a project management tool unless the product itself IS a project management tool.
 
-2. AESTHETICS & VISUAL DESIGN:
+2. AESTHETICS & HIGH-FIDELITY DESIGN SYSTEM:
    - Include Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
    - Include Google Fonts (<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">) with body font styled font-sans.
-   - Use clean, modern SVG icons or Lucide icons.
-   - Design with premium visual polish: generous whitespace, elegant cards, subtle borders, backdrop blurs, clean shadows, and domain-appropriate color palettes.
-   - Use high-fidelity realistic mock data (realistic prices, realistic names, realistic photography via Unsplash URLs e.g. https://images.unsplash.com/...).
+   - Design with premium visual polish: dark-canvas experience (slate-900 / zinc-950 / black with subtle 1px white/10 borders), glassmorphism navigation (backdrop-blur-md), generous spacing (py-16 sm:py-24), clean typography hierarchy, elevated cards with smooth hover elevation (hover:-translate-y-1 transition duration-200).
+   - Use high-fidelity realistic mock data (realistic prices, realistic names, realistic photography via Unsplash URLs e.g. https://images.unsplash.com/photo-...).
+   - Include crisp, semantic inline SVG icons for every action, feature, and navigation item.
 
-3. RICH INTERACTIVITY (VANILLA JAVASCRIPT):
-   - Provide working, responsive JavaScript for all key user interactions in a <script> tag at the bottom of <body>:
-     * Interactive tabs or filter toggles (active states)
-     * Working booking / cart / inquiry selection with live summary updates
-     * Functional modals (e.g., detail modal, booking modal, checkout modal) that open and close smoothly
-     * Interactive form submission with validation and a beautiful confirmation toast / alert
-     * Smooth scrolling navigation
+3. DOMAIN ARCHITECTURES & PATTERNS:
+   - For SaaS / Dashboard:
+     * Dark dashboard layout with sidebar navigation, active pill indicators, header search & user profile avatar.
+     * KPI Metrics Summary row (4 cards with +X% trend pills, metric figures, and sparkline or icon).
+     * Interactive Chart / Data Visualization (Sleek Canvas / SVG chart or bar graphs).
+     * Filterable data table with status badges (Active, Pending, Completed).
+   - For Booking / Reservation:
+     * High-impact hero with service highlights.
+     * Working service selector with realistic prices in IDR (Rp).
+     * Interactive date selector & time slots (e.g. 09:00, 11:30, 14:00, 16:30, 19:00) with selectable states.
+     * Live summary box computing total price dynamically.
+     * Working booking confirmation modal with generated booking ID.
+   - For Landing Page / Service / Portfolio:
+     * Sticky navbar with logo and CTA.
+     * Hero with glowing background mesh, eyebrow badge, high-contrast headline, and dual CTAs.
+     * Bento Grid of key features.
+     * Interactive pricing toggle (Bulanan vs Tahunan with 20% discount).
+     * Testimonial quote cards with verified reviewer badges.
+     * Interactive inquiry form & FAQ accordion.
 
-4. OUTPUT FORMAT:
+4. RICH VANILLA JAVASCRIPT INTERACTIVITY:
+   - Place all JavaScript inside a <script> tag at the bottom of <body>:
+     * Interactive tabs or filter toggles (active states update smoothly).
+     * Working booking / cart / inquiry selection with live summary updates.
+     * Functional modals (e.g., detail modal, booking modal, checkout modal) that open and close smoothly via backdrop or button.
+     * Interactive form submission with validation, 500ms simulated processing spinner, and a beautiful confirmation toast banner.
+     * Smooth scrolling navigation.
+
+5. OUTPUT FORMAT:
    - Output ONLY the complete, valid <!DOCTYPE html> ... </html> code inside a single \`\`\`html ... \`\`\` block.
    - Include the marker <!-- AI_GENERATED_PROTOTYPE --> inside the <head>.
    - Do NOT include conversational explanations outside the code block.`;
