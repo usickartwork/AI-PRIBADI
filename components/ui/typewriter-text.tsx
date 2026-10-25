@@ -95,6 +95,7 @@ export function TypewriterText({
     setDisplayedText("");
     setIsTyping(true);
     let timeoutId: NodeJS.Timeout;
+    let rafId: number | null = null;
 
     // Helper to check if this instance is visible (not hidden by responsive classes like sm:hidden)
     const isVisible = () => {
@@ -134,6 +135,7 @@ export function TypewriterText({
 
     const scheduleNextChar = (currentIdx: number) => {
       if (currentIdx >= text.length) {
+        if (rafId) cancelAnimationFrame(rafId);
         setIsTyping(false);
         emitCursorCoord(1, false);
         onComplete?.();
@@ -146,10 +148,13 @@ export function TypewriterText({
       timeoutId = setTimeout(() => {
         setDisplayedText(text.slice(0, nextIdx));
 
-        // Sync with browser paint so cursor rect is freshly updated
-        requestAnimationFrame(() => {
-          emitCursorCoord(nextIdx / text.length, true);
-        });
+        // Sync with browser paint only while typing is still active
+        if (nextIdx < text.length) {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = requestAnimationFrame(() => {
+            emitCursorCoord(nextIdx / text.length, true);
+          });
+        }
 
         scheduleNextChar(nextIdx);
       }, nextDelay);
@@ -157,7 +162,8 @@ export function TypewriterText({
 
     const startTimeout = setTimeout(() => {
       // Look at cursor start position
-      requestAnimationFrame(() => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
         emitCursorCoord(0, true);
       });
       scheduleNextChar(0);
@@ -166,6 +172,7 @@ export function TypewriterText({
     return () => {
       clearTimeout(startTimeout);
       clearTimeout(timeoutId);
+      if (rafId) cancelAnimationFrame(rafId);
       emitCursorCoord(1, false);
     };
   }, [text, speed, delay, enabled, onComplete]);

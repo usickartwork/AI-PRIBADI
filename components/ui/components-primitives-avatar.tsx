@@ -311,7 +311,6 @@ export function Avatar({
     let lastInteraction = Date.now();
     let animId: number;
     let isTrackingTypewriter = false;
-    let finishTimeout: NodeJS.Timeout | null = null;
 
     const handlePointerCoord = (clientX: number, clientY: number) => {
       lastInteraction = Date.now();
@@ -378,14 +377,8 @@ export function Avatar({
       const detail = customEvent.detail;
       if (!detail) return;
 
-      if (finishTimeout) {
-        clearTimeout(finishTimeout);
-        finishTimeout = null;
-      }
-
       if (detail.active) {
         isTrackingTypewriter = true;
-        lastInteraction = Date.now() + 10000;
 
         if (!avatarRef.current) return;
         const rect = avatarRef.current.getBoundingClientRect();
@@ -404,15 +397,11 @@ export function Avatar({
         targetX = horizontalSpan * limits.maxX * 0.88;
         targetY = limits.maxY * 0.82;
       } else {
-        // Typing finished: linger for 700ms looking at the completed text, then return to center
-        finishTimeout = setTimeout(() => {
-          targetX = 0;
-          targetY = 0;
-          finishTimeout = setTimeout(() => {
-            isTrackingTypewriter = false;
-            lastInteraction = Date.now();
-          }, 350);
-        }, 700);
+        // Typing finished: langsung kembali ke posisi semula (tengah), idle & mouse tracking aktif kembali
+        isTrackingTypewriter = false;
+        targetX = 0;
+        targetY = 0;
+        lastInteraction = Date.now();
       }
     };
 
@@ -462,7 +451,6 @@ export function Avatar({
       window.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("mouseleave", onMouseLeave);
       window.removeEventListener("avatar-eye-track", onEyeTrack as EventListener);
-      if (finishTimeout) clearTimeout(finishTimeout);
       clearInterval(idleInterval);
       cancelAnimationFrame(animId);
     };
