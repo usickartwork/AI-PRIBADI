@@ -5535,21 +5535,6 @@ export function MusicWorkspace({
                           Live
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSubTab("radio");
-                          setSelectedLocalPlaylist(null);
-                          setIsViewingLiked(false);
-                          setSelectedArtist(null);
-                          setSelectedAlbum(null);
-                        }}
-                        className={`text-xs font-semibold hover:underline transition cursor-pointer ${
-                          isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                        }`}
-                      >
-                        Lihat Semua ({POPULAR_RADIO_STATIONS.length}) →
-                      </button>
                     </div>
 
                     {/* Quick Radio Station Cards Grid (2 cols mobile, 3 cols desktop) */}

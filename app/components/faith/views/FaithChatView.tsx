@@ -19,7 +19,6 @@ import {
   generateTitleFromMessage,
 } from '@/lib/faith/chat/storage';
 import {
-  Square,
   Sparkles,
   RotateCcw,
   Copy,
@@ -1129,10 +1128,13 @@ export default function FaithHubHomePage() {
                   type="button"
                   onClick={handleStopGeneration}
                   aria-label="Stop generation"
-                  className="w-8 h-8 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center transition flex-shrink-0 cursor-pointer shadow-xs mb-0.5"
+                  className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15 flex items-center justify-center transition flex-shrink-0 cursor-pointer shadow-xs mb-0.5"
                   title="Hentikan jawaban"
                 >
-                  <Square size={12} fill="currentColor" />
+                  <div
+                    className="w-3.5 h-3.5 bg-black dark:bg-white rounded-sm animate-spin transition duration-700"
+                    style={{ animationDuration: "3s" }}
+                  />
                 </button>
               ) : (
                 <button

@@ -1402,10 +1402,12 @@ export function ScheduleWorkspace({
               title="Kirim pesan jadwal (Enter)"
             >
               {isProcessing ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
+                <div
+                  className={`w-3.5 h-3.5 rounded-sm animate-spin transition duration-700 ${
+                    isDark ? "bg-black" : "bg-white"
+                  }`}
+                  style={{ animationDuration: "3s" }}
+                />
               ) : (
                 <svg className="w-4 h-4 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />

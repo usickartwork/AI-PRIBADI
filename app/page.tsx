@@ -3895,10 +3895,17 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleStop}
-                className="flex h-9.5 w-9.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white transition shadow-sm cursor-pointer"
+                className={`flex h-9.5 w-9.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? "bg-white/10 hover:bg-white/15 text-white"
+                    : "bg-black/5 hover:bg-black/10 text-black"
+                }`}
                 title="Hentikan respons"
               >
-                <div className="h-3 w-3 sm:h-2.5 sm:w-2.5 bg-white rounded-sm" />
+                <div
+                  className="w-4 h-4 bg-black dark:bg-white rounded-sm animate-spin transition duration-700"
+                  style={{ animationDuration: "3s" }}
+                />
               </button>
             ) : input.trim() || selectedImage || selectedFile ? (
               <button
