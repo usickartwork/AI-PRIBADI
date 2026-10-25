@@ -44,9 +44,10 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
-      <div className="relative w-full max-w-2xl h-28 sm:h-36 flex items-center justify-center px-4 -translate-y-2 sm:-translate-y-3">
+      <div className="relative w-full max-w-2xl h-28 sm:h-36 flex items-center justify-center px-4 -translate-y-2 sm:-translate-y-3 font-[family-name:var(--font-geist-sans)]">
         <TechText
           text="One Mind"
+          fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
           fontWeight={700}
           fontSize={120}
           color="#ffffff"

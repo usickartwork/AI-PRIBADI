@@ -4464,9 +4464,10 @@ export default function Home() {
             isDark ? "border-zinc-800" : "border-zinc-100"
           }`}>
             <div className="flex items-center">
-              <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center">
+              <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
                 <TechText
                   text="One Mind"
+                  fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
                   fontWeight={700}
                   fontSize={28}
                   letterSpacing={-0.03}

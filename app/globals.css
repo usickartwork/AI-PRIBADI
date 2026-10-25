@@ -38,6 +38,7 @@
   --color-muted: var(--muted);
   --font-sans: var(--font-satoshi), 'Satoshi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-geist: var(--font-geist-sans);
 }
 
 * {
