@@ -5300,7 +5300,7 @@ export default function Home() {
                       {mobileGreetingTitle}
                     </h1>
                     <p className={`mt-1.5 mb-2 text-sm font-medium max-w-md px-2 mx-auto select-none min-h-[2.25rem] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                      <TypewriterText text={mobileGreetingSubtitle} speed={36} delay={250} />
+                      <TypewriterText text={mobileGreetingSubtitle} speed={36} delay={800} enabled={!isInitializing} />
                     </p>
                   </div>
 
@@ -5310,7 +5310,7 @@ export default function Home() {
                       {desktopHero.title}
                     </h1>
                     <p className={`mt-1.5 mb-2 sm:text-base font-medium max-w-md px-2 mx-auto select-none min-h-[1.75rem] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                      <TypewriterText text={desktopHero.subtitle} speed={36} delay={250} />
+                      <TypewriterText text={desktopHero.subtitle} speed={36} delay={800} enabled={!isInitializing} />
                     </p>
                   </div>
                 </div>
