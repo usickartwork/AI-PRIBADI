@@ -7,6 +7,7 @@ import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
 import { TypewriterText } from "@/components/ui/typewriter-text";
+import { SparklesIcon } from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
@@ -5282,15 +5283,12 @@ export default function Home() {
               return (
                 <div className="flex flex-col items-center justify-center text-center select-none animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-4 sm:translate-y-8 md:translate-y-10">
                   
-                  {/* Usick One Animated Avatar Icon (Pure White in Dark Mode, Obsidian in Light Mode) */}
+                  {/* Heroicon: SparklesIcon (24/solid) */}
                   <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center select-none pointer-events-auto">
-                    <Avatar
-                      size="md"
-                      shape="circle"
-                      blinking={true}
-                      isDark={isDark}
-                      color="theme"
-                      className="hover:scale-105 transition-transform select-none"
+                    <SparklesIcon
+                      className={`w-10 h-10 sm:w-12 sm:h-12 transition-transform hover:scale-110 duration-200 select-none ${
+                        isDark ? "text-white fill-white" : "text-zinc-900 fill-zinc-900"
+                      }`}
                     />
                   </div>
 
