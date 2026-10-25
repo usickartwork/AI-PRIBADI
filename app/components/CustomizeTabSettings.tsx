@@ -3,6 +3,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import {
+  ChatBubbleBottomCenterTextIcon,
+  CodeBracketIcon,
+  CalendarDaysIcon,
+  PhotoIcon,
+  ChatBubbleLeftRightIcon,
+  MusicalNoteIcon,
+  ExclamationTriangleIcon,
+  PuzzlePieceIcon,
+  EllipsisHorizontalIcon,
+} from "@heroicons/react/24/solid";
+import {
   ArrowDown,
   ArrowUp,
   ArrowUpRight,
@@ -40,107 +51,29 @@ export function NavSlotIcon({
 }) {
   switch (slotId) {
     case "chat":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-          />
-        </svg>
-      );
+      return <ChatBubbleBottomCenterTextIcon className={className} />;
     case "code":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-          />
-        </svg>
-      );
+      return <CodeBracketIcon className={className} />;
     case "schedule":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
-      );
+      return <CalendarDaysIcon className={className} />;
     case "image":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
-      );
+      return <PhotoIcon className={className} />;
     case "messages":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
-          />
-        </svg>
-      );
+      return <ChatBubbleLeftRightIcon className={className} />;
     case "music":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018"
-          />
-        </svg>
-      );
+      return <MusicalNoteIcon className={className} />;
     case "emergency":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-      );
+      return <ExclamationTriangleIcon className={className} />;
     case "game":
-      return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01"
-          />
-        </svg>
-      );
+      return <PuzzlePieceIcon className={className} />;
     case "faith":
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3v18M7 8h10" />
         </svg>
       );
     case "lainnya":
-      return (
-        <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-          <circle cx="5" cy="12" r="2" />
-          <circle cx="12" cy="12" r="2" />
-          <circle cx="19" cy="12" r="2" />
-        </svg>
-      );
+      return <EllipsisHorizontalIcon className={className} />;
   }
 }
 

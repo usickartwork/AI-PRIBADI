@@ -7,6 +7,20 @@ import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
 import { TypewriterText } from "@/components/ui/typewriter-text";
+import {
+  ChatBubbleBottomCenterTextIcon,
+  CodeBracketIcon,
+  CalendarDaysIcon,
+  PhotoIcon,
+  ChatBubbleLeftRightIcon,
+  MusicalNoteIcon,
+  ExclamationTriangleIcon,
+  PuzzlePieceIcon,
+  EllipsisHorizontalIcon,
+  MagnifyingGlassIcon,
+  Cog6ToothIcon,
+  BookOpenIcon,
+} from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
@@ -4033,67 +4047,29 @@ export default function Home() {
   const renderSidebarSlotIcon = (slotId: MainNavSlotId, className: string) => {
     switch (slotId) {
       case "chat":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-        );
+        return <ChatBubbleBottomCenterTextIcon className={className} />;
       case "code":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-          </svg>
-        );
+        return <CodeBracketIcon className={className} />;
       case "schedule":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        );
+        return <CalendarDaysIcon className={className} />;
       case "image":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        );
+        return <PhotoIcon className={className} />;
       case "messages":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-          </svg>
-        );
+        return <ChatBubbleLeftRightIcon className={className} />;
       case "music":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018M21 16c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2c.968 0 1.815.395 2.378 1.018" />
-          </svg>
-        );
+        return <MusicalNoteIcon className={className} />;
       case "emergency":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        );
+        return <ExclamationTriangleIcon className={className} />;
       case "game":
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6H9a7 7 0 00-7 7v1a3 3 0 003 3h1.5a1.5 1.5 0 001.5-1.5V14a1 1 0 011-1h2a1 1 0 011 1v1.5a1.5 1.5 0 001.5 1.5H19a3 3 0 003-3v-1a7 7 0 00-7-7zM6 11h2m-1-1v2m8-1h.01m2.99 0h.01" />
-          </svg>
-        );
+        return <PuzzlePieceIcon className={className} />;
       case "faith":
         return (
           <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 3v18M7 8h10" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 3v18M7 8h10" />
           </svg>
         );
       case "lainnya":
-        return (
-          <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="5" cy="12" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="19" cy="12" r="2" />
-          </svg>
-        );
+        return <EllipsisHorizontalIcon className={className} />;
     }
   };
 
@@ -4525,9 +4501,7 @@ export default function Home() {
               title="Cari riwayat chat (Search chats)"
               aria-label="Cari riwayat chat"
             >
-              <svg className="w-5.5 h-5.5 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <MagnifyingGlassIcon className="w-5.5 h-5.5 md:w-5 md:h-5" />
             </button>
           </div>
 
@@ -4707,9 +4681,7 @@ export default function Home() {
                   : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
               }`}
             >
-              <svg className="w-5 h-5 md:w-5 md:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+              <BookOpenIcon className="w-5 h-5 md:w-5 md:h-5 shrink-0" />
               <span>Catatan</span>
             </div>
           </div>
@@ -4960,25 +4932,7 @@ export default function Home() {
                     isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-black"
                   }`}
                 >
-                  <svg
-                    className="w-5.5 h-5.5 md:w-4.5 md:h-4.5 transition-transform duration-300 group-hover:rotate-45"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M12 15a3 3 0 100-6 3 3 0 000 6z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
-                    />
-                  </svg>
+                  <Cog6ToothIcon className="w-5.5 h-5.5 md:w-4.5 md:h-4.5 transition-transform duration-300 group-hover:rotate-45" />
                 </button>
               </div>
             </div>
