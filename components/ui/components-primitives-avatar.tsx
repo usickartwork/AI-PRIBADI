@@ -310,6 +310,8 @@ export function Avatar({
     let currentY = 0;
     let lastInteraction = Date.now();
     let animId: number;
+    let isTrackingTypewriter = false;
+    let finishTimeout: NodeJS.Timeout | null = null;
 
     const handlePointerCoord = (clientX: number, clientY: number) => {
       lastInteraction = Date.now();
@@ -336,28 +338,82 @@ export function Avatar({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (isTrackingTypewriter) return;
       handlePointerCoord(e.clientX, e.clientY);
     };
 
     const onPointerDown = (e: PointerEvent) => {
+      if (isTrackingTypewriter) return;
       handlePointerCoord(e.clientX, e.clientY);
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      if (isTrackingTypewriter) return;
       if (e.touches && e.touches.length > 0) {
         handlePointerCoord(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      if (isTrackingTypewriter) return;
       if (e.touches && e.touches.length > 0) {
         handlePointerCoord(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
     const onMouseLeave = () => {
+      if (isTrackingTypewriter) return;
       targetX = 0;
       targetY = 0;
+    };
+
+    // Follow typewriter text animation
+    const onEyeTrack = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        x?: number;
+        y?: number;
+        progress?: number;
+        active: boolean;
+      }>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+
+      if (finishTimeout) {
+        clearTimeout(finishTimeout);
+        finishTimeout = null;
+      }
+
+      if (detail.active) {
+        isTrackingTypewriter = true;
+        lastInteraction = Date.now() + 10000;
+
+        if (!avatarRef.current) return;
+        const rect = avatarRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+
+        let horizontalSpan = 0;
+        if (typeof detail.x === "number" && rect.width > 0) {
+          const dx = detail.x - centerX;
+          // Subtitle width is approx 280px-340px; clamp to [-1, 1]
+          horizontalSpan = Math.max(-1, Math.min(1, dx / 140));
+        } else if (typeof detail.progress === "number") {
+          horizontalSpan = Math.max(-1, Math.min(1, (detail.progress - 0.5) * 2));
+        }
+
+        // Eyes clearly look down at the text and track left-to-right as it types
+        targetX = horizontalSpan * limits.maxX * 0.88;
+        targetY = limits.maxY * 0.82;
+      } else {
+        // Typing finished: linger for 700ms looking at the completed text, then return to center
+        finishTimeout = setTimeout(() => {
+          targetX = 0;
+          targetY = 0;
+          finishTimeout = setTimeout(() => {
+            isTrackingTypewriter = false;
+            lastInteraction = Date.now();
+          }, 350);
+        }, 700);
+      }
     };
 
     window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -365,9 +421,11 @@ export function Avatar({
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     document.addEventListener("mouseleave", onMouseLeave, { passive: true });
+    window.addEventListener("avatar-eye-track", onEyeTrack as EventListener);
 
     // Idle look-around interval
     const idleInterval = setInterval(() => {
+      if (isTrackingTypewriter) return;
       // If user recently interacted (within 2.2s), skip idle movement
       if (Date.now() - lastInteraction < 2200) return;
 
@@ -385,8 +443,8 @@ export function Avatar({
 
     // Animation frame loop with smooth lerping
     const loop = () => {
-      currentX += (targetX - currentX) * 0.12;
-      currentY += (targetY - currentY) * 0.12;
+      currentX += (targetX - currentX) * 0.14;
+      currentY += (targetY - currentY) * 0.14;
 
       if (eyesRef.current) {
         eyesRef.current.style.transform = `translate3d(${currentX.toFixed(2)}px, ${currentY.toFixed(2)}px, 0)`;
@@ -403,6 +461,8 @@ export function Avatar({
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("mouseleave", onMouseLeave);
+      window.removeEventListener("avatar-eye-track", onEyeTrack as EventListener);
+      if (finishTimeout) clearTimeout(finishTimeout);
       clearInterval(idleInterval);
       cancelAnimationFrame(animId);
     };
