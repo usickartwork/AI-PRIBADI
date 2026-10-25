@@ -157,7 +157,17 @@ export const TechText: React.FC<TechTextProps> = ({
       wakeRef.current();
     };
 
-    const family = (s: any) => s.fontFamily || getComputedStyle(container).fontFamily || "sans-serif";
+    const family = (s: any) => {
+      let f = s.fontFamily || "";
+      if (f && f.includes("var(")) {
+        try {
+          f = f.replace(/var\((--[^,\)]+)(?:,[^)]+)?\)/g, (_: string, varName: string) => {
+            return getComputedStyle(container).getPropertyValue(varName).trim() || "";
+          });
+        } catch {}
+      }
+      return f || getComputedStyle(container).fontFamily || "sans-serif";
+    };
     const fontFor = (s: any, size: number) => `${s.fontWeight} ${size}px ${family(s)}`;
 
     const setFont = (target: any, s: any, size: number) => {
