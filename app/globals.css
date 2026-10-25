@@ -235,42 +235,59 @@ textarea:focus {
 }
 
 .liquid-glass {
-  backdrop-filter: blur(16px) saturate(135%);
-  -webkit-backdrop-filter: blur(16px) saturate(135%);
-  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 
-    0 12px 32px -8px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    0 20px 48px -12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
 }
 
 .dark .liquid-glass {
-  background: rgba(24, 24, 28, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(24, 24, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 
-    0 16px 36px -8px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-    0 1px 2px 0 rgba(255, 255, 255, 0.12) inset;
+    0 24px 50px -12px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.07) inset,
+    0 1px 2px 0 rgba(255, 255, 255, 0.18) inset;
 }
 
-/* ─── Elevated Clean Border for Chat & Input Boxes ─── */
+/* ─── Glowing Border Beam Effect for Chat & Input Boxes ─── */
+@property --pb-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .prompt-bar-glow {
-  background: rgba(0, 0, 0, 0.06);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.prompt-bar-glow:focus-within {
-  background: rgba(0, 0, 0, 0.15);
-  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.12);
+  --pb-angle: 0deg;
+  background-image:
+    conic-gradient(from var(--pb-angle),
+      transparent 0deg, transparent 290deg,
+      rgba(0, 0, 0, 0.2) 305deg,
+      #111111 325deg,
+      rgba(0, 0, 0, 0.2) 345deg,
+      transparent 355deg, transparent 360deg);
+  animation: pb-rotate 6s linear infinite;
 }
 
 .dark .prompt-bar-glow {
-  background: rgba(255, 255, 255, 0.08);
+  --pb-angle: 0deg;
+  background-image:
+    conic-gradient(from var(--pb-angle),
+      transparent 0deg, transparent 290deg,
+      #1a1a1a 305deg,
+      #ffffff 325deg,
+      #1a1a1a 345deg,
+      transparent 355deg, transparent 360deg);
+  animation: pb-rotate 6s linear infinite;
 }
 
-.dark .prompt-bar-glow:focus-within {
-  background: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.6);
+@keyframes pb-rotate {
+  to {
+    --pb-angle: 360deg;
+  }
 }
 
 /* ─── Faith Hub Native Utilities & Animations ────────────────────────────── */
@@ -402,18 +419,18 @@ textarea:focus {
   overflow-wrap: break-word;
 }
 
-/* Seleksi teks notebook selaras dengan tema sistem */
+/* Seleksi teks kontras tinggi (High-Contrast Selection) agar terlihat sangat jelas saat diblok */
 .notebook-canvas-editor ::selection,
 .notebook-canvas-editor::selection,
 .notebook-title-input::selection {
-  background-color: rgba(255, 255, 255, 0.22) !important;
+  background-color: #52525b !important; /* Zinc 600 terang pada Dark Mode */
   color: #ffffff !important;
 }
 
 :root:not(.dark) .notebook-canvas-editor ::selection,
 :root:not(.dark) .notebook-canvas-editor::selection,
 :root:not(.dark) .notebook-title-input::selection {
-  background-color: rgba(0, 0, 0, 0.12) !important;
+  background-color: #d4d4d8 !important; /* Zinc 300 kontras pada Light Mode */
   color: #09090b !important;
 }
 
