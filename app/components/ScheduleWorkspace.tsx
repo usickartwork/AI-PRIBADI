@@ -96,8 +96,6 @@ export function ScheduleWorkspace({
     }
     return 15;
   });
-  const [showReminderPicker, setShowReminderPicker] = useState(false);
-  const reminderPickerRef = useRef<HTMLDivElement>(null);
 
   const updateDefaultReminder = (minutes: number) => {
     setDefaultReminder(minutes);
@@ -144,18 +142,6 @@ export function ScheduleWorkspace({
 
   // Email pengingat otomatis langsung menggunakan email akun login pengguna
   const activeEmail = (user?.email || "usick.artwork@gmail.com").trim();
-
-  // Click outside listener untuk reminder picker
-  useEffect(() => {
-    if (!showReminderPicker) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (reminderPickerRef.current && !reminderPickerRef.current.contains(e.target as Node)) {
-        setShowReminderPicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showReminderPicker]);
 
   // Otomatis sinkronkan izin notifikasi saat komponen dimuat
   useEffect(() => {
@@ -413,9 +399,26 @@ export function ScheduleWorkspace({
 
       if (schedule.status !== "upcoming") continue;
 
-      // Trigger jika sudah melewati waktu pengingat dan belum melewati batas toleransi akhir acara (2 jam)
-      const gracePeriodEnd = new Date(eventEndTime.getTime() + 2 * 60 * 60 * 1000);
-      if (now >= reminderTime && now <= gracePeriodEnd && schedule.reminder_status !== "sent") {
+      const createdAt = schedule.created_at ? new Date(schedule.created_at).getTime() : 0;
+      // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal jadwal dibuat 2 menit sebelum acara, tapi reminder 15m),
+      // maka jangan picu alarm/notif pra-acara karena momen 15 menit tersebut sudah berlalu sebelum jadwal ada!
+      const isCreatedAfterReminder = createdAt > 0 && reminderTime.getTime() < (createdAt - 30 * 1000);
+      if (isCreatedAfterReminder) {
+        continue;
+      }
+
+      // Pre-event reminder (reminderMinutes > 0) hanya boleh terpicu SEBELUM acara dimulai!
+      if (reminderMinutes > 0 && now >= scheduleDate) {
+        continue;
+      }
+
+      // Untuk reminder tepat saat mulai (reminderMinutes === 0), batas toleransi pemicuan maksimal 15 menit setelah waktu mulai
+      if (reminderMinutes === 0 && now.getTime() > scheduleDate.getTime() + 15 * 60 * 1000) {
+        continue;
+      }
+
+      // Trigger jika sudah mencapai waktu pengingat dan belum dikirim
+      if (now >= reminderTime && schedule.reminder_status !== "sent" && schedule.reminder_status !== "skipped") {
         if (!notifiedIdsRef.current.has(schedule.id)) {
           notifiedIdsRef.current.add(schedule.id);
 
@@ -492,29 +495,46 @@ export function ScheduleWorkspace({
     }
 
     // 2. Server-Side Email Sync & Worker Trigger
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/schedules/remind", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          userId,
-          userEmail: activeEmail,
-          activeSchedules: currentItems,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.success && Array.isArray(json.sentScheduleIds) && json.sentScheduleIds.length > 0) {
-        const sentSet = new Set(json.sentScheduleIds);
-        setSchedules((prev) =>
-          prev.map((s) =>
-            sentSet.has(s.id) ? { ...s, reminder_status: "sent" as ReminderStatus } : s
-          )
-        );
+    // Filter HANYA jadwal yang benar-benar jatuh tempo saat ini, bukan yang sudah lewat atau belum waktunya
+    const eligibleForEmail = currentItems.filter((s) => {
+      if (s.status !== "upcoming" || s.reminder_status === "sent" || s.reminder_status === "skipped") {
+        return false;
       }
-    } catch (err) {
-      console.warn("[remind] background check error:", err);
+      const sDate = parseScheduleDateTime(s.date, s.time, s.timezone || tz);
+      const rMin = s.reminder_minutes ?? 15;
+      const rTime = new Date(sDate.getTime() - rMin * 60 * 1000);
+      const cAt = s.created_at ? new Date(s.created_at).getTime() : 0;
+      if (cAt > 0 && rTime.getTime() < (cAt - 30 * 1000)) return false;
+      if (rMin > 0 && now >= sDate) return false;
+      if (rMin === 0 && now.getTime() > sDate.getTime() + 15 * 60 * 1000) return false;
+      return now >= rTime;
+    });
+
+    if (eligibleForEmail.length > 0) {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch("/api/schedules/remind", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            userId,
+            userEmail: activeEmail,
+            activeSchedules: eligibleForEmail,
+          }),
+        });
+
+        const json = await res.json();
+        if (json.success && Array.isArray(json.sentScheduleIds) && json.sentScheduleIds.length > 0) {
+          const sentSet = new Set(json.sentScheduleIds);
+          setSchedules((prev) =>
+            prev.map((s) =>
+              sentSet.has(s.id) ? { ...s, reminder_status: "sent" as ReminderStatus } : s
+            )
+          );
+        }
+      } catch (err) {
+        console.warn("[remind] background check error:", err);
+      }
     }
   };
 
@@ -708,14 +728,25 @@ export function ScheduleWorkspace({
         const targetId = revisingSchedule?.id || parsed.targetScheduleId || lastActiveScheduleId;
         const target = targetId ? schedules.find((s) => s.id === targetId) : null;
         if (target) {
+          const targetDate = parsed.date || target.date;
+          const targetTime = parsed.time || target.time;
+          const targetTz = target.timezone || "Asia/Jakarta";
+          const scheduleDateObj = parseScheduleDateTime(targetDate, targetTime, targetTz);
+          const msUntilEvent = scheduleDateObj.getTime() - Date.now();
+
+          let revisedReminder = parsed.reminder !== undefined ? parsed.reminder : (target.reminder_minutes ?? defaultReminder);
+          if (revisedReminder > 0 && msUntilEvent > 0 && msUntilEvent < revisedReminder * 60 * 1000) {
+            revisedReminder = 0;
+          }
+
           const updatedItem: ScheduleItem = {
             ...target,
             title: parsed.title || target.title,
-            date: parsed.date || target.date,
-            time: parsed.time || target.time,
+            date: targetDate,
+            time: targetTime,
             description: parsed.description !== undefined ? parsed.description : target.description,
             duration_minutes: parsed.duration || target.duration_minutes,
-            reminder_minutes: parsed.reminder !== undefined ? parsed.reminder : (target.reminder_minutes ?? defaultReminder),
+            reminder_minutes: revisedReminder,
             recurrence: parsed.recurrence || target.recurrence,
             reminder_status: "pending" as ReminderStatus,
             updated_at: new Date().toISOString(),
@@ -815,16 +846,29 @@ export function ScheduleWorkspace({
         setCurrentPendingDraft(null);
         setRevisingSchedule(null);
 
+        const targetDate = parsed.date || getTodayDateString();
+        const targetTime = parsed.time || "09:00";
+        const targetTz = parsed.timezone || "Asia/Jakarta";
+        const scheduleDateObj = parseScheduleDateTime(targetDate, targetTime, targetTz);
+        const msUntilEvent = scheduleDateObj.getTime() - Date.now();
+
+        let effectiveReminder = parsed.reminder ?? defaultReminder;
+        // Jika acara dimulai lebih cepat daripada waktu pengingat (misal acara 2 menit lagi tapi pengingat 15 menit),
+        // otomatis sesuaikan ke 0 (Tepat saat dimulai) agar pengguna tidak menerima pengingat instan yang sudah lewat sebelum dibuat
+        if (effectiveReminder > 0 && msUntilEvent > 0 && msUntilEvent < effectiveReminder * 60 * 1000) {
+          effectiveReminder = 0;
+        }
+
         const payload = {
           user_id: userId,
           title: parsed.title || "Jadwal Baru",
           description: parsed.description || "",
-          date: parsed.date || getTodayDateString(),
-          time: parsed.time || "09:00",
+          date: targetDate,
+          time: targetTime,
           duration_minutes: parsed.duration || 60,
-          reminder_minutes: parsed.reminder ?? defaultReminder,
+          reminder_minutes: effectiveReminder,
           recurrence: parsed.recurrence || "once",
-          timezone: parsed.timezone || "Asia/Jakarta",
+          timezone: targetTz,
           status: "upcoming" as ScheduleStatus,
           reminder_status: "pending" as ReminderStatus,
           user_email: activeEmail || undefined,
@@ -895,16 +939,27 @@ export function ScheduleWorkspace({
 
   // ─── Konfirmasi Schedule dari Kartu Chat ─────────────────────────────────────
   const handleConfirmInlineSchedule = async (messageId: string, parsed: ParsedScheduleAI) => {
+    const targetDate = parsed.date || getTodayDateString();
+    const targetTime = parsed.time || "09:00";
+    const targetTz = parsed.timezone || "Asia/Jakarta";
+    const scheduleDateObj = parseScheduleDateTime(targetDate, targetTime, targetTz);
+    const msUntilEvent = scheduleDateObj.getTime() - Date.now();
+
+    let effectiveReminder = parsed.reminder ?? defaultReminder;
+    if (effectiveReminder > 0 && msUntilEvent > 0 && msUntilEvent < effectiveReminder * 60 * 1000) {
+      effectiveReminder = 0;
+    }
+
     const payload = {
       user_id: userId,
       title: parsed.title,
       description: parsed.description || "",
-      date: parsed.date || getTodayDateString(),
-      time: parsed.time || "09:00",
+      date: targetDate,
+      time: targetTime,
       duration_minutes: parsed.duration || 60,
-      reminder_minutes: parsed.reminder ?? defaultReminder,
+      reminder_minutes: effectiveReminder,
       recurrence: parsed.recurrence || "once",
-      timezone: parsed.timezone || "Asia/Jakarta",
+      timezone: targetTz,
       status: "upcoming" as ScheduleStatus,
       reminder_status: "pending" as ReminderStatus,
       user_email: activeEmail || undefined,
@@ -1047,6 +1102,13 @@ export function ScheduleWorkspace({
       // Simpan preferensi reminder pengguna sebagai default baru
       updateDefaultReminder(Number(formReminder));
 
+      const scheduleDateObj = parseScheduleDateTime(formDate, formTime, "Asia/Jakarta");
+      const msUntilEvent = scheduleDateObj.getTime() - Date.now();
+      let effectiveReminder = Number(formReminder);
+      if (effectiveReminder > 0 && msUntilEvent > 0 && msUntilEvent < effectiveReminder * 60 * 1000) {
+        effectiveReminder = 0;
+      }
+
       const payload = {
         user_id: userId,
         title: formTitle.trim(),
@@ -1054,7 +1116,7 @@ export function ScheduleWorkspace({
         date: formDate,
         time: formTime,
         duration_minutes: Number(formDuration),
-        reminder_minutes: Number(formReminder),
+        reminder_minutes: effectiveReminder,
         recurrence: formRecurrence,
         timezone: "Asia/Jakarta",
         status: "upcoming" as ScheduleStatus,
@@ -1298,84 +1360,13 @@ export function ScheduleWorkspace({
 
         {/* Bottom Actions Row (Narrowed Vertically) */}
         <div className="flex items-center justify-between pt-1 gap-2">
-          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          <div className="flex items-center gap-1.5 min-w-0">
             <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
               isDark
                 ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
                 : "bg-zinc-100 text-zinc-600 border border-zinc-200"
             }`}>
               <span>Schedule Assistant</span>
-            </div>
-
-            {/* Default Reminder Setting Pill & Interactive Menu */}
-            <div className="relative" ref={reminderPickerRef}>
-              <button
-                type="button"
-                onClick={() => setShowReminderPicker((prev) => !prev)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                  isDark
-                    ? "bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 border border-zinc-700/50"
-                    : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200"
-                }`}
-                title="Klik untuk memilih default pengingat jadwal"
-              >
-                <svg className="w-3 h-3 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="truncate">Pengingat: {formatReminderText(defaultReminder)}</span>
-                <svg className={`w-2.5 h-2.5 transition-transform ${showReminderPicker ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Dropdown Popup */}
-              {showReminderPicker && (
-                <div
-                  className={`absolute bottom-full left-0 mb-2 w-56 rounded-2xl border p-1.5 shadow-xl z-50 animate-in fade-in-0 duration-150 backdrop-blur-md ${
-                    isDark
-                      ? "bg-zinc-900/95 border-zinc-700 text-zinc-200 shadow-black/60"
-                      : "bg-white/95 border-zinc-200 text-zinc-800 shadow-zinc-300/60"
-                  }`}
-                >
-                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-700/40 mb-1">
-                    Default Pengingat Acara
-                  </div>
-                  {[
-                    { val: 0, label: "Tepat saat dimulai" },
-                    { val: 5, label: "5 menit sebelumnya" },
-                    { val: 10, label: "10 menit sebelumnya" },
-                    { val: 15, label: "15 menit sebelumnya" },
-                    { val: 30, label: "30 menit sebelumnya" },
-                    { val: 60, label: "1 jam sebelumnya" },
-                    { val: 1440, label: "1 hari sebelumnya" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      onClick={() => {
-                        updateDefaultReminder(opt.val);
-                        setShowReminderPicker(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer text-left ${
-                        defaultReminder === opt.val
-                          ? isDark
-                            ? "bg-white text-black font-semibold"
-                            : "bg-black text-white font-semibold"
-                          : isDark
-                          ? "hover:bg-zinc-800 text-zinc-300"
-                          : "hover:bg-zinc-100 text-zinc-700"
-                      }`}
-                    >
-                      <span>{opt.label}</span>
-                      {defaultReminder === opt.val && (
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 

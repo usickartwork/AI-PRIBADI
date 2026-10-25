@@ -52,7 +52,7 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
   // 1. Tambahkan kandidat dari payload client (jika ada)
   if (Array.isArray(activeSchedules)) {
     for (const item of activeSchedules) {
-      if (item && item.status === "upcoming" && item.reminder_status !== "sent") {
+      if (item && item.status === "upcoming" && item.reminder_status !== "sent" && item.reminder_status !== "skipped") {
         candidates.push(item);
         candidateIds.add(item.id);
       }
@@ -81,7 +81,7 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
           .from("schedules")
           .select("*")
           .eq("status", "upcoming")
-          .neq("reminder_status", "sent");
+          .not("reminder_status", "in", '("sent","skipped")');
 
         if (userId) {
           query = query.eq("user_id", userId);
@@ -158,7 +158,31 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
       continue;
     }
 
-    // Cek apakah waktu saat ini sudah mencapai atau melewati waktu pengingat
+    const createdAt = schedule.created_at ? new Date(schedule.created_at).getTime() : 0;
+    // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal dibuat 2 menit sebelum acara tapi reminder 15m), lewati agar tidak memicu email instan!
+    if (createdAt > 0 && reminderTime.getTime() < (createdAt - 30 * 1000)) {
+      console.log(`[remind] Melewati jadwal ${schedule.id} (${schedule.title}) karena waktu reminder (${reminderTime.toISOString()}) sudah lewat sebelum jadwal dibuat (${new Date(createdAt).toISOString()}).`);
+      if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+        await client
+          .from("schedules")
+          .update({ reminder_status: "skipped", updated_at: new Date().toISOString() })
+          .eq("id", schedule.id);
+      }
+      continue;
+    }
+
+    // Pre-event reminder (reminderMinutes > 0) hanya dikirim SEBELUM acara dimulai!
+    if (reminderMinutes > 0 && now >= scheduleDate) {
+      console.log(`[remind] Melewati email pra-acara jadwal ${schedule.id} (${schedule.title}) karena acara sudah dimulai.`);
+      continue;
+    }
+
+    // Untuk reminder tepat saat mulai (reminderMinutes === 0), batas toleransi pemicuan maksimal 15 menit
+    if (reminderMinutes === 0 && now.getTime() > scheduleDate.getTime() + 15 * 60 * 1000) {
+      continue;
+    }
+
+    // Cek apakah waktu saat ini sudah mencapai waktu pengingat
     const isDue = now >= reminderTime;
     console.log(
       `[remind] Jadwal: "${schedule.title}" (${schedule.date} ${schedule.time}) | Reminder: ${reminderTime.toISOString()} | Now: ${now.toISOString()} | Due: ${isDue}`
