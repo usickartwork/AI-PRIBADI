@@ -1092,7 +1092,7 @@ export default function FaithHubHomePage() {
                 e.preventDefault();
                 handleSend();
               }}
-              className="bg-[#F2F2F4] dark:bg-[#18181D] border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-zinc-400 focus-within:bg-white dark:focus-within:bg-[#1F1F26] rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-colors shadow-2xs"
+              className="liquid-glass-chatbox bg-[#F2F2F4] dark:bg-[#18181D] border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-zinc-400 focus-within:bg-white dark:focus-within:bg-[#1F1F26] rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-colors shadow-2xs"
             >
               <button
                 type="button"

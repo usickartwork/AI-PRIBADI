@@ -337,7 +337,7 @@ const ChatInputBar = memo(function ChatInputBar({
           }}
           rows={1}
           placeholder="Tulis pesan..."
-          className={`flex-1 resize-none rounded-2xl px-4 py-2.5 text-base sm:text-sm outline-none transition max-h-32 ${inputCls}`}
+          className={`liquid-glass-chatbox-input flex-1 resize-none rounded-2xl px-4 py-2.5 text-base sm:text-sm outline-none transition max-h-32 ${inputCls}`}
           style={{ fieldSizing: "content" } as React.CSSProperties}
         />
         <button

@@ -3447,7 +3447,7 @@ export default function Home() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.94, y: 8 }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className={`absolute bottom-full left-0 mb-2.5 w-60 sm:w-64 rounded-2xl p-2 space-y-1 shadow-2xl backdrop-blur-2xl border z-40 origin-bottom-left ${
+                    className={`liquid-glass-popover absolute bottom-full left-0 mb-2.5 w-60 sm:w-64 rounded-2xl p-2 space-y-1 shadow-2xl backdrop-blur-2xl border z-40 origin-bottom-left ${
                       isDark
                         ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
                         : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
@@ -3566,7 +3566,7 @@ export default function Home() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.94, y: 8 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className={`fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 origin-bottom-left ${
+                    className={`liquid-glass-popover fixed inset-x-3 bottom-[76px] z-50 max-h-[50vh] rounded-2xl border p-2 overflow-y-auto sm:fixed-none sm:absolute sm:bottom-full sm:left-0 sm:inset-x-auto sm:mb-2 sm:w-80 sm:max-h-80 origin-bottom-left ${
                       isDark
                         ? "bg-[#18181c] border-zinc-800 text-zinc-200 shadow-2xl shadow-black/80"
                         : "bg-white border-zinc-200 text-black shadow-2xl"
@@ -3761,7 +3761,7 @@ export default function Home() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.94, y: 6 }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className={`fixed inset-x-3 bottom-[80px] z-50 rounded-2xl border p-3 shadow-2xl sm:fixed-none sm:absolute sm:bottom-full sm:left-[calc(100%+8px)] sm:inset-x-auto sm:mb-2 sm:w-80 origin-bottom-left ${
+                    className={`liquid-glass-popover fixed inset-x-3 bottom-[80px] z-50 rounded-2xl border p-3 shadow-2xl sm:fixed-none sm:absolute sm:bottom-full sm:left-[calc(100%+8px)] sm:inset-x-auto sm:mb-2 sm:w-80 origin-bottom-left ${
                       isDark
                         ? "bg-[#212121] border-zinc-800/90 text-zinc-100 shadow-black/80"
                         : "bg-white border-zinc-200 text-zinc-900 shadow-xl"
@@ -5239,7 +5239,7 @@ export default function Home() {
                     /* User Message: Tetap pakai bubble */
                     <div className="flex flex-col items-end gap-1 max-w-[85%] sm:max-w-[75%]">
                       <div
-                        className={`relative w-fit max-w-full rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
+                        className={`liquid-glass-user-bubble relative w-fit max-w-full rounded-[22px] px-4 py-2.5 sm:py-3 text-[14px] sm:text-[14.5px] ${
                           isDark
                             ? "bg-zinc-800 border border-zinc-700/80 text-white shadow-sm font-normal"
                             : "bg-zinc-900 border border-zinc-800 text-white shadow-sm font-normal"
