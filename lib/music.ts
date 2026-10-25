@@ -319,6 +319,19 @@ export function getCanonicalTrackKey(
   return track.id || "unknown::track";
 }
 
+export function isSameMusicTrack(
+  a: Pick<MusicItem, "id" | "title" | "artistNames"> & { canonicalKey?: string },
+  b: Pick<MusicItem, "id" | "title" | "artistNames"> & { canonicalKey?: string }
+): boolean {
+  if (a.id && b.id && a.id === b.id) return true;
+  if (a.id?.startsWith("radio:") || b.id?.startsWith("radio:")) {
+    return a.id === b.id;
+  }
+  const keyA = getCanonicalTrackKey(a);
+  const keyB = getCanonicalTrackKey(b);
+  return Boolean(keyA && keyB && !keyA.startsWith("unknown::") && keyA === keyB);
+}
+
 export function parseReleaseYear(releaseDate: string | undefined | null): number | undefined {
   if (!releaseDate || typeof releaseDate !== "string") return undefined;
   const match = releaseDate.trim().match(/^(\d{4})/);

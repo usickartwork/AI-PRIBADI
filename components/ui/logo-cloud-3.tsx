@@ -2,6 +2,7 @@
 
 import React from "react";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
+import { BrainLogo } from "@/components/ui/brain-logo";
 import { cn } from "@/lib/utils";
 
 export type LLMModel = {
@@ -99,11 +100,7 @@ export const LLM_MODELS: LLMModel[] = [
   {
     id: "usick",
     name: "Usick One",
-    icon: (
-      <svg className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 fill-current" viewBox="0 0 24 24">
-        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-      </svg>
-    ),
+    icon: <BrainLogo className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />,
   },
 ];
 

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { TechText } from "./TechText";
 import { LogoCloud } from "@/components/ui/logo-cloud-3";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 export type AppInitStatus = "initializing" | "ready" | "error";
 
@@ -69,134 +70,24 @@ export function IntroLoader({ state }: IntroLoaderProps) {
 }
 
 /**
- * Original Living Star Logo (Preserved so it can be restored anytime if requested)
+ * Official Brain Logo with Living Aura (Updated from legacy star logo)
  */
 export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
   return (
     <div className="relative flex items-center justify-center animate-usick-star-entrance">
-      {/* Concentric Energy Pulse Wave 1 */}
-      <svg
-        className={`absolute w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 pointer-events-none animate-usick-energy-wave ${
-          isDark ? "text-white/40" : "text-black/25"
-        }`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="0.8"
-      >
-        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-      </svg>
-
-      {/* Concentric Energy Pulse Wave 2 (Phase Delayed) */}
-      <svg
-        className={`absolute w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 pointer-events-none animate-usick-energy-wave-delayed ${
-          isDark ? "text-white/30" : "text-black/20"
-        }`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="0.8"
-      >
-        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-      </svg>
-
-      {/* Soft Radiant Atmospheric Glow Aura */}
-      <svg
+      <BrainLogo
         className={`absolute w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 pointer-events-none animate-usick-star-aura transition-all duration-700 ${
-          isDark ? "text-white/50" : "text-black/15"
+          isDark ? "text-white/25" : "text-black/15"
         }`}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-      </svg>
-
-      {/* The Main Organic Living Star */}
+      />
       <div className="relative z-10 animate-usick-star-living">
-        <svg
+        <BrainLogo
           className={`w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 transition-transform duration-300 ${
             isDark
-              ? "drop-shadow-[0_0_24px_rgba(255,255,255,0.45)]"
-              : "drop-shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
+              ? "text-white drop-shadow-[0_0_24px_rgba(255,255,255,0.45)]"
+              : "text-black drop-shadow-[0_8px_20px_rgba(0,0,0,0.18)]"
           }`}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="usickStarDark" x1="15%" y1="0%" x2="85%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="45%" stopColor="#ffffff" />
-              <stop offset="75%" stopColor="#e4e4e7" />
-              <stop offset="100%" stopColor="#d4d4d8" />
-            </linearGradient>
-
-            <linearGradient id="usickStarLight" x1="15%" y1="0%" x2="85%" y2="100%">
-              <stop offset="0%" stopColor="#27272a" />
-              <stop offset="35%" stopColor="#18181b" />
-              <stop offset="70%" stopColor="#09090b" />
-              <stop offset="100%" stopColor="#000000" />
-            </linearGradient>
-
-            <radialGradient id="usickCoreGleam" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-
-          <path
-            d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"
-            fill={isDark ? "url(#usickStarDark)" : "url(#usickStarLight)"}
-          />
-
-          <path
-            d="M12 2L14.4 9.6L12 12Z"
-            fill={isDark ? "#ffffff" : "#ffffff"}
-            opacity={isDark ? "0.18" : "0.22"}
-          />
-          <path
-            d="M12 22L9.6 14.4L12 12Z"
-            fill={isDark ? "#000000" : "#000000"}
-            opacity={isDark ? "0.22" : "0.18"}
-          />
-          <path
-            d="M22 12L14.4 14.4L12 12Z"
-            fill={isDark ? "#000000" : "#000000"}
-            opacity={isDark ? "0.15" : "0.15"}
-          />
-          <path
-            d="M2 12L9.6 9.6L12 12Z"
-            fill={isDark ? "#ffffff" : "#ffffff"}
-            opacity={isDark ? "0.28" : "0.28"}
-          />
-
-          <line
-            x1="12"
-            y1="2"
-            x2="12"
-            y2="22"
-            stroke={isDark ? "#ffffff" : "#ffffff"}
-            strokeOpacity={isDark ? "0.35" : "0.25"}
-            strokeWidth="0.4"
-          />
-          <line
-            x1="2"
-            y1="12"
-            x2="22"
-            y2="12"
-            stroke={isDark ? "#ffffff" : "#ffffff"}
-            strokeOpacity={isDark ? "0.35" : "0.25"}
-            strokeWidth="0.4"
-          />
-
-          <circle
-            cx="12"
-            cy="12"
-            r="2.2"
-            fill={isDark ? "url(#usickCoreGleam)" : "#ffffff"}
-            opacity={isDark ? "0.8" : "0.6"}
-          />
-        </svg>
+        />
       </div>
     </div>
   );

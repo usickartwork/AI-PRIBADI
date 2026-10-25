@@ -1,5 +1,5 @@
 // Service Worker for Usick AI Schedule Notifications & Offline Static Caching
-const CACHE_NAME = "usick-cache-v1";
+const CACHE_NAME = "usick-cache-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

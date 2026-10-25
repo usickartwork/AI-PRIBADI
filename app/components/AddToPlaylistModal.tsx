@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MusicItem, LocalPlaylist } from "@/lib/music";
+import { MusicItem, LocalPlaylist, isSameMusicTrack } from "@/lib/music";
 
 export interface AddToPlaylistAnchor {
   top: number;
@@ -248,7 +248,7 @@ export function AddToPlaylistModal({
 
   if (!isOpen || !track) return null;
 
-  const isLiked = likedSongs.some((t) => t.id === track.id);
+  const isLiked = likedSongs.some((t) => isSameMusicTrack(t, track));
 
   const filteredPlaylists = localPlaylists.filter((pl) =>
     pl.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
@@ -439,7 +439,7 @@ export function AddToPlaylistModal({
             ) : (
               <div className="space-y-1">
                 {filteredPlaylists.map((pl) => {
-                  const isInPlaylist = pl.items.some((item) => item.id === track.id);
+                  const isInPlaylist = pl.items.some((item) => isSameMusicTrack(item, track));
                   const coverImage = pl.items[0]?.artworkUrl;
 
                   return (

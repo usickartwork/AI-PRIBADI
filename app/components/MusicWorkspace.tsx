@@ -23,6 +23,7 @@ import {
   formatDurationMs,
   generatePlaylistId,
   getCanonicalTrackKey,
+  isSameMusicTrack,
 } from "@/lib/music";
 import {
   RadioStation,
@@ -3212,12 +3213,19 @@ export function MusicWorkspace({
   };
 
   // ─── Like / Playlist Actions ────────────────────────────────────────────────
-  const isTrackLiked = (trackId: string) => likedSongs.some((t) => t.id === trackId);
+  const isTrackLiked = (trackOrId: MusicItem | string) =>
+    typeof trackOrId === "string"
+      ? likedSongs.some((t) => t.id === trackOrId)
+      : likedSongs.some((t) => isSameMusicTrack(t, trackOrId));
+
+  const isTrackSaved = (track: MusicItem) =>
+    isTrackLiked(track) ||
+    localPlaylists.some((pl) => pl.items.some((t) => isSameMusicTrack(t, track)));
 
   const toggleLike = (track: MusicItem) => {
     let updated: MusicItem[];
-    if (isTrackLiked(track.id)) {
-      updated = likedSongs.filter((t) => t.id !== track.id);
+    if (isTrackLiked(track)) {
+      updated = likedSongs.filter((t) => !isSameMusicTrack(t, track));
     } else {
       updated = [track, ...likedSongs];
     }
@@ -3265,7 +3273,7 @@ export function MusicWorkspace({
     const updated = localPlaylists.map((pl) => {
       if (pl.id === playlistId) {
         targetPlName = pl.name;
-        const exists = pl.items.some((item) => item.id === track.id);
+        const exists = pl.items.some((item) => isSameMusicTrack(item, track));
         if (exists) return pl;
         const updatedPl = {
           ...pl,
@@ -3310,9 +3318,9 @@ export function MusicWorkspace({
   const handleTogglePlaylistTrack = (playlistId: string, track: MusicItem) => {
     const pl = localPlaylists.find((p) => p.id === playlistId);
     if (!pl) return;
-    const exists = pl.items.some((item) => item.id === track.id);
-    if (exists) {
-      removeTrackFromPlaylist(playlistId, track.id);
+    const matchedItem = pl.items.find((item) => isSameMusicTrack(item, track));
+    if (matchedItem) {
+      removeTrackFromPlaylist(playlistId, matchedItem.id);
       showQueueToast(`Dihapus dari "${pl.name}"`);
     } else {
       addTrackToPlaylist(playlistId, track, false);
@@ -3524,7 +3532,7 @@ export function MusicWorkspace({
         {items.map((track, idx) => {
           const isCurrent = currentTrack?.id === track.id;
           const isTrackPlaying = isCurrent && isPlaying;
-          const isLiked = isTrackLiked(track.id);
+          const isSaved = isTrackSaved(track);
 
           return (
             <div
@@ -3627,17 +3635,31 @@ export function MusicWorkspace({
                   type="button"
                   onClick={(e) => handleOpenAddToPlaylist(track, e)}
                   className={`p-1.5 rounded-xl transition cursor-pointer active:scale-90 shrink-0 ${
-                    isLiked || localPlaylists.some((pl) => pl.items.some((t) => t.id === track.id))
-                      ? isDark ? "text-white" : "text-black"
-                      : isDark ? "text-zinc-500 hover:text-white" : "text-zinc-400 hover:text-black"
+                    isSaved
+                      ? isDark
+                        ? "text-white hover:bg-white/10"
+                        : "text-black hover:bg-black/5"
+                      : isDark
+                      ? "text-zinc-200 hover:text-white hover:bg-white/10"
+                      : "text-zinc-700 hover:text-black hover:bg-black/5"
                   }`}
-                  title="Tambahkan ke Playlist / Suka"
-                  aria-label="Tambahkan ke Playlist / Suka"
+                  title={isSaved ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
+                  aria-label={isSaved ? "Tersimpan di Koleksi" : "Tambahkan ke Playlist / Suka"}
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
-                  </svg>
+                  {isSaved ? (
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path
+                        fillRule="evenodd"
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
+                    </svg>
+                  )}
                 </button>
 
                 {/* Duration */}
@@ -4659,17 +4681,31 @@ export function MusicWorkspace({
                         type="button"
                         onClick={(e) => handleOpenAddToPlaylist(currentTrack, e)}
                         className={`p-1.5 rounded-lg transition cursor-pointer ${
-                          isTrackLiked(currentTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === currentTrack.id))
-                            ? isDark ? "text-white" : "text-black"
-                            : isDark ? "text-zinc-500 hover:text-white" : "text-zinc-400 hover:text-black"
+                          isTrackSaved(currentTrack)
+                            ? isDark
+                              ? "text-white hover:bg-white/10"
+                              : "text-black hover:bg-black/5"
+                            : isDark
+                            ? "text-zinc-200 hover:text-white hover:bg-white/10"
+                            : "text-zinc-700 hover:text-black hover:bg-black/5"
                         }`}
-                        title="Tambahkan ke Playlist / Suka"
+                        title={isTrackSaved(currentTrack) ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
                         aria-label="Tambahkan ke Playlist / Suka"
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
-                        </svg>
+                        {isTrackSaved(currentTrack) ? (
+                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path
+                              fillRule="evenodd"
+                              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -4794,8 +4830,8 @@ export function MusicWorkspace({
                             queue.some((q) => q.id === rec.id)
                               ? isDark ? "text-white bg-white/10" : "text-black bg-black/10"
                               : isDark
-                              ? "text-zinc-500 hover:text-white hover:bg-white/10"
-                              : "text-zinc-600 hover:text-black hover:bg-black/10"
+                              ? "text-zinc-200 hover:text-white hover:bg-white/10"
+                              : "text-zinc-700 hover:text-black hover:bg-black/10"
                           }`}
                           title={queue.some((q) => q.id === rec.id) ? "Sudah dalam antrean" : "Tambahkan ke antrean"}
                         >
@@ -5622,7 +5658,7 @@ export function MusicWorkspace({
                       {discoverTracks.slice(0, 6).map((track) => {
                         const isCurrent = currentTrack?.id === track.id;
                         const isTrackPlaying = isCurrent && isPlaying;
-                        const isQueued = queue.some((q) => q.id === track.id);
+                        const isSaved = isTrackSaved(track);
 
                         return (
                           <div
@@ -5677,29 +5713,35 @@ export function MusicWorkspace({
                               </p>
                             </div>
 
-                            {/* Card Actions: Quick Add to Queue */}
+                            {/* Card Actions: Add to Playlist / Suka (+) */}
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={() => addToQueue(track)}
+                                onClick={(e) => handleOpenAddToPlaylist(track, e)}
                                 className={`p-1.5 rounded-lg transition cursor-pointer active:scale-90 ${
-                                  isQueued
+                                  isSaved
                                     ? isDark
-                                      ? "text-white bg-white/15"
-                                      : "text-black bg-black/10"
+                                      ? "text-white hover:bg-white/10"
+                                      : "text-black hover:bg-black/5"
                                     : isDark
-                                    ? "text-zinc-400 hover:text-white hover:bg-white/10"
-                                    : "text-zinc-500 hover:text-black hover:bg-black/10"
+                                    ? "text-zinc-200 hover:text-white hover:bg-white/10"
+                                    : "text-zinc-700 hover:text-black hover:bg-black/5"
                                 }`}
-                                title={isQueued ? "Sudah dalam antrean" : "Tambahkan ke antrean"}
+                                title={isSaved ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
+                                aria-label={isSaved ? "Tersimpan di Koleksi" : "Tambahkan ke Playlist / Suka"}
                               >
-                                {isQueued ? (
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
+                                {isSaved ? (
+                                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                                      clipRule="evenodd"
+                                    />
                                   </svg>
                                 ) : (
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
                                   </svg>
                                 )}
                               </button>
@@ -6843,21 +6885,31 @@ export function MusicWorkspace({
                   type="button"
                   onClick={(e) => handleOpenAddToPlaylist(activeTrack as any, e)}
                   className={`w-10 h-10 rounded-2xl flex items-center justify-center transition cursor-pointer active:scale-90 ${
-                    isTrackLiked(activeTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === activeTrack.id))
+                    isTrackSaved(activeTrack)
                       ? isDark
                         ? "text-white"
                         : "text-black"
                       : isDark
-                      ? "text-zinc-400 hover:text-white"
-                      : "text-zinc-500 hover:text-black"
+                      ? "text-zinc-200 hover:text-white"
+                      : "text-zinc-700 hover:text-black"
                   }`}
-                  title="Tambahkan ke Playlist / Suka"
+                  title={isTrackSaved(activeTrack) ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
                   aria-label="Tambahkan ke Playlist / Suka"
                 >
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
-                  </svg>
+                  {isTrackSaved(activeTrack) ? (
+                    <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                      <path
+                        fillRule="evenodd"
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
+                    </svg>
+                  )}
                 </button>
 
                 <button
@@ -7022,23 +7074,23 @@ export function MusicWorkspace({
                   type="button"
                   onClick={(e) => handleOpenAddToPlaylist(activeTrack as any, e)}
                   className={`p-2 rounded-full transition cursor-pointer hover:scale-105 active:scale-95 ${
-                    isTrackLiked(activeTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === activeTrack.id))
+                    isTrackSaved(activeTrack)
                       ? isDark
                         ? "text-white"
                         : "text-black"
                       : isDark
-                      ? "text-zinc-500 hover:text-white"
-                      : "text-zinc-500 hover:text-black"
+                      ? "text-zinc-200 hover:text-white"
+                      : "text-zinc-700 hover:text-black"
                   }`}
-                  title="Tambahkan ke Playlist / Suka"
+                  title={isTrackSaved(activeTrack) ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
                 >
-                  {isTrackLiked(activeTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === activeTrack.id)) ? (
+                  {isTrackSaved(activeTrack) ? (
                     <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                       <path fillRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" clipRule="evenodd" />
                     </svg>
                   ) : (
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
+                      <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
                     </svg>
                   )}
@@ -7661,8 +7713,8 @@ export function MusicWorkspace({
                                   ? "text-white bg-white/15"
                                   : "text-black bg-black/10"
                                 : isDark
-                                ? "hover:bg-white/10 text-zinc-400 hover:text-white"
-                                : "hover:bg-black/10 text-zinc-600 hover:text-black"
+                                ? "hover:bg-white/10 text-zinc-200 hover:text-white"
+                                : "hover:bg-black/10 text-zinc-700 hover:text-black"
                             }`}
                             title={queue.some((q) => q.id === rec.id) ? "Sudah dalam antrean" : "Tambahkan ke antrean"}
                           >
@@ -7776,19 +7828,19 @@ export function MusicWorkspace({
                 type="button"
                 onClick={(e) => handleOpenAddToPlaylist(activeTrack as any, e)}
                 className={`p-3 rounded-full transition cursor-pointer shrink-0 active:scale-90 ${
-                  isTrackLiked(activeTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === activeTrack.id))
+                  isTrackSaved(activeTrack)
                     ? isDark ? "text-white" : "text-black"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-500 hover:text-black"
+                    : isDark ? "text-zinc-200 hover:text-white" : "text-zinc-700 hover:text-black"
                 }`}
-                title="Tambahkan ke Playlist / Suka"
+                title={isTrackSaved(activeTrack) ? "Tersimpan di Koleksi (Klik untuk kelola)" : "Tambahkan ke Playlist / Suka"}
               >
-                {isTrackLiked(activeTrack.id) || localPlaylists.some((pl) => pl.items.some((t) => t.id === activeTrack.id)) ? (
+                {isTrackSaved(activeTrack) ? (
                   <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24">
                     <path fillRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z" clipRule="evenodd" />
                   </svg>
                 ) : (
                   <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
+                    <circle cx="12" cy="12" r="9" strokeWidth={1.85} />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
                   </svg>
                 )}

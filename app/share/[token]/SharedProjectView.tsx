@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, Copy, Moon, Sun, ArrowLeft, MessageSquare, Globe, Sparkles } from "lucide-react";
 import { MarkdownMessage } from "@/app/components/MarkdownMessage";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 interface SharedMessage {
   id: string;
@@ -117,15 +118,13 @@ export function SharedProjectView({
           </Link>
 
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            {/* Usick One 4-Point Star Icon */}
+            {/* Usick One Brain Icon */}
             <div
               className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
                 isDark ? "bg-white text-black" : "bg-black text-white"
               }`}
             >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-              </svg>
+              <BrainLogo className="w-4 h-4" />
             </div>
             <span className="font-extrabold tracking-tight text-sm hidden sm:inline">
               Usick <span className="font-normal opacity-80">One</span>
@@ -298,9 +297,7 @@ export function SharedProjectView({
                           isDark ? "bg-white text-black" : "bg-black text-white"
                         }`}
                       >
-                        <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                        </svg>
+                        <BrainLogo className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-xs font-bold tracking-tight">
                         Usick One {msg.model ? `(${msg.model})` : "AI"}

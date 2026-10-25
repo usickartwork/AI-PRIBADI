@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { BrainLogo } from "@/components/ui/brain-logo";
 import { cn } from "@/lib/utils";
 
 const socialProviders = [
@@ -72,15 +73,9 @@ export default function Login16({
   const content = (
     <div className="w-full max-w-sm">
       <div className="flex flex-col items-center gap-3 text-center">
-        {/* Star Logo Usick One / One Mind */}
+        {/* Brain Logo Usick One / One Mind */}
         <div className="flex items-center justify-center">
-          <svg
-            className="size-9 text-foreground fill-foreground transition-transform duration-300 hover:scale-105"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-          </svg>
+          <BrainLogo className="size-9 text-foreground transition-transform duration-300 hover:scale-105" />
         </div>
         <h1 className="font-semibold text-2xl tracking-tight text-foreground">
           {isSignIn ? "Welcome back" : "Create an account"}

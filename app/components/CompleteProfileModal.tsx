@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 type CompleteProfileModalProps = {
   isDark: boolean;
@@ -88,13 +89,9 @@ export function CompleteProfileModal({
         {/* Header */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="mb-3 flex items-center justify-center">
-            <svg
-              className={`w-8 h-8 ${isDark ? "text-white" : "text-black"}`}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8L12 2Z" />
-            </svg>
+            <BrainLogo
+              className={`w-9 h-9 ${isDark ? "text-white" : "text-black"}`}
+            />
           </div>
           <h2 className="text-xl font-bold tracking-tight">
             Lengkapi Akun Baru

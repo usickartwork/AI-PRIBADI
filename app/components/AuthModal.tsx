@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import { Mail, Lock, X } from "lucide-react";
 import { AnimatedFormField, SocialButton, FloatingParticles } from "@/components/ui/sign-in-flo";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 type AuthModalProps = {
   isDark: boolean;
@@ -157,17 +158,14 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
         />
 
         <div className="relative z-10">
-          {/* Header Brand: Usick One Standalone Star Logo & One Mind */}
+          {/* Header Brand: Usick One Standalone Brain Logo & One Mind */}
           <div className="flex flex-col items-center text-center mb-6">
             <div className="mb-3 flex items-center justify-center">
-              <svg
+              <BrainLogo
                 className={`w-11 h-11 transition-transform duration-300 hover:scale-110 drop-shadow-sm ${
-                  isDark ? "text-white fill-white" : "text-black fill-black"
+                  isDark ? "text-white" : "text-black"
                 }`}
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-              </svg>
+              />
             </div>
             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
               Welcome to One Mind

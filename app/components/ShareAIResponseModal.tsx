@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, MessageCircle, Send, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { BrainLogo } from "@/components/ui/brain-logo";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,11 +14,7 @@ type FriendItem = { friendshipId: string; user: PublicUser; since: string };
 type FriendsData = { friends: FriendItem[]; incoming: FriendItem[]; outgoing: FriendItem[]; blocked: PublicUser[] };
 
 function UsickStarIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={`shrink-0 fill-current ${className}`} viewBox="0 0 24 24">
-      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-    </svg>
-  );
+  return <BrainLogo className={className} />;
 }
 
 interface ShareAIResponseModalProps {
@@ -238,7 +235,7 @@ export function ShareAIResponseModal({
               }`}
             >
               <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">
-                <UsickStarIcon className="w-2.5 h-2.5" />
+                <UsickStarIcon className="w-3 h-3" />
                 <span>Shared from AI Chat</span>
               </div>
               <div className="line-clamp-3 leading-relaxed text-[11.5px] opacity-90 break-words">

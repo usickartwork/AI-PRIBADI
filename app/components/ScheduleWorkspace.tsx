@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ShiningText } from "@/components/ui/shining-text";
+import { BrainLogo } from "@/components/ui/brain-logo";
 import {
   ScheduleItem,
   ScheduleRecurrence,
@@ -380,7 +381,7 @@ export function ScheduleWorkspace({
                 body: `Pukul ${formatScheduleTime(schedule.time)} WIB (${formatReminderText(
                   reminderMinutes
                 )}). ${schedule.description || ""}`.trim(),
-                icon: "/favicon.ico",
+                icon: "/apple-icon.png?v=6",
                 tag: `schedule-reminder-${schedule.id}`,
               };
 
@@ -1532,16 +1533,14 @@ export function ScheduleWorkspace({
                       isUser ? "justify-end" : "justify-start"
                     } animate-in fade-in-0 duration-200`}
                   >
-                    {/* Assistant Star Avatar */}
+                    {/* Assistant Brain Avatar */}
                     {!isUser && (
                       <div
                         className={`relative flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl shadow-xs ${
                           isDark ? "bg-white text-black" : "bg-black text-white"
                         }`}
                       >
-                        <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                          <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                        </svg>
+                        <BrainLogo className="w-4 h-4" />
                       </div>
                     )}
 
@@ -1728,9 +1727,7 @@ export function ScheduleWorkspace({
                       isDark ? "bg-white text-black" : "bg-black text-white"
                     }`}
                   >
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-                    </svg>
+                    <BrainLogo className="w-4 h-4" />
                   </div>
                   <div className="flex items-center gap-2.5 py-1">
                     <div className={`h-2 w-2 rounded-full animate-ping shrink-0 ${isDark ? "bg-white" : "bg-black"}`} />

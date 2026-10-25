@@ -28,13 +28,10 @@ import LiveKitCallModal, { type CallStatus } from "./LiveKitCallModal";
 import { createLocalAudioTrack, type LocalAudioTrack } from "livekit-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 function UsickStarIcon({ className = "w-3 h-3" }: { className?: string }) {
-  return (
-    <svg className={`shrink-0 fill-current ${className}`} viewBox="0 0 24 24">
-      <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-    </svg>
-  );
+  return <BrainLogo className={className} />;
 }
 
 function cleanMarkdownSnippet(text: string): string {
@@ -747,7 +744,7 @@ export default function MessagesWorkspace({
             const notifBody = `${callerName} memanggil Anda di Usick One...`;
             const notif = new Notification(notifTitle, {
               body: notifBody,
-              icon: payload.callerUser?.avatarUrl || payload.callerUser?.avatar_url || "/favicon.ico",
+              icon: payload.callerUser?.avatarUrl || payload.callerUser?.avatar_url || "/apple-icon.png?v=6",
               tag: `call_${payload.callId}`,
               requireInteraction: true,
             });
@@ -2344,7 +2341,7 @@ export default function MessagesWorkspace({
                               : "text-zinc-600"
                           }`}
                         >
-                          <UsickStarIcon className="w-2.5 h-2.5 shrink-0" />
+                          <UsickStarIcon className="w-3 h-3 shrink-0" />
                           <span>Shared from AI Chat</span>
                         </div>
                       )}

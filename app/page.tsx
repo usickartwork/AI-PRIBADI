@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
@@ -366,12 +367,8 @@ function ModelCategoryIcon({ category }: { category: string }) {
   const cat = category.toLowerCase();
 
   if (cat === "usick") {
-    // Usick Official Geometric Sparkle Star
-    return (
-      <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
-        <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" />
-      </svg>
-    );
+    // Usick One / One Mind Official Brain Logo
+    return <BrainLogo className="w-3.5 h-3.5 shrink-0" />;
   }
 
   if (cat === "chatgpt") {
