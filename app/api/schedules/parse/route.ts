@@ -121,6 +121,55 @@ function extractDate(text?: string | null, baseDate = new Date()): string | null
   return null;
 }
 
+// ─── Ekstraksi Waktu Pengingat (Menit) Presisi ─────────────────────────────
+function extractReminderMinutes(text?: string | null): number | null {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+
+  // 0 Menit: Tanpa pengingat, jangan ingatkan, pas mulai, dsb
+  if (
+    /(?:tanpa|tidak\s+ada|ga\s+usah|gak\s+usah|tidak\s+usah|jangan)\s+(?:ada\s+)?(?:pengingat|di\s*ingatkan|ingatkan|notifikasi)/i.test(lower) ||
+    /(?:tepat\s+saat\s+dimulai|saat\s+dimulai|tepat\s+waktu|pas\s+mulai|pas\s+jamnya|pas\s+acaranya|saat\s+acara)/i.test(lower)
+  ) {
+    return 0;
+  }
+
+  // 1440 Menit: 1 hari sebelumnya
+  if (/(?:1|satu)\s*hari\s*sebelum(?:nya)?|sehari\s*sebelum(?:nya)?|ingatkan\s*(?:aku\s*)?1\s*hari/i.test(lower)) {
+    return 1440;
+  }
+
+  // Jam: "ingatkan 1 jam", "pengingat 2 jam", "1 jam sebelumnya"
+  const jamMatch = lower.match(/(?:ingatkan\s*(?:aku\s*)?|pengingat\s*|notifikasi\s*)?(\d+)\s*jam(?:\s*sebelum(?:nya)?)?/i);
+  if (jamMatch && jamMatch[1]) {
+    const fullMatch = jamMatch[0];
+    if (/ingatkan|pengingat|notifikasi|sebelum/i.test(fullMatch)) {
+      return parseInt(jamMatch[1], 10) * 60;
+    }
+  }
+
+  // Menit: "ingatkan 30 menit", "pengingat 15 menit", "30 menit sebelumnya", "ingatkan 5 menit"
+  const minMatch = lower.match(/(?:ingatkan\s*(?:aku\s*)?|pengingat\s*|notifikasi\s*)?(\d+)\s*menit(?:\s*sebelum(?:nya)?)?/i);
+  if (minMatch && minMatch[1]) {
+    const fullMatch = minMatch[0];
+    if (/ingatkan|pengingat|notifikasi|sebelum/i.test(fullMatch) || lower.includes("menit")) {
+      return parseInt(minMatch[1], 10);
+    }
+  }
+
+  return null;
+}
+
+// ─── Helper Pergeseran Waktu Relatif (Undur / Majukan) ────────────────────────
+function shiftTime(timeStr: string, deltaMinutes: number): string {
+  const parts = timeStr.split(":");
+  let totalMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10) + deltaMinutes;
+  totalMin = (totalMin % 1440 + 1440) % 1440;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 // ─── Pembersihan Judul Kegiatan ──────────────────────────────────────────────
 function cleanTitle(text?: string | null): string {
   if (!text) return "";
@@ -133,7 +182,11 @@ function cleanTitle(text?: string | null): string {
     .replace(/(?:jam|pukul)\s*\d{1,2}(?:[:.]\d{2})?\s*(?:pagi|siang|sore|malam)?/gi, "")
     .replace(/\b[0-2]?\d[:.][0-5]\d\b/g, "")
     .replace(/selama\s*\d+\s*(?:jam|menit)/gi, "")
-    .replace(/ingatkan\s*(?:aku\s*)?(?:\d+\s*(?:menit|jam)\s*(?:sebelumnya)?)?/gi, "")
+    .replace(/(?:tanpa|tidak\s+ada|jangan|ga\s+usah|tidak\s+usah)\s+(?:ada\s+)?(?:pengingat|di\s*ingatkan|ingatkan|notifikasi)/gi, "")
+    .replace(/(?:tepat\s+saat\s+dimulai|saat\s+dimulai|tepat\s+waktu|pas\s+mulai|pas\s+jamnya|pas\s+acaranya)/gi, "")
+    .replace(/(?:1|satu)\s*hari\s*sebelum(?:nya)?|sehari\s*sebelum(?:nya)?/gi, "")
+    .replace(/(?:ingatkan\s*(?:aku\s*)?|pengingat\s*|notifikasi\s*)(?:\d+\s*(?:menit|jam)\s*(?:sebelumnya)?)?/gi, "")
+    .replace(/\d+\s*(?:menit|jam)\s*sebelum(?:nya)?/gi, "")
     .replace(/(?:ada\s+jadwal|ada\s+agenda|buatkan\s+jadwal|buatkan\s+agenda|jadwalkan|jadwal)\s+/gi, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -146,12 +199,29 @@ function cleanTitle(text?: string | null): string {
 function findTargetSchedule(
   targetPart: string,
   existingSchedules: any[] = [],
-  baseDate = new Date()
+  baseDate = new Date(),
+  lastActiveScheduleId?: string | null
 ): any | null {
   if (!existingSchedules || existingSchedules.length === 0) return null;
   if (existingSchedules.length === 1) return existingSchedules[0];
 
   const lower = targetPart.toLowerCase();
+
+  // Jika user mereferensikan jadwal terkini ("ini", "tadi", "barusan", "terakhir")
+  const mentionsRecent = /(?:ini|tadi|barusan|terakhir|tersebut)\b/i.test(lower);
+  if (lastActiveScheduleId && (mentionsRecent || !extractDate(lower, baseDate))) {
+    const found = existingSchedules.find((s) => s.id === lastActiveScheduleId);
+    if (found) {
+      // Pastikan user tidak secara eksplisit menyebut judul jadwal lain
+      const otherMatches = existingSchedules.filter(
+        (s) => s.id !== lastActiveScheduleId && s.title && lower.includes(s.title.toLowerCase())
+      );
+      if (otherMatches.length === 0) {
+        return found;
+      }
+    }
+  }
+
   const targetDate = extractDate(lower, baseDate);
   const targetTime = extractTime(lower);
 
@@ -175,22 +245,29 @@ function findTargetSchedule(
       }
     }
 
-    // Time match
+    // Time match: hanya jika targetPart merujuk waktu lama spesifik (e.g. "yang jam 09:00")
     if (targetTime && item.time === targetTime) {
-      score += 30;
-    }
-
-    // Title keywords match
-    const titleWords = (item.title || "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
-    for (const word of titleWords) {
-      if (lower.includes(word)) {
-        score += 25;
+      if (/(?:yang\s+)?jam\s+[0-2]?\d/i.test(lower)) {
+        score += 35;
       }
     }
 
-    // Relative match ("ini", "tadi", "terakhir")
-    if (lower.includes("ini") || lower.includes("tadi") || lower.includes("terakhir")) {
-      score += (existingSchedules.length - i) * 2;
+    // Title match
+    const itemTitle = (item.title || "").toLowerCase();
+    if (itemTitle && lower.includes(itemTitle)) {
+      score += 60;
+    } else {
+      const titleWords = itemTitle.split(/\s+/).filter((w: string) => w.length > 2);
+      for (const word of titleWords) {
+        if (lower.includes(word)) {
+          score += 25;
+        }
+      }
+    }
+
+    // Prioritas jadwal aktif terakhir
+    if (lastActiveScheduleId && item.id === lastActiveScheduleId) {
+      score += 20;
     }
 
     if (score > highestScore) {
@@ -199,7 +276,21 @@ function findTargetSchedule(
     }
   }
 
-  return highestScore > 0 ? bestMatch : existingSchedules[existingSchedules.length - 1];
+  if (highestScore > 0) return bestMatch;
+
+  // Fallback 1: Jika ada lastActiveScheduleId, gunakan itu
+  if (lastActiveScheduleId) {
+    const active = existingSchedules.find((s) => s.id === lastActiveScheduleId);
+    if (active) return active;
+  }
+
+  // Fallback 2: Pilih jadwal yang paling baru dibuat atau diperbarui (bukan yang tanggal paling jauh di masa depan)
+  const sorted = [...existingSchedules].sort((a, b) => {
+    const timeA = new Date(a.updated_at || a.created_at || `${a.date}T${a.time}`).getTime();
+    const timeB = new Date(b.updated_at || b.created_at || `${b.date}T${b.time}`).getTime();
+    return timeB - timeA;
+  });
+  return sorted[0] || existingSchedules[0];
 }
 
 // ─── Heuristic Rule-Based Fallback Parser ─────────────────────────────────────
@@ -209,13 +300,19 @@ function heuristicParse(
   clientDate?: string,
   pendingDraft?: Partial<ParsedScheduleAI> | null,
   history: Array<{ role: string; content: string }> = [],
-  existingSchedules: any[] = []
+  existingSchedules: any[] = [],
+  defaultReminder = 15,
+  lastActiveScheduleId?: string | null,
+  revisingScheduleId?: string | null
 ): ParsedScheduleAI {
   const lower = text.toLowerCase().trim();
   const baseDate = clientDate ? new Date(clientDate) : new Date();
 
   // 1. Deteksi Revisi / Edit Jadwal
-  const isRevision = /(?:ubah|ganti|revisi|edit|geser|undur|majukan|pindahkan|rubah|reschedule)\b/i.test(text);
+  const isRevision =
+    /(?:ubah|ganti|revisi|edit|geser|undur|majukan|pindahkan|rubah|reschedule|jadwal\s+tadi|yang\s+tadi)\b/i.test(text) ||
+    Boolean(revisingScheduleId);
+
   if (isRevision && existingSchedules && existingSchedules.length > 0) {
     const sepMatch = text.match(/(.*?)\b(?:di\s*ganti|diganti|di\s*ubah|diubah|menjadi|jadi|ke)\b(.*)/i);
     let targetPart = text;
@@ -225,14 +322,45 @@ function heuristicParse(
       newPart = sepMatch[2].trim();
     }
 
-    const target = findTargetSchedule(targetPart, existingSchedules, baseDate);
-    if (target) {
-      const newTime = (newPart ? extractTime(newPart) : null) || extractTime(text) || target.time;
-      const newDate = (newPart ? extractDate(newPart, baseDate) : null) || target.date;
+    const target =
+      (revisingScheduleId ? existingSchedules.find((s) => s.id === revisingScheduleId) : null) ||
+      findTargetSchedule(targetPart, existingSchedules, baseDate, lastActiveScheduleId);
 
+    if (target) {
+      // A. Pergeseran waktu relatif: undur X jam/menit, majukan X jam/menit
+      let relativeShiftMin: number | null = null;
+      const undurMatch = lower.match(/(?:undur|tunda|geser\s+mundur|mundur)\s*(\d+)?\s*(jam|menit)?/);
+      if (undurMatch) {
+        const num = undurMatch[1] ? parseInt(undurMatch[1], 10) : 1;
+        const unit = undurMatch[2] || "jam";
+        relativeShiftMin = unit === "menit" ? num : num * 60;
+      }
+      const majuMatch = lower.match(/(?:majukan|geser\s+maju|percepat)\s*(\d+)?\s*(jam|menit)?/);
+      if (majuMatch) {
+        const num = majuMatch[1] ? parseInt(majuMatch[1], 10) : 1;
+        const unit = majuMatch[2] || "jam";
+        relativeShiftMin = -(unit === "menit" ? num : num * 60);
+      }
+
+      let newTime = target.time;
+      if (relativeShiftMin !== null && target.time) {
+        newTime = shiftTime(target.time, relativeShiftMin);
+      } else {
+        const extractedT = (newPart ? extractTime(newPart) : null) || extractTime(text);
+        if (extractedT) newTime = extractedT;
+      }
+
+      // B. Tanggal baru
+      const newDate = (newPart ? extractDate(newPart, baseDate) : null) || extractDate(text, baseDate) || target.date;
+
+      // C. Pengingat (Reminder) baru
+      const explicitReminder = extractReminderMinutes(newPart) ?? extractReminderMinutes(text);
+      const newReminder = explicitReminder !== null ? explicitReminder : (target.reminder_minutes ?? defaultReminder);
+
+      // D. Judul baru (jika diminta)
       let newTitle = target.title;
-      if (newPart && /(?:judul|nama|agenda|kegiatan)\s*(?:menjadi|jadi|ke|:)?\s*([a-zA-Z0-9\s]+)/i.test(newPart)) {
-        const titleMatch = newPart.match(/(?:judul|nama|agenda|kegiatan)\s*(?:menjadi|jadi|ke|:)?\s*([a-zA-Z0-9\s]+)/i);
+      if (/(?:judul|nama|agenda|kegiatan)\s*(?:menjadi|jadi|ke|:)?\s*([a-zA-Z0-9\s]+)/i.test(newPart || text)) {
+        const titleMatch = (newPart || text).match(/(?:judul|nama|agenda|kegiatan)\s*(?:menjadi|jadi|ke|:)?\s*([a-zA-Z0-9\s]+)/i);
         if (titleMatch && titleMatch[1].trim()) {
           newTitle = titleMatch[1].trim();
         }
@@ -245,7 +373,7 @@ function heuristicParse(
         date: newDate,
         time: newTime,
         duration: target.duration_minutes || 60,
-        reminder: target.reminder_minutes ?? 15,
+        reminder: newReminder,
         recurrence: target.recurrence || "once",
         timezone: target.timezone || "Asia/Jakarta",
         description: target.description || "",
@@ -298,13 +426,9 @@ function heuristicParse(
     duration = durMatch[2] === "jam" ? val * 60 : val;
   }
 
-  // Reminder
-  let reminder = pendingDraft?.reminder ?? 15;
-  const remMatch = lower.match(/ingatkan\s*(\d+)\s*(menit|jam)/);
-  if (remMatch) {
-    const val = parseInt(remMatch[1], 10);
-    reminder = remMatch[2] === "jam" ? val * 60 : val;
-  }
+  // Reminder presisi: prioritaskan ucapan eksplisit user, lalu pending draft, lalu defaultReminder user
+  const explicitReminder = extractReminderMinutes(text);
+  let reminder = explicitReminder !== null ? explicitReminder : (pendingDraft?.reminder ?? defaultReminder);
 
   const isComplete = Boolean(finalTitle && finalTitle !== "Jadwal Baru" && dateStr && timeStr);
   let clarificationQuestion: string | undefined = undefined;
@@ -337,7 +461,18 @@ function heuristicParse(
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, clientDate, timezone, pendingDraft, history, existingSchedules } = await req.json();
+    const body = await req.json();
+    const {
+      prompt,
+      clientDate,
+      timezone,
+      pendingDraft,
+      history,
+      existingSchedules,
+      defaultReminder: rawDefaultReminder,
+      lastActiveScheduleId: rawLastActiveId,
+      revisingScheduleId: rawRevisingId,
+    } = body;
 
     if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
       return NextResponse.json(
@@ -345,6 +480,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const defaultReminder = typeof rawDefaultReminder === "number" ? rawDefaultReminder : 15;
+    const lastActiveScheduleId = typeof rawLastActiveId === "string" ? rawLastActiveId : null;
+    const revisingScheduleId = typeof rawRevisingId === "string" ? rawRevisingId : null;
 
     const todayDate = clientDate || new Date().toISOString().split("T")[0];
     const userTz = timezone || "Asia/Jakarta";
@@ -359,29 +498,42 @@ export async function POST(req: NextRequest) {
 
     const schedulesListInfo = Array.isArray(existingSchedules) && existingSchedules.length > 0
       ? `\nUser's existing active schedules:\n${existingSchedules
-          .map((s, idx) => `${idx + 1}. [ID: ${s.id}] "${s.title}" on date ${s.date} at ${s.time}`)
+          .map((s, idx) => `${idx + 1}. [ID: ${s.id}] "${s.title}" on date ${s.date} at ${s.time} (reminder: ${s.reminder_minutes ?? 15}m)`)
           .join("\n")}`
       : "\nNo active schedules registered yet.";
+
+    const revisionContextInfo = revisingScheduleId
+      ? `\nUSER IS CURRENTLY REVISING SCHEDULE ID: [${revisingScheduleId}]. Apply changes directly to this schedule.`
+      : lastActiveScheduleId
+      ? `\nMost recently created/selected schedule ID is: [${lastActiveScheduleId}]. If user wants to revise/reschedule "jadwal tadi", "ini", or didn't specify a title, target this schedule.`
+      : "";
 
     const systemPrompt = `You are a helpful personal schedule assistant for Usick One.
 Your job is to parse the user's natural language input into clean schedule data. Speak naturally like a human assistant, never robotic.
 
 Today's date is: ${todayDate} (${new Date().toLocaleDateString("id-ID", { weekday: "long" })})
-User Timezone: ${userTz}${draftInfo}${schedulesListInfo}
+User Timezone: ${userTz}
+User Default Reminder Setting: ${defaultReminder} minutes before event${revisionContextInfo}${draftInfo}${schedulesListInfo}
 
 CRITICAL RULES:
 1. REVISIONS / UPDATES:
-   - If the user wants to update, revise, reschedule, edit, or move an existing schedule (e.g. "ubah tgl 4 yang ini di ganti jam 14:00", "ganti meeting eternal arena jadi jam 3 sore", "geser jadwal tgl 4 ke jam 15.00"):
-     * Identify the matching schedule from the existing active schedules.
+   - If the user wants to update, revise, reschedule, edit, undur, majukan, or move an existing schedule (e.g. "revisi jam 4 sore", "ubah jadi jam 14:00", "geser ke besok", "undur 1 jam", "ganti pengingat jadi 30 menit", "ubah jadwal tadi"):
+     * Match the schedule from existing active schedules. If revisingScheduleId or lastActiveScheduleId is provided, target it unless a different schedule is clearly named!
      * Set "action": "update".
      * Set "targetScheduleId": the matched schedule ID.
-     * Set updated "date" and "time". If only time is changed, keep the original schedule date.
+     * Keep existing values for unmentioned fields.
+     * If user changes reminder (e.g. "tanpa pengingat" -> 0, "ingatkan 30 menit" -> 30, "1 jam sebelumnya" -> 60), update "reminder". If not mentioned in revision, keep original reminder.
      * Set "isAmbiguous": false and "clarificationQuestion": null.
 
 2. NEW SCHEDULES & MULTI-TURN CONTEXT:
    - If there is an existing schedule draft or previous context, MERGE the new information into the draft!
    - NEVER ask for time if the user already specified time in this turn or earlier in conversation!
    - NEVER ask for date if the user already specified date in this turn or earlier in conversation!
+   - For reminders:
+     * If user explicitly says "tanpa pengingat", "jangan ingatkan", "pas mulai", reminder = 0.
+     * If user specifies minutes (e.g. "30 menit sebelumnya"), reminder = 30.
+     * If user specifies hours (e.g. "1 jam sebelumnya"), reminder = 60.
+     * If user does NOT mention reminder, use ${defaultReminder} minutes.
    - If all required details (title, date, time) are present, set "action": "create", "isAmbiguous": false, and "clarificationQuestion": null.
    - If ANY required detail is still missing:
      * Set "isAmbiguous": true.
@@ -470,14 +622,19 @@ CRITICAL RULES:
             if (parsed && typeof parsed.title === "string") {
               // 1. Tangani jika action adalah update / revisi
               if (parsed.action === "update") {
-                let targetId = parsed.targetScheduleId;
+                let targetId = revisingScheduleId || parsed.targetScheduleId || lastActiveScheduleId;
                 let targetItem = Array.isArray(existingSchedules) ? existingSchedules.find((s: any) => s.id === targetId) : null;
                 if (!targetItem && Array.isArray(existingSchedules) && existingSchedules.length > 0) {
-                  targetItem = findTargetSchedule(prompt, existingSchedules, baseDate);
+                  targetItem = findTargetSchedule(prompt, existingSchedules, baseDate, lastActiveScheduleId);
                   if (targetItem) targetId = targetItem.id;
                 }
 
                 if (targetItem) {
+                  const explicitRem = extractReminderMinutes(prompt);
+                  const finalRem = explicitRem !== null
+                    ? explicitRem
+                    : (typeof parsed.reminder === "number" ? parsed.reminder : (targetItem.reminder_minutes ?? defaultReminder));
+
                   parsedResult = {
                     action: "update",
                     targetScheduleId: targetId,
@@ -485,7 +642,7 @@ CRITICAL RULES:
                     date: parsed.date || targetItem.date,
                     time: parsed.time || targetItem.time,
                     duration: typeof parsed.duration === "number" ? parsed.duration : targetItem.duration_minutes,
-                    reminder: typeof parsed.reminder === "number" ? parsed.reminder : targetItem.reminder_minutes,
+                    reminder: finalRem,
                     recurrence: parsed.recurrence || targetItem.recurrence || "once",
                     description: parsed.description || targetItem.description || "",
                     timezone: userTz,
@@ -530,13 +687,18 @@ CRITICAL RULES:
                   }
                 }
 
+                const explicitRem = extractReminderMinutes(prompt);
+                const finalRem = explicitRem !== null
+                  ? explicitRem
+                  : (typeof parsed.reminder === "number" ? parsed.reminder : (pendingDraft?.reminder ?? defaultReminder));
+
                 parsedResult = {
                   action: "create",
                   title: finalTitle,
                   date: finalDate || todayDate,
                   time: finalTime || "09:00",
                   duration: typeof parsed.duration === "number" ? parsed.duration : (pendingDraft?.duration ?? 60),
-                  reminder: typeof parsed.reminder === "number" ? parsed.reminder : (pendingDraft?.reminder ?? 15),
+                  reminder: finalRem,
                   recurrence: ["once", "daily", "weekly", "monthly"].includes(parsed.recurrence) ? parsed.recurrence : (pendingDraft?.recurrence ?? "once"),
                   description: parsed.description || pendingDraft?.description || "",
                   timezone: userTz,
@@ -559,7 +721,10 @@ CRITICAL RULES:
         clientDate,
         pendingDraft,
         Array.isArray(history) ? history : [],
-        Array.isArray(existingSchedules) ? existingSchedules : []
+        Array.isArray(existingSchedules) ? existingSchedules : [],
+        defaultReminder,
+        lastActiveScheduleId,
+        revisingScheduleId
       );
       parsedResult.timezone = userTz;
     }

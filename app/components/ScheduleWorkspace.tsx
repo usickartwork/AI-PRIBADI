@@ -83,8 +83,46 @@ export function ScheduleWorkspace({
   const [formDate, setFormDate] = useState(getTodayDateString());
   const [formTime, setFormTime] = useState("09:00");
   const [formDuration, setFormDuration] = useState(60);
-  const [formReminder, setFormReminder] = useState(15);
+
+  // User Default Reminder State (Disimpan persisten di localStorage)
+  const [defaultReminder, setDefaultReminder] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("usick_schedule_default_reminder");
+        if (saved !== null && !isNaN(Number(saved))) {
+          return Number(saved);
+        }
+      } catch {}
+    }
+    return 15;
+  });
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
+  const reminderPickerRef = useRef<HTMLDivElement>(null);
+
+  const updateDefaultReminder = (minutes: number) => {
+    setDefaultReminder(minutes);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("usick_schedule_default_reminder", String(minutes));
+      } catch {}
+    }
+  };
+
+  const [formReminder, setFormReminder] = useState<number>(defaultReminder);
   const [formRecurrence, setFormRecurrence] = useState<ScheduleRecurrence>("once");
+
+  // Schedule Revision Mode & Active Schedule Tracker
+  const [lastActiveScheduleId, setLastActiveScheduleId] = useState<string | null>(null);
+  const [revisingSchedule, setRevisingSchedule] = useState<ScheduleItem | null>(null);
+
+  const handleStartChatRevision = (item: ScheduleItem) => {
+    setRevisingSchedule(item);
+    setLastActiveScheduleId(item.id);
+    setCurrentTab("chat");
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  };
 
   // Detail Modal State
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
@@ -106,6 +144,18 @@ export function ScheduleWorkspace({
 
   // Email pengingat otomatis langsung menggunakan email akun login pengguna
   const activeEmail = (user?.email || "usick.artwork@gmail.com").trim();
+
+  // Click outside listener untuk reminder picker
+  useEffect(() => {
+    if (!showReminderPicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (reminderPickerRef.current && !reminderPickerRef.current.contains(e.target as Node)) {
+        setShowReminderPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showReminderPicker]);
 
   // Otomatis sinkronkan izin notifikasi saat komponen dimuat
   useEffect(() => {
@@ -639,6 +689,9 @@ export function ScheduleWorkspace({
           history: chatMessages.slice(-8).map((m) => ({ role: m.role, content: m.content })),
           existingSchedules: schedules,
           webSearch: webSearchEnabled,
+          defaultReminder,
+          lastActiveScheduleId,
+          revisingScheduleId: revisingSchedule?.id || null,
         }),
       });
 
@@ -652,75 +705,82 @@ export function ScheduleWorkspace({
 
       // ─── A. Aksi Revisi / Update Jadwal Eksisting ─────────────────────────────
       if (parsed.action === "update") {
-        if (parsed.targetScheduleId) {
-          const target = schedules.find((s) => s.id === parsed.targetScheduleId);
-          if (target) {
-            const updatedItem: ScheduleItem = {
-              ...target,
-              title: parsed.title || target.title,
-              date: parsed.date || target.date,
-              time: parsed.time || target.time,
-              description: parsed.description !== undefined ? parsed.description : target.description,
-              duration_minutes: parsed.duration || target.duration_minutes,
-              reminder_minutes: parsed.reminder ?? target.reminder_minutes,
-              recurrence: parsed.recurrence || target.recurrence,
-              updated_at: new Date().toISOString(),
-            };
+        const targetId = revisingSchedule?.id || parsed.targetScheduleId || lastActiveScheduleId;
+        const target = targetId ? schedules.find((s) => s.id === targetId) : null;
+        if (target) {
+          const updatedItem: ScheduleItem = {
+            ...target,
+            title: parsed.title || target.title,
+            date: parsed.date || target.date,
+            time: parsed.time || target.time,
+            description: parsed.description !== undefined ? parsed.description : target.description,
+            duration_minutes: parsed.duration || target.duration_minutes,
+            reminder_minutes: parsed.reminder !== undefined ? parsed.reminder : (target.reminder_minutes ?? defaultReminder),
+            recurrence: parsed.recurrence || target.recurrence,
+            reminder_status: "pending" as ReminderStatus,
+            updated_at: new Date().toISOString(),
+          };
 
-            // 1. Beritahu route /api/schedules dengan Bearer token
-            if (user?.id && !target.id.startsWith("local_")) {
-              try {
-                const headers = await getAuthHeaders();
-                await fetch("/api/schedules", {
-                  method: "PUT",
-                  headers,
-                  body: JSON.stringify({
-                    id: target.id,
-                    user_id: userId,
-                    title: updatedItem.title,
-                    description: updatedItem.description,
-                    date: updatedItem.date,
-                    time: updatedItem.time,
-                    duration_minutes: updatedItem.duration_minutes,
-                    reminder_minutes: updatedItem.reminder_minutes,
-                    recurrence: updatedItem.recurrence,
-                  }),
-                });
-              } catch (apiErr) {
-                console.warn("[api] put schedule error:", apiErr);
-              }
-            }
-
-            // 3. Update state lokal
-            const nextSchedules = schedules.map((s) => (s.id === target.id ? updatedItem : s));
-            updateSchedulesState(nextSchedules);
-            setCurrentPendingDraft(null);
-
-            // 4. Konfirmasi di chat dengan detail kartu yang sudah diperbarui
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: assistantMsgId,
-                role: "assistant",
-                content: `Sip! Jadwal "${updatedItem.title}" sudah berhasil direvisi ke tanggal ${formatScheduleDate(updatedItem.date)} pukul ${formatScheduleTime(updatedItem.time)} WIB.`,
-                pendingSchedule: {
+          // 1. Beritahu route /api/schedules dengan Bearer token
+          if (user?.id && !target.id.startsWith("local_")) {
+            try {
+              const headers = await getAuthHeaders();
+              const putRes = await fetch("/api/schedules", {
+                method: "PUT",
+                headers,
+                body: JSON.stringify({
+                  id: target.id,
+                  user_id: userId,
                   title: updatedItem.title,
+                  description: updatedItem.description,
                   date: updatedItem.date,
                   time: updatedItem.time,
-                  duration: updatedItem.duration_minutes,
-                  reminder: updatedItem.reminder_minutes,
+                  duration_minutes: updatedItem.duration_minutes,
+                  reminder_minutes: updatedItem.reminder_minutes,
                   recurrence: updatedItem.recurrence,
-                  description: updatedItem.description,
-                  timezone: updatedItem.timezone,
-                },
-                isConfirmed: true,
-                confirmedSchedule: updatedItem,
-                isRevision: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-              },
-            ]);
-            return;
+                  reminder_status: "pending",
+                }),
+              });
+              const putJson = await putRes.json();
+              if (putJson.success && putJson.data) {
+                Object.assign(updatedItem, putJson.data);
+              }
+            } catch (apiErr) {
+              console.warn("[api] put schedule error:", apiErr);
+            }
           }
+
+          // 3. Update state lokal
+          const nextSchedules = schedules.map((s) => (s.id === target.id ? updatedItem : s));
+          updateSchedulesState(nextSchedules);
+          setCurrentPendingDraft(null);
+          setRevisingSchedule(null);
+          setLastActiveScheduleId(updatedItem.id);
+
+          // 4. Konfirmasi di chat dengan detail kartu yang sudah diperbarui
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: assistantMsgId,
+              role: "assistant",
+              content: `Sip! Jadwal "${updatedItem.title}" sudah berhasil direvisi ke tanggal ${formatScheduleDate(updatedItem.date)} pukul ${formatScheduleTime(updatedItem.time)} WIB (Pengingat: ${formatReminderText(updatedItem.reminder_minutes)}).`,
+              pendingSchedule: {
+                title: updatedItem.title,
+                date: updatedItem.date,
+                time: updatedItem.time,
+                duration: updatedItem.duration_minutes,
+                reminder: updatedItem.reminder_minutes,
+                recurrence: updatedItem.recurrence,
+                description: updatedItem.description,
+                timezone: updatedItem.timezone,
+              },
+              isConfirmed: true,
+              confirmedSchedule: updatedItem,
+              isRevision: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            },
+          ]);
+          return;
         }
 
         // Jika target revisi tidak ditemukan
@@ -753,6 +813,7 @@ export function ScheduleWorkspace({
         // Data jadwal sudah CLEAR & LENGKAP!
         // Reset pending draft
         setCurrentPendingDraft(null);
+        setRevisingSchedule(null);
 
         const payload = {
           user_id: userId,
@@ -761,7 +822,7 @@ export function ScheduleWorkspace({
           date: parsed.date || getTodayDateString(),
           time: parsed.time || "09:00",
           duration_minutes: parsed.duration || 60,
-          reminder_minutes: parsed.reminder ?? 15,
+          reminder_minutes: parsed.reminder ?? defaultReminder,
           recurrence: parsed.recurrence || "once",
           timezone: parsed.timezone || "Asia/Jakarta",
           status: "upcoming" as ScheduleStatus,
@@ -801,6 +862,7 @@ export function ScheduleWorkspace({
         }
 
         updateSchedulesState([...schedules, savedItem]);
+        setLastActiveScheduleId(savedItem.id);
 
         // Tampilkan pesan konfirmasi bahwa jadwal sudah otomatis ditambahkan
         setChatMessages((prev) => [
@@ -840,7 +902,7 @@ export function ScheduleWorkspace({
       date: parsed.date || getTodayDateString(),
       time: parsed.time || "09:00",
       duration_minutes: parsed.duration || 60,
-      reminder_minutes: parsed.reminder ?? 15,
+      reminder_minutes: parsed.reminder ?? defaultReminder,
       recurrence: parsed.recurrence || "once",
       timezone: parsed.timezone || "Asia/Jakarta",
       status: "upcoming" as ScheduleStatus,
@@ -880,6 +942,7 @@ export function ScheduleWorkspace({
     }
 
     updateSchedulesState([...schedules, savedItem]);
+    setLastActiveScheduleId(savedItem.id);
 
     // Update pesan chat menjadi terkonfirmasi
     setChatMessages((prev) =>
@@ -918,7 +981,7 @@ export function ScheduleWorkspace({
     setFormDate(getTodayDateString());
     setFormTime("09:00");
     setFormDuration(60);
-    setFormReminder(15);
+    setFormReminder(defaultReminder);
     setFormRecurrence("once");
     setModalOpen(true);
   };
@@ -933,6 +996,7 @@ export function ScheduleWorkspace({
     setFormReminder(item.reminder_minutes);
     setFormRecurrence(item.recurrence);
     setSelectedItem(null);
+    setLastActiveScheduleId(item.id);
     setModalOpen(true);
   };
 
@@ -978,7 +1042,11 @@ export function ScheduleWorkspace({
         item.id === editingItem.id ? { ...item, ...updatedFields } : item
       );
       updateSchedulesState(updatedList);
+      setLastActiveScheduleId(editingItem.id);
     } else {
+      // Simpan preferensi reminder pengguna sebagai default baru
+      updateDefaultReminder(Number(formReminder));
+
       const payload = {
         user_id: userId,
         title: formTitle.trim(),
@@ -1025,6 +1093,7 @@ export function ScheduleWorkspace({
       }
 
       updateSchedulesState([...schedules, savedItem]);
+      setLastActiveScheduleId(savedItem.id);
     }
 
     setModalOpen(false);
@@ -1166,6 +1235,40 @@ export function ScheduleWorkspace({
         }`}
       >
       <div className="p-3 sm:p-3.5 space-y-1.5">
+        {/* Revision Alert Banner */}
+        {revisingSchedule && (
+          <div
+            className={`flex items-center justify-between px-3 py-1.5 rounded-2xl mb-1 text-xs border animate-in fade-in-0 duration-150 ${
+              isDark
+                ? "bg-amber-950/40 border-amber-800/60 text-amber-200"
+                : "bg-amber-50 border-amber-300 text-amber-900"
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-bold shrink-0">✏️ Mode Revisi:</span>
+              <span className="truncate font-semibold">
+                "{revisingSchedule.title}"
+              </span>
+              <span className="hidden sm:inline opacity-75 truncate">
+                ({formatScheduleDate(revisingSchedule.date)}, {formatScheduleTime(revisingSchedule.time)} WIB)
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <button
+                type="button"
+                onClick={() => setRevisingSchedule(null)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                  isDark
+                    ? "border-amber-700/60 hover:bg-amber-900/50 text-amber-200"
+                    : "border-amber-300 hover:bg-amber-100 text-amber-900"
+                }`}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="relative">
           <textarea
             ref={textareaRef}
@@ -1180,7 +1283,11 @@ export function ScheduleWorkspace({
                 handleSendChatMessage();
               }
             }}
-            placeholder="Ask Schedule AI to add or manage your schedule..."
+            placeholder={
+              revisingSchedule
+                ? `Ketik revisi untuk "${revisingSchedule.title}" (contoh: "ganti jam 16:00", "undur 1 jam", "pengingat 30 menit")...`
+                : "Ask Schedule AI to add or manage your schedule..."
+            }
             rows={1}
             className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
               isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
@@ -1191,13 +1298,84 @@ export function ScheduleWorkspace({
 
         {/* Bottom Actions Row (Narrowed Vertically) */}
         <div className="flex items-center justify-between pt-1 gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             <div className={`px-2.5 py-1 rounded-full text-xs font-medium select-none ${
               isDark
                 ? "bg-zinc-800/60 text-zinc-400 border border-zinc-700/50"
                 : "bg-zinc-100 text-zinc-600 border border-zinc-200"
             }`}>
               <span>Schedule Assistant</span>
+            </div>
+
+            {/* Default Reminder Setting Pill & Interactive Menu */}
+            <div className="relative" ref={reminderPickerRef}>
+              <button
+                type="button"
+                onClick={() => setShowReminderPicker((prev) => !prev)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                  isDark
+                    ? "bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-300 border border-zinc-700/50"
+                    : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200"
+                }`}
+                title="Klik untuk memilih default pengingat jadwal"
+              >
+                <svg className="w-3 h-3 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="truncate">Pengingat: {formatReminderText(defaultReminder)}</span>
+                <svg className={`w-2.5 h-2.5 transition-transform ${showReminderPicker ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown Popup */}
+              {showReminderPicker && (
+                <div
+                  className={`absolute bottom-full left-0 mb-2 w-56 rounded-2xl border p-1.5 shadow-xl z-50 animate-in fade-in-0 duration-150 backdrop-blur-md ${
+                    isDark
+                      ? "bg-zinc-900/95 border-zinc-700 text-zinc-200 shadow-black/60"
+                      : "bg-white/95 border-zinc-200 text-zinc-800 shadow-zinc-300/60"
+                  }`}
+                >
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-700/40 mb-1">
+                    Default Pengingat Acara
+                  </div>
+                  {[
+                    { val: 0, label: "Tepat saat dimulai" },
+                    { val: 5, label: "5 menit sebelumnya" },
+                    { val: 10, label: "10 menit sebelumnya" },
+                    { val: 15, label: "15 menit sebelumnya" },
+                    { val: 30, label: "30 menit sebelumnya" },
+                    { val: 60, label: "1 jam sebelumnya" },
+                    { val: 1440, label: "1 hari sebelumnya" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => {
+                        updateDefaultReminder(opt.val);
+                        setShowReminderPicker(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer text-left ${
+                        defaultReminder === opt.val
+                          ? isDark
+                            ? "bg-white text-black font-semibold"
+                            : "bg-black text-white font-semibold"
+                          : isDark
+                          ? "hover:bg-zinc-800 text-zinc-300"
+                          : "hover:bg-zinc-100 text-zinc-700"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {defaultReminder === opt.val && (
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1637,7 +1815,7 @@ export function ScheduleWorkspace({
                                   <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  <span>{formatReminderText(msg.pendingSchedule.reminder ?? 15)}</span>
+                                  <span>{formatReminderText(msg.pendingSchedule.reminder ?? defaultReminder)}</span>
                                 </div>
                               </div>
                             </div>
@@ -1689,25 +1867,44 @@ export function ScheduleWorkspace({
                               </button>
                             </div>
                           ) : (
-                            <div className="pt-2 border-t border-zinc-700/40 flex flex-wrap items-center justify-between gap-1 text-xs text-zinc-400">
+                            <div className="pt-2 border-t border-zinc-700/40 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
                               <span className="flex items-center gap-1.5 flex-wrap">
                                 <svg className="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                 </svg>
                                 <span>{msg.isRevision ? "Jadwal berhasil diperbarui di agenda" : "Jadwal telah ditambahkan ke agenda"}</span>
                                 {msg.confirmedSchedule?.google_sync_status === "synced" && (
-                                  <span className="relative flex h-2 w-2 shrink-0 ml-1" title="Tersinkronisasi">
+                                  <span className="relative flex h-2 w-2 shrink-0 ml-1" title="Tersinkronisasi ke Google Calendar">
                                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDark ? "bg-white" : "bg-black"}`} />
                                     <span className={`relative inline-flex rounded-full h-2 w-2 ${isDark ? "bg-white" : "bg-black"}`} />
                                   </span>
                                 )}
                               </span>
-                              <button
-                                onClick={() => setCurrentTab("list")}
-                                className="font-semibold underline hover:text-white cursor-pointer"
-                              >
-                                Lihat di Daftar Agenda →
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {msg.confirmedSchedule && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartChatRevision(msg.confirmedSchedule!)}
+                                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition cursor-pointer ${
+                                      isDark
+                                        ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white"
+                                        : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black"
+                                    }`}
+                                    title="Revisi jadwal ini via chat"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    <span>Revisi</span>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setCurrentTab("list")}
+                                  className="font-semibold underline hover:text-white cursor-pointer"
+                                >
+                                  Lihat di Daftar Agenda →
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1869,9 +2066,13 @@ export function ScheduleWorkspace({
                   title="Hari Ini"
                   items={grouped.today}
                   isDark={isDark}
-                  onSelect={setSelectedItem}
+                  onSelect={(item) => {
+                    setSelectedItem(item);
+                    setLastActiveScheduleId(item.id);
+                  }}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onReviseInChat={handleStartChatRevision}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1889,9 +2090,13 @@ export function ScheduleWorkspace({
                   title="Akan Datang"
                   items={grouped.upcoming}
                   isDark={isDark}
-                  onSelect={setSelectedItem}
+                  onSelect={(item) => {
+                    setSelectedItem(item);
+                    setLastActiveScheduleId(item.id);
+                  }}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onReviseInChat={handleStartChatRevision}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1909,9 +2114,13 @@ export function ScheduleWorkspace({
                   title="Selesai / Riwayat"
                   items={grouped.completed}
                   isDark={isDark}
-                  onSelect={setSelectedItem}
+                  onSelect={(item) => {
+                    setSelectedItem(item);
+                    setLastActiveScheduleId(item.id);
+                  }}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onReviseInChat={handleStartChatRevision}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -1929,9 +2138,13 @@ export function ScheduleWorkspace({
                   title="Dibatalkan"
                   items={grouped.cancelled}
                   isDark={isDark}
-                  onSelect={setSelectedItem}
+                  onSelect={(item) => {
+                    setSelectedItem(item);
+                    setLastActiveScheduleId(item.id);
+                  }}
                   onEdit={openEditScheduleModal}
                   onDelete={handleDeleteSchedule}
+                  onReviseInChat={handleStartChatRevision}
                   onToggleComplete={(item) =>
                     handleUpdateStatus(item, item.status === "completed" ? "upcoming" : "completed")
                   }
@@ -2324,6 +2537,25 @@ export function ScheduleWorkspace({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => {
+                      const item = selectedItem;
+                      setSelectedItem(null);
+                      handleStartChatRevision(item);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                      isDark
+                        ? "border-zinc-700 hover:bg-zinc-800 text-zinc-300"
+                        : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                    }`}
+                    title="Revisi agenda ini via Chat AI"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <span>Revisi via Chat</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openEditScheduleModal(selectedItem)}
                     className={`px-3.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer ${
                       isDark
@@ -2422,6 +2654,7 @@ function ScheduleSection({
   onDelete,
   onToggleComplete,
   onToggleCancel,
+  onReviseInChat,
   isGoogleConnected,
   googleSyncingIds,
   onRetryGoogleSync,
@@ -2434,6 +2667,7 @@ function ScheduleSection({
   onDelete: (item: ScheduleItem) => void;
   onToggleComplete: (item: ScheduleItem) => void;
   onToggleCancel?: (item: ScheduleItem) => void;
+  onReviseInChat?: (item: ScheduleItem) => void;
   isGoogleConnected?: boolean;
   googleSyncingIds?: Set<string>;
   onRetryGoogleSync?: (item: ScheduleItem) => void;
@@ -2633,6 +2867,23 @@ function ScheduleSection({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       )}
+                    </button>
+                  )}
+
+                  {onReviseInChat && (
+                    <button
+                      type="button"
+                      onClick={() => onReviseInChat(item)}
+                      title="Revisi agenda ini via Chat AI"
+                      className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                        isDark
+                          ? "border-zinc-700/60 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                          : "border-zinc-200 hover:bg-zinc-100 text-zinc-500 hover:text-black"
+                      }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
                     </button>
                   )}
 
