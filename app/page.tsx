@@ -1079,8 +1079,8 @@ export default function Home() {
     authLoading,
     sessionsReady: !user || sessions.length > 0,
     subscriptionReady,
-    minDurationMs: 1200, // Dipercepat menjadi ~1.2s agar animasi masuk web terasa lebih gesit
-    safetyTimeoutMs: 2800, // 2.8s maximum fallback in case network hangs
+    minDurationMs: 2200, // Durasi tenang ~2.2s agar animasi sapuan One Mind dan model slider tampil anggun
+    safetyTimeoutMs: 5000, // 5s maximum fallback in case network hangs
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);

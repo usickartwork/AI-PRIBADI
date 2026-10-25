@@ -44,7 +44,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       />
 
       {/* ─── Center Hero: TechText "One Mind" ───────────────────────────────── */}
-      <div className="relative w-full max-w-2xl sm:max-w-3xl h-52 sm:h-64 md:h-72 flex items-center justify-center px-4 -translate-y-4 sm:-translate-y-6 font-[family-name:var(--font-geist-sans)]">
+      <div className="relative w-full max-w-2xl sm:max-w-3xl h-36 sm:h-44 md:h-48 flex items-center justify-center px-4 -translate-y-2 sm:-translate-y-4 font-[family-name:var(--font-geist-sans)]">
         <TechText
           text="One Mind"
           fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
@@ -57,14 +57,14 @@ export function IntroLoader({ state }: IntroLoaderProps) {
           dashGap={2}
           specks={15}
           sweep={true}
-          speed={3.6}
+          speed={2.4}
           draggable={true}
         />
       </div>
 
-      {/* ─── Logo Cloud: Model & LLM Provider Slider (Dibawah One Mind) ─────── */}
-      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-2 sm:mt-4 flex flex-col items-center animate-in fade-in-0 duration-400">
-        <LogoCloud isDark={true} duration={4.8} className="w-full py-1.5" />
+      {/* ─── Logo Cloud: Model & LLM Provider Slider (Tepat di bawah One Mind) ─── */}
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 -mt-3 sm:-mt-5 md:-mt-6 flex flex-col items-center animate-in fade-in-0 duration-400">
+        <LogoCloud isDark={true} duration={6} className="w-full py-1.5" />
       </div>
     </div>
   );
@@ -104,8 +104,8 @@ export function useAppInitializer({
   authLoading,
   sessionsReady,
   subscriptionReady = true,
-  minDurationMs = 1200,
-  safetyTimeoutMs = 2800,
+  minDurationMs = 2200,
+  safetyTimeoutMs = 5000,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;
