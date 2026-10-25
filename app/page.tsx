@@ -661,7 +661,7 @@ export default function Home() {
     }
     return null;
   });
-  const [subscriptionReady, setSubscriptionReady] = useState(false);
+  const [subscriptionReady, setSubscriptionReady] = useState(() => Boolean(subscription));
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
@@ -1018,8 +1018,8 @@ export default function Home() {
     authLoading,
     sessionsReady: !user || sessions.length > 0,
     subscriptionReady,
-    minDurationMs: 2000, // Dipercepat menjadi ~2.0s agar animasi masuk web lebih cepat dan responsif
-    safetyTimeoutMs: 4500, // 4.5s maximum fallback in case network hangs
+    minDurationMs: 1200, // Dipercepat menjadi ~1.2s agar animasi masuk web terasa lebih gesit
+    safetyTimeoutMs: 2800, // 2.8s maximum fallback in case network hangs
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);

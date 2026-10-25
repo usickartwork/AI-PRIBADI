@@ -22,9 +22,9 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       role="status"
       aria-label="Memuat One Mind"
       aria-live="polite"
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
         isExiting
-          ? "opacity-0 scale-[1.04] pointer-events-none"
+          ? "opacity-0 scale-[1.03] pointer-events-none"
           : "opacity-100 scale-100"
       }`}
       style={{
@@ -36,7 +36,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
     >
       {/* ─── Ambient Atmospheric Depth Light ─────────────────────────────────── */}
       <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-700"
+        className="absolute inset-0 pointer-events-none transition-opacity duration-500"
         style={{
           background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 60%)",
         }}
@@ -55,14 +55,14 @@ export function IntroLoader({ state }: IntroLoaderProps) {
           dashGap={2}
           specks={15}
           sweep={true}
-          speed={3.6}
+          speed={5.2}
           draggable={true}
         />
       </div>
 
       {/* ─── Logo Cloud: Model & LLM Provider Slider (Dibawah One Mind) ─────── */}
-      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-0 sm:mt-1 flex flex-col items-center animate-in fade-in-0 duration-700">
-        <LogoCloud isDark={true} duration={6} className="w-full py-1.5" />
+      <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl px-4 mt-0 sm:mt-1 flex flex-col items-center animate-in fade-in-0 duration-400">
+        <LogoCloud isDark={true} duration={4.8} className="w-full py-1.5" />
       </div>
     </div>
   );
@@ -212,8 +212,8 @@ export function useAppInitializer({
   authLoading,
   sessionsReady,
   subscriptionReady = true,
-  minDurationMs = 2000,
-  safetyTimeoutMs = 4500,
+  minDurationMs = 1200,
+  safetyTimeoutMs = 2800,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;
@@ -221,9 +221,9 @@ export function useAppInitializer({
   minDurationMs?: number;
   safetyTimeoutMs?: number;
 }) {
-  const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">("visible");
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-  const [appReady, setAppReady] = useState(false);
+  const [safetyForced, setSafetyForced] = useState(false);
+  const [gone, setGone] = useState(false);
 
   // 1. Minimum display timer
   useEffect(() => {
@@ -233,32 +233,30 @@ export function useAppInitializer({
     return () => clearTimeout(timer);
   }, [minDurationMs]);
 
-  // 2. Track actual readiness
-  useEffect(() => {
-    if (!authLoading && sessionsReady && subscriptionReady) {
-      setAppReady(true);
-    }
-  }, [authLoading, sessionsReady, subscriptionReady]);
-
-  // 3. Safety fallback timer to prevent infinite stuck loader
+  // 2. Safety fallback timer to prevent infinite stuck loader
   useEffect(() => {
     const safety = setTimeout(() => {
-      setAppReady(true);
-      setMinTimeElapsed(true);
+      setSafetyForced(true);
     }, safetyTimeoutMs);
     return () => clearTimeout(safety);
   }, [safetyTimeoutMs]);
 
-  // 4. Trigger exit sequence once ready and min time has passed
+  const shouldExit = safetyForced || (!authLoading && sessionsReady && subscriptionReady && minTimeElapsed);
+
+  // 3. Trigger final unmount after 280ms exit transition
   useEffect(() => {
-    if (appReady && minTimeElapsed && introState === "visible") {
-      setIntroState("exiting");
-      const exitTimer = setTimeout(() => {
-        setIntroState("gone");
-      }, 400); // 400ms exit transition
-      return () => clearTimeout(exitTimer);
-    }
-  }, [appReady, minTimeElapsed, introState]);
+    if (!shouldExit || gone) return;
+    const exitTimer = setTimeout(() => {
+      setGone(true);
+    }, 280);
+    return () => clearTimeout(exitTimer);
+  }, [shouldExit, gone]);
+
+  const introState: "visible" | "exiting" | "gone" = gone
+    ? "gone"
+    : shouldExit
+      ? "exiting"
+      : "visible";
 
   return {
     introState,
