@@ -4087,8 +4087,12 @@ export default function Home() {
     }
   };
 
+  const gameFaithInLainnya = navPrefs.lainnyaOrder.filter(
+    (id): id is "game" | "faith" => id === "game" || id === "faith"
+  );
+
   const halamanSubTabsBar =
-    navPrefs.lainnyaOrder.length === 2 ? (
+    gameFaithInLainnya.length === 2 ? (
       <div
         className={`inline-flex items-center p-0.5 sm:p-1 rounded-full backdrop-blur-md border shadow-sm ${
           isDark
@@ -4096,7 +4100,7 @@ export default function Home() {
             : "bg-white/80 border-black/10 shadow-zinc-900/10"
         }`}
       >
-        {navPrefs.lainnyaOrder.map((subId) => (
+        {gameFaithInLainnya.map((subId) => (
           <button
             key={subId}
             type="button"
@@ -4438,9 +4442,15 @@ export default function Home() {
                   if (navPrefs.lainnyaOrder.length === 0) {
                     return null;
                   }
+                  const isFreePlanGroup = (subscription?.plan || "free") === "free";
                   const isLainnyaGroupActive = navPrefs.lainnyaOrder.some((subId) =>
                     isNavTabActive(subId)
                   );
+                  const hasHiddenUnreadInLainnya =
+                    !lainnyaExpanded &&
+                    !isFreePlanGroup &&
+                    unreadMessagesCount > 0 &&
+                    navPrefs.lainnyaOrder.includes("messages");
                   return (
                     <div key="lainnya" className="space-y-1">
                       <div
@@ -4457,16 +4467,27 @@ export default function Home() {
                           {renderSidebarSlotIcon("lainnya", "w-5 h-5 md:w-5 md:h-5 shrink-0")}
                           <span>Lainnya</span>
                         </div>
-                        <svg
-                          className={`w-4 h-4 transition-transform duration-200 ${
-                            lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <div className="flex items-center gap-1.5">
+                          {hasHiddenUnreadInLainnya && (
+                            <span
+                              className={`inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ${
+                                isDark ? "bg-white text-black" : "bg-black text-white"
+                              }`}
+                            >
+                              {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                            </span>
+                          )}
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              lainnyaExpanded ? "rotate-180 text-zinc-400" : "text-zinc-500"
+                            }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
                       </div>
 
                       {lainnyaExpanded && (
@@ -4474,7 +4495,9 @@ export default function Home() {
                           {navPrefs.lainnyaOrder.map((subId) => {
                             const isSubActive = isNavTabActive(subId);
                             const isSubProLocked =
-                              subId === "faith" && (subscription?.plan || "free") === "free";
+                              isFreePlanGroup && NAV_TAB_METADATA[subId].isProBadgeTab;
+                            const showSubUnreadBadge =
+                              subId === "messages" && !isFreePlanGroup && unreadMessagesCount > 0;
                             return (
                               <div
                                 key={subId}
@@ -4489,17 +4512,29 @@ export default function Home() {
                                   {renderSidebarSlotIcon(subId, "w-4 h-4 shrink-0")}
                                   <span>{NAV_TAB_METADATA[subId].sidebarLabel}</span>
                                 </div>
-                                {isSubProLocked && (
+                                {isSubProLocked ? (
                                   <span
                                     className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                                      isDark
-                                        ? "bg-zinc-800 text-amber-400 border-zinc-700/80"
-                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                      subId === "faith"
+                                        ? isDark
+                                          ? "bg-zinc-800 text-amber-400 border-zinc-700/80"
+                                          : "bg-amber-50 text-amber-700 border-amber-200"
+                                        : isDark
+                                          ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                                          : "bg-zinc-100 text-zinc-700 border-zinc-300"
                                     }`}
                                   >
                                     PRO
                                   </span>
-                                )}
+                                ) : showSubUnreadBadge ? (
+                                  <span
+                                    className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1.5 rounded-full text-[9.5px] font-bold ${
+                                      isDark ? "bg-white text-black" : "bg-black text-white"
+                                    }`}
+                                  >
+                                    {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                                  </span>
+                                ) : null}
                               </div>
                             );
                           })}

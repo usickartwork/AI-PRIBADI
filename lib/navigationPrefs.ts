@@ -12,18 +12,21 @@ export const CORE_MAIN_TAB_IDS = [
   "emergency",
 ] as const;
 
-export const MOVABLE_OVERFLOW_TAB_IDS = ["game", "faith"] as const;
+export const DEFAULT_OVERFLOW_TAB_IDS = ["game", "faith"] as const;
 
 export const ALL_NAV_TAB_IDS = [
   ...CORE_MAIN_TAB_IDS,
-  ...MOVABLE_OVERFLOW_TAB_IDS,
+  ...DEFAULT_OVERFLOW_TAB_IDS,
 ] as const;
+
+/** Semua tab navigasi kini dapat dipindahkan keluar/masuk grup Lainnya */
+export const MOVABLE_OVERFLOW_TAB_IDS = ALL_NAV_TAB_IDS;
 
 export const LAINNYA_GROUP_SLOT_ID = "lainnya" as const;
 
 export type CoreMainTabId = (typeof CORE_MAIN_TAB_IDS)[number];
-export type MovableOverflowTabId = (typeof MOVABLE_OVERFLOW_TAB_IDS)[number];
 export type NavTabId = (typeof ALL_NAV_TAB_IDS)[number];
+export type MovableOverflowTabId = NavTabId;
 export type MainNavSlotId = NavTabId | typeof LAINNYA_GROUP_SLOT_ID;
 
 export interface NavigationTabMetadata {
@@ -43,49 +46,49 @@ export const NAV_TAB_METADATA: Record<NavTabId, NavigationTabMetadata> = {
     id: "chat",
     sidebarLabel: "Chats",
     settingsLabel: "Chat",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: false,
   },
   code: {
     id: "code",
     sidebarLabel: "Code",
     settingsLabel: "Code",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: false,
   },
   schedule: {
     id: "schedule",
     sidebarLabel: "Schedule",
     settingsLabel: "Schedule",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: false,
   },
   image: {
     id: "image",
     sidebarLabel: "Image",
     settingsLabel: "Image",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: true,
   },
   messages: {
     id: "messages",
     sidebarLabel: "Messages",
     settingsLabel: "Messages",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: true,
   },
   music: {
     id: "music",
     sidebarLabel: "Music",
     settingsLabel: "Music",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: true,
   },
   emergency: {
     id: "emergency",
     sidebarLabel: "Emergency",
     settingsLabel: "Emergency",
-    canMoveToLainnya: false,
+    canMoveToLainnya: true,
     isProBadgeTab: false,
   },
   game: {
@@ -106,10 +109,10 @@ export const NAV_TAB_METADATA: Record<NavTabId, NavigationTabMetadata> = {
 
 export interface NavigationPreferencesV1 {
   version: typeof NAV_PREFS_SCHEMA_VERSION;
-  /** Urutan slot pada panel utama; wajib memuat tepat 1 marker "lainnya" */
+  /** Urutan slot pada panel utama; wajib memuat tepat 1 marker "lainnya" & minimal 1 tab utama */
   mainOrder: MainNavSlotId[];
-  /** Urutan tab di dalam grup Lainnya (subset dari ["game", "faith"]) */
-  lainnyaOrder: MovableOverflowTabId[];
+  /** Urutan tab di dalam grup Lainnya (bisa diisi tab apa saja selain minimal 1 tab di Panel Utama) */
+  lainnyaOrder: NavTabId[];
   /** Nomor revisi monotonik untuk mencegah penimpaan request out-of-order */
   revision: number;
   /** Timestamp ISO 8601 pembaruan terakhir */
@@ -127,13 +130,12 @@ export const DEFAULT_MAIN_ORDER: readonly MainNavSlotId[] = [
   "lainnya",
 ] as const;
 
-export const DEFAULT_LAINNYA_ORDER: readonly MovableOverflowTabId[] = [
+export const DEFAULT_LAINNYA_ORDER: readonly NavTabId[] = [
   "game",
   "faith",
 ] as const;
 
 const VALID_NAV_TAB_SET = new Set<string>(ALL_NAV_TAB_IDS);
-const VALID_MOVABLE_OVERFLOW_SET = new Set<string>(MOVABLE_OVERFLOW_TAB_IDS);
 
 export function isNavTabId(value: unknown): value is NavTabId {
   return typeof value === "string" && VALID_NAV_TAB_SET.has(value);
@@ -142,7 +144,15 @@ export function isNavTabId(value: unknown): value is NavTabId {
 export function isMovableOverflowTabId(
   value: unknown
 ): value is MovableOverflowTabId {
-  return typeof value === "string" && VALID_MOVABLE_OVERFLOW_SET.has(value);
+  return isNavTabId(value);
+}
+
+export function countMainTabs(mainOrder: readonly MainNavSlotId[]): number {
+  let count = 0;
+  for (const id of mainOrder) {
+    if (id !== LAINNYA_GROUP_SLOT_ID) count += 1;
+  }
+  return count;
 }
 
 export function isMainNavSlotId(value: unknown): value is MainNavSlotId {
@@ -223,7 +233,7 @@ export function validateNavigationPreferencesStrict(
   // Batasi ukuran maksimum array untuk mencegah penyalahgunaan payload besar
   if (
     obj.mainOrder.length > ALL_NAV_TAB_IDS.length + 1 ||
-    obj.lainnyaOrder.length > MOVABLE_OVERFLOW_TAB_IDS.length
+    obj.lainnyaOrder.length > ALL_NAV_TAB_IDS.length
   ) {
     return {
       valid: false,
@@ -234,7 +244,7 @@ export function validateNavigationPreferencesStrict(
   const seenTabs = new Set<NavTabId>();
   let lainnyaSlotCount = 0;
   const validatedMainOrder: MainNavSlotId[] = [];
-  const validatedLainnyaOrder: MovableOverflowTabId[] = [];
+  const validatedLainnyaOrder: NavTabId[] = [];
 
   for (const item of obj.mainOrder) {
     if (typeof item !== "string") {
@@ -277,14 +287,21 @@ export function validateNavigationPreferencesStrict(
     };
   }
 
+  if (countMainTabs(validatedMainOrder) < 1) {
+    return {
+      valid: false,
+      error: "Minimal 1 tab harus tetap berada di Panel Utama.",
+    };
+  }
+
   for (const item of obj.lainnyaOrder) {
     if (typeof item !== "string") {
       return { valid: false, error: "Item pada lainnyaOrder harus berupa string ID." };
     }
-    if (!isMovableOverflowTabId(item)) {
+    if (!isNavTabId(item)) {
       return {
         valid: false,
-        error: `Tab '${item.slice(0, 32)}' tidak diizinkan berada di dalam grup Lainnya.`,
+        error: `ID tab asing atau tidak dikenal pada lainnyaOrder: '${item.slice(0, 32)}'.`,
       };
     }
     if (seenTabs.has(item)) {
@@ -402,19 +419,10 @@ export function sanitizeNavigationPreferences(raw: unknown): SanitizeResult {
 
   const seenTabs = new Set<NavTabId>();
   const repairedMain: MainNavSlotId[] = [];
-  const repairedLainnya: MovableOverflowTabId[] = [];
+  const repairedLainnya: NavTabId[] = [];
   let hasLainnyaSlot = false;
 
-  // 1. Pulihkan lainnyaOrder terlebih dahulu khusus item yang diizinkan ("game" | "faith")
-  for (const entry of rawLainnya) {
-    const norm = normalizeLegacyTabAlias(entry);
-    if (norm && isMovableOverflowTabId(norm) && !seenTabs.has(norm)) {
-      seenTabs.add(norm);
-      repairedLainnya.push(norm);
-    }
-  }
-
-  // 2. Pulihkan mainOrder (termasuk jika rawLainnya berisi core tab yang salah tempat, akan dipulihkan di tahap 3)
+  // 1. Pulihkan mainOrder terlebih dahulu
   for (const entry of rawMain) {
     const norm = normalizeLegacyTabAlias(entry);
     if (!norm) continue;
@@ -428,6 +436,15 @@ export function sanitizeNavigationPreferences(raw: unknown): SanitizeResult {
     if (isNavTabId(norm) && !seenTabs.has(norm)) {
       seenTabs.add(norm);
       repairedMain.push(norm);
+    }
+  }
+
+  // 2. Pulihkan lainnyaOrder untuk semua tab valid yang belum muncul di mainOrder
+  for (const entry of rawLainnya) {
+    const norm = normalizeLegacyTabAlias(entry);
+    if (norm && isNavTabId(norm) && !seenTabs.has(norm)) {
+      seenTabs.add(norm);
+      repairedLainnya.push(norm);
     }
   }
 
@@ -446,16 +463,7 @@ export function sanitizeNavigationPreferences(raw: unknown): SanitizeResult {
     repairedMain.push(tabId);
   };
 
-  // 3. Jika ada tab core yang sempat nyasar ke rawLainnya, pindahkan kembali ke mainOrder
-  for (const entry of rawLainnya) {
-    const norm = normalizeLegacyTabAlias(entry);
-    if (norm && isNavTabId(norm) && !isMovableOverflowTabId(norm) && !seenTabs.has(norm)) {
-      seenTabs.add(norm);
-      appendMissingCoreTab(norm);
-    }
-  }
-
-  // 4. Pastikan setiap tab wajib hadir tepat 1 kali (tambahkan tab yang hilang ke lokasi aman)
+  // 3. Pastikan setiap tab wajib hadir tepat 1 kali (tambahkan tab yang hilang ke lokasi default aman)
   for (const coreId of CORE_MAIN_TAB_IDS) {
     if (!seenTabs.has(coreId)) {
       seenTabs.add(coreId);
@@ -463,16 +471,26 @@ export function sanitizeNavigationPreferences(raw: unknown): SanitizeResult {
     }
   }
 
-  for (const overflowId of MOVABLE_OVERFLOW_TAB_IDS) {
+  for (const overflowId of DEFAULT_OVERFLOW_TAB_IDS) {
     if (!seenTabs.has(overflowId)) {
       seenTabs.add(overflowId);
       repairedLainnya.push(overflowId);
     }
   }
 
-  // 5. Pastikan marker "lainnya" hadir tepat 1 kali di mainOrder
+  // 4. Pastikan marker "lainnya" hadir tepat 1 kali di mainOrder
   if (!hasLainnyaSlot) {
     repairedMain.push(LAINNYA_GROUP_SLOT_ID);
+  }
+
+  // 5. Pastikan minimal 1 tab tetap berada di Panel Utama
+  if (countMainTabs(repairedMain) < 1 && repairedLainnya.length > 0) {
+    const promotedIdx = repairedLainnya.indexOf("chat");
+    const tabToRestore =
+      promotedIdx >= 0
+        ? repairedLainnya.splice(promotedIdx, 1)[0]
+        : repairedLainnya.shift()!;
+    repairedMain.unshift(tabToRestore);
   }
 
   // Jika input awal benar-benar kosong (tidak ada 1 pun ID valid), gunakan urutan default murni
@@ -529,7 +547,7 @@ export function reorderMainSlots(
 
 export function reorderLainnyaTabs(
   prefs: NavigationPreferencesV1,
-  nextLainnyaOrder: MovableOverflowTabId[]
+  nextLainnyaOrder: NavTabId[]
 ): NavigationPreferencesV1 {
   const candidate: NavigationPreferencesV1 = {
     ...prefs,
@@ -563,7 +581,7 @@ export function moveMainSlotByOffset(
 
 export function moveLainnyaTabByOffset(
   prefs: NavigationPreferencesV1,
-  tabId: MovableOverflowTabId,
+  tabId: NavTabId,
   direction: -1 | 1
 ): NavigationPreferencesV1 {
   const idx = prefs.lainnyaOrder.indexOf(tabId);
@@ -581,25 +599,36 @@ export function moveLainnyaTabByOffset(
 }
 
 /**
- * Memindahkan Game atau Faith keluar dari grup Lainnya menjadi tab utama
- * (disisipkan tepat sebelum posisi grup Lainnya pada panel utama).
+ * Memindahkan tab apa pun keluar dari grup Lainnya menjadi tab utama
+ * (disisipkan pada targetMainIndex bila diberikan, atau tepat sebelum posisi grup Lainnya).
  */
 export function promoteTabFromLainnya(
   prefs: NavigationPreferencesV1,
-  tabId: MovableOverflowTabId
+  tabId: NavTabId,
+  targetMainIndex?: number
 ): NavigationPreferencesV1 {
   if (!prefs.lainnyaOrder.includes(tabId)) {
     return prefs;
   }
   const nextLainnya = prefs.lainnyaOrder.filter((id) => id !== tabId);
   const nextMain = prefs.mainOrder.filter((id) => id !== tabId);
-  const lainnyaIdx = nextMain.indexOf(LAINNYA_GROUP_SLOT_ID);
-  if (lainnyaIdx >= 0) {
-    nextMain.splice(lainnyaIdx, 0, tabId);
-  } else {
-    nextMain.push(tabId);
+
+  if (!nextMain.includes(LAINNYA_GROUP_SLOT_ID)) {
     nextMain.push(LAINNYA_GROUP_SLOT_ID);
   }
+
+  if (typeof targetMainIndex === "number" && Number.isFinite(targetMainIndex)) {
+    const clamped = Math.max(0, Math.min(nextMain.length, Math.floor(targetMainIndex)));
+    nextMain.splice(clamped, 0, tabId);
+  } else {
+    const lainnyaIdx = nextMain.indexOf(LAINNYA_GROUP_SLOT_ID);
+    if (lainnyaIdx >= 0) {
+      nextMain.splice(lainnyaIdx, 0, tabId);
+    } else {
+      nextMain.push(tabId);
+    }
+  }
+
   return {
     ...prefs,
     mainOrder: nextMain,
@@ -608,20 +637,37 @@ export function promoteTabFromLainnya(
 }
 
 /**
- * Memindahkan Game atau Faith dari tab utama kembali ke dalam grup Lainnya.
+ * Memindahkan tab apa pun dari Panel Utama ke dalam grup Lainnya
+ * (selama masih tersisa minimal 1 tab di Panel Utama).
  */
 export function demoteTabToLainnya(
   prefs: NavigationPreferencesV1,
-  tabId: MovableOverflowTabId
+  tabId: NavTabId,
+  targetLainnyaIndex?: number
 ): NavigationPreferencesV1 {
   if (prefs.lainnyaOrder.includes(tabId)) {
     return prefs;
   }
+  if (!prefs.mainOrder.includes(tabId)) {
+    return prefs;
+  }
+  if (countMainTabs(prefs.mainOrder) <= 1) {
+    return prefs;
+  }
+
   const nextMain = prefs.mainOrder.filter((id) => id !== tabId);
   if (!nextMain.includes(LAINNYA_GROUP_SLOT_ID)) {
     nextMain.push(LAINNYA_GROUP_SLOT_ID);
   }
-  const nextLainnya: MovableOverflowTabId[] = [...prefs.lainnyaOrder, tabId];
+
+  const nextLainnya: NavTabId[] = [...prefs.lainnyaOrder];
+  if (typeof targetLainnyaIndex === "number" && Number.isFinite(targetLainnyaIndex)) {
+    const clamped = Math.max(0, Math.min(nextLainnya.length, Math.floor(targetLainnyaIndex)));
+    nextLainnya.splice(clamped, 0, tabId);
+  } else {
+    nextLainnya.push(tabId);
+  }
+
   return {
     ...prefs,
     mainOrder: nextMain,

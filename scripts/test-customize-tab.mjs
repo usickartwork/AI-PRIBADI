@@ -414,7 +414,7 @@ await runTest("8. Pemulihan aman dari data preferensi rusak, duplikat, ID asing,
   assert.equal(fromBadJson.repaired, true);
   assert.equal(isDefaultNavigationOrder(fromBadJson.preferences), true);
 
-  // b) Tab hilang, tab duplikat, ID asing berbahaya, dan core tab nyasar di lainnyaOrder
+  // b) Tab hilang, tab duplikat, dan ID asing berbahaya
   const messyPayload = {
     version: 1,
     mainOrder: ["music", "music", "foreign_hack_tab", "lainnya", "lainnya"],
@@ -426,12 +426,37 @@ await runTest("8. Pemulihan aman dari data preferensi rusak, duplikat, ID asing,
 
   const sanitized = sanitizeNavigationPreferences(messyPayload);
   assert.equal(sanitized.repaired, true);
-  // Hasil sanitasi wajib 100% lolos validasi ketat tanpa duplikasi atau tab hilang
+  // Hasil sanitasi wajib 100% lolos validasi ketat tanpa duplikasi atau tab hilang,
+  // dan "chat" yang ditempatkan di lainnyaOrder tetap dipertahankan di lainnyaOrder!
   const postCheck = validateNavigationPreferencesStrict(sanitized.preferences);
   assert.equal(postCheck.valid, true);
   assert.equal(sanitized.preferences.mainOrder[0], "music");
-  assert.equal(sanitized.preferences.lainnyaOrder.includes("chat"), false);
-  assert.equal(sanitized.preferences.mainOrder.includes("chat"), true);
+  assert.equal(sanitized.preferences.lainnyaOrder.includes("chat"), true);
+  assert.equal(sanitized.preferences.mainOrder.includes("chat"), false);
+
+  // b2) Jika payload rusak menaruh SEMUA 9 tab di lainnyaOrder (0 tab di Panel Utama), sanitizer wajib memulihkan minimal 1 tab ke Panel Utama
+  const zeroMainPayload = {
+    version: 1,
+    mainOrder: ["lainnya"],
+    lainnyaOrder: [
+      "chat",
+      "code",
+      "schedule",
+      "image",
+      "messages",
+      "music",
+      "emergency",
+      "game",
+      "faith",
+    ],
+    revision: 2,
+    updatedAt: "2026-10-25T00:12:00.000Z",
+  };
+  assert.equal(validateNavigationPreferencesStrict(zeroMainPayload).valid, false);
+  const repairedZeroMain = sanitizeNavigationPreferences(zeroMainPayload);
+  assert.equal(repairedZeroMain.repaired, true);
+  assert.equal(validateNavigationPreferencesStrict(repairedZeroMain.preferences).valid, true);
+  assert.equal(repairedZeroMain.preferences.mainOrder[0], "chat");
 
   // c) Skema lama hipotetis v0 ({ tabs: ["chats", "code", "more"], overflow: ["faith"] })
   const legacyV0Bottom = {
@@ -543,31 +568,89 @@ await runTest("11. Endpoint API menolak payload tidak valid, tab duplikat, atau 
   );
   assert.equal(badRes.status, 400);
 
-  // Core tab ("chat") dimasukkan ke lainnyaOrder -> ditolak 400
-  const illegalGroupRes = await POST(
+  // Semua 9 tab dimasukkan ke lainnyaOrder hingga Panel Utama kosong (0 tab) -> ditolak 400
+  const emptyMainRes = await POST(
     makeNextRequest("http://localhost:3000/api/preferences/navigation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         preferences: {
           version: 1,
-          mainOrder: [
+          mainOrder: ["lainnya"],
+          lainnyaOrder: [
+            "chat",
             "code",
             "schedule",
             "image",
             "messages",
             "music",
             "emergency",
-            "lainnya",
+            "game",
+            "faith",
           ],
-          lainnyaOrder: ["chat", "game", "faith"],
           revision: 1,
           updatedAt: new Date().toISOString(),
         },
       }),
     })
   );
-  assert.equal(illegalGroupRes.status, 400);
+  assert.equal(emptyMainRes.status, 400);
+});
+
+// 11b. Arbitrary Tabs Inside Lainnya (Faith & Game Out, Music/Schedule/Emergency/Chat In)
+await runTest("11b. Mengeluarkan Faith & Game dari Lainnya dan mengisi Lainnya dengan tab lain (Music, Schedule, Emergency, Chat, dll.)", async () => {
+  mockHarness.reset();
+  mockHarness.currentAuthUserId = "user_custom_lainnya";
+
+  let prefs = createDefaultNavigationPreferences();
+
+  // 1) Keluarkan Game & Faith dari Lainnya ke posisi spesifik di Panel Utama
+  prefs = promoteTabFromLainnya(prefs, "faith", 1);
+  prefs = promoteTabFromLainnya(prefs, "game", 2);
+  assert.deepEqual(prefs.lainnyaOrder, []);
+  assert.deepEqual(prefs.mainOrder.slice(0, 3), ["chat", "faith", "game"]);
+
+  // 2) Isi Lainnya dengan tab selain Faith & Game: Emergency, Schedule, Music, dan Image
+  prefs = demoteTabToLainnya(prefs, "emergency");
+  prefs = demoteTabToLainnya(prefs, "schedule", 0); // sisipkan di paling atas Lainnya
+  prefs = demoteTabToLainnya(prefs, "music");
+  prefs = demoteTabToLainnya(prefs, "image");
+  assert.deepEqual(prefs.lainnyaOrder, ["schedule", "emergency", "music", "image"]);
+  assert.equal(validateNavigationPreferencesStrict(prefs).valid, true);
+
+  // 3) Simpan ke API /api/preferences/navigation dan muat ulang -> wajib sukses 200 & persis sama
+  const postRes = await POST(
+    makeNextRequest("http://localhost:3000/api/preferences/navigation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferences: prefs }),
+    })
+  );
+  assert.equal(postRes.status, 200);
+
+  const getJson = await (
+    await GET(makeNextRequest("http://localhost:3000/api/preferences/navigation"))
+  ).json();
+  assert.equal(getJson.success, true);
+  assert.deepEqual(getJson.preferences.lainnyaOrder, [
+    "schedule",
+    "emergency",
+    "music",
+    "image",
+  ]);
+  assert.equal(getJson.preferences.mainOrder.includes("faith"), true);
+  assert.equal(getJson.preferences.mainOrder.includes("game"), true);
+
+  // 4) Uji batas keamanan client: jika tinggal 1 tab di Panel Utama, demoteTabToLainnya menolak mengosongkan Panel Utama
+  let extreme = prefs;
+  for (const id of [...extreme.mainOrder]) {
+    if (id !== LAINNYA_GROUP_SLOT_ID) {
+      extreme = demoteTabToLainnya(extreme, id);
+    }
+  }
+  const remainingMainTabs = extreme.mainOrder.filter((id) => id !== LAINNYA_GROUP_SLOT_ID);
+  assert.equal(remainingMainTabs.length, 1);
+  assert.equal(validateNavigationPreferencesStrict(extreme).valid, true);
 });
 
 // 12. Full Cloud Persistence, Multi-Account Isolation, Fallback, Out-of-Order & Safe Reset

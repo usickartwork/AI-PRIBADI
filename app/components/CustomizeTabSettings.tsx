@@ -10,18 +10,20 @@ import {
   CornerDownRight,
   GripVertical,
   Loader2,
+  Plus,
   RotateCcw,
 } from "lucide-react";
 import {
   type MainNavSlotId,
-  type MovableOverflowTabId,
+  type NavTabId,
   type NavigationPreferencesV1,
   LAINNYA_GROUP_SLOT_ID,
   NAV_TAB_METADATA,
   areNavigationOrdersEqual,
+  countMainTabs,
   demoteTabToLainnya,
   isDefaultNavigationOrder,
-  isMovableOverflowTabId,
+  isNavTabId,
   moveLainnyaTabByOffset,
   moveMainSlotByOffset,
   promoteTabFromLainnya,
@@ -142,15 +144,36 @@ export function NavSlotIcon({
   }
 }
 
+function getViewportClientY(
+  event: MouseEvent | TouchEvent | PointerEvent,
+  fallbackPageY: number
+): number {
+  if ("clientY" in event && typeof event.clientY === "number") {
+    return event.clientY;
+  }
+  if ("changedTouches" in event && event.changedTouches && event.changedTouches.length > 0) {
+    return event.changedTouches[0].clientY;
+  }
+  if ("touches" in event && event.touches && event.touches.length > 0) {
+    return event.touches[0].clientY;
+  }
+  return typeof window !== "undefined" ? fallbackPageY - window.scrollY : fallbackPageY;
+}
+
 interface SortableMainRowProps {
   slotId: MainNavSlotId;
   index: number;
   total: number;
-  lainnyaOrder: MovableOverflowTabId[];
+  lainnyaOrder: NavTabId[];
+  canDemoteToLainnya: boolean;
   isDark: boolean;
   disabled: boolean;
   onMoveOffset: (slotId: MainNavSlotId, dir: -1 | 1) => void;
-  onDemoteToLainnya: (tabId: MovableOverflowTabId) => void;
+  onDemoteToLainnya: (tabId: NavTabId) => void;
+  onPromoteFromLainnya: (tabId: NavTabId) => void;
+  onDragStartSnapshot: () => void;
+  onCrossZoneDragMove: (sourceZone: "main", slotId: MainNavSlotId, clientY: number) => void;
+  onCrossZoneDragEnd: (sourceZone: "main", slotId: MainNavSlotId, clientY: number) => void;
 }
 
 function SortableMainRow({
@@ -158,14 +181,19 @@ function SortableMainRow({
   index,
   total,
   lainnyaOrder,
+  canDemoteToLainnya,
   isDark,
   disabled,
   onMoveOffset,
   onDemoteToLainnya,
+  onPromoteFromLainnya,
+  onDragStartSnapshot,
+  onCrossZoneDragMove,
+  onCrossZoneDragEnd,
 }: SortableMainRowProps) {
   const dragControls = useDragControls();
   const isLainnyaGroup = slotId === LAINNYA_GROUP_SLOT_ID;
-  const isMovableToLainnya = !isLainnyaGroup && isMovableOverflowTabId(slotId);
+  const isTabSlot = !isLainnyaGroup && isNavTabId(slotId);
 
   const label = isLainnyaGroup
     ? "Lainnya"
@@ -173,23 +201,34 @@ function SortableMainRow({
 
   const lainnyaSummary =
     lainnyaOrder.length > 0
-      ? `Grup · Isi: ${lainnyaOrder.map((id) => NAV_TAB_METADATA[id].sidebarLabel).join(" → ")}`
+      ? `Grup (${lainnyaOrder.length} tab) · Klik chip di bawah atau gulir ke Isi Grup Lainnya untuk mengeluarkan/mengatur`
       : "Grup · Kosong (Disembunyikan otomatis di panel)";
 
   return (
     <Reorder.Item
       value={slotId}
+      data-main-row-slot={slotId}
       dragListener={false}
       dragControls={dragControls}
+      onDrag={(event, info) => {
+        if (isLainnyaGroup) return;
+        const clientY = getViewportClientY(event, info.point.y);
+        onCrossZoneDragMove("main", slotId, clientY);
+      }}
+      onDragEnd={(event, info) => {
+        if (isLainnyaGroup) return;
+        const clientY = getViewportClientY(event, info.point.y);
+        onCrossZoneDragEnd("main", slotId, clientY);
+      }}
       whileDrag={{
         scale: 1.015,
-        zIndex: 30,
+        zIndex: 50,
         boxShadow: isDark
           ? "0 12px 28px rgba(0, 0, 0, 0.55)"
           : "0 12px 24px rgba(0, 0, 0, 0.12)",
       }}
       transition={{ duration: 0.16 }}
-      className={`flex items-center justify-between gap-2.5 rounded-xl border px-3 py-2.5 select-none ${
+      className={`rounded-xl border px-3 py-2.5 select-none ${
         isLainnyaGroup
           ? isDark
             ? "bg-zinc-900/80 border-zinc-700/80 text-zinc-100"
@@ -199,134 +238,186 @@ function SortableMainRow({
             : "bg-white border-zinc-200 text-zinc-900"
       }`}
     >
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <button
-          type="button"
-          disabled={disabled}
-          onPointerDown={(e) => {
-            if (disabled) return;
-            e.preventDefault();
-            dragControls.start(e);
-          }}
-          style={{ touchAction: "none" }}
-          title={`Seret untuk mengubah posisi ${label}`}
-          aria-label={`Seret untuk mengubah posisi ${label}`}
-          className={`p-1.5 rounded-lg transition cursor-grab active:cursor-grabbing shrink-0 ${
-            isDark
-              ? "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
-              : "text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100"
-          } disabled:opacity-40 disabled:cursor-not-allowed`}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-
-        <span
-          className={`text-[11px] font-mono font-semibold w-5 text-center shrink-0 ${
-            isDark ? "text-zinc-500" : "text-zinc-400"
-          }`}
-        >
-          {index + 1}
-        </span>
-
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
-            isDark
-              ? "bg-zinc-800/80 border-zinc-700/70 text-zinc-200"
-              : "bg-zinc-100 border-zinc-200 text-zinc-800"
-          }`}
-        >
-          <NavSlotIcon slotId={slotId} className="w-4 h-4 shrink-0" />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold truncate">{label}</span>
-            {isMovableToLainnya && (
-              <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                  isDark
-                    ? "bg-zinc-800 text-zinc-300 border-zinc-700"
-                    : "bg-zinc-100 text-zinc-700 border-zinc-300"
-                }`}
-              >
-                Tab Utama
-              </span>
-            )}
-          </div>
-          {isLainnyaGroup && (
-            <p
-              className={`text-[11px] truncate mt-0.5 ${
-                isDark ? "text-zinc-400" : "text-zinc-500"
-              }`}
-            >
-              {lainnyaSummary}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 shrink-0">
-        {isMovableToLainnya && (
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onDemoteToLainnya(slotId)}
-            title={`Pindahkan ${label} ke dalam grup Lainnya`}
-            aria-label={`Pindahkan ${label} ke grup Lainnya`}
-            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 mr-0.5 ${
+            onPointerDown={(e) => {
+              if (disabled) return;
+              e.preventDefault();
+              onDragStartSnapshot();
+              dragControls.start(e);
+            }}
+            style={{ touchAction: "none" }}
+            title={
+              isLainnyaGroup
+                ? "Seret untuk mengubah posisi grup Lainnya"
+                : `Seret untuk mengurutkan atau tarik ke bagian Isi Grup Lainnya untuk memasukkan ${label}`
+            }
+            aria-label={`Seret untuk mengubah posisi ${label}`}
+            className={`p-1.5 rounded-lg transition cursor-grab active:cursor-grabbing shrink-0 ${
               isDark
-                ? "border-zinc-700 bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 hover:text-white"
-                : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+                ? "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
+                : "text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100"
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >
-            <CornerDownRight className="w-3 h-3 shrink-0" />
-            <span className="hidden sm:inline">Ke Lainnya</span>
-            <span className="sm:hidden">Lainnya</span>
+            <GripVertical className="w-4 h-4" />
           </button>
-        )}
 
-        <button
-          type="button"
-          disabled={disabled || index === 0}
-          onClick={() => onMoveOffset(slotId, -1)}
-          title={`Geser ${label} ke atas`}
-          aria-label={`Geser ${label} ke atas`}
-          className={`p-1.5 rounded-lg border transition cursor-pointer ${
-            isDark
-              ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-              : "border-zinc-200 bg-zinc-50 hover:bg-zinc-200/80 text-zinc-700 hover:text-black"
-          } disabled:opacity-30 disabled:cursor-not-allowed`}
-        >
-          <ArrowUp className="w-3.5 h-3.5" />
-        </button>
+          <span
+            className={`text-[11px] font-mono font-semibold w-5 text-center shrink-0 ${
+              isDark ? "text-zinc-500" : "text-zinc-400"
+            }`}
+          >
+            {index + 1}
+          </span>
 
-        <button
-          type="button"
-          disabled={disabled || index === total - 1}
-          onClick={() => onMoveOffset(slotId, 1)}
-          title={`Geser ${label} ke bawah`}
-          aria-label={`Geser ${label} ke bawah`}
-          className={`p-1.5 rounded-lg border transition cursor-pointer ${
-            isDark
-              ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
-              : "border-zinc-200 bg-zinc-50 hover:bg-zinc-200/80 text-zinc-700 hover:text-black"
-          } disabled:opacity-30 disabled:cursor-not-allowed`}
-        >
-          <ArrowDown className="w-3.5 h-3.5" />
-        </button>
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+              isDark
+                ? "bg-zinc-800/80 border-zinc-700/70 text-zinc-200"
+                : "bg-zinc-100 border-zinc-200 text-zinc-800"
+            }`}
+          >
+            <NavSlotIcon slotId={slotId} className="w-4 h-4 shrink-0" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold truncate">{label}</span>
+              {isLainnyaGroup && (
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                      : "bg-zinc-200/80 text-zinc-700 border-zinc-300"
+                  }`}
+                >
+                  Grup Menu
+                </span>
+              )}
+            </div>
+            {isLainnyaGroup && (
+              <p
+                className={`text-[11px] truncate mt-0.5 ${
+                  isDark ? "text-zinc-400" : "text-zinc-500"
+                }`}
+              >
+                {lainnyaSummary}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {isTabSlot && (
+            <button
+              type="button"
+              disabled={disabled || !canDemoteToLainnya}
+              onClick={() => onDemoteToLainnya(slotId)}
+              title={
+                canDemoteToLainnya
+                  ? `Pindahkan ${label} ke dalam grup Lainnya`
+                  : "Minimal 1 tab harus tetap berada di Panel Utama"
+              }
+              aria-label={`Pindahkan ${label} ke grup Lainnya`}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 mr-0.5 ${
+                isDark
+                  ? "border-zinc-700 bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 hover:text-white"
+                  : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
+              } disabled:opacity-35 disabled:cursor-not-allowed`}
+            >
+              <CornerDownRight className="w-3 h-3 shrink-0" />
+              <span className="hidden sm:inline">Ke Lainnya</span>
+              <span className="sm:hidden">Lainnya</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            disabled={disabled || index === 0}
+            onClick={() => onMoveOffset(slotId, -1)}
+            title={`Geser ${label} ke atas`}
+            aria-label={`Geser ${label} ke atas`}
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                : "border-zinc-200 bg-zinc-50 hover:bg-zinc-200/80 text-zinc-700 hover:text-black"
+            } disabled:opacity-30 disabled:cursor-not-allowed`}
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            disabled={disabled || index === total - 1}
+            onClick={() => onMoveOffset(slotId, 1)}
+            title={`Geser ${label} ke bawah`}
+            aria-label={`Geser ${label} ke bawah`}
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              isDark
+                ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                : "border-zinc-200 bg-zinc-50 hover:bg-zinc-200/80 text-zinc-700 hover:text-black"
+            } disabled:opacity-30 disabled:cursor-not-allowed`}
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {/* Daftar cepat item yang sedang berada di dalam Lainnya (bisa langsung dikeluarkan ke Panel Utama dari sini) */}
+      {isLainnyaGroup && lainnyaOrder.length > 0 && (
+        <div
+          className={`mt-2.5 pt-2.5 border-t flex items-center flex-wrap gap-1.5 pl-9 ${
+            isDark ? "border-zinc-800" : "border-zinc-200/90"
+          }`}
+        >
+          <span
+            className={`text-[10px] font-semibold uppercase tracking-wider mr-1 ${
+              isDark ? "text-zinc-500" : "text-zinc-500"
+            }`}
+          >
+            Di dalam Lainnya:
+          </span>
+          {lainnyaOrder.map((childId) => {
+            const childLabel = NAV_TAB_METADATA[childId].sidebarLabel;
+            return (
+              <button
+                key={childId}
+                type="button"
+                disabled={disabled}
+                onClick={() => onPromoteFromLainnya(childId)}
+                title={`Keluarkan ${childLabel} dari Lainnya ke Panel Utama`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                  isDark
+                    ? "bg-zinc-800/90 border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:text-white"
+                    : "bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-200 hover:text-black"
+                } disabled:opacity-40`}
+              >
+                <NavSlotIcon slotId={childId} className="w-3 h-3 shrink-0 opacity-85" />
+                <span>{childLabel}</span>
+                <ArrowUpRight className="w-3 h-3 shrink-0 opacity-75" />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </Reorder.Item>
   );
 }
 
 interface SortableLainnyaRowProps {
-  tabId: MovableOverflowTabId;
+  tabId: NavTabId;
   index: number;
   total: number;
   isDark: boolean;
   disabled: boolean;
-  onMoveOffset: (tabId: MovableOverflowTabId, dir: -1 | 1) => void;
-  onPromoteToMain: (tabId: MovableOverflowTabId) => void;
+  onMoveOffset: (tabId: NavTabId, dir: -1 | 1) => void;
+  onPromoteToMain: (tabId: NavTabId) => void;
+  onDragStartSnapshot: () => void;
+  onCrossZoneDragMove: (sourceZone: "lainnya", tabId: NavTabId, clientY: number) => void;
+  onCrossZoneDragEnd: (sourceZone: "lainnya", tabId: NavTabId, clientY: number) => void;
 }
 
 function SortableLainnyaRow({
@@ -337,19 +428,30 @@ function SortableLainnyaRow({
   disabled,
   onMoveOffset,
   onPromoteToMain,
+  onDragStartSnapshot,
+  onCrossZoneDragMove,
+  onCrossZoneDragEnd,
 }: SortableLainnyaRowProps) {
   const dragControls = useDragControls();
   const label = NAV_TAB_METADATA[tabId].sidebarLabel;
-  const canReorder = total > 1 && !disabled;
 
   return (
     <Reorder.Item
       value={tabId}
+      data-lainnya-row-slot={tabId}
       dragListener={false}
       dragControls={dragControls}
+      onDrag={(event, info) => {
+        const clientY = getViewportClientY(event, info.point.y);
+        onCrossZoneDragMove("lainnya", tabId, clientY);
+      }}
+      onDragEnd={(event, info) => {
+        const clientY = getViewportClientY(event, info.point.y);
+        onCrossZoneDragEnd("lainnya", tabId, clientY);
+      }}
       whileDrag={{
         scale: 1.015,
-        zIndex: 30,
+        zIndex: 50,
         boxShadow: isDark
           ? "0 12px 28px rgba(0, 0, 0, 0.55)"
           : "0 12px 24px rgba(0, 0, 0, 0.12)",
@@ -364,22 +466,21 @@ function SortableLainnyaRow({
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         <button
           type="button"
-          disabled={!canReorder}
+          disabled={disabled}
           onPointerDown={(e) => {
-            if (!canReorder) return;
+            if (disabled) return;
             e.preventDefault();
+            onDragStartSnapshot();
             dragControls.start(e);
           }}
           style={{ touchAction: "none" }}
-          title={`Seret untuk mengubah urutan ${label} di dalam Lainnya`}
-          aria-label={`Seret untuk mengubah urutan ${label} di dalam Lainnya`}
-          className={`p-1.5 rounded-lg transition shrink-0 ${
-            canReorder ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-          } ${
+          title={`Seret untuk mengurutkan di dalam Lainnya atau tarik ke atas ke Panel Utama untuk mengeluarkan ${label}`}
+          aria-label={`Seret untuk mengubah urutan atau mengeluarkan ${label}`}
+          className={`p-1.5 rounded-lg transition cursor-grab active:cursor-grabbing shrink-0 ${
             isDark
               ? "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"
               : "text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100"
-          } disabled:opacity-30`}
+          } disabled:opacity-30 disabled:cursor-not-allowed`}
         >
           <GripVertical className="w-4 h-4" />
         </button>
@@ -410,8 +511,8 @@ function SortableLainnyaRow({
           type="button"
           disabled={disabled}
           onClick={() => onPromoteToMain(tabId)}
-          title={`Pindahkan ${label} keluar dari Lainnya menjadi Tab Utama`}
-          aria-label={`Pindahkan ${label} ke Tab Utama`}
+          title={`Keluarkan ${label} dari Lainnya menjadi Tab Utama`}
+          aria-label={`Keluarkan ${label} ke Tab Utama`}
           className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer flex items-center gap-1 mr-0.5 ${
             isDark
               ? "border-zinc-700 bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 hover:text-white"
@@ -483,7 +584,12 @@ export function CustomizeTabSettings({
 }: CustomizeTabSettingsProps) {
   const [draftPrefs, setDraftPrefs] = useState<NavigationPreferencesV1>(() => savedPreferences);
   const [isSaving, setIsSaving] = useState(false);
+  const [dropTargetZone, setDropTargetZone] = useState<"main" | "lainnya" | null>(null);
   const hasUserEditedRef = useRef(false);
+  const preDragPrefsRef = useRef<NavigationPreferencesV1 | null>(null);
+  const mainZoneRef = useRef<HTMLDivElement | null>(null);
+  const lainnyaZoneRef = useRef<HTMLDivElement | null>(null);
+
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     text: string;
@@ -492,6 +598,11 @@ export function CustomizeTabSettings({
   const isDirty = !areNavigationOrdersEqual(draftPrefs, savedPreferences);
   const isSavedDefault = isDefaultNavigationOrder(savedPreferences);
   const isDraftDefault = isDefaultNavigationOrder(draftPrefs);
+  const mainTabCount = countMainTabs(draftPrefs.mainOrder);
+  const canDemoteMore = mainTabCount > 1;
+  const currentMainTabs = draftPrefs.mainOrder.filter(
+    (slot): slot is NavTabId => slot !== LAINNYA_GROUP_SLOT_ID
+  );
 
   // Sinkronkan draft ke savedPreferences terbaru dari cloud selama pengguna belum melakukan perubahan draf yang belum disimpan
   useEffect(() => {
@@ -534,13 +645,110 @@ export function CustomizeTabSettings({
     );
   }
 
+  const handleDragStartSnapshot = () => {
+    preDragPrefsRef.current = draftPrefs;
+  };
+
+  const computeInsertionIndex = (
+    container: HTMLElement | null,
+    rowAttr: string,
+    draggedSlotId: string,
+    clientY: number
+  ): number => {
+    if (!container) return 0;
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(`[${rowAttr}]`)).filter(
+      (el) => el.getAttribute(rowAttr) !== draggedSlotId
+    );
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (clientY < midY) {
+        return i;
+      }
+    }
+    return rows.length;
+  };
+
+  const handleCrossZoneDragMove = (
+    sourceZone: "main" | "lainnya",
+    slotId: MainNavSlotId,
+    clientY: number
+  ) => {
+    if (sourceZone === "main") {
+      if (slotId === LAINNYA_GROUP_SLOT_ID || !canDemoteMore) {
+        setDropTargetZone(null);
+        return;
+      }
+      const lainnyaRect = lainnyaZoneRef.current?.getBoundingClientRect();
+      if (lainnyaRect && clientY >= lainnyaRect.top - 12 && clientY <= lainnyaRect.bottom + 24) {
+        setDropTargetZone("lainnya");
+      } else {
+        setDropTargetZone(null);
+      }
+      return;
+    }
+
+    const mainRect = mainZoneRef.current?.getBoundingClientRect();
+    if (mainRect && clientY >= mainRect.top - 24 && clientY <= mainRect.bottom + 12) {
+      setDropTargetZone("main");
+    } else {
+      setDropTargetZone(null);
+    }
+  };
+
+  const handleCrossZoneDragEnd = (
+    sourceZone: "main" | "lainnya",
+    slotId: MainNavSlotId,
+    clientY: number
+  ) => {
+    setDropTargetZone(null);
+    const basePrefs = preDragPrefsRef.current;
+    preDragPrefsRef.current = null;
+
+    if (sourceZone === "main") {
+      if (slotId === LAINNYA_GROUP_SLOT_ID || !isNavTabId(slotId)) return;
+      const lainnyaRect = lainnyaZoneRef.current?.getBoundingClientRect();
+      if (
+        lainnyaRect &&
+        clientY >= lainnyaRect.top - 12 &&
+        clientY <= lainnyaRect.bottom + 24 &&
+        countMainTabs((basePrefs || draftPrefs).mainOrder) > 1
+      ) {
+        const targetIdx = computeInsertionIndex(
+          lainnyaZoneRef.current,
+          "data-lainnya-row-slot",
+          slotId,
+          clientY
+        );
+        hasUserEditedRef.current = true;
+        setFeedback(null);
+        setDraftPrefs((prev) => demoteTabToLainnya(basePrefs || prev, slotId, targetIdx));
+      }
+      return;
+    }
+
+    if (!isNavTabId(slotId)) return;
+    const mainRect = mainZoneRef.current?.getBoundingClientRect();
+    if (mainRect && clientY >= mainRect.top - 24 && clientY <= mainRect.bottom + 12) {
+      const targetIdx = computeInsertionIndex(
+        mainZoneRef.current,
+        "data-main-row-slot",
+        slotId,
+        clientY
+      );
+      hasUserEditedRef.current = true;
+      setFeedback(null);
+      setDraftPrefs((prev) => promoteTabFromLainnya(basePrefs || prev, slotId, targetIdx));
+    }
+  };
+
   const handleMainReorder = (nextMainOrder: MainNavSlotId[]) => {
     hasUserEditedRef.current = true;
     setFeedback(null);
     setDraftPrefs((prev) => reorderMainSlots(prev, nextMainOrder));
   };
 
-  const handleLainnyaReorder = (nextLainnyaOrder: MovableOverflowTabId[]) => {
+  const handleLainnyaReorder = (nextLainnyaOrder: NavTabId[]) => {
     hasUserEditedRef.current = true;
     setFeedback(null);
     setDraftPrefs((prev) => reorderLainnyaTabs(prev, nextLainnyaOrder));
@@ -552,19 +760,20 @@ export function CustomizeTabSettings({
     setDraftPrefs((prev) => moveMainSlotByOffset(prev, slotId, dir));
   };
 
-  const handleMoveLainnyaOffset = (tabId: MovableOverflowTabId, dir: -1 | 1) => {
+  const handleMoveLainnyaOffset = (tabId: NavTabId, dir: -1 | 1) => {
     hasUserEditedRef.current = true;
     setFeedback(null);
     setDraftPrefs((prev) => moveLainnyaTabByOffset(prev, tabId, dir));
   };
 
-  const handlePromote = (tabId: MovableOverflowTabId) => {
+  const handlePromote = (tabId: NavTabId) => {
     hasUserEditedRef.current = true;
     setFeedback(null);
     setDraftPrefs((prev) => promoteTabFromLainnya(prev, tabId));
   };
 
-  const handleDemote = (tabId: MovableOverflowTabId) => {
+  const handleDemote = (tabId: NavTabId) => {
+    if (!canDemoteMore) return;
     hasUserEditedRef.current = true;
     setFeedback(null);
     setDraftPrefs((prev) => demoteTabToLainnya(prev, tabId));
@@ -684,7 +893,7 @@ export function CustomizeTabSettings({
             )}
           </div>
           <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-            Atur urutan tab utama, ubah posisi grup Lainnya, atau pindahkan Game dan Faith keluar/masuk grup Lainnya
+            Atur urutan tab utama, ubah posisi grup Lainnya, keluarkan Game/Faith ke Panel Utama, atau masukkan tab apa saja ke dalam Lainnya
           </p>
         </div>
       </div>
@@ -776,15 +985,33 @@ export function CustomizeTabSettings({
 
       {/* Main Navigation Order Editor */}
       <div
-        className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
-          isDark ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50/50 border-zinc-200"
+        ref={mainZoneRef}
+        className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition-all ${
+          dropTargetZone === "main"
+            ? isDark
+              ? "bg-zinc-900/70 border-white ring-2 ring-white/25"
+              : "bg-zinc-100/80 border-black ring-2 ring-black/15"
+            : isDark
+              ? "bg-zinc-900/30 border-zinc-800"
+              : "bg-zinc-50/50 border-zinc-200"
         }`}
       >
-        <div>
-          <h3 className="text-sm font-bold">Urutan Panel Utama</h3>
-          <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-            Seret ikon grip (⋮⋮) atau tekan tombol panah naik/turun untuk mengatur urutan tab utama dan letak grup Lainnya
-          </p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold">Urutan Panel Utama</h3>
+            <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              Seret ikon grip (⋮⋮) atau panah untuk mengurutkan. Tekan <strong>Ke Lainnya</strong> (atau seret ke bawah) untuk memindahkan tab apa pun ke dalam grup Lainnya
+            </p>
+          </div>
+          {dropTargetZone === "main" && (
+            <span
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                isDark ? "bg-white text-black" : "bg-black text-white"
+              }`}
+            >
+              Lepaskan ke Panel Utama
+            </span>
+          )}
         </div>
 
         <Reorder.Group
@@ -800,10 +1027,15 @@ export function CustomizeTabSettings({
               index={idx}
               total={draftPrefs.mainOrder.length}
               lainnyaOrder={draftPrefs.lainnyaOrder}
+              canDemoteToLainnya={canDemoteMore}
               isDark={isDark}
               disabled={isSaving}
               onMoveOffset={handleMoveMainOffset}
               onDemoteToLainnya={handleDemote}
+              onPromoteFromLainnya={handlePromote}
+              onDragStartSnapshot={handleDragStartSnapshot}
+              onCrossZoneDragMove={handleCrossZoneDragMove}
+              onCrossZoneDragEnd={handleCrossZoneDragEnd}
             />
           ))}
         </Reorder.Group>
@@ -811,26 +1043,44 @@ export function CustomizeTabSettings({
 
       {/* Group Lainnya Order Editor */}
       <div
-        className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
-          isDark ? "bg-zinc-900/30 border-zinc-800" : "bg-zinc-50/50 border-zinc-200"
+        ref={lainnyaZoneRef}
+        className={`p-4 sm:p-5 rounded-2xl border space-y-4 transition-all ${
+          dropTargetZone === "lainnya"
+            ? isDark
+              ? "bg-zinc-900/70 border-white ring-2 ring-white/25"
+              : "bg-zinc-100/80 border-black ring-2 ring-black/15"
+            : isDark
+              ? "bg-zinc-900/30 border-zinc-800"
+              : "bg-zinc-50/50 border-zinc-200"
         }`}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="text-sm font-bold">Isi Grup Lainnya</h3>
             <p className={`text-xs mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              Kelola urutan Game dan Faith ketika ditempatkan di dalam grup Lainnya
+              Keluarkan tab (seperti Game atau Faith) dengan <strong>Ke Tab Utama</strong> / seret ke atas, atau isi Lainnya dengan tab lain sesuai keinginan Anda
             </p>
           </div>
-          <span
-            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
-              isDark
-                ? "bg-zinc-800/80 border-zinc-700 text-zinc-300"
-                : "bg-zinc-100 border-zinc-200 text-zinc-700"
-            }`}
-          >
-            {draftPrefs.lainnyaOrder.length} item
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {dropTargetZone === "lainnya" && (
+              <span
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                  isDark ? "bg-white text-black" : "bg-black text-white"
+                }`}
+              >
+                Lepaskan ke Lainnya
+              </span>
+            )}
+            <span
+              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                isDark
+                  ? "bg-zinc-800/80 border-zinc-700 text-zinc-300"
+                  : "bg-zinc-100 border-zinc-200 text-zinc-700"
+              }`}
+            >
+              {draftPrefs.lainnyaOrder.length} item
+            </span>
+          </div>
         </div>
 
         {draftPrefs.lainnyaOrder.length > 0 ? (
@@ -850,37 +1100,62 @@ export function CustomizeTabSettings({
                 disabled={isSaving}
                 onMoveOffset={handleMoveLainnyaOffset}
                 onPromoteToMain={handlePromote}
+                onDragStartSnapshot={handleDragStartSnapshot}
+                onCrossZoneDragMove={handleCrossZoneDragMove}
+                onCrossZoneDragEnd={handleCrossZoneDragEnd}
               />
             ))}
           </Reorder.Group>
         ) : (
           <div
-            className={`rounded-xl border border-dashed p-4 text-center space-y-3 ${
+            className={`rounded-xl border border-dashed p-4 text-center ${
               isDark
                 ? "border-zinc-800 bg-zinc-900/20 text-zinc-400"
                 : "border-zinc-300 bg-white/60 text-zinc-600"
             }`}
           >
             <p className="text-xs leading-relaxed">
-              Grup Lainnya saat ini kosong karena Game dan Faith berada di Panel Utama. Menu Lainnya tidak akan ditampilkan sebagai grup kosong di navigasi.
+              Grup Lainnya saat ini kosong (menu Lainnya tidak akan ditampilkan di sidebar). Anda dapat memasukkan tab mana saja dari pilihan di bawah.
             </p>
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              {(["game", "faith"] as const).map((tabId) => (
-                <button
-                  key={tabId}
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleDemote(tabId)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer inline-flex items-center gap-1.5 ${
-                    isDark
-                      ? "border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white"
-                      : "border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black"
-                  } disabled:opacity-40`}
-                >
-                  <CornerDownRight className="w-3.5 h-3.5" />
-                  <span>Kembalikan {NAV_TAB_METADATA[tabId].sidebarLabel} ke Lainnya</span>
-                </button>
-              ))}
+          </div>
+        )}
+
+        {/* Quick-Add Bar: Masukkan tab lain apa pun dari Panel Utama ke dalam Lainnya */}
+        {canDemoteMore && currentMainTabs.length > 0 && (
+          <div
+            className={`pt-3 border-t space-y-2 ${
+              isDark ? "border-zinc-800/80" : "border-zinc-200/80"
+            }`}
+          >
+            <span
+              className={`block text-[11px] font-semibold ${
+                isDark ? "text-zinc-400" : "text-zinc-600"
+              }`}
+            >
+              Masukkan tab dari Panel Utama ke Lainnya:
+            </span>
+            <div className="flex items-center flex-wrap gap-1.5">
+              {currentMainTabs.map((tabId) => {
+                const label = NAV_TAB_METADATA[tabId].sidebarLabel;
+                return (
+                  <button
+                    key={tabId}
+                    type="button"
+                    disabled={isSaving || !canDemoteMore}
+                    onClick={() => handleDemote(tabId)}
+                    title={`Masukkan ${label} ke dalam grup Lainnya`}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer inline-flex items-center gap-1.5 ${
+                      isDark
+                        ? "border-zinc-800 bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 hover:text-white"
+                        : "border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-black"
+                    } disabled:opacity-40`}
+                  >
+                    <Plus className="w-3 h-3 shrink-0 opacity-75" />
+                    <NavSlotIcon slotId={tabId} className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
