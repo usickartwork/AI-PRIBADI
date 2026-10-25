@@ -311,8 +311,8 @@ export function ImageWorkspace({
 
           {/* 1. HERO HEADER */}
           <div className="text-center mb-6 sm:mb-8">
-            {/* Image Photo Icon (Matching Panel Nav, with Animated Float) */}
-            <div className="relative mb-4 sm:mb-6 flex items-center justify-center animate-float">
+            {/* Image Photo Icon (Matching Panel Nav) */}
+            <div className="relative mb-4 sm:mb-6 flex items-center justify-center">
               <svg
                 className={`w-12 h-12 sm:w-14 sm:h-14 drop-shadow-md transition-colors ${
                   isDark ? "text-white" : "text-black"
@@ -346,8 +346,8 @@ export function ImageWorkspace({
           </div>
 
           {/* 2. MAIN CAPSULE INPUT CARD */}
-          <div className="prompt-bar-glow relative w-full rounded-[30px] p-[1.5px] shadow-2xl transition-all">
-            <div className={`w-full rounded-[28px] border transition-all relative ${
+          <div className="prompt-bar-glow relative w-full rounded-[26px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
+            <div className={`w-full rounded-[24px] sm:rounded-[26px] border transition-all relative ${
               isDark
                 ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
                 : "bg-white border-zinc-200/80 shadow-zinc-200/80"

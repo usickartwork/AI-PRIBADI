@@ -119,7 +119,7 @@ export function FaithWorkspace({
     >
       <div
         className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-300 relative ${
-          isDark ? "bg-[#0B0B0D] text-white" : "bg-[#E5E5E5] text-[#111113]"
+          isDark ? "bg-[#121215] text-zinc-100" : "bg-[#fafafc] text-zinc-900"
         }`}
       >
         {/* Sacred Cross Entrance Splash Animation */}

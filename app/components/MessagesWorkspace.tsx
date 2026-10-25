@@ -2407,7 +2407,7 @@ export default function MessagesWorkspace({
 
       <div className={`flex-1 min-h-0 flex gap-3 px-0 md:px-4 lg:px-6 pb-0 md:pb-4 ${active ? "pt-0 md:pt-[4.25rem]" : "pt-[4.25rem]"}`}>
         {/* Sidebar list */}
-        <section className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] lg:w-[360px] shrink-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0`}>
+        <section className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[280px] lg:w-[340px] xl:w-[360px] shrink-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0`}>
           <div className="px-4 pt-4 pb-3">
             <h1 className="text-lg font-extrabold tracking-tight">Messages</h1>
             <div className={`mt-3 grid grid-cols-4 gap-1 p-1 rounded-xl ${isDark ? "bg-white/5 border border-white/10" : "bg-black/5 border border-black/5"}`}>

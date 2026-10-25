@@ -5367,14 +5367,14 @@ export default function Home() {
 
                       {/* Tombol Aksi di Bawah Bubble User (Gambar 1: Reload, Edit, Copy) */}
                       {msg.content && editingMessageId !== msg.id && (
-                        <div className="flex items-center gap-0.5 sm:gap-1 px-1">
+                        <div className="flex items-center gap-1 sm:gap-0.5 px-1 pt-0.5">
                           {/* 1. Reload / Kirim ulang prompt */}
                           <button
                             type="button"
                             onClick={() => handleRegenerateUser(msg.id)}
                             disabled={isStreaming}
                             title="Kirim ulang prompt"
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                               isStreaming ? "opacity-35 cursor-not-allowed" : ""
                             } ${
                               isDark
@@ -5394,7 +5394,7 @@ export default function Home() {
                             onClick={() => handleStartEdit(msg.id, msg.content)}
                             disabled={isStreaming}
                             title="Edit pesan"
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                               isStreaming ? "opacity-35 cursor-not-allowed" : ""
                             } ${
                               isDark
@@ -5413,7 +5413,7 @@ export default function Home() {
                             type="button"
                             onClick={() => copyMessage(msg.id, msg.content)}
                             title={copiedId === msg.id ? "Tersalin!" : "Salin pesan"}
-                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                               copiedId === msg.id
                                 ? isDark
                                   ? "text-white bg-white/10"
@@ -5520,13 +5520,13 @@ export default function Home() {
 
                         {/* Tombol Aksi di Bawah Jawaban AI (Gambar 2: Salin, Baca Suara, Like, Dislike, Regenerate) */}
                         {msg.content && (!isStreaming || msg.id !== messages[messages.length - 1]?.id) && (
-                          <div className="mt-2.5 flex items-center justify-start gap-0.5 sm:gap-1 pt-1">
+                          <div className="mt-2.5 flex items-center justify-start gap-1 sm:gap-0.5 pt-1">
                             {/* 1. Salin / Copy */}
                             <button
                               type="button"
                               onClick={() => copyMessage(msg.id, msg.content)}
                               title={copiedId === msg.id ? "Tersalin!" : "Salin jawaban"}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 copiedId === msg.id
                                   ? isDark
                                     ? "text-white bg-white/10"
@@ -5553,7 +5553,7 @@ export default function Home() {
                               type="button"
                               onClick={() => handleToggleSpeech(msg.id, msg.content)}
                               title={speakingMessageId === msg.id ? "Hentikan suara" : "Baca dengan suara"}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 speakingMessageId === msg.id
                                   ? isDark
                                     ? "text-white bg-white/15 animate-pulse"
@@ -5575,7 +5575,7 @@ export default function Home() {
                               type="button"
                               onClick={() => handleToggleFeedback(msg.id, "like")}
                               title={messageFeedback[msg.id] === "like" ? "Batal suka" : "Jawaban bagus"}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 messageFeedback[msg.id] === "like"
                                   ? isDark
                                     ? "text-white bg-white/15"
@@ -5606,7 +5606,7 @@ export default function Home() {
                               type="button"
                               onClick={() => handleToggleFeedback(msg.id, "dislike")}
                               title={messageFeedback[msg.id] === "dislike" ? "Batal tidak suka" : "Jawaban kurang bagus"}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 messageFeedback[msg.id] === "dislike"
                                   ? isDark
                                     ? "text-white bg-white/15"
@@ -5638,7 +5638,7 @@ export default function Home() {
                               onClick={() => handleRegenerateAssistant(msg.id)}
                               disabled={isStreaming}
                               title="Buat ulang respons"
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 isStreaming ? "opacity-35 cursor-not-allowed" : ""
                               } ${
                                 isDark
@@ -5658,7 +5658,7 @@ export default function Home() {
                               onClick={() => setShareAIContent(msg.content)}
                               disabled={isStreaming}
                               title="Bagikan ke Pesan"
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              className={`h-8 w-8 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                                 isStreaming ? "opacity-35 cursor-not-allowed" : ""
                               } ${
                                 isDark
@@ -5682,7 +5682,7 @@ export default function Home() {
               );
             })}
 
-            <div ref={bottomRef} className="h-4" />
+            <div ref={bottomRef} className="h-32 sm:h-36 shrink-0" />
           </div>
         </div>
 
@@ -5775,7 +5775,7 @@ export default function Home() {
           {/* Full Settings Body: Accordion Sidebar + Content */}
           <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
             {/* Left Column: Settings Sidebar */}
-            <aside className={`w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r p-4 sm:p-5 overflow-y-auto shrink-0 ${
+            <aside className={`w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r p-3 sm:p-5 overflow-y-auto shrink-0 max-h-[35vh] md:max-h-none ${
               isDark ? "border-zinc-800/80 bg-zinc-900/20" : "border-zinc-200/80 bg-zinc-50/50"
             }`}>
               <SettingsSidebarAccordion

@@ -71,18 +71,21 @@ export const GameHub: React.FC<GameHubProps> = ({
 
   return (
     <div className={`flex flex-col h-full w-full overflow-y-auto ${isDark ? "bg-[#121215] text-zinc-100" : "bg-[#fafafc] text-zinc-900"}`}>
-      {/* Top Navigation Bar */}
-      <div className={`sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b backdrop-blur-xl ${isDark ? "bg-[#121215]/80 border-white/10" : "bg-white/80 border-black/10"}`}>
-        <div className="flex items-center gap-3">
+      {/* Top Navigation Bar (Harmonisasi dengan Floating App Bar Usick One) */}
+      <div className={`sticky top-0 z-20 flex items-center justify-between px-3.5 sm:px-6 py-2.5 border-b backdrop-blur-md ${isDark ? "bg-[#121215]/85 border-white/10" : "bg-white/85 border-black/10"}`}>
+        <div className="flex items-center gap-2.5">
           {onTogglePanel && (
             <button
               onClick={onTogglePanel}
-              className={`p-2 rounded-xl border md:hidden cursor-pointer transition ${
-                isDark ? "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-300" : "bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-700"
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 md:hidden ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
-              title="Toggle Sidebar"
+              title="Menu Panel"
+              aria-label="Menu Panel"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -108,13 +111,16 @@ export const GameHub: React.FC<GameHubProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className={`p-2 rounded-xl border cursor-pointer transition ${
-                isDark ? "bg-zinc-800/80 hover:bg-zinc-700 border-zinc-700 text-zinc-300" : "bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-700"
+              className={`flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-sm hover:scale-105 active:scale-95 ${
+                isDark
+                  ? "bg-zinc-900/60 hover:bg-zinc-800/80 border border-white/10 text-zinc-200 hover:text-white shadow-black/40"
+                  : "bg-white/70 hover:bg-white/90 border border-black/10 text-zinc-800 hover:text-black shadow-zinc-900/10"
               }`}
               title="Tutup Game Center"
+              aria-label="Tutup Game Center"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
