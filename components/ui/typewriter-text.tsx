@@ -50,11 +50,10 @@ export function TypewriterText({
   return (
     <span className={className}>
       {displayedText}
-      {isTyping && (
-        <span
-          className={`inline-block w-[1.5px] h-[0.9em] ml-0.5 align-baseline bg-current animate-pulse opacity-70 ${cursorClassName}`}
-        />
-      )}
+      <span
+        className={`inline-block w-[1.5px] sm:w-[2px] h-[0.9em] ml-0.5 sm:ml-1 align-baseline bg-current select-none animate-typewriter-blink ${cursorClassName}`}
+        aria-hidden="true"
+      />
     </span>
   );
 }
