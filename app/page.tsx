@@ -6,6 +6,7 @@ import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
+import { TypewriterText } from "@/components/ui/typewriter-text";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
@@ -259,55 +260,6 @@ function getTimeGreeting(): string {
   if (hour >= 11 && hour < 15) return "Good Afternoon";
   if (hour >= 15 && hour < 19) return "Good Evening";
   return "Good Night";
-}
-
-function getHeroGreeting(index: number, userName: string) {
-  const timeGreeting = getTimeGreeting();
-  const variations = [
-    {
-      title: `${timeGreeting}, ${userName}`,
-      subtitle: "What would you like to build or explore today?",
-    },
-    {
-      title: `Welcome back, ${userName}.`,
-      subtitle: "Ready to create something amazing?",
-    },
-    {
-      title: `Hey, ${userName}.`,
-      subtitle: "What's on your mind today?",
-    },
-    {
-      title: `Good to see you, ${userName}.`,
-      subtitle: "What shall we discover together?",
-    },
-    {
-      title: `Ready for something new, ${userName}?`,
-      subtitle: "Let's explore the possibilities.",
-    },
-    {
-      title: `Your next idea starts here, ${userName}.`,
-      subtitle: "What are we building today?",
-    },
-    {
-      title: `Let's make something great, ${userName}.`,
-      subtitle: "Where should we begin?",
-    },
-    {
-      title: `One mind, endless possibilities, ${userName}.`,
-      subtitle: "What's your next move?",
-    },
-    {
-      title: `A fresh start, ${userName}.`,
-      subtitle: "What would you like to create today?",
-    },
-    {
-      title: `The floor is yours, ${userName}.`,
-      subtitle: "What shall we explore today?",
-    },
-  ];
-
-  const safeIdx = Math.abs(index) % variations.length;
-  return variations[safeIdx];
 }
 
 function cleanModelLabel(label: string): string {
@@ -1352,24 +1304,6 @@ export default function Home() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [messagesResetNonce, setMessagesResetNonce] = useState(0);
-  const [heroGreetingIndex, setHeroGreetingIndex] = useState(0);
-
-  // Variasi greeting acak & bergulir setiap refresh atau kunjungan baru
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("usick_hero_greeting_idx");
-      let nextIdx: number;
-      if (saved !== null && !isNaN(Number(saved))) {
-        nextIdx = (Number(saved) + 1) % 10;
-      } else {
-        nextIdx = Math.floor(Math.random() * 10);
-      }
-      sessionStorage.setItem("usick_hero_greeting_idx", String(nextIdx));
-      setHeroGreetingIndex(nextIdx);
-    } catch {
-      setHeroGreetingIndex(Math.floor(Math.random() * 10));
-    }
-  }, []);
   const [selectedFile, setSelectedFile] = useState<{
     name: string;
     size: number;
@@ -5273,33 +5207,30 @@ export default function Home() {
             )}
 
             {/* ─── HERO / EMPTY STATE (Pure Star Icon without Box, Centered) ─── */}
-            {messages.length === 0 && (() => {
-              const currentHero = getHeroGreeting(heroGreetingIndex, chatAccountName);
-              return (
-                <div className="flex flex-col items-center justify-center text-center select-none animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-4 sm:translate-y-8 md:translate-y-10">
-                  
-                  {/* Usick One Animated Avatar Icon (Pure White in Dark Mode, Obsidian in Light Mode) */}
-                  <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center select-none pointer-events-auto">
-                    <Avatar
-                      size="md"
-                      shape="circle"
-                      blinking={true}
-                      isDark={isDark}
-                      color="theme"
-                      className="hover:scale-105 transition-transform select-none"
-                    />
-                  </div>
-
-                  {/* Headline */}
-                  <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight select-none ${isDark ? "text-white" : "text-zinc-900"}`}>
-                    {currentHero.title}
-                  </h1>
-                  <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 select-none ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                    {currentHero.subtitle}
-                  </p>
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center text-center select-none animate-in fade-in-0 duration-300 py-2 sm:py-4 w-full max-w-2xl mx-auto my-auto translate-y-4 sm:translate-y-8 md:translate-y-10">
+                
+                {/* Usick One Animated Avatar Icon (Pure White in Dark Mode, Obsidian in Light Mode) */}
+                <div className="relative mb-3.5 sm:mb-4 flex items-center justify-center select-none pointer-events-auto">
+                  <Avatar
+                    size="md"
+                    shape="circle"
+                    blinking={true}
+                    isDark={isDark}
+                    color="theme"
+                    className="hover:scale-105 transition-transform select-none"
+                  />
                 </div>
-              );
-            })()}
+
+                {/* Headline */}
+                <h1 className={`text-2xl sm:text-4xl font-extrabold tracking-tight select-none ${isDark ? "text-white" : "text-zinc-900"}`}>
+                  {getTimeGreeting()}, {chatAccountName}
+                </h1>
+                <p className={`mt-1.5 mb-2 text-sm sm:text-base font-medium max-w-md px-2 select-none min-h-[1.5rem] sm:min-h-[1.75rem] ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                  <TypewriterText text="What would you like to build or explore today?" speed={36} delay={250} />
+                </p>
+              </div>
+            )}
 
             {/* ─── ACTIVE CHAT MESSAGES ─────────────────────────────────────── */}
             {messages.map((msg) => {
