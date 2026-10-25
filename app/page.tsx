@@ -3443,11 +3443,11 @@ export default function Home() {
                 {showAttachMenu && (
                   <motion.div
                     key="attach-menu-popup"
-                    initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                    initial={{ opacity: 0, scale: 0.94, y: 8 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 8 }}
+                    exit={{ opacity: 0, scale: 0.94, y: 8 }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl p-1.5 shadow-2xl backdrop-blur-2xl border z-40 origin-bottom-left ${
+                    className={`absolute bottom-full left-0 mb-2.5 w-60 sm:w-64 rounded-2xl p-2 space-y-1 shadow-2xl backdrop-blur-2xl border z-40 origin-bottom-left ${
                       isDark
                         ? "bg-[#18181c]/95 border-zinc-700/80 shadow-black/80 text-zinc-100"
                         : "bg-white/95 border-zinc-200 shadow-zinc-900/20 text-zinc-900"
@@ -3459,15 +3459,28 @@ export default function Home() {
                         setShowAttachMenu(false);
                         cameraInputRef.current?.click();
                       }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                      className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800/90 text-zinc-100" : "hover:bg-zinc-100 text-zinc-900"
                       }`}
                     >
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span>Kamera</span>
+                      <span
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition ${
+                          isDark
+                            ? "bg-zinc-800/80 border-zinc-700/70 text-zinc-200 group-hover:bg-zinc-700/80 group-hover:text-white"
+                            : "bg-zinc-100 border-zinc-200/80 text-zinc-700 group-hover:bg-zinc-200/80 group-hover:text-black"
+                        }`}
+                      >
+                        <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold leading-tight">Kamera</span>
+                        <span className={`block text-[11.5px] leading-snug mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                          Ambil foto atau dari galeri
+                        </span>
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -3475,14 +3488,27 @@ export default function Home() {
                         setShowAttachMenu(false);
                         fileInputRef.current?.click();
                       }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                        isDark ? "hover:bg-zinc-800 text-zinc-200 hover:text-white" : "hover:bg-zinc-100 text-zinc-800 hover:text-black"
+                      className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition cursor-pointer ${
+                        isDark ? "hover:bg-zinc-800/90 text-zinc-100" : "hover:bg-zinc-100 text-zinc-900"
                       }`}
                     >
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>File</span>
+                      <span
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition ${
+                          isDark
+                            ? "bg-zinc-800/80 border-zinc-700/70 text-zinc-200 group-hover:bg-zinc-700/80 group-hover:text-white"
+                            : "bg-zinc-100 border-zinc-200/80 text-zinc-700 group-hover:bg-zinc-200/80 group-hover:text-black"
+                        }`}
+                      >
+                        <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold leading-tight">File</span>
+                        <span className={`block text-[11.5px] leading-snug mt-0.5 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                          Unggah dokumen & berkas
+                        </span>
+                      </span>
                     </button>
                   </motion.div>
                 )}
