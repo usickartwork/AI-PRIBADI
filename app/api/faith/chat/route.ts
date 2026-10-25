@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server';
+import { getFaithTemporalInfo, type FaithTemporalInfo } from '@/lib/faith/temporal';
+
+export const dynamic = 'force-dynamic';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -52,11 +55,19 @@ PRINSIP KOMUNIKASI & CARA MENJAWAB:
    - DILARANG menggunakan tanda petik dua (") sama sekali di dalam teks jawabanmu.
 `;
 
-function getOfflineFallbackStream(lastMessage: string): ReadableStream {
+function getOfflineFallbackStream(lastMessage: string, temporal: FaithTemporalInfo): ReadableStream {
   const clean = lastMessage.trim().toLowerCase();
   let text = '';
 
   if (
+    clean.includes('jam berapa') ||
+    clean.includes('tanggal berapa') ||
+    clean.includes('hari apa') ||
+    clean.includes('sekarang jam') ||
+    clean.includes('hari ini tanggal')
+  ) {
+    text = `Sekarang hari **${temporal.dayName}, ${temporal.dateStr}**, pukul **${temporal.hourMin} ${temporal.tzShort}**.\n\nSelamat menikmati suasana ${temporal.partOfDay} ini ya. Ada hal atau pergumulan yang lagi ingin kamu ceritakan hari ini?`;
+  } else if (
     clean === 'hallo' ||
     clean === 'halo' ||
     clean === 'hai' ||
@@ -64,7 +75,7 @@ function getOfflineFallbackStream(lastMessage: string): ReadableStream {
     clean === 'p' ||
     clean.startsWith('selamat')
   ) {
-    text = `Halo juga! Senang sekali bisa ngobrol sama kamu. Bagaimana kabarmu hari ini?\n\nAda hal yang lagi ada di pikiranmu atau ingin kamu ceritakan? Ceritakan saja, aku siap mendengarkan tanpa menghakimi.`;
+    text = `Halo, selamat ${temporal.partOfDay}! Senang sekali bisa ngobrol sama kamu di hari ${temporal.dayName} ini. Bagaimana kabarmu?\n\nAda hal yang lagi ada di pikiranmu atau ingin kamu ceritakan? Ceritakan saja, aku siap mendengarkan tanpa menghakimi.`;
   } else if (
     clean.includes('sedih') ||
     clean.includes('lelah') ||
@@ -94,7 +105,11 @@ function getOfflineFallbackStream(lastMessage: string): ReadableStream {
 /**
  * Stream response from Gemini models with timeout
  */
-async function streamGeminiModel(messages: Array<{ role: string; content: string }>, modelName: string) {
+async function streamGeminiModel(
+  messages: Array<{ role: string; content: string }>,
+  modelName: string,
+  systemPrompt: string
+) {
   const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
   const contents = messages.map((m) => ({
@@ -112,7 +127,7 @@ async function streamGeminiModel(messages: Array<{ role: string; content: string
       body: JSON.stringify({
         contents,
         systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
+          parts: [{ text: systemPrompt }],
         },
         generationConfig: {
           temperature: 0.72,
@@ -131,7 +146,7 @@ async function streamGeminiModel(messages: Array<{ role: string; content: string
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, timeZone } = await req.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: 'Messages array is required.' }), {
@@ -139,6 +154,9 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    const temporal = getFaithTemporalInfo(timeZone);
+    const activeSystemPrompt = SYSTEM_PROMPT + temporal.promptBlock;
 
     // Keep context window focused (last 10 messages = 5 conversation turns) for ultra-fast TTFT
     const contextWindow = messages.slice(-10).map((m: { role: string; content: string }) => ({
@@ -165,7 +183,7 @@ export async function POST(req: NextRequest) {
             },
             body: JSON.stringify({
               model: groqModel,
-              messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...contextWindow],
+              messages: [{ role: 'system', content: activeSystemPrompt }, ...contextWindow],
               stream: true,
               temperature: 0.72,
               max_tokens: 1800,
@@ -248,7 +266,7 @@ export async function POST(req: NextRequest) {
     if (GEMINI_API_KEY) {
       for (const geminiModel of GEMINI_BACKUP_MODELS) {
         try {
-          const geminiRes = await streamGeminiModel(contextWindow, geminiModel);
+          const geminiRes = await streamGeminiModel(contextWindow, geminiModel, activeSystemPrompt);
 
           if (geminiRes && geminiRes.ok && geminiRes.body) {
             console.log(`[Faith Hub] Streaming via backup model: ${geminiModel}`);
@@ -318,7 +336,7 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // 3. OFFLINE FALLBACK (Hanya jika Groq DAN seluruh model Gemini tidak terhubung)
     // =========================================================================
-    return new Response(getOfflineFallbackStream(lastUserMessage), {
+    return new Response(getOfflineFallbackStream(lastUserMessage, temporal), {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getFaithTemporalInfo } from '@/lib/faith/temporal';
+
+export const dynamic = 'force-dynamic';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -41,7 +44,7 @@ ATURAN GAYA BAHASA:
 
 export async function POST(req: NextRequest) {
   try {
-    const { image, prompt } = await req.json();
+    const { image, prompt, timeZone } = await req.json();
 
     if (!image || typeof image !== 'string') {
       return NextResponse.json(
@@ -49,6 +52,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const activeVisionPrompt = VISION_SYSTEM_PROMPT + getFaithTemporalInfo(timeZone).promptBlock;
 
     const userPrompt =
       prompt ||
@@ -78,7 +83,7 @@ export async function POST(req: NextRequest) {
                       },
                     },
                     {
-                      text: `${VISION_SYSTEM_PROMPT}\n\nPermintaan pengguna: ${userPrompt}`,
+                      text: `${activeVisionPrompt}\n\nPermintaan pengguna: ${userPrompt}`,
                     },
                   ],
                 },
@@ -118,7 +123,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              { role: 'system', content: VISION_SYSTEM_PROMPT },
+              { role: 'system', content: activeVisionPrompt },
               {
                 role: 'user',
                 content: [

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getFaithTemporalInfo } from '@/lib/faith/temporal';
+
+export const dynamic = 'force-dynamic';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
@@ -51,7 +54,8 @@ Apa yang sedang paling mendesak di dalam hatimu yang ingin kita bicarakan atau b
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, message } = await req.json();
+    const { messages, message, timeZone } = await req.json();
+    const activeSystemInstruction = SYSTEM_INSTRUCTION + getFaithTemporalInfo(timeZone).promptBlock;
 
     let conversation = [];
     if (Array.isArray(messages) && messages.length > 0) {
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: 'qwen/qwen3.8-27b',
         messages: [
-          { role: 'system', content: SYSTEM_INSTRUCTION },
+          { role: 'system', content: activeSystemInstruction },
           ...conversation,
         ],
         temperature: 0.75,

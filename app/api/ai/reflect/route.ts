@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getFaithTemporalInfo } from '@/lib/faith/temporal';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +128,8 @@ ATURAN FORMAT JSON (WAJIB JSON MURNI TANPA MARKDOWN):
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, verse, message, mode, struggle, desire, userAnswers } = await req.json();
+    const { topic, verse, message, mode, struggle, desire, userAnswers, timeZone } = await req.json();
+    const activeSystemInstruction = SYSTEM_INSTRUCTION + getFaithTemporalInfo(timeZone).promptBlock;
     const userInput = struggle || desire || userAnswers || message || topic || verse || '';
 
     if (!userInput.trim() && !verse) {
@@ -166,7 +168,7 @@ Buatkan respon dalam format JSON yang ditentukan.
             body: JSON.stringify({
               model,
               messages: [
-                { role: 'system', content: SYSTEM_INSTRUCTION },
+                { role: 'system', content: activeSystemInstruction },
                 { role: 'user', content: userPrompt },
               ],
               response_format: { type: 'json_object' },
@@ -203,7 +205,7 @@ Buatkan respon dalam format JSON yang ditentukan.
               contents: [
                 {
                   role: 'user',
-                  parts: [{ text: `${SYSTEM_INSTRUCTION}\n\n${userPrompt}` }],
+                  parts: [{ text: `${activeSystemInstruction}\n\n${userPrompt}` }],
                 },
               ],
               generationConfig: {

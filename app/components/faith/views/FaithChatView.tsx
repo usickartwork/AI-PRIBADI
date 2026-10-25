@@ -535,10 +535,13 @@ export default function FaithHubHomePage() {
         content: m.content,
       }));
 
+      const userTimeZone =
+        Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
+
       const res = await fetch('/api/faith/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: payloadMessages }),
+        body: JSON.stringify({ messages: payloadMessages, timeZone: userTimeZone }),
         signal: controller.signal,
       });
 
@@ -741,6 +744,7 @@ export default function FaithHubHomePage() {
         body: JSON.stringify({
           image: base64Image,
           prompt: promptToSend || undefined,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta',
         }),
       });
 

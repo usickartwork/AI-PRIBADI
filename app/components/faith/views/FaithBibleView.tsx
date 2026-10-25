@@ -402,6 +402,7 @@ export default function BiblePage() {
           struggle: aiStruggle.trim() || undefined,
           desire: aiDesire.trim() || undefined,
           userAnswers: formattedUserAnswers || undefined,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta',
         }),
       });
       const data = await res.json();
