@@ -52,7 +52,7 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
   // 1. Tambahkan kandidat dari payload client (jika ada)
   if (Array.isArray(activeSchedules)) {
     for (const item of activeSchedules) {
-      if (item && item.status === "upcoming" && item.reminder_status !== "sent" && item.reminder_status !== "skipped") {
+      if (item && item.status === "upcoming" && item.reminder_status !== "sent") {
         candidates.push(item);
         candidateIds.add(item.id);
       }
@@ -81,7 +81,7 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
           .from("schedules")
           .select("*")
           .eq("status", "upcoming")
-          .not("reminder_status", "in", '("sent","skipped")');
+          .neq("reminder_status", "sent");
 
         if (userId) {
           query = query.eq("user_id", userId);
@@ -130,8 +130,8 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
       schedule.timezone || "Asia/Jakarta"
     );
 
-    const reminderMinutes = schedule.reminder_minutes ?? 15;
-    const reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
+    let reminderMinutes = schedule.reminder_minutes ?? 15;
+    let reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
     const eventEndTime = new Date(
       scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
     );
@@ -159,16 +159,32 @@ async function processDueReminders(options: ProcessRemindersOptions = {}) {
     }
 
     const createdAt = schedule.created_at ? new Date(schedule.created_at).getTime() : 0;
-    // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal dibuat 2 menit sebelum acara tapi reminder 15m), lewati agar tidak memicu email instan!
+    // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal dibuat 2 menit sebelum acara tapi reminder 15m)
     if (createdAt > 0 && reminderTime.getTime() < (createdAt - 30 * 1000)) {
-      console.log(`[remind] Melewati jadwal ${schedule.id} (${schedule.title}) karena waktu reminder (${reminderTime.toISOString()}) sudah lewat sebelum jadwal dibuat (${new Date(createdAt).toISOString()}).`);
-      if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
-        await client
-          .from("schedules")
-          .update({ reminder_status: "skipped", updated_at: new Date().toISOString() })
-          .eq("id", schedule.id);
+      if (now < scheduleDate) {
+        // Jadwal belum dimulai! Otomatis sesuaikan reminder ke 0m (tepat saat dimulai)
+        // agar user tetap menerima pengingat dan email saat acara dimulai, bukan terlewat tanpa notif sama sekali.
+        console.log(`[remind] Jadwal ${schedule.id} (${schedule.title}) reminder pra-acara sudah lewat sebelum jadwal dibuat. Mengalihkan ke reminder 0m (tepat saat mulai).`);
+        reminderMinutes = 0;
+        schedule.reminder_minutes = 0;
+        schedule.reminder_status = "pending";
+        reminderTime = new Date(scheduleDate.getTime());
+        if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+          await client
+            .from("schedules")
+            .update({ reminder_minutes: 0, reminder_status: "pending", updated_at: new Date().toISOString() })
+            .eq("id", schedule.id);
+        }
+      } else {
+        console.log(`[remind] Melewati jadwal ${schedule.id} (${schedule.title}) karena waktu acara sudah lewat.`);
+        if (isSupabaseConfigured && !schedule.id.startsWith("local_")) {
+          await client
+            .from("schedules")
+            .update({ reminder_status: "skipped", updated_at: new Date().toISOString() })
+            .eq("id", schedule.id);
+        }
+        continue;
       }
-      continue;
     }
 
     // Pre-event reminder (reminderMinutes > 0) hanya dikirim SEBELUM acara dimulai!

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { ScheduleItem, isSchedulePast } from "@/lib/schedules";
+import { ScheduleItem, isSchedulePast, parseScheduleDateTime } from "@/lib/schedules";
 import { getUserSubscription } from "@/lib/subscriptionServer";
 import {
   getValidGoogleAccessToken,
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
       date,
       time,
       duration_minutes = 60,
-      reminder_minutes = 15,
+      reminder_minutes,
       recurrence = "once",
       timezone = "Asia/Jakarta",
       user_email,
@@ -156,6 +156,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Resolusi reminder_minutes: 0 ("Tepat saat dimulai") adalah nilai valid, jangan jadikan 15!
+    let finalReminder = typeof reminder_minutes !== "undefined" && reminder_minutes !== null && !isNaN(Number(reminder_minutes))
+      ? Number(reminder_minutes)
+      : 15;
+
+    // Jika acara dimulai lebih cepat daripada waktu pengingat (misal 5 menit lagi tapi pengingat 15 menit),
+    // otomatis sesuaikan ke 0 (Tepat saat dimulai) agar konsisten di database dan notifikasi
+    if (finalReminder > 0 && date && time) {
+      const schedDate = parseScheduleDateTime(date, time, timezone || "Asia/Jakarta");
+      const msUntil = schedDate.getTime() - Date.now();
+      if (msUntil > 0 && msUntil < finalReminder * 60 * 1000) {
+        finalReminder = 0;
+      }
+    }
+
     const newSchedule: any = {
       user_id: user_id,
       title: title.trim(),
@@ -163,7 +178,7 @@ export async function POST(req: NextRequest) {
       date,
       time,
       duration_minutes: Number(duration_minutes) || 60,
-      reminder_minutes: Number(reminder_minutes) || 15,
+      reminder_minutes: finalReminder,
       recurrence,
       timezone,
       status: "upcoming",
@@ -314,6 +329,9 @@ export async function PUT(req: NextRequest) {
     }
 
     updates.updated_at = new Date().toISOString();
+    if (typeof updates.reminder_minutes !== "undefined" && updates.reminder_minutes !== null) {
+      updates.reminder_minutes = Number(updates.reminder_minutes);
+    }
 
     if (isSupabaseConfigured) {
       const client = getSupabaseClient(req) || supabase;

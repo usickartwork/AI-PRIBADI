@@ -385,8 +385,8 @@ export function ScheduleWorkspace({
         schedule.time,
         schedule.timezone || tz
       );
-      const reminderMinutes = schedule.reminder_minutes ?? 15;
-      const reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
+      let reminderMinutes = schedule.reminder_minutes ?? 15;
+      let reminderTime = new Date(scheduleDate.getTime() - reminderMinutes * 60 * 1000);
       const eventEndTime = new Date(
         scheduleDate.getTime() + (schedule.duration_minutes || 60) * 60 * 1000
       );
@@ -400,11 +400,16 @@ export function ScheduleWorkspace({
       if (schedule.status !== "upcoming") continue;
 
       const createdAt = schedule.created_at ? new Date(schedule.created_at).getTime() : 0;
-      // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal jadwal dibuat 2 menit sebelum acara, tapi reminder 15m),
-      // maka jangan picu alarm/notif pra-acara karena momen 15 menit tersebut sudah berlalu sebelum jadwal ada!
+      // Jika waktu reminder sudah lewat sebelum jadwal dibuat (misal jadwal dibuat 2 menit sebelum acara, tapi reminder 15m)
       const isCreatedAfterReminder = createdAt > 0 && reminderTime.getTime() < (createdAt - 30 * 1000);
       if (isCreatedAfterReminder) {
-        continue;
+        if (now < scheduleDate) {
+          // Jadwal belum dimulai! Otomatis sesuaikan reminder ke saat acara dimulai (0m) agar pengguna tetap diingatkan
+          reminderMinutes = 0;
+          reminderTime = new Date(scheduleDate.getTime());
+        } else {
+          continue;
+        }
       }
 
       // Pre-event reminder (reminderMinutes > 0) hanya boleh terpicu SEBELUM acara dimulai!
@@ -418,7 +423,7 @@ export function ScheduleWorkspace({
       }
 
       // Trigger jika sudah mencapai waktu pengingat dan belum dikirim
-      if (now >= reminderTime && schedule.reminder_status !== "sent" && schedule.reminder_status !== "skipped") {
+      if (now >= reminderTime && schedule.reminder_status !== "sent") {
         if (!notifiedIdsRef.current.has(schedule.id)) {
           notifiedIdsRef.current.add(schedule.id);
 
@@ -497,14 +502,21 @@ export function ScheduleWorkspace({
     // 2. Server-Side Email Sync & Worker Trigger
     // Filter HANYA jadwal yang benar-benar jatuh tempo saat ini, bukan yang sudah lewat atau belum waktunya
     const eligibleForEmail = currentItems.filter((s) => {
-      if (s.status !== "upcoming" || s.reminder_status === "sent" || s.reminder_status === "skipped") {
+      if (s.status !== "upcoming" || s.reminder_status === "sent") {
         return false;
       }
       const sDate = parseScheduleDateTime(s.date, s.time, s.timezone || tz);
-      const rMin = s.reminder_minutes ?? 15;
-      const rTime = new Date(sDate.getTime() - rMin * 60 * 1000);
+      let rMin = s.reminder_minutes ?? 15;
+      let rTime = new Date(sDate.getTime() - rMin * 60 * 1000);
       const cAt = s.created_at ? new Date(s.created_at).getTime() : 0;
-      if (cAt > 0 && rTime.getTime() < (cAt - 30 * 1000)) return false;
+      if (cAt > 0 && rTime.getTime() < (cAt - 30 * 1000)) {
+        if (now < sDate) {
+          rMin = 0;
+          rTime = new Date(sDate.getTime());
+        } else {
+          return false;
+        }
+      }
       if (rMin > 0 && now >= sDate) return false;
       if (rMin === 0 && now.getTime() > sDate.getTime() + 15 * 60 * 1000) return false;
       return now >= rTime;
@@ -915,7 +927,10 @@ export function ScheduleWorkspace({
             id: assistantMsgId,
             role: "assistant",
             content: `Sip! Jadwal "${savedItem!.title}" sudah otomatis ditambahkan ke agendamu.`,
-            pendingSchedule: parsed,
+            pendingSchedule: {
+              ...parsed,
+              reminder: savedItem!.reminder_minutes,
+            },
             isConfirmed: true,
             confirmedSchedule: savedItem!,
             timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
@@ -1768,65 +1783,75 @@ export function ScheduleWorkspace({
                             )}
                           </div>
 
-                          <div className="space-y-2">
-                            <div>
-                              <div className="text-[10px] text-zinc-400 uppercase font-semibold">Judul</div>
-                              <div className="text-sm font-bold">{msg.pendingSchedule.title}</div>
-                            </div>
+                          {(() => {
+                            const cardTitle = msg.confirmedSchedule?.title || msg.pendingSchedule.title;
+                            const cardDate = msg.confirmedSchedule?.date || msg.pendingSchedule.date;
+                            const cardTime = msg.confirmedSchedule?.time || msg.pendingSchedule.time;
+                            const cardDuration = msg.confirmedSchedule ? msg.confirmedSchedule.duration_minutes : (msg.pendingSchedule.duration || 60);
+                            const cardReminder = msg.confirmedSchedule ? msg.confirmedSchedule.reminder_minutes : (msg.pendingSchedule.reminder ?? defaultReminder);
+                            const cardRecurrence = msg.confirmedSchedule?.recurrence || msg.pendingSchedule.recurrence;
+                            const cardDesc = msg.confirmedSchedule?.description || msg.pendingSchedule.description;
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                              <div
-                                className={`p-2.5 rounded-xl border ${
-                                  isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
-                                }`}
-                              >
-                                <div className="text-[10px] text-zinc-400 uppercase font-semibold">Waktu</div>
-                                <div className="font-semibold text-xs mt-0.5">
-                                  {msg.pendingSchedule.date
-                                    ? formatScheduleDate(msg.pendingSchedule.date)
-                                    : "Hari Ini"}
+                            return (
+                              <div className="space-y-2">
+                                <div>
+                                  <div className="text-[10px] text-zinc-400 uppercase font-semibold">Judul</div>
+                                  <div className="text-sm font-bold">{cardTitle}</div>
                                 </div>
-                                <div className="text-zinc-400 text-[11px]">
-                                  Pukul {formatScheduleTime(msg.pendingSchedule.time || "09:00")} WIB
-                                </div>
-                              </div>
 
-                              <div
-                                className={`p-2.5 rounded-xl border ${
-                                  isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
-                                }`}
-                              >
-                                <div className="text-[10px] text-zinc-400 uppercase font-semibold">
-                                  Durasi & Pengingat
-                                </div>
-                                <div className="font-semibold text-xs mt-0.5">
-                                  {formatDuration(msg.pendingSchedule.duration || 60)}
-                                </div>
-                                <div className="text-zinc-400 text-[11px] flex items-center gap-1 mt-0.5">
-                                  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{formatReminderText(msg.pendingSchedule.reminder ?? defaultReminder)}</span>
-                                </div>
-                              </div>
-                            </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  <div
+                                    className={`p-2.5 rounded-xl border ${
+                                      isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
+                                    }`}
+                                  >
+                                    <div className="text-[10px] text-zinc-400 uppercase font-semibold">Waktu</div>
+                                    <div className="font-semibold text-xs mt-0.5">
+                                      {cardDate ? formatScheduleDate(cardDate) : "Hari Ini"}
+                                    </div>
+                                    <div className="text-zinc-400 text-[11px]">
+                                      Pukul {formatScheduleTime(cardTime || "09:00")} WIB
+                                    </div>
+                                  </div>
 
-                            {msg.pendingSchedule.recurrence && msg.pendingSchedule.recurrence !== "once" && (
-                              <div className="text-xs text-zinc-400">
-                                Pengulangan:{" "}
-                                <span className="font-semibold text-zinc-200">
-                                  {formatRecurrence(msg.pendingSchedule.recurrence)}
-                                </span>
-                              </div>
-                            )}
+                                  <div
+                                    className={`p-2.5 rounded-xl border ${
+                                      isDark ? "bg-zinc-800/40 border-zinc-700/40" : "bg-zinc-50 border-zinc-200"
+                                    }`}
+                                  >
+                                    <div className="text-[10px] text-zinc-400 uppercase font-semibold">
+                                      Durasi & Pengingat
+                                    </div>
+                                    <div className="font-semibold text-xs mt-0.5">
+                                      {formatDuration(cardDuration)}
+                                    </div>
+                                    <div className="text-zinc-400 text-[11px] flex items-center gap-1 mt-0.5">
+                                      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      <span>{formatReminderText(cardReminder)}</span>
+                                    </div>
+                                  </div>
+                                </div>
 
-                            {msg.pendingSchedule.description && (
-                              <div className="text-xs text-zinc-400">
-                                Catatan:{" "}
-                                <span className="text-zinc-200">{msg.pendingSchedule.description}</span>
+                                {cardRecurrence && cardRecurrence !== "once" && (
+                                  <div className="text-xs text-zinc-400">
+                                    Pengulangan:{" "}
+                                    <span className="font-semibold text-zinc-200">
+                                      {formatRecurrence(cardRecurrence)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {cardDesc && (
+                                  <div className="text-xs text-zinc-400">
+                                    Catatan:{" "}
+                                    <span className="text-zinc-200">{cardDesc}</span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            );
+                          })()}
 
                           {/* Confirmation Buttons */}
                           {!msg.isConfirmed ? (

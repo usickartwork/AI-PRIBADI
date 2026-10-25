@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { ParsedScheduleAI } from "@/lib/schedules";
+import { ParsedScheduleAI, parseScheduleDateTime } from "@/lib/schedules";
 
 const MONTHS_INDO: Record<string, number> = {
   januari: 0, jan: 0,
@@ -355,7 +355,14 @@ function heuristicParse(
 
       // C. Pengingat (Reminder) baru
       const explicitReminder = extractReminderMinutes(newPart) ?? extractReminderMinutes(text);
-      const newReminder = explicitReminder !== null ? explicitReminder : (target.reminder_minutes ?? defaultReminder);
+      let newReminder = explicitReminder !== null ? explicitReminder : (target.reminder_minutes ?? defaultReminder);
+      if (newReminder > 0 && newDate && newTime) {
+        const sDate = parseScheduleDateTime(newDate, newTime, target.timezone || "Asia/Jakarta");
+        const msUntil = sDate.getTime() - baseDate.getTime();
+        if (msUntil > 0 && msUntil < newReminder * 60 * 1000) {
+          newReminder = 0;
+        }
+      }
 
       // D. Judul baru (jika diminta)
       let newTitle = target.title;
@@ -429,6 +436,13 @@ function heuristicParse(
   // Reminder presisi: prioritaskan ucapan eksplisit user, lalu pending draft, lalu defaultReminder user
   const explicitReminder = extractReminderMinutes(text);
   let reminder = explicitReminder !== null ? explicitReminder : (pendingDraft?.reminder ?? defaultReminder);
+  if (reminder > 0 && dateStr && timeStr) {
+    const sDate = parseScheduleDateTime(dateStr, timeStr, "Asia/Jakarta");
+    const msUntil = sDate.getTime() - baseDate.getTime();
+    if (msUntil > 0 && msUntil < reminder * 60 * 1000) {
+      reminder = 0;
+    }
+  }
 
   const isComplete = Boolean(finalTitle && finalTitle !== "Jadwal Baru" && dateStr && timeStr);
   let clarificationQuestion: string | undefined = undefined;
@@ -631,9 +645,19 @@ CRITICAL RULES:
 
                 if (targetItem) {
                   const explicitRem = extractReminderMinutes(prompt);
-                  const finalRem = explicitRem !== null
+                  let finalRem = explicitRem !== null
                     ? explicitRem
                     : (typeof parsed.reminder === "number" ? parsed.reminder : (targetItem.reminder_minutes ?? defaultReminder));
+
+                  const updateDate = parsed.date || targetItem.date;
+                  const updateTime = parsed.time || targetItem.time;
+                  if (finalRem > 0 && updateDate && updateTime) {
+                    const sDate = parseScheduleDateTime(updateDate, updateTime, userTz);
+                    const msUntil = sDate.getTime() - baseDate.getTime();
+                    if (msUntil > 0 && msUntil < finalRem * 60 * 1000) {
+                      finalRem = 0;
+                    }
+                  }
 
                   parsedResult = {
                     action: "update",
@@ -688,9 +712,19 @@ CRITICAL RULES:
                 }
 
                 const explicitRem = extractReminderMinutes(prompt);
-                const finalRem = explicitRem !== null
+                let finalRem = explicitRem !== null
                   ? explicitRem
                   : (typeof parsed.reminder === "number" ? parsed.reminder : (pendingDraft?.reminder ?? defaultReminder));
+
+                const createDate = finalDate || todayDate;
+                const createTime = finalTime || "09:00";
+                if (finalRem > 0 && createDate && createTime) {
+                  const sDate = parseScheduleDateTime(createDate, createTime, userTz);
+                  const msUntil = sDate.getTime() - baseDate.getTime();
+                  if (msUntil > 0 && msUntil < finalRem * 60 * 1000) {
+                    finalRem = 0;
+                  }
+                }
 
                 parsedResult = {
                   action: "create",
