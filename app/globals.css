@@ -36,7 +36,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-muted: var(--muted);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-satoshi), 'Satoshi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -55,7 +55,7 @@ body {
 }
 
 body {
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-satoshi), 'Satoshi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 textarea {

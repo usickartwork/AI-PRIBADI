@@ -1,12 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const satoshi = localFont({
+  src: [
+    {
+      path: "../public/fonts/Satoshi-Variable.woff2",
+      weight: "300 900",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Satoshi-VariableItalic.woff2",
+      weight: "300 900",
+      style: "italic",
+    },
+  ],
+  variable: "--font-satoshi",
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -77,9 +90,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html
         lang="id"
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
+        className={`${satoshi.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
       >
         <head>
+          <link rel="preconnect" href="https://api.fontshare.com" />
+          <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2&display=swap" />
           <link rel="icon" type="image/svg+xml" href="/icon.svg?v=6" />
           <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=6" />
           <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=6" />
