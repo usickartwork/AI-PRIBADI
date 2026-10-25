@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { LogoCloud } from "@/components/ui/logo-cloud-3";
-import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { cn } from "@/lib/utils";
 
 
@@ -87,17 +86,18 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-6">
-            <LiquidButton
+            <button
               type="button"
-              size="lg"
               onClick={() => onGetStarted?.("signin")}
               className={cn(
-                "px-6 font-medium text-sm cursor-pointer",
-                isDark ? "text-white" : "text-zinc-900"
+                "px-5 py-2 rounded-full font-medium text-sm transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-sm",
+                isDark
+                  ? "bg-white hover:bg-zinc-200 text-black shadow-white/10"
+                  : "bg-black hover:bg-zinc-800 text-white shadow-black/10"
               )}
             >
               Sign In
-            </LiquidButton>
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -121,20 +121,19 @@ const Navbar: React.FC<NavbarProps> = ({ onGetStarted, isDark = true }) => {
               isDark ? "bg-zinc-900/95 border-zinc-800 text-white" : "bg-white/95 border-zinc-200 text-zinc-900"
             )}
           >
-            <LiquidButton
+            <button
               type="button"
-              size="lg"
               onClick={() => {
                 setIsMenuOpen(false);
                 onGetStarted?.("signup");
               }}
               className={cn(
-                "w-full font-medium text-sm cursor-pointer",
-                isDark ? "text-white" : "text-zinc-900"
+                "w-full py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer shadow-sm",
+                isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black text-white hover:bg-zinc-800"
               )}
             >
               Get Started
-            </LiquidButton>
+            </button>
           </div>
         )}
       </div>
@@ -249,18 +248,19 @@ export const Component: React.FC<GradientBarHeroSectionProps> = ({
 
         {/* CTA Button: Get Started (Replacing waitlist & email field as instructed) */}
         <div className="w-full max-w-md px-4 flex justify-center animate-in fade-in-0 slide-in-from-bottom-5 duration-1000">
-          <LiquidButton
+          <button
             type="button"
-            size="xxl"
             onClick={() => onGetStarted?.("signup")}
             className={cn(
-              "group px-9 sm:px-11 font-semibold text-sm sm:text-base cursor-pointer",
-              isDark ? "text-white" : "text-zinc-900"
+              "group relative inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base transition-all duration-300 transform hover:scale-105 cursor-pointer shadow-2xl",
+              isDark
+                ? "bg-white hover:bg-zinc-200 text-black shadow-white/20"
+                : "bg-black hover:bg-zinc-800 text-white shadow-black/20"
             )}
           >
             <span>Get Started</span>
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-1" />
-          </LiquidButton>
+          </button>
         </div>
       </div>
     </section>

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-import { GlassFilter } from "@/components/ui/liquid-glass-button";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
@@ -77,7 +76,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html
         lang="id"
-        data-liquid-glass="true"
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
       >
@@ -111,7 +109,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         </head>
         <body className="h-full min-h-full w-full overflow-hidden flex flex-col bg-[#fafafc] dark:bg-[#121215] text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
-          <GlassFilter />
           {children}
         </body>
       </html>
