@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
+import {
+  generateDynamicStarterHtml,
+  generateDynamicWebsiteHtmlWithAI,
+  USE_DYNAMIC_WEBSITE_GENERATOR,
+} from "@/lib/codeGenerator";
+import { CodePreviewCanvas } from "./code/CodePreviewCanvas";
 
 export type TaskStatus =
   | "ready"
@@ -3177,7 +3183,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "preview">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -7485,6 +7491,22 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 </svg>
                 <span className="hidden sm:inline">Tasks</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("preview")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "preview"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Live Preview Website"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span className="hidden sm:inline">Preview</span>
+              </button>
             </div>
           )}
         </div>
@@ -8697,6 +8719,20 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                                   }`}
                                 >
                                   <span>Buka Task Board</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("preview")}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                                    isDark ? "bg-indigo-600/30 hover:bg-indigo-600/50 border-indigo-500/40 text-indigo-200" : "bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700"
+                                  }`}
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  <span>Buka Live Preview</span>
                                 </button>
 
                                 <button
@@ -9937,6 +9973,29 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       </div>
     )}
 
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {/* TAB: LIVE PREVIEW CANVAS (FASE 2)                                          */}
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {activeProject && currentTab === "preview" && (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pt-14">
+          <CodePreviewCanvas
+            project={activeProject}
+            isDark={isDark}
+            onUpdateHtml={(html) => {
+              setProjects((curr) =>
+                curr.map((p) =>
+                  p.id === activeProject.id
+                    ? { ...p, generatedHtml: html, updatedAt: Date.now() }
+                    : p
+                )
+              );
+            }}
+            onSwitchToChat={() => setActiveTab("chat")}
+            userId={userId}
+          />
+        </div>
+      )}
+
       {/* Modal: Tambah Task Manual */}
       {showAddTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -10196,6 +10255,28 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                         <span>Task Board (Checklist)</span>
                       </div>
                       <span className="text-[10px] text-zinc-400">{activeProject.tasks.length} task</span>
+                    </button>
+
+                    {/* Live Preview Canvas */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("preview");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "preview"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span>Live Preview (Website)</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-400">{activeProject.generatedHtml ? "Tersedia" : "Draft"}</span>
                     </button>
                   </div>
                 </div>
@@ -10631,7 +10712,14 @@ export function escapeHtml(str?: string): string {
 
 export function isLegacyTemplateOrStale(html: string, project: ProjectItem): boolean {
   if (!html || !html.trim()) return false;
-  if (html.includes("AI_GENERATED_PROTOTYPE") || html.includes("<!-- AI_GENERATED_PREVIEW -->")) return false;
+  if (
+    html.includes("AI_GENERATED_PROTOTYPE") ||
+    html.includes("<!-- AI_GENERATED_PREVIEW -->") ||
+    html.includes("<!-- DYNAMIC_STARTER_PREVIEW -->") ||
+    html.includes("<!-- DYNAMIC_AI_WEBSITE_PREVIEW -->")
+  ) {
+    return false;
+  }
 
   // Section 14: Strict detection of legacy template strings
   const legacyMarkers = [
@@ -12196,6 +12284,16 @@ export function buildPlanningAwarePreview(project: ProjectItem): PlanningAwarePr
   }
 }
 export function generateStarterPrototypeHtml(project: ProjectItem): string {
+  if (USE_DYNAMIC_WEBSITE_GENERATOR) {
+    try {
+      const dynamicHtml = generateDynamicStarterHtml(project);
+      if (dynamicHtml && dynamicHtml.length > 500) {
+        return dynamicHtml;
+      }
+    } catch (err) {
+      console.warn("[DynamicStarter] Failed, falling back to legacy generator:", err);
+    }
+  }
   return buildPlanningAwarePreview(project).html;
 }
 
@@ -12220,6 +12318,18 @@ export async function generateProjectPreviewHtmlWithAI(
   onChunk?: (streamedText: string) => void,
   userId?: string
 ): Promise<string> {
+  if (USE_DYNAMIC_WEBSITE_GENERATOR) {
+    try {
+      const aiHtml = await generateDynamicWebsiteHtmlWithAI(project, onChunk, userId);
+      if (aiHtml && aiHtml.length > 500) {
+        return aiHtml;
+      }
+      console.warn("[DynamicAIWebsite] Output invalid or empty, falling back to legacy AI generator");
+    } catch (err) {
+      console.warn("[DynamicAIWebsite] Generation error, falling back to legacy AI generator:", err);
+    }
+  }
+
   const prdText = project.prd?.overview || project.description || "";
   const goalsText = (project.prd?.goals || []).map((g) => `- ${g}`).join("\n");
   const targetUsersText = (project.prd?.targetUsers || []).map((u) => `- ${u}`).join("\n");
