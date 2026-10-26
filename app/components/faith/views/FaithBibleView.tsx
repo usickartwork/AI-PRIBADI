@@ -613,13 +613,13 @@ export default function BiblePage() {
 
   return (
     <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden select-none sm:select-auto">
-      <div className="w-full max-w-4xl h-full bg-white dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative">
+      <div className="w-full max-w-4xl h-full bg-transparent flex flex-col overflow-hidden relative">
         <Header user={user} />
 
         {/* ========================================================================= */}
         {/* NATIVE APP STYLE TOP BAR: [Roma 8 ▾] [TB] + Tools                        */}
         {/* ========================================================================= */}
-        <div className="flex-none bg-white dark:bg-[#121215] border-b border-[#EAEAEB] dark:border-[#222226] px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20 transition-colors">
+        <div className="flex-none bg-transparent border-b border-black/5 dark:border-white/10 px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20 transition-colors">
           {/* Main Book & Chapter Pill Trigger (Like YouVersion) */}
           <div className="flex items-center gap-2">
             <button
@@ -707,7 +707,7 @@ export default function BiblePage() {
           className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-5 relative"
         >
           {/* Chapter Heading Banner */}
-          <div className="mb-6 pb-3 border-b border-[#EAEAEB] dark:border-[#222226] flex items-center justify-between">
+          <div className="mb-6 pb-3 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
                 {selectedBook.testament === 'PL' ? 'Perjanjian Lama' : 'Perjanjian Baru'}

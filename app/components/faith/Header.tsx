@@ -14,10 +14,8 @@ export default function Header({ user }: HeaderProps) {
 
   return (
     <header
-      className={`flex-none px-3.5 sm:px-4 py-3 z-30 border-b transition-colors duration-200 ${
-        isDark
-          ? 'bg-[#121215]/95 backdrop-blur-md border-[#222226] text-white'
-          : 'bg-white/95 backdrop-blur-md border-[#EAEAEB] text-[#111113]'
+      className={`flex-none px-3.5 sm:px-6 py-3 z-30 border-b border-black/5 dark:border-white/10 bg-transparent backdrop-blur-xs transition-colors duration-200 ${
+        isDark ? 'text-white' : 'text-[#111113]'
       }`}
     >
       <div className="flex items-center justify-between">

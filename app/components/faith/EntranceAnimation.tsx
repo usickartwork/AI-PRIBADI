@@ -94,7 +94,9 @@ export default function EntranceAnimation({ onComplete }: EntranceAnimationProps
           : 'opacity-100 scale-100 blur-0'
       }`}
       style={{
-        backgroundColor: isDark ? '#0B0B0D' : '#F7F7F8',
+        backgroundColor: isDark ? 'rgba(11, 11, 13, 0.75)' : 'rgba(247, 247, 248, 0.75)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
       }}
     >
       {/* Organic Concentric Ripples in pure monochrome / silver (No Box) */}

@@ -118,15 +118,15 @@ export function FaithWorkspace({
       }}
     >
       <div
-        className={`flex flex-col h-full w-full overflow-hidden transition-colors duration-300 relative ${
-          isDark ? "bg-[#0B0B0D] text-white" : "bg-[#E5E5E5] text-[#111113]"
+        className={`flex flex-col h-full w-full overflow-hidden bg-transparent relative ${
+          isDark ? "text-zinc-100" : "text-zinc-900"
         }`}
       >
         {/* Sacred Cross Entrance Splash Animation */}
         {showIntro && user && <EntranceAnimation onComplete={handleIntroComplete} />}
 
         {/* ─── BODY: FAITH HUB TABS (HANYA CHAT & ALKITAB, TANPA HEADER TAB/X) ─── */}
-        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center sm:px-4 sm:py-3">
+        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center">
           {/* Tanya Rohani */}
           <div className={`h-full w-full ${currentTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
             <FaithChatView />

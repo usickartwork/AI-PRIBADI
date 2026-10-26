@@ -35,9 +35,10 @@ interface NavigationProps {
   activeTab?: FaithTabType;
   onTabChange?: (tab: FaithTabType) => void;
   isDark?: boolean;
+  className?: string;
 }
 
-export default function Navigation({ activeTab: propActiveTab, onTabChange, isDark: propIsDark }: NavigationProps) {
+export default function Navigation({ activeTab: propActiveTab, onTabChange, isDark: propIsDark, className }: NavigationProps) {
   const faithNav = useFaithNav();
   const activeTab = propActiveTab ?? faithNav.activeTab;
   const isDark = propIsDark ?? faithNav.isDark ?? false;
@@ -135,10 +136,8 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
 
   return (
     <nav
-      className={`flex-none border-t px-3 pt-3 pb-[max(1.75rem,calc(env(safe-area-inset-bottom)+12px))] z-40 select-none transition-colors duration-200 ${
-        isDark
-          ? 'bg-[#121215] border-[#222226]'
-          : 'bg-white border-[#EAEAEB]'
+      className={`flex-none px-3 pt-2.5 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+10px))] z-40 select-none bg-transparent transition-colors duration-200 ${
+        className || 'border-t border-black/5 dark:border-white/10'
       }`}
     >
       <div

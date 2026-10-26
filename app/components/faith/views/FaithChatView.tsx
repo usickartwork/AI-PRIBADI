@@ -134,6 +134,15 @@ function cleanQuotes(text: string): string {
   // Strip all double quotes
   s = s.replace(/["“”]/g, '');
 
+  // Theological guardrail: Faith Space is strictly dedicated to Lord Jesus Christ (Christian faith)
+  s = s.replace(/\balhamdulillah\b/gi, 'Puji Tuhan')
+       .replace(/\bbismillah\b/gi, 'dalam nama Tuhan Yesus')
+       .replace(/\binsya\s*allah\b/gi, 'jika Tuhan menghendaki')
+       .replace(/\bastaghfirullah\b/gi, 'Tuhan ampunilah')
+       .replace(/\bsubhanallah\b/gi, 'terpujilah Tuhan')
+       .replace(/\bassalamu['’]?alaikum\b/gi, 'salam damai sejahtera Kristus')
+       .replace(/\bbarakallah\b/gi, 'Tuhan memberkatimu');
+
   return s;
 }
 
@@ -840,9 +849,9 @@ export default function FaithHubHomePage() {
 
   return (
     <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden">
-      {/* Precision Studio Shell: Full screen on mobile, bright light container matching Alkitab */}
+      {/* Precision Studio Shell: Completely transparent, seamlessly revealing global MeshDriftBackground */}
       <div
-        className={`w-full max-w-4xl h-full bg-white dark:bg-[#121215] rounded-none sm:rounded-[36px] sm:border border-[#EAEAEB] dark:border-[#222226] sm:shadow-[0_20px_60px_rgba(0,0,0,0.06)] dark:sm:shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`w-full max-w-4xl h-full bg-transparent flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           showIntro ? 'scale-[0.985] opacity-90 translate-y-1' : 'scale-100 opacity-100 translate-y-0'
         }`}
       >
@@ -893,7 +902,7 @@ export default function FaithHubHomePage() {
                   e.preventDefault();
                   handleSend();
                 }}
-                className="w-full bg-[#F2F2F4] dark:bg-[#18181D] hover:bg-[#ECECED] dark:hover:bg-[#1E1E24] focus-within:bg-white dark:focus-within:bg-[#1F1F26] focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/5 border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-zinc-400 rounded-full p-2 pl-3 sm:pl-3.5 pr-2.5 flex items-center gap-2 sm:gap-2.5 shadow-xs transition-all"
+                className="w-full bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 focus-within:bg-white dark:focus-within:bg-zinc-900 backdrop-blur-md focus-within:ring-2 focus-within:ring-black/5 dark:focus-within:ring-white/10 border border-black/10 dark:border-white/10 focus-within:border-black/30 dark:focus-within:border-white/30 rounded-full p-2 pl-3 sm:pl-3.5 pr-2.5 flex items-center gap-2 sm:gap-2.5 shadow-sm transition-all"
               >
                 <button
                   type="button"
@@ -929,7 +938,7 @@ export default function FaithHubHomePage() {
                   <button
                     key={idx}
                     onClick={() => handleSend(s.prompt)}
-                    className="px-4 py-2 rounded-full bg-white dark:bg-[#18181D] hover:bg-neutral-50 dark:hover:bg-[#202026] text-xs font-medium text-[#111113] dark:text-zinc-200 border border-[#DCDCE0] dark:border-[#2C2C32] hover:border-[#111113] dark:hover:border-zinc-400 transition shadow-2xs cursor-pointer"
+                    className="px-4 py-2 rounded-full bg-white/70 dark:bg-zinc-900/60 hover:bg-white dark:hover:bg-zinc-800 backdrop-blur-xs text-xs font-medium text-[#111113] dark:text-zinc-200 border border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30 transition shadow-2xs cursor-pointer"
                   >
                     {s.title}
                   </button>
@@ -973,7 +982,7 @@ export default function FaithHubHomePage() {
 
                     {/* User Bubble */}
                     {isUser ? (
-                      <div className="bg-[#111113] dark:bg-[#222228] text-white dark:text-zinc-100 border border-transparent dark:border-[#32323A] rounded-[22px] rounded-tr-xs px-4.5 py-3 text-[13.5px] leading-relaxed max-w-[85%] sm:max-w-[75%] shadow-xs">
+                      <div className="bg-[#111113] dark:bg-zinc-800/90 text-white dark:text-zinc-100 border border-black/10 dark:border-white/10 rounded-[22px] rounded-tr-xs px-4.5 py-3 text-[13.5px] leading-relaxed max-w-[85%] sm:max-w-[75%] shadow-sm">
                         {msg.imageUrl && (
                           <div className="mb-2.5 overflow-hidden rounded-xl border border-white/15 dark:border-white/10 max-w-xs shadow-xs">
                             <img
@@ -990,7 +999,7 @@ export default function FaithHubHomePage() {
                       <div className="flex flex-col space-y-2 w-full">
                         {/* Thinking State */}
                         {msg.status === 'streaming' && !msg.content ? (
-                          <div className="bg-[#ECECED] dark:bg-[#18181D] border border-[#DCDCE0] dark:border-[#27272D] rounded-[20px] rounded-tl-xs px-4 py-3 shadow-2xs inline-flex items-center gap-2.5 max-w-fit">
+                          <div className="bg-white/80 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 backdrop-blur-md rounded-[20px] rounded-tl-xs px-4 py-3 shadow-xs inline-flex items-center gap-2.5 max-w-fit">
                             <div className="flex space-x-1.5 items-center">
                               <div className="w-1.5 h-1.5 bg-[#111113] dark:bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
                               <div className="w-1.5 h-1.5 bg-[#111113] dark:bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -1009,7 +1018,7 @@ export default function FaithHubHomePage() {
                               return (
                                 <div
                                   key={bIdx}
-                                  className="bg-[#F2F2F4] dark:bg-[#18181D] text-[#111113] dark:text-[#F4F4F6] border border-[#DCDCE0] dark:border-[#27272D] rounded-[22px] rounded-tl-xs px-4.5 py-3.5 shadow-2xs max-w-[94%] sm:max-w-[88%] text-[13.5px] leading-relaxed transition-all"
+                                  className="bg-white/85 dark:bg-zinc-900/75 text-[#111113] dark:text-[#F4F4F6] border border-black/5 dark:border-white/10 backdrop-blur-md rounded-[22px] rounded-tl-xs px-4.5 py-3.5 shadow-xs max-w-[94%] sm:max-w-[88%] text-[13.5px] leading-relaxed transition-all"
                                 >
                                   <MarkdownRenderer
                                     content={bubbleText}
@@ -1087,7 +1096,7 @@ export default function FaithHubHomePage() {
         )}
 
         {/* BOTTOM DOCK: Chat Input (when chat active) + Navigation */}
-        <div className="flex-none bg-white dark:bg-[#121215] border-t border-[#EAEAEB] dark:border-[#222226] px-3 sm:px-6 py-2 pb-0 z-30 transition-colors">
+        <div className="flex-none bg-transparent border-t border-black/5 dark:border-white/10 px-3 sm:px-6 py-2 pb-0 z-30 transition-colors">
           {/* Only render bottom input bar when conversation has messages */}
           {messages.length > 0 && (
             <form
@@ -1095,7 +1104,7 @@ export default function FaithHubHomePage() {
                 e.preventDefault();
                 handleSend();
               }}
-              className="bg-[#F2F2F4] dark:bg-[#18181D] border border-[#DCDCE0] dark:border-[#2C2C32] focus-within:border-[#111113] dark:focus-within:border-zinc-400 focus-within:bg-white dark:focus-within:bg-[#1F1F26] rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-colors shadow-2xs"
+              className="bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 focus-within:bg-white dark:focus-within:bg-zinc-900 backdrop-blur-md border border-black/10 dark:border-white/10 focus-within:border-black/30 dark:focus-within:border-white/30 rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-all shadow-sm"
             >
               <button
                 type="button"
@@ -1151,7 +1160,7 @@ export default function FaithHubHomePage() {
           )}
 
           {/* Clean Navigation Bar Component */}
-          <Navigation />
+          <Navigation className="border-t-0" />
         </div>
 
         {/* Hidden Camera Input for Instant Camera & Photo Capture */}
@@ -1166,11 +1175,6 @@ export default function FaithHubHomePage() {
           aria-hidden="true"
         />
       </div>
-
-      {/* Sacred Sanctuary Entrance Transition (Only once on initial web entry) */}
-      {showIntro && (
-        <EntranceAnimation onComplete={handleIntroComplete} />
-      )}
     </div>
   );
 }
