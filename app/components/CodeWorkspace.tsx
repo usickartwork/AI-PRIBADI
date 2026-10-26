@@ -257,39 +257,12 @@ export type QualityGateResult = {
   stackDecisionLog?: StackDecisionEntry[];
 };
 
-// EXPORT GATE (Universal V4 Section 48): allowed only when all quality gates pass without critical violations.
+// EXPORT GATE: Always allowed so users are never blocked from exporting their project blueprint or website code.
 export function isSourceExportAllowed(
   gate?: QualityGateResult,
   features?: ProjectFeature[],
   tasks?: ProjectTask[]
 ): boolean {
-  if (!gate) return true;
-  if (gate.sourceIntegrity === "FAIL") return false;
-  const s = gate.sourceIntegrityState;
-  if (s) {
-    if (s.status === "FAIL") return false;
-    if (s.finalValidationCompleted !== true) return false;
-    if (s.remainingViolations > 0) return false;
-  }
-  if (gate.sourceIntegrityChecks && gate.sourceIntegrityChecks.some((c) => !c.passed)) {
-    return false;
-  }
-  if (gate.designQualityGate && gate.designQualityGate.some((dq) => dq.severity === "CRITICAL" && !dq.passed)) {
-    return false;
-  }
-  if (gate.previewQualityGate && gate.previewQualityGate.some((pq) => pq.severity === "CRITICAL" && !pq.passed)) {
-    return false;
-  }
-  if (gate.checks && gate.checks.some((c) => !c.passed && c.name.toLowerCase().includes("critical"))) {
-    return false;
-  }
-  if (tasks && tasks.length > 0) {
-    if (tasks.some((t) => !t.acceptanceCriteria || t.acceptanceCriteria.length === 0)) return false;
-    if (tasks.some((t) => !t.testing || t.testing.length === 0)) return false;
-  }
-  if (features && features.length > 0) {
-    if (features.some((f) => f.origin === "AI_SUGGESTED" && (f.isMvp || f.scope === "MVP"))) return false;
-  }
   return true;
 }
 
@@ -3183,7 +3156,8 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "preview">("chat");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "preview">("chat");
+  const [autoStartAiProjectId, setAutoStartAiProjectId] = useState<string | null>(null);
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -6606,30 +6580,11 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
       })
     );
 
-    // Otomatis buat preview HTML nyata via AI setelah planner merumuskan PRD, Features, dan Tasks
+    // Langsung navigasi ke Live Preview Canvas & mulai animasi perakitan website dengan AI
     if (!hasQuestions && newlyPlannedProject) {
       const projToPreview: ProjectItem = newlyPlannedProject;
-      setTimeout(() => {
-        generateProjectPreviewHtmlWithAI(projToPreview, undefined, userId)
-          .then((aiHtml) => {
-            if (aiHtml && aiHtml.length > 200) {
-              setProjects((curr) =>
-                curr.map((p) =>
-                  p.id === projToPreview.id
-                    ? {
-                        ...p,
-                        generatedHtml: aiHtml,
-                        updatedAt: Date.now(),
-                      }
-                    : p
-                )
-              );
-            }
-          })
-          .catch((err) => {
-            console.warn("Background AI preview generation error:", err);
-          });
-      }, 300);
+      setActiveTab("preview");
+      setAutoStartAiProjectId(projToPreview.id);
     }
   };
 
@@ -6825,12 +6780,8 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
 
   const buildMasterBlueprintText = (): string | null => {
     if (!activeProject) return null;
-    if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
+    if (!activeProject.prd?.overview) {
       showCopyToast("Blueprint proyek belum selesai dirumuskan. Selesaikan sesi AI Planner di tab Chat terlebih dahulu.");
-      return null;
-    }
-    if (!isSourceExportAllowed(activeProject.qualityGate)) {
-      showCopyToast("Export BLOCKED: masih ada unresolved Source Integrity violation. Lihat detail di Task Board.");
       return null;
     }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
@@ -7173,12 +7124,8 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
 
   const downloadProjectPdf = () => {
     if (!activeProject) return;
-    if (!activeProject.prd?.overview || !activeProject.features?.length || !activeProject.tasks?.length) {
+    if (!activeProject.prd?.overview) {
       showCopyToast("Blueprint proyek belum lengkap. Selesaikan sesi AI Planner terlebih dahulu.");
-      return;
-    }
-    if (!isSourceExportAllowed(activeProject.qualityGate)) {
-      showCopyToast("Export BLOCKED: masih ada unresolved Source Integrity violation. Lihat detail di Task Board.");
       return;
     }
     const domain = detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description);
@@ -7364,12 +7311,9 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
     activeProject?.prd?.overview &&
     activeProject?.features &&
     activeProject.features.length > 0 &&
-    activeProject?.tasks &&
-    activeProject.tasks.length > 0 &&
     estafetStage !== "prd" &&
     estafetStage !== "features" &&
-    estafetStage !== "architecture" &&
-    estafetStage !== "tasks"
+    estafetStage !== "architecture"
   );
   const hasPendingDiscoveryQuestions = Boolean(
     activeProject?.messages?.length &&
@@ -7478,21 +7422,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
               </button>
 
               <button
-                onClick={() => setActiveTab("tasks")}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  currentTab === "tasks"
-                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
-                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
-                }`}
-                title="Task Board"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span className="hidden md:inline">Tasks</span>
-              </button>
-
-              <button
                 onClick={() => setActiveTab("preview")}
                 className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "preview"
@@ -7517,15 +7446,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-                className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
-                  !isSourceExportAllowed(activeProject?.qualityGate)
-                    ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
-                    : isDark
-                    ? "bg-white/10 hover:bg-white/20 text-white border border-white/10 cursor-pointer"
-                    : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10 cursor-pointer"
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer ${
+                  isDark
+                    ? "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                    : "bg-black/5 hover:bg-black/10 text-zinc-800 border border-black/10"
                 }`}
-                title={isSourceExportAllowed(activeProject?.qualityGate) ? "Export Blueprint Proyek" : "Export BLOCKED"}
+                title="Export Blueprint Proyek"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -8713,16 +8639,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
 
                                 <button
                                   type="button"
-                                  onClick={() => setActiveTab("tasks")}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
-                                    isDark ? "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-200" : "bg-white hover:bg-zinc-100 border-zinc-200 text-zinc-700"
-                                  }`}
-                                >
-                                  <span>Buka Task Board</span>
-                                </button>
-
-                                <button
-                                  type="button"
                                   onClick={() => setActiveTab("preview")}
                                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                                     isDark ? "bg-indigo-600/30 hover:bg-indigo-600/50 border-indigo-500/40 text-indigo-200" : "bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700"
@@ -9679,7 +9595,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* TAB 5: KANBAN TASK BOARD */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {activeProject && currentTab === "tasks" && (
+      {activeProject && (currentTab as any) === "tasks" && (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Board Header Bar */}
           <div className="flex items-center justify-between px-4 sm:px-8 py-3 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
@@ -9992,6 +9908,8 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
             }}
             onSwitchToChat={() => setActiveTab("chat")}
             userId={userId}
+            autoStartGeneration={autoStartAiProjectId === activeProject.id}
+            onGenerationStarted={() => setAutoStartAiProjectId(null)}
           />
         </div>
       )}
@@ -10234,27 +10152,6 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                         <span>Peta Rencana (Mindmap)</span>
                       </div>
                       <span className="text-[10px] text-zinc-400">Struktur</span>
-                    </button>
-
-                    {/* Task Board */}
-                    <button
-                      onClick={() => {
-                        setActiveTab("tasks");
-                        setShowProjectDrawer(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                        currentTab === "tasks"
-                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
-                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        <span>Task Board (Checklist)</span>
-                      </div>
-                      <span className="text-[10px] text-zinc-400">{activeProject.tasks.length} task</span>
                     </button>
 
                     {/* Live Preview Canvas */}

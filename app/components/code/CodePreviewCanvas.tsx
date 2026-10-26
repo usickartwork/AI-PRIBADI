@@ -38,6 +38,8 @@ export interface CodePreviewCanvasProps {
   onUpdateHtml: (html: string) => void;
   onSwitchToChat?: () => void;
   userId?: string;
+  autoStartGeneration?: boolean;
+  onGenerationStarted?: () => void;
 }
 
 /**
@@ -127,12 +129,447 @@ window.addEventListener('error', function(event) {
   return `${strictCsp}\n${errorCatcher}\n${html}`;
 }
 
+/**
+ * Komponen Animasi Konstruksi Website Live (Header -> Hero -> Fitur -> Modul -> Footer)
+ * Ditampilkan saat proses perakitan website dengan AI sedang berlangsung.
+ */
+export function WebsiteBuildingAnimation({
+  project,
+  isDark,
+  streamedChars,
+  generationStep,
+}: {
+  project: ProjectItem;
+  isDark: boolean;
+  streamedChars: number;
+  generationStep: GenerationStep;
+}) {
+  const [buildStage, setBuildStage] = useState<number>(0);
+
+  // Progressive section assembly: Stage 0 (Header) -> Stage 1 (Hero) -> Stage 2 (Fitur) -> Stage 3 (Modul) -> Stage 4 (Footer)
+  useEffect(() => {
+    const timer1 = setTimeout(() => setBuildStage((s) => Math.max(s, 1)), 800);
+    const timer2 = setTimeout(() => setBuildStage((s) => Math.max(s, 2)), 1900);
+    const timer3 = setTimeout(() => setBuildStage((s) => Math.max(s, 3)), 3100);
+    const timer4 = setTimeout(() => setBuildStage((s) => Math.max(s, 4)), 4300);
+    const timer5 = setTimeout(() => setBuildStage((s) => Math.max(s, 5)), 5500);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+      clearTimeout(timer5);
+    };
+  }, []);
+
+  // Sinkronisasi dengan streamed character count
+  useEffect(() => {
+    if (streamedChars > 3500) setBuildStage((s) => Math.max(s, 4));
+    else if (streamedChars > 2200) setBuildStage((s) => Math.max(s, 3));
+    else if (streamedChars > 1100) setBuildStage((s) => Math.max(s, 2));
+    else if (streamedChars > 300) setBuildStage((s) => Math.max(s, 1));
+  }, [streamedChars]);
+
+  const features = useMemo(() => {
+    const list = project.features || [];
+    return [
+      list[0]?.name || "Arsitektur Modular & Responsif",
+      list[1]?.name || "Keamanan Data & Isolasi Sandbox",
+      list[2]?.name || "Interaksi Cerdas & Performa Tinggi",
+    ];
+  }, [project.features]);
+
+  const progressPercent = Math.min(
+    96,
+    Math.max(15, buildStage * 20 + Math.min(18, Math.floor(streamedChars / 250)))
+  );
+
+  return (
+    <div className={`w-full h-full flex flex-col overflow-y-auto relative font-sans select-none ${
+      isDark ? "bg-[#0c0f17] text-zinc-100" : "bg-zinc-50 text-zinc-900"
+    }`}>
+      {/* Background blueprint subtle grid pattern */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          backgroundImage: isDark
+            ? "radial-gradient(#6366f130 1px, transparent 1px)"
+            : "radial-gradient(#6366f120 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
+
+      {/* Floating Construction HUD Status Bar */}
+      <div className={`sticky top-0 z-40 px-4 py-2.5 border-b backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shadow-md ${
+        isDark ? "bg-[#0b0f19]/90 border-indigo-500/30 text-zinc-200" : "bg-white/90 border-indigo-200 text-zinc-800"
+      }`}>
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+          </span>
+          <span className="text-xs font-bold text-indigo-400 font-mono tracking-tight flex items-center gap-1.5">
+            <span>⚡ AI Website Builder:</span>
+            <span className={isDark ? "text-zinc-200" : "text-zinc-800"}>
+              {buildStage === 0 && "Merakit Header & Navigasi..."}
+              {buildStage === 1 && "Membangun Hero Section & Headline..."}
+              {buildStage === 2 && "Menyusun Fitur & Modul Utama..."}
+              {buildStage === 3 && "Menghubungkan Logika Interaktif..."}
+              {buildStage >= 4 && "Menyelesaikan Footer & Finishing..."}
+            </span>
+          </span>
+        </div>
+
+        {/* Mini Stage Pills */}
+        <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono">
+          <span className={`px-2 py-0.5 rounded-md border ${buildStage >= 0 ? "bg-indigo-600 text-white border-indigo-500 font-bold" : "opacity-40 border-zinc-700"}`}>
+            1. Header {buildStage >= 1 && "✓"}
+          </span>
+          <span className={`px-2 py-0.5 rounded-md border ${buildStage >= 1 ? "bg-indigo-600 text-white border-indigo-500 font-bold" : "opacity-40 border-zinc-700"}`}>
+            2. Hero {buildStage >= 2 && "✓"}
+          </span>
+          <span className={`px-2 py-0.5 rounded-md border ${buildStage >= 2 ? "bg-indigo-600 text-white border-indigo-500 font-bold" : "opacity-40 border-zinc-700"}`}>
+            3. Fitur {buildStage >= 3 && "✓"}
+          </span>
+          <span className={`px-2 py-0.5 rounded-md border ${buildStage >= 3 ? "bg-indigo-600 text-white border-indigo-500 font-bold" : "opacity-40 border-zinc-700"}`}>
+            4. Modul {buildStage >= 4 && "✓"}
+          </span>
+          <span className={`px-2 py-0.5 rounded-md border ${buildStage >= 4 ? "bg-indigo-600 text-white border-indigo-500 font-bold" : "opacity-40 border-zinc-700"}`}>
+            5. Footer {buildStage >= 5 && "✓"}
+          </span>
+        </div>
+
+        {/* Live Token/Character Counter */}
+        <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400">
+          {streamedChars > 0 && (
+            <span className="px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700 text-zinc-300">
+              {streamedChars.toLocaleString()} chars
+            </span>
+          )}
+          <span className="font-bold text-indigo-400">{progressPercent}%</span>
+        </div>
+
+        {/* Animated Progress Line */}
+        <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden mt-0.5">
+          <div
+            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Assembly Canvas Viewport */}
+      <div className="p-4 sm:p-8 space-y-6 max-w-5xl mx-auto w-full relative z-10">
+
+        {/* ─── 1. HEADER SECTION ANIMATION ─── */}
+        <div
+          className={`transition-all duration-700 transform ${
+            buildStage >= 0
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 -translate-y-4 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-400 mb-1.5 px-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <span>Section 1: Header & Navigasi</span>
+            </span>
+            <span className="text-zinc-500">Component: Navbar</span>
+          </div>
+
+          <header className={`px-4 sm:px-6 py-3.5 rounded-2xl border flex items-center justify-between shadow-lg relative overflow-hidden backdrop-blur-md ${
+            isDark
+              ? "bg-zinc-900/90 border-indigo-500/40 ring-1 ring-indigo-500/20"
+              : "bg-white/95 border-indigo-300 ring-1 ring-indigo-300/30"
+          }`}>
+            {/* Brand Logo & Name */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-500/30">
+                {project.title ? project.title.charAt(0).toUpperCase() : "U"}
+              </div>
+              <div>
+                <span className="font-bold text-sm sm:text-base tracking-tight block">
+                  {project.title || "Usick One Website"}
+                </span>
+                <span className="text-[10px] text-zinc-400 hidden sm:block">
+                  Solusi Digital Terpadu
+                </span>
+              </div>
+            </div>
+
+            {/* Nav Menu Items */}
+            <nav className="hidden md:flex items-center gap-5 text-xs font-medium">
+              <span className="text-indigo-400 font-semibold cursor-pointer">Beranda</span>
+              <span className="hover:text-indigo-400 cursor-pointer transition">Fitur</span>
+              <span className="hover:text-indigo-400 cursor-pointer transition">Solusi</span>
+              <span className="hover:text-indigo-400 cursor-pointer transition">Tentang</span>
+              <span className="hover:text-indigo-400 cursor-pointer transition">Kontak</span>
+            </nav>
+
+            {/* CTA Button */}
+            <div className="flex items-center gap-2">
+              <div className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer">
+                <span>Mulai Sekarang</span>
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </header>
+        </div>
+
+        {/* ─── 2. HERO SECTION ANIMATION ─── */}
+        <div
+          className={`transition-all duration-700 transform ${
+            buildStage >= 1
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-400 mb-1.5 px-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <span>Section 2: Hero Section & Headline</span>
+            </span>
+            <span className="text-zinc-500">Component: HeroBanner</span>
+          </div>
+
+          <div className={`p-6 sm:p-10 rounded-3xl border relative overflow-hidden shadow-xl ${
+            isDark
+              ? "bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-zinc-900/90 border-indigo-500/30"
+              : "bg-gradient-to-b from-white via-indigo-50/30 to-white border-indigo-200"
+          }`}>
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 border bg-indigo-500/10 border-indigo-500/30 text-indigo-400">
+                <span>✨</span>
+                <span>Platform Digital Modern</span>
+                <span className="text-indigo-400/60">•</span>
+                <span className="text-[11px] font-mono">Siap Digunakan</span>
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-3 leading-tight">
+                Tingkatkan Efisiensi Bersama{" "}
+                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+                  {project.title}
+                </span>
+              </h1>
+
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mb-6">
+                {project.description ||
+                  "Solusi komprehensif yang dirancang untuk mempercepat alur kerja, mengoptimalkan interaksi pengguna, dan memberikan performa terbaik."}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-2"
+                >
+                  <span>Jelajahi Solusi</span>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`px-4 py-2 rounded-xl border text-xs font-semibold transition ${
+                    isDark
+                      ? "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300"
+                      : "border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  Lihat Dokumentasi PRD
+                </button>
+              </div>
+            </div>
+
+            <div className={`mt-8 sm:mt-10 p-4 rounded-2xl border grid grid-cols-2 sm:grid-cols-3 gap-3 ${
+              isDark ? "bg-zinc-950/60 border-zinc-800/80" : "bg-white/80 border-zinc-200"
+            }`}>
+              <div className="p-2.5 rounded-xl border border-dashed border-indigo-500/20">
+                <span className="text-[10px] text-zinc-400 uppercase font-mono block">Status Sistem</span>
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                  Online 99.9%
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl border border-dashed border-indigo-500/20">
+                <span className="text-[10px] text-zinc-400 uppercase font-mono block">Keamanan Sandbox</span>
+                <span className="text-xs font-bold text-indigo-400 mt-0.5 block">CSP Terisolasi</span>
+              </div>
+              <div className="p-2.5 rounded-xl border border-dashed border-indigo-500/20 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-zinc-400 uppercase font-mono block">Rendering Mode</span>
+                <span className="text-xs font-bold text-purple-400 mt-0.5 block">Dynamic HTML5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 3. FEATURES SECTION ANIMATION ─── */}
+        <div
+          className={`transition-all duration-700 transform ${
+            buildStage >= 2
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-400 mb-1.5 px-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <span>Section 3: Fitur & Modul Utama</span>
+            </span>
+            <span className="text-zinc-500">Component: FeatureGrid</span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-center max-w-md mx-auto mb-4">
+              <h2 className="text-lg font-bold">Fitur Unggulan Sistem</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Disusun sesuai spesifikasi kebutuhan proyek Anda</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {features.map((featTitle, idx) => (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-2xl border transition-all duration-500 transform hover:scale-[1.02] ${
+                    isDark
+                      ? "bg-zinc-900/70 border-zinc-800 hover:border-indigo-500/40"
+                      : "bg-white border-zinc-200 hover:border-indigo-400"
+                  }`}
+                  style={{ transitionDelay: `${idx * 150}ms` }}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center mb-3">
+                    {idx === 0 && (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    )}
+                    {idx === 1 && (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    )}
+                    {idx === 2 && (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    )}
+                  </div>
+                  <h3 className="text-xs font-bold mb-1.5">{featTitle}</h3>
+                  <div className="space-y-1.5 mb-3">
+                    <div className="w-full h-2 rounded bg-zinc-700/30 animate-pulse" />
+                    <div className="w-3/4 h-2 rounded bg-zinc-700/20 animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-400 font-semibold flex items-center gap-1">
+                    <span>●</span> Modul Aktif
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 4. INTERACTIVE MODULE ANIMATION ─── */}
+        <div
+          className={`transition-all duration-700 transform ${
+            buildStage >= 3
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-400 mb-1.5 px-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <span>Section 4: Modul Interaktif & Formulir</span>
+            </span>
+            <span className="text-zinc-500">Component: InteractiveSimulation</span>
+          </div>
+
+          <div className={`p-5 rounded-2xl border shadow-lg ${
+            isDark ? "bg-zinc-900/80 border-indigo-500/30" : "bg-white border-indigo-200"
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-xs font-bold">Simulasi Interaksi Client-Side</h3>
+                <p className="text-[11px] text-zinc-400">Logika JavaScript interaktif sedang dirangkai ke dalam dokumen HTML.</p>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 self-start sm:self-auto">
+                JavaScript Ready
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border text-xs ${
+                isDark ? "bg-zinc-950 border-zinc-800 text-zinc-400" : "bg-zinc-50 border-zinc-200 text-zinc-500"
+              }`}>
+                <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span className="animate-pulse">Cari data atau lakukan simulasi input...</span>
+              </div>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold shadow-xs"
+              >
+                Proses
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 5. FOOTER SECTION ANIMATION ─── */}
+        <div
+          className={`transition-all duration-700 transform ${
+            buildStage >= 4
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-400 mb-1.5 px-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+              <span>Section 5: Footer & Legalitas</span>
+            </span>
+            <span className="text-zinc-500">Component: Footer</span>
+          </div>
+
+          <footer className={`p-6 rounded-2xl border text-xs ${
+            isDark ? "bg-zinc-950/80 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-300 text-zinc-600"
+          }`}>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                  {project.title ? project.title.charAt(0).toUpperCase() : "U"}
+                </div>
+                <span className="font-semibold text-zinc-200">{project.title}</span>
+              </div>
+
+              <div className="flex items-center gap-4 text-[11px]">
+                <span className="hover:text-indigo-400 cursor-pointer">Privasi</span>
+                <span className="hover:text-indigo-400 cursor-pointer">Syarat & Ketentuan</span>
+                <span className="hover:text-indigo-400 cursor-pointer">Kontak Tim</span>
+              </div>
+
+              <span className="text-[10px] text-zinc-500 font-mono">
+                © 2026 {project.title}. All rights reserved.
+              </span>
+            </div>
+          </footer>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export function CodePreviewCanvas({
   project,
   isDark,
   onUpdateHtml,
   onSwitchToChat,
   userId,
+  autoStartGeneration,
+  onGenerationStarted,
 }: CodePreviewCanvasProps) {
   // 1. Inisialisasi HTML awal langsung dari state project yang sudah ada (tanpa memicu AI)
   const initialHtml = useMemo(() => {
@@ -305,6 +742,14 @@ export function CodePreviewCanvas({
       setGenerationStep("idle");
     }
   };
+
+  // Auto-start generation jika dipicu dari transisi perencanaan baru
+  useEffect(() => {
+    if (autoStartGeneration && !isGenerating) {
+      onGenerationStarted?.();
+      handleRunAi();
+    }
+  }, [autoStartGeneration]);
 
   // 10. Mengembalikan kode ke versi sebelum perubahan terakhir (Revert)
   const handleRevertToPrevious = () => {
@@ -744,7 +1189,7 @@ export function CodePreviewCanvas({
       {/* ─── Main Content Canvas Area ─── */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* State A: Belum Ada HTML */}
-        {!hasHtml && viewMode === "preview" ? (
+        {!hasHtml && !isGenerating && viewMode === "preview" ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div
               className={`w-16 h-16 rounded-3xl border flex items-center justify-center mb-4 ${
@@ -853,41 +1298,37 @@ export function CodePreviewCanvas({
                   <span className="ml-2 font-bold">{currentPreset.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60">
-                    sandbox="allow-scripts"
-                  </span>
+                  {isGenerating ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 animate-pulse font-mono flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping inline-block" />
+                      Building Website...
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                      sandbox="allow-scripts"
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Sandboxed Iframe Container */}
-              <div className="flex-1 w-full h-full relative bg-white">
-                {isGenerating && (
-                  <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center mb-3 animate-pulse">
-                      <svg className="w-6 h-6 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                      </svg>
-                    </div>
-                    <h3 className="text-sm sm:text-base font-bold">
-                      {generationStep === "preparing_context" && "Menyiapkan Konteks & Token..."}
-                      {generationStep === "generating_website" && "AI Sedang Menulis Kode Website..."}
-                      {generationStep === "validating_html" && "Memvalidasi Struktur & Keamanan HTML..."}
-                      {generationStep === "updating_preview" && "Memperbarui Tampilan Canvas..."}
-                    </h3>
-                    <p className="text-xs text-zinc-300 max-w-sm mt-1 leading-relaxed">
-                      {streamedChars > 0 ? `${streamedChars.toLocaleString()} karakter diterima dari model AI...` : "Menyusun prototipe HTML/CSS/JS mandiri..."}
-                    </p>
-                  </div>
+              {/* Sandboxed Iframe Container OR Live Website Construction Animation */}
+              <div className="flex-1 w-full h-full relative bg-white overflow-hidden">
+                {isGenerating ? (
+                  <WebsiteBuildingAnimation
+                    project={project}
+                    isDark={isDark}
+                    streamedChars={streamedChars}
+                    generationStep={generationStep}
+                  />
+                ) : (
+                  <iframe
+                    key={refreshKey}
+                    srcDoc={securedHtml}
+                    sandbox="allow-scripts"
+                    className="w-full h-full border-none"
+                    title="Usick One Live Preview Canvas"
+                  />
                 )}
-
-                <iframe
-                  key={refreshKey}
-                  srcDoc={securedHtml}
-                  sandbox="allow-scripts"
-                  className="w-full h-full border-none"
-                  title="Usick One Live Preview Canvas"
-                />
               </div>
             </div>
           </div>
