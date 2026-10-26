@@ -848,22 +848,21 @@ export default function FaithHubHomePage() {
   }
 
   return (
-    <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden">
-      {/* Precision Studio Shell: Completely transparent, seamlessly revealing global MeshDriftBackground */}
-      <div
-        className={`w-full max-w-4xl h-full bg-transparent flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          showIntro ? 'scale-[0.985] opacity-90 translate-y-1' : 'scale-100 opacity-100 translate-y-0'
-        }`}
-      >
-        {/* Top Header with Brand */}
-        <Header user={user} />
+    <div
+      className={`h-full w-full bg-transparent flex flex-col overflow-hidden relative transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        showIntro ? 'scale-[0.985] opacity-90 translate-y-1' : 'scale-100 opacity-100 translate-y-0'
+      }`}
+    >
+      {/* Top Header with Brand */}
+      <Header user={user} />
 
-        {/* Middle Scrollable Chat / Content Area */}
-        <main
-          ref={chatScrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 min-h-0 overflow-y-auto px-3.5 sm:px-6 py-4 space-y-4 overscroll-contain flex flex-col"
-        >
+      {/* Middle Scrollable Chat / Content Area */}
+      <main
+        ref={chatScrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 overflow-y-auto px-3.5 sm:px-6 py-4 space-y-4 overscroll-contain flex flex-col"
+      >
+        <div className="w-full max-w-3xl sm:max-w-4xl mx-auto flex-1 flex flex-col">
           {/* EMPTY STATE: Clean, Bright, Welcoming ChatGPT Style */}
           {!isMounted || messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 max-w-2xl mx-auto w-full text-center my-auto">
@@ -1080,32 +1079,33 @@ export default function FaithHubHomePage() {
 
           {/* Invisible Scroll Anchor */}
           <div ref={messagesEndRef} className="h-2 w-full shrink-0" aria-hidden="true" />
-        </main>
+        </div>
+      </main>
 
-        {/* Floating Scroll-to-bottom Button */}
-        {showScrollBottomBtn && isGenerating && (
-          <div className="absolute bottom-24 left-0 right-0 flex justify-center z-40 pointer-events-none">
-            <button
-              onClick={() => scrollToBottom(true)}
-              className="pointer-events-auto bg-[#111113] dark:bg-zinc-800 text-white shadow-xl rounded-full px-3.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all animate-bounce cursor-pointer border border-black/10 dark:border-white/10"
-            >
-              <ChevronDown size={13} />
-              <span>Tanggapan baru</span>
-            </button>
-          </div>
-        )}
+      {/* Floating Scroll-to-bottom Button */}
+      {showScrollBottomBtn && isGenerating && (
+        <div className="absolute bottom-24 left-0 right-0 flex justify-center z-40 pointer-events-none">
+          <button
+            onClick={() => scrollToBottom(true)}
+            className="pointer-events-auto bg-[#111113] dark:bg-zinc-800 text-white shadow-xl rounded-full px-3.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all animate-bounce cursor-pointer border border-black/10 dark:border-white/10"
+          >
+            <ChevronDown size={13} />
+            <span>Tanggapan baru</span>
+          </button>
+        </div>
+      )}
 
-        {/* BOTTOM DOCK: Chat Input (when chat active) + Navigation */}
-        <div className="flex-none bg-transparent border-t border-black/5 dark:border-white/10 px-3 sm:px-6 py-2 pb-0 z-30 transition-colors">
-          {/* Only render bottom input bar when conversation has messages */}
-          {messages.length > 0 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSend();
-              }}
-              className="bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 focus-within:bg-white dark:focus-within:bg-zinc-900 backdrop-blur-md border border-black/10 dark:border-white/10 focus-within:border-black/30 dark:focus-within:border-white/30 rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-all shadow-sm"
-            >
+      {/* BOTTOM DOCK: Chat Input (when chat active) + Navigation */}
+      <div className="flex-none w-full bg-transparent border-t border-black/5 dark:border-white/10 px-3.5 sm:px-6 md:px-8 py-2 pb-0 z-30 transition-colors">
+        {/* Only render bottom input bar when conversation has messages */}
+        {messages.length > 0 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="max-w-3xl sm:max-w-4xl mx-auto w-full bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 focus-within:bg-white dark:focus-within:bg-zinc-900 backdrop-blur-md border border-black/10 dark:border-white/10 focus-within:border-black/30 dark:focus-within:border-white/30 rounded-[24px] p-1.5 pl-2 sm:pl-2.5 mb-2 flex items-end gap-2 transition-all shadow-sm"
+          >
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
@@ -1175,6 +1175,5 @@ export default function FaithHubHomePage() {
           aria-hidden="true"
         />
       </div>
-    </div>
   );
 }

@@ -126,14 +126,14 @@ export function FaithWorkspace({
         {showIntro && user && <EntranceAnimation onComplete={handleIntroComplete} />}
 
         {/* ─── BODY: FAITH HUB TABS (HANYA CHAT & ALKITAB, TANPA HEADER TAB/X) ─── */}
-        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-center">
+        <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden flex flex-col">
           {/* Tanya Rohani */}
-          <div className={`h-full w-full ${currentTab === "tanya" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+          <div className={`h-full w-full ${currentTab === "tanya" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
             <FaithChatView />
           </div>
 
           {/* Alkitab */}
-          <div className={`h-full w-full ${currentTab === "bible" ? "flex flex-col flex-1 min-h-0 items-center justify-center" : "hidden"}`}>
+          <div className={`h-full w-full ${currentTab === "bible" ? "flex flex-col flex-1 min-h-0" : "hidden"}`}>
             <FaithBibleView />
           </div>
         </div>

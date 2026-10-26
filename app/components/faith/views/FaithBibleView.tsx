@@ -612,14 +612,13 @@ export default function BiblePage() {
   });
 
   return (
-    <div className="h-full w-full bg-transparent flex flex-col items-center justify-center overflow-hidden select-none sm:select-auto">
-      <div className="w-full max-w-4xl h-full bg-transparent flex flex-col overflow-hidden relative">
-        <Header user={user} />
+    <div className="h-full w-full bg-transparent flex flex-col overflow-hidden select-none sm:select-auto relative">
+      <Header user={user} />
 
-        {/* ========================================================================= */}
-        {/* NATIVE APP STYLE TOP BAR: [Roma 8 ▾] [TB] + Tools                        */}
-        {/* ========================================================================= */}
-        <div className="flex-none bg-transparent border-b border-black/5 dark:border-white/10 px-3.5 sm:px-6 py-2.5 flex items-center justify-between z-20 transition-colors">
+      {/* ========================================================================= */}
+      {/* NATIVE APP STYLE TOP BAR: [Roma 8 ▾] [TB] + Tools                        */}
+      {/* ========================================================================= */}
+      <div className="flex-none w-full bg-transparent border-b border-black/5 dark:border-white/10 px-4 sm:px-6 md:px-8 py-2.5 flex items-center justify-between z-20 transition-colors">
           {/* Main Book & Chapter Pill Trigger (Like YouVersion) */}
           <div className="flex items-center gap-2">
             <button
@@ -706,7 +705,8 @@ export default function BiblePage() {
           ref={mainScrollRef}
           className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-5 relative"
         >
-          {/* Chapter Heading Banner */}
+          <div className="w-full max-w-4xl mx-auto">
+            {/* Chapter Heading Banner */}
           <div className="mb-6 pb-3 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider block">
@@ -860,7 +860,8 @@ export default function BiblePage() {
               <ChevronRight size={14} />
             </button>
           </div>
-        </main>
+        </div>
+      </main>
 
         {/* ========================================================================= */}
         {/* FLOATING ACTION DOCK: When Verses are Selected (Multi-Verse Support)      */}
@@ -1763,8 +1764,7 @@ export default function BiblePage() {
           </div>
         )}
 
-        <Navigation />
+        <Navigation className="border-t border-black/5 dark:border-white/10" />
       </div>
-    </div>
   );
 }

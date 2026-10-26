@@ -4460,9 +4460,7 @@ export default function Home() {
       >
         <div className="w-full md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
           {/* Brand & Logo Header */}
-          <div className={`flex items-center justify-between px-4 py-4 md:px-5 md:py-4 border-b ${
-            isDark ? "border-zinc-800" : "border-zinc-100"
-          }`}>
+          <div className="flex items-center justify-between px-4 py-4 md:px-5 md:py-4">
             <div className="flex items-center">
               <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
                 <TechText
@@ -4665,7 +4663,7 @@ export default function Home() {
             </div>
 
           {/* ─── SECTION CATATAN (Dipisah di bawah 6 tab utama sesuai referensi) ─── */}
-          <div className="pt-3 pb-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2 space-y-1">
+          <div className="pt-3 pb-1 mt-2 space-y-1">
             <div className="px-2 md:px-2.5 py-1 text-xs md:text-[11px] font-bold tracking-wider text-zinc-500 uppercase flex items-center justify-between">
               <span>Catatan</span>
             </div>
@@ -4887,11 +4885,9 @@ export default function Home() {
         </div>
 
           {/* Bottom User Card / Status */}
-          <div className={`p-3 md:p-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ${isDark ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <div className="p-3 md:p-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-transparent">
 
-            <div className={`flex items-center justify-between rounded-2xl p-3 md:p-2.5 shadow-xs border ${
-              isDark ? "bg-[#18181b] border-zinc-800 text-white" : "bg-white border-zinc-200/80 text-black"
-            }`}>
+            <div className="flex items-center justify-between px-2 py-1.5 transition-colors">
               <div className="flex items-center gap-3 md:gap-2.5 min-w-0 pr-1">
                 <div className={`relative flex h-10 w-10 md:h-8.5 md:w-8.5 shrink-0 items-center justify-center rounded-full text-sm md:text-xs font-bold shadow-sm ${
                   isDark ? "bg-white text-black" : "bg-black text-white"

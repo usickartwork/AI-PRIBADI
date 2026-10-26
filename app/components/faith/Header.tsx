@@ -14,7 +14,7 @@ export default function Header({ user }: HeaderProps) {
 
   return (
     <header
-      className={`flex-none px-3.5 sm:px-6 py-3 z-30 border-b border-black/5 dark:border-white/10 bg-transparent backdrop-blur-xs transition-colors duration-200 ${
+      className={`flex-none w-full px-4 sm:px-6 md:px-8 py-3.5 z-30 border-b border-black/5 dark:border-white/10 bg-transparent backdrop-blur-xs transition-colors duration-200 ${
         isDark ? 'text-white' : 'text-[#111113]'
       }`}
     >

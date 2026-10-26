@@ -136,7 +136,7 @@ export default function Navigation({ activeTab: propActiveTab, onTabChange, isDa
 
   return (
     <nav
-      className={`flex-none px-3 pt-2.5 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+10px))] z-40 select-none bg-transparent transition-colors duration-200 ${
+      className={`flex-none w-full px-3 pt-2.5 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+10px))] z-40 select-none bg-transparent transition-colors duration-200 ${
         className || 'border-t border-black/5 dark:border-white/10'
       }`}
     >
