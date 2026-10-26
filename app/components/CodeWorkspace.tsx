@@ -7426,15 +7426,15 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
           )}
         </div>
 
-        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks) only if activeProject & isPlannerFinished */}
-        <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
+        {/* Center: Tabs switcher (Tanya AI, Peta Rencana, Wiki, Tasks, Preview) */}
+        <div className="flex items-center justify-center min-w-0 max-w-[calc(100%-110px)] sm:max-w-md lg:max-w-xl mx-auto pointer-events-auto">
           {activeProject && isPlannerFinished && (
-            <div className={`flex items-center gap-1 p-1 rounded-2xl backdrop-blur-md ${
+            <div className={`flex items-center gap-0.5 sm:gap-1 p-1 rounded-2xl backdrop-blur-md overflow-x-auto no-scrollbar max-w-full shrink ${
               isDark ? "bg-zinc-900/80 border border-white/10" : "bg-zinc-100/90 border border-black/10"
             }`}>
               <button
                 onClick={() => setActiveTab("chat")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "chat"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
@@ -7444,12 +7444,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
-                <span className="hidden sm:inline">Tanya AI</span>
+                <span className="hidden md:inline">Tanya AI</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("mindmap")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "mindmap"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
@@ -7459,12 +7459,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
-                <span className="hidden sm:inline">Peta Rencana</span>
+                <span className="hidden lg:inline">Peta Rencana</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("prd")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "prd"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
@@ -7474,12 +7474,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Wiki</span>
+                <span className="hidden sm:inline">Wiki</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("tasks")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "tasks"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
@@ -7489,12 +7489,12 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                <span className="hidden sm:inline">Tasks</span>
+                <span className="hidden md:inline">Tasks</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("preview")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   currentTab === "preview"
                     ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
                     : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
@@ -7512,13 +7512,13 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
         </div>
 
         {/* Right side: Export (if planner finished) + Tombol File Project di Kanan Atas */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
           {activeProject && isPlannerFinished && (
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={!isSourceExportAllowed(activeProject?.qualityGate)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl text-xs font-bold transition shadow-xs active:scale-95 ${
                   !isSourceExportAllowed(activeProject?.qualityGate)
                     ? "opacity-40 cursor-not-allowed " + (isDark ? "bg-zinc-800 text-zinc-400" : "bg-zinc-200 text-zinc-500")
                     : isDark
@@ -7530,7 +7530,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <span className="hidden sm:inline">Export</span>
+                <span className="hidden md:inline">Export</span>
               </button>
 
               {showExportMenu && (
@@ -9977,7 +9977,7 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       {/* TAB: LIVE PREVIEW CANVAS (FASE 2)                                          */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {activeProject && currentTab === "preview" && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pt-14">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pt-16 sm:pt-20">
           <CodePreviewCanvas
             project={activeProject}
             isDark={isDark}

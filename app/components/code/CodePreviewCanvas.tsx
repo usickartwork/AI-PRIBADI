@@ -367,20 +367,20 @@ export function CodePreviewCanvas({
 
       {/* ─── Toolbar Utama (Device, Mode, Zoom, Fullscreen) ─── */}
       <div
-        className={`px-3 sm:px-6 py-2 border-b flex flex-wrap items-center justify-between gap-2.5 shrink-0 ${
+        className={`px-3 sm:px-6 py-2 border-b flex items-center justify-between gap-2.5 shrink-0 overflow-x-auto no-scrollbar ${
           isDark ? "border-zinc-800 bg-zinc-950/90" : "border-zinc-200 bg-white"
         }`}
       >
         {/* Left: View Mode Toggle (Code vs 👁 Preview) */}
         <div
-          className={`flex items-center p-0.5 rounded-xl border ${
+          className={`flex items-center p-0.5 rounded-xl border shrink-0 ${
             isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
           }`}
         >
           <button
             type="button"
             onClick={() => setViewMode("preview")}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
               viewMode === "preview"
                 ? isDark
                   ? "bg-white text-black shadow-xs"
@@ -400,7 +400,7 @@ export function CodePreviewCanvas({
           <button
             type="button"
             onClick={() => setViewMode("code")}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
               viewMode === "code"
                 ? isDark
                   ? "bg-white text-black shadow-xs"
@@ -413,14 +413,14 @@ export function CodePreviewCanvas({
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
-            <span>Source Code</span>
+            <span><span className="hidden sm:inline">Source </span>Code</span>
           </button>
         </div>
 
         {/* Center: Device Selector (Desktop 1440 / Tablet 768 / Mobile 390) */}
         {viewMode === "preview" && (
           <div
-            className={`flex items-center p-0.5 rounded-xl border ${
+            className={`flex items-center p-0.5 rounded-xl border shrink-0 ${
               isDark ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-300"
             }`}
           >
@@ -429,7 +429,7 @@ export function CodePreviewCanvas({
                 key={d}
                 type="button"
                 onClick={() => setDevice(d)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer capitalize flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer capitalize flex items-center gap-1.5 ${
                   device === d
                     ? isDark
                       ? "bg-white text-black shadow-xs"
@@ -453,69 +453,71 @@ export function CodePreviewCanvas({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                 )}
-                <span className="hidden sm:inline">{d}</span>
+                <span className="hidden md:inline">{d}</span>
               </button>
             ))}
           </div>
         )}
 
         {/* Right: Controls (Zoom In/Out/Reset, Refresh, Fullscreen) */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {viewMode === "preview" && (
             <div className="flex items-center gap-1">
-              {/* Zoom Out Button */}
-              <button
-                type="button"
-                onClick={handleZoomOut}
-                disabled={zoom <= 50}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg border text-xs font-mono transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                }`}
-                title="Perkecil (-)"
-              >
-                -
-              </button>
-
-              {/* Zoom Selector Dropdown */}
-              <select
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                aria-label="Pilih tingkat zoom"
-                className={`text-xs px-2 py-1 rounded-lg border font-mono outline-none cursor-pointer ${
-                  isDark ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-300 text-zinc-800"
-                }`}
-              >
-                {ZOOM_PRESETS.map((z) => (
-                  <option key={z} value={z}>{z}%</option>
-                ))}
-              </select>
-
-              {/* Zoom In Button */}
-              <button
-                type="button"
-                onClick={handleZoomIn}
-                disabled={zoom >= 150}
-                className={`w-7 h-7 flex items-center justify-center rounded-lg border text-xs font-mono transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
-                }`}
-                title="Perbesar (+)"
-              >
-                +
-              </button>
-
-              {/* Reset Zoom Button */}
-              {zoom !== 100 && (
+              <div className="hidden md:flex items-center gap-1">
+                {/* Zoom Out Button */}
                 <button
                   type="button"
-                  onClick={handleResetZoom}
-                  className={`px-2 py-1 rounded-lg border text-[11px] font-mono transition cursor-pointer ${
-                    isDark ? "border-zinc-800 bg-zinc-900 text-indigo-400 hover:bg-zinc-800" : "border-zinc-300 bg-zinc-100 text-indigo-600 hover:bg-zinc-200"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 50}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg border text-xs font-mono transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                    isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
                   }`}
-                  title="Reset Zoom ke 100%"
+                  title="Perkecil (-)"
                 >
-                  Reset
+                  -
                 </button>
-              )}
+
+                {/* Zoom Selector Dropdown */}
+                <select
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  aria-label="Pilih tingkat zoom"
+                  className={`text-xs px-2 py-1 rounded-lg border font-mono outline-none cursor-pointer ${
+                    isDark ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-300 text-zinc-800"
+                  }`}
+                >
+                  {ZOOM_PRESETS.map((z) => (
+                    <option key={z} value={z}>{z}%</option>
+                  ))}
+                </select>
+
+                {/* Zoom In Button */}
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 150}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg border text-xs font-mono transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                    isDark ? "border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "border-zinc-300 hover:bg-zinc-100 text-zinc-700"
+                  }`}
+                  title="Perbesar (+)"
+                >
+                  +
+                </button>
+
+                {/* Reset Zoom Button */}
+                {zoom !== 100 && (
+                  <button
+                    type="button"
+                    onClick={handleResetZoom}
+                    className={`px-2 py-1 rounded-lg border text-[11px] font-mono transition cursor-pointer ${
+                      isDark ? "border-zinc-800 bg-zinc-900 text-indigo-400 hover:bg-zinc-800" : "border-zinc-300 bg-zinc-100 text-indigo-600 hover:bg-zinc-200"
+                    }`}
+                    title="Reset Zoom ke 100%"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
 
               {/* Refresh / Reload Iframe Button */}
               <button
@@ -541,7 +543,7 @@ export function CodePreviewCanvas({
             type="button"
             onClick={handleExportHtml}
             disabled={!hasHtml}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isDark
                 ? "border-emerald-800/80 bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300"
                 : "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
@@ -560,7 +562,7 @@ export function CodePreviewCanvas({
             type="button"
             onClick={handleCopySource}
             disabled={!hasHtml}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg border text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               isDark ? "border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-200" : "border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800"
             }`}
             title="Salin seluruh kode HTML ke clipboard"
@@ -568,7 +570,7 @@ export function CodePreviewCanvas({
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            <span className="hidden sm:inline">Salin HTML</span>
+            <span className="hidden md:inline">Salin HTML</span>
           </button>
 
           {/* Fullscreen Toggle */}
