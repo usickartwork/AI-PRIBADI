@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MarkdownMessage } from "./MarkdownMessage";
+import CodeBuilderView from "./code/CodeBuilderView";
 
 export type TaskStatus =
   | "ready"
@@ -3177,7 +3178,7 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
   // Default ke null agar saat user masuk tab code tampilannya bersih
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
-  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks">("chat");
+  const [activeTab, setActiveTab] = useState<"mindmap" | "chat" | "prd" | "features" | "flow_arch" | "tasks" | "preview">("chat");
   const [isPerencanaanOpen, setIsPerencanaanOpen] = useState(true);
   const [isPerencanaanExpanded, setIsPerencanaanExpanded] = useState(false);
   const [perencanaanMode, setPerencanaanMode] = useState<"prd" | "code">("prd");
@@ -3505,6 +3506,15 @@ export function CodeWorkspace({ isDark, onClose, userId, userName, onTogglePanel
     setProjects((prev) =>
       prev.map((p) =>
         p.id === activeProjectId ? { ...p, generatedHtml: html } : p
+      )
+    );
+  };
+
+  const handleUpdateActiveProject = (updated: Partial<ProjectItem>) => {
+    if (!activeProjectId) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === activeProjectId ? { ...p, ...updated, updatedAt: Date.now() } : p
       )
     );
   };
@@ -7485,6 +7495,19 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                 </svg>
                 <span className="hidden sm:inline">Tasks</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("preview")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  currentTab === "preview"
+                    ? isDark ? "bg-white text-black shadow-xs" : "bg-black text-white shadow-xs"
+                    : isDark ? "text-zinc-400 hover:text-white" : "text-zinc-600 hover:text-black"
+                }`}
+                title="Live App Preview & Vercel Sandbox"
+              >
+                <span className="text-xs">🚀</span>
+                <span className="hidden sm:inline">Live App</span>
+              </button>
             </div>
           )}
         </div>
@@ -8983,6 +9006,41 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
             )}
           </div>
 
+          {/* ── Tahap B: Review PRD -> Action Banner Build App & Run Sandbox ── */}
+          {isBlueprintReady && activeProject.prd?.overview && (
+            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+              isDark
+                ? "bg-gradient-to-r from-indigo-950/40 via-zinc-900/60 to-zinc-900/40 border-indigo-500/30"
+                : "bg-gradient-to-r from-indigo-50 via-white to-zinc-50 border-indigo-200 shadow-sm"
+            }`}>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <h4 className="font-bold text-sm text-indigo-400 dark:text-indigo-300">
+                    PRD Terverifikasi • Siap Dibangun Menjadi Aplikasi
+                  </h4>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Lanjutkan dari dokumen spesifikasi ke pembuatan aplikasi nyata yang berjalan di Vercel Sandbox.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("preview")}
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95 ${
+                    isDark
+                      ? "bg-white text-black hover:bg-zinc-200"
+                      : "bg-black text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  <span>🚀</span>
+                  <span>Build App &amp; Run Sandbox</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {!isBlueprintReady || !activeProject.prd?.overview ? (
             <div className={`p-10 rounded-2xl border text-center space-y-3.5 ${
               isDark ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
@@ -9937,6 +9995,20 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
       </div>
     )}
 
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {/* TAB 7: LIVE APP BUILDER & VERCEL SANDBOX */}
+      {/* ────────────────────────────────────────────────────────────────────────── */}
+      {activeProject && currentTab === "preview" && (
+        <CodeBuilderView
+          project={activeProject}
+          isDark={isDark}
+          userId={userId || undefined}
+          onUpdateProject={(updated) => handleUpdateActiveProject(updated)}
+          onSwitchToPrd={() => setActiveTab("prd")}
+          onSwitchToChat={() => setActiveTab("chat")}
+        />
+      )}
+
       {/* Modal: Tambah Task Manual */}
       {showAddTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -10196,6 +10268,27 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
                         <span>Task Board (Checklist)</span>
                       </div>
                       <span className="text-[10px] text-zinc-400">{activeProject.tasks.length} task</span>
+                    </button>
+
+                    {/* Live App (Vercel Sandbox) */}
+                    <button
+                      onClick={() => {
+                        setActiveTab("preview");
+                        setShowProjectDrawer(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        currentTab === "preview"
+                          ? isDark ? "bg-white/10 text-white font-semibold" : "bg-black/5 text-black font-semibold"
+                          : isDark ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">🚀</span>
+                        <span className="font-semibold text-indigo-400 dark:text-indigo-300">Live App (Vercel Sandbox)</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono font-bold">
+                        Sandbox
+                      </span>
                     </button>
                   </div>
                 </div>
