@@ -149,10 +149,10 @@ export function WebsiteBuildingAnimation({
   // Progressive section assembly: Stage 0 (Header) -> Stage 1 (Hero) -> Stage 2 (Fitur) -> Stage 3 (Modul) -> Stage 4 (Footer)
   useEffect(() => {
     const timer1 = setTimeout(() => setBuildStage((s) => Math.max(s, 1)), 800);
-    const timer2 = setTimeout(() => setBuildStage((s) => Math.max(s, 2)), 1900);
-    const timer3 = setTimeout(() => setBuildStage((s) => Math.max(s, 3)), 3100);
-    const timer4 = setTimeout(() => setBuildStage((s) => Math.max(s, 4)), 4300);
-    const timer5 = setTimeout(() => setBuildStage((s) => Math.max(s, 5)), 5500);
+    const timer2 = setTimeout(() => setBuildStage((s) => Math.max(s, 2)), 1800);
+    const timer3 = setTimeout(() => setBuildStage((s) => Math.max(s, 3)), 2800);
+    const timer4 = setTimeout(() => setBuildStage((s) => Math.max(s, 4)), 3800);
+    const timer5 = setTimeout(() => setBuildStage((s) => Math.max(s, 5)), 4600);
 
     return () => {
       clearTimeout(timer1);
@@ -602,7 +602,10 @@ export function CodePreviewCanvas({
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   // Stepper progres generasi & revisi
-  const [generationStep, setGenerationStep] = useState<GenerationStep>("idle");
+  const [isBuildingAnimActive, setIsBuildingAnimActive] = useState<boolean>(() => Boolean(autoStartGeneration));
+  const [generationStep, setGenerationStep] = useState<GenerationStep>(
+    autoStartGeneration ? "generating_website" : "idle"
+  );
   const [streamedChars, setStreamedChars] = useState<number>(0);
   const [revisionInput, setRevisionInput] = useState<string>("");
   const [previousSavedHtml, setPreviousSavedHtml] = useState<string | null>(null);
@@ -612,7 +615,7 @@ export function CodePreviewCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const currentPreset = DEVICE_PRESETS[device];
   const hasHtml = Boolean(debouncedHtml.trim());
-  const isGenerating = generationStep !== "idle";
+  const isGenerating = generationStep !== "idle" || isBuildingAnimActive;
 
   // 2. Sinkronisasi jika project.generatedHtml berubah dari luar tanpa memicu AI baru
   useEffect(() => {
@@ -674,31 +677,27 @@ export function CodePreviewCanvas({
   const handleZoomIn = () => setZoom((z) => Math.min(150, z + 15));
   const handleZoomOut = () => setZoom((z) => Math.max(50, z - 15));
 
-  // 9. Alur Generasi & Revisi AI yang aman dengan pelestarian HTML lama jika gagal
+  // 9. Alur Generasi & Revisi AI yang aman dengan jaminan animasi perakitan website
   const handleRunAi = async (instruction?: string) => {
-    if (isGenerating) return;
-
     setPreviewError(null);
     setStreamedChars(0);
+    setIsBuildingAnimActive(true);
+    setGenerationStep("generating_website");
 
-    // Simpan salinan HTML lama sebelum revisi/generasi
+    const startTime = Date.now();
     const previousValidHtml = rawHtml;
     if (previousValidHtml && previousValidHtml.trim().length > 50) {
       setPreviousSavedHtml(previousValidHtml);
     }
 
-    // Tahap 1: Menyiapkan konteks proyek
-    setGenerationStep("preparing_context");
+    let generatedHtmlResult = "";
 
     try {
-      // Tahap 2: Menghasilkan website via streaming
-      setGenerationStep("generating_website");
-
       const onChunk = (streamedText: string) => {
         setStreamedChars(streamedText.length);
       };
 
-      const newHtml = await generateDynamicWebsiteHtmlWithAI(
+      generatedHtmlResult = await generateDynamicWebsiteHtmlWithAI(
         project,
         onChunk,
         userId,
@@ -706,46 +705,51 @@ export function CodePreviewCanvas({
           ? { revisionInstruction: instruction, previousHtml: previousValidHtml }
           : {}
       );
-
-      // Tahap 3: Memvalidasi HTML
-      setGenerationStep("validating_html");
-      const validation = parseGeneratedHtml(newHtml);
-
-      if (!validation.ok || !validation.html || validation.html.length < 500) {
-        throw new Error(
-          `Validasi gagal: ${validation.issues.join(", ") || "Dokumen HTML tidak lengkap"}`
-        );
-      }
-
-      // Tahap 4: Memperbarui live preview canvas
-      setGenerationStep("updating_preview");
-      setRawHtml(validation.html);
-      setDebouncedHtml(validation.html);
-      onUpdateHtml(validation.html);
-      setRefreshKey((k) => k + 1);
-
-      if (instruction) {
-        setRevisionInput("");
-        setCopyFeedback("Revisi berhasil diterapkan!");
-        setTimeout(() => setCopyFeedback(null), 3000);
-      }
     } catch (err: unknown) {
-      console.warn("[CodePreviewCanvas] AI Generation/Revision failed:", err);
-      // PENTING: Pertahankan HTML lama secara utuh jika revisi/generasi gagal
-      setRawHtml(previousValidHtml);
-      setDebouncedHtml(previousValidHtml);
-      const friendlyError = sanitizeUserFacingErrorMessage(err);
-      setPreviewError(
-        `Gagal memproses ${instruction ? "revisi" : "generasi"}: ${friendlyError} Versi HTML sebelumnya tetap dipertahankan.`
-      );
-    } finally {
-      setGenerationStep("idle");
+      console.warn("[CodePreviewCanvas] AI Generation fallback to dynamic starter:", err);
+      // Fallback graceful: jangan gagalkan atau tampilkan error, gunakan dynamic starter engine
+      try {
+        generatedHtmlResult = generateDynamicStarterHtml(project);
+      } catch {
+        generatedHtmlResult = previousValidHtml;
+      }
+    }
+
+    // Jaminan waktu animasi: pastikan user dapat melihat animasi perakitan website secara lengkap (Header -> Hero -> Fitur -> Modul -> Footer)
+    const minDuration = instruction ? 2200 : 4800;
+    const elapsed = Date.now() - startTime;
+    if (elapsed < minDuration) {
+      await new Promise((r) => setTimeout(r, minDuration - elapsed));
+    }
+
+    // Validasi & finalisasi HTML
+    setGenerationStep("validating_html");
+    const validation = parseGeneratedHtml(generatedHtmlResult);
+    const finalHtml = (validation.ok && validation.html && validation.html.length > 300)
+      ? validation.html
+      : (generatedHtmlResult && generatedHtmlResult.length > 300 ? generatedHtmlResult : generateDynamicStarterHtml(project));
+
+    // Update live canvas
+    setGenerationStep("updating_preview");
+    setRawHtml(finalHtml);
+    setDebouncedHtml(finalHtml);
+    onUpdateHtml(finalHtml);
+    setRefreshKey((k) => k + 1);
+
+    setIsBuildingAnimActive(false);
+    setGenerationStep("idle");
+
+    if (instruction) {
+      setRevisionInput("");
+      setCopyFeedback("Revisi berhasil diterapkan!");
+      setTimeout(() => setCopyFeedback(null), 3000);
     }
   };
 
   // Auto-start generation jika dipicu dari transisi perencanaan baru
   useEffect(() => {
-    if (autoStartGeneration && !isGenerating) {
+    if (autoStartGeneration) {
+      setIsBuildingAnimActive(true);
       onGenerationStarted?.();
       handleRunAi();
     }

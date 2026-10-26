@@ -6119,6 +6119,9 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
           rawStream = "Blueprint dan spesifikasi teknis proyek telah selesai dirumuskan secara estafet. Anda dapat melihat detailnya pada tab PRD, Features, Flow & Architecture, dan Tasks di atas.";
         }
         parseAndApplyBlueprint(projId, rawStream, assistantMsgId);
+        // Langsung navigasi ke Live Preview & jalankan animasi perakitan website
+        setActiveTab("preview");
+        setAutoStartAiProjectId(projId);
       } else {
         setEstafetStage("idle");
         // Jika sedang fase diskusi brief, pastikan pertanyaan discovery ada di akhir respons
@@ -6581,10 +6584,9 @@ Berikan pengantar singkat profesional, tabel Compact Traceability Matrix, lalu s
     );
 
     // Langsung navigasi ke Live Preview Canvas & mulai animasi perakitan website dengan AI
-    if (!hasQuestions && newlyPlannedProject) {
-      const projToPreview: ProjectItem = newlyPlannedProject;
+    if (!hasQuestions) {
       setActiveTab("preview");
-      setAutoStartAiProjectId(projToPreview.id);
+      setAutoStartAiProjectId(projId);
     }
   };
 
@@ -7321,10 +7323,10 @@ ${pqGate.map((q) => `* [${q.passed ? "PASS" : "FAIL"}] (${q.severity}) **${q.id}
   );
   const isPlannerFinished = Boolean(
     activeProject &&
-    isBlueprintReady &&
-    !hasPendingDiscoveryQuestions
+    (isBlueprintReady || activeProject.generatedHtml || activeTab === "preview") &&
+    (!hasPendingDiscoveryQuestions || activeTab === "preview")
   );
-  const currentTab = (!activeProject || !isPlannerFinished) ? "chat" : activeTab;
+  const currentTab = !activeProject ? "chat" : activeTab;
   const domain = activeProject
     ? detectProjectDomain(activeProject.messages, activeProject.title, activeProject.description)
     : "saas";
