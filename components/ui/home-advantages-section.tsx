@@ -8,12 +8,10 @@ import {
   MessageSquare,
   Code2,
   Calendar,
-  Sparkles,
-  ArrowRight,
+  Image as ImageIcon,
   Check,
   Send,
   User,
-  Layers,
 } from "lucide-react";
 
 interface HomeAdvantagesSectionProps {
@@ -25,7 +23,7 @@ interface HomeAdvantagesSectionProps {
 /* ─────────────────────────────────────────────────────────────────────────────
    MOTION GRAPHIC 1: All-in-One Workspace (Satu Platform Terpadu)
    - Monochrome Nexus: Center BrainLogo
-   - 4 Clean Satellite Nodes: Chat, Code, Image, Schedule
+   - 4 Clean Satellite Nodes: Chat, Code, Image (ImageIcon), Schedule
    - Continuous subtle streaming pulses to center
    - Pure Monochrome Badge: White on Black
 ───────────────────────────────────────────────────────────────────────────── */
@@ -92,12 +90,13 @@ function MotionGraphicAllInOne() {
           <span>Code</span>
         </motion.div>
 
+        {/* Sesuai icon di tab panel image (ImageIcon / Photo frame, bukan bintang) */}
         <motion.div
           animate={{ y: [1.5, -1.5, 1.5] }}
           transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
           className="absolute bottom-1 left-1 flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-white/15 text-[8.5px] font-mono text-zinc-300"
         >
-          <Sparkles className="w-2.5 h-2.5 text-white" />
+          <ImageIcon className="w-2.5 h-2.5 text-white" />
           <span>Image</span>
         </motion.div>
 
@@ -134,14 +133,14 @@ function MotionGraphicAllInOne() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   MOTION GRAPHIC 2: Multi-Model & Voice (Claude, DeepSeek, Gemini, Usick)
-   - Clean typographic model pills (no AI-slop symbols)
+   MOTION GRAPHIC 2: Multi-Model & Voice (Model Resmi Sesuai Tab Panel Chat)
+   - Models: Usick One, DeepSeek V4, Gemini 3.6, Qwen 3.8 (Tanpa Claude)
    - Monochrome chat stream bars
    - Clean soundwave bars in pure white
 ───────────────────────────────────────────────────────────────────────────── */
 function MotionGraphicMultiModel() {
   const [modelIndex, setModelIndex] = useState(0);
-  const models = ["Claude 3.7", "DeepSeek R1", "Gemini 3.6", "Usick One"];
+  const models = ["Usick One", "DeepSeek V4", "Gemini 3.6", "Qwen 3.8"];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -220,7 +219,7 @@ function MotionGraphicMultiModel() {
 /* ─────────────────────────────────────────────────────────────────────────────
    MOTION GRAPHIC 3: Code Studio PRD & Image Studio
    - Left: PRD Specification Document with Checklist
-   - Right: Image Studio Aspect Ratio Toggle (16:9 / 1:1)
+   - Right: Image Studio Preview with ImageIcon (Sesuai icon di tab panel image)
 ───────────────────────────────────────────────────────────────────────────── */
 function MotionGraphicStudio() {
   const [ratio, setRatio] = useState<"16:9" | "1:1">("16:9");
@@ -261,14 +260,14 @@ function MotionGraphicStudio() {
           </div>
         </div>
 
-        {/* Right: Image Canvas Preview */}
+        {/* Right: Image Canvas Preview with ImageIcon */}
         <div className="col-span-6 rounded-lg bg-zinc-950 border border-white/15 p-1.5 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[7.5px] font-mono text-zinc-400">Ratio</span>
             <span className="text-[7.5px] font-mono text-white font-bold">{ratio}</span>
           </div>
           <div className="relative h-10 rounded border border-dashed border-white/30 bg-white/5 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
+            <ImageIcon className="w-4 h-4 text-white" />
           </div>
         </div>
       </div>
@@ -333,11 +332,10 @@ function MotionGraphicMessagesSchedule() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   ADVANTAGE CARDS DATA (4 Pilar Utama & Sesuai Isi Nyata Web One Mind)
+   ADVANTAGE CARDS DATA (Sesuai Isi Nyata Web One Mind & Tanpa Claude)
 ───────────────────────────────────────────────────────────────────────────── */
 interface AdvantageCard {
   id: string;
-  badge: string;
   title: string;
   description: string;
   graphic: React.ReactNode;
@@ -346,7 +344,6 @@ interface AdvantageCard {
 const ADVANTAGE_CARDS: AdvantageCard[] = [
   {
     id: "adv-all-in-one",
-    badge: "ALL-IN-ONE",
     title: "1 Ekosistem Terpadu",
     description:
       "Semua alat kerja menyatu dalam 1 kuota dan 1 akun. Tanpa perlu membuka dan membayar banyak aplikasi terpisah.",
@@ -354,15 +351,13 @@ const ADVANTAGE_CARDS: AdvantageCard[] = [
   },
   {
     id: "adv-models",
-    badge: "MULTI-MODEL",
     title: "10+ Model AI & Voice",
     description:
-      "Bebas beralih antara Claude 3.7 Sonnet, DeepSeek R1, Gemini 3.6 Flash, hingga Usick One dengan asisten suara realtime.",
+      "Bebas beralih antara Usick One Flagship, DeepSeek V4, Gemini 3.6, hingga Qwen & Kimi dengan asisten suara realtime.",
     graphic: <MotionGraphicMultiModel />,
   },
   {
     id: "adv-studio",
-    badge: "STUDIO",
     title: "Code Studio & Image",
     description:
       "Rancang ide jadi dokumen PRD spesifikasi teknis dan alur koding, serta buat karya visual beresolusi tinggi rasio fleksibel.",
@@ -370,7 +365,6 @@ const ADVANTAGE_CARDS: AdvantageCard[] = [
   },
   {
     id: "adv-messages-schedule",
-    badge: "CONNECT",
     title: "Messages & Schedule",
     description:
       "Kelola agenda harian secara otomatis dan bagikan insight AI langsung ke obrolan pribadi teman tanpa keluar web.",
@@ -400,11 +394,11 @@ export function HomeAdvantagesSection({
           Satu Ekosistem. Semua Solusi.
         </h2>
         <p className="mt-3 text-sm sm:text-base text-zinc-400">
-          Seluruh kemampuan esensial dunia terintegrasi dalam satu ruang kerja minimalis tanpa hambatan.
+          Seluruh kemampuan esensial terintegrasi dalam satu ruang kerja minimalis tanpa hambatan.
         </p>
       </ScrollReveal>
 
-      {/* ─── 4 MONOCHROME MOTION GRAPHIC CARDS (Ukuran Seragam & Rapi) ──────── */}
+      {/* ─── 4 MONOCHROME MOTION GRAPHIC CARDS (Clean Tanpa Footer Bawah) ───── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch">
         {ADVANTAGE_CARDS.map((card, idx) => (
           <ScrollReveal
@@ -417,12 +411,12 @@ export function HomeAdvantagesSection({
             <motion.div
               whileHover={{ y: -4 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full h-full rounded-2xl bg-zinc-950/90 border border-white/10 hover:border-white/30 transition-all p-4 sm:p-5 flex flex-col justify-between group overflow-hidden relative shadow-2xl hover:shadow-white/5 cursor-default"
+              className="w-full h-full rounded-2xl bg-zinc-950/90 border border-white/10 hover:border-white/30 transition-all p-4 sm:p-5 flex flex-col group overflow-hidden relative shadow-2xl hover:shadow-white/5 cursor-default"
             >
               {/* Subtle Monochrome Ambient Hover Glow */}
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-white/[0.02] group-hover:bg-white/[0.06] blur-2xl rounded-full transition-all duration-500 pointer-events-none" />
 
-              <div className="flex-1 flex flex-col">
+              <div className="w-full flex flex-col flex-1">
                 {/* ─── MOTION GRAPHIC VISUAL CONTAINER (Ukuran Persis Sama: h-44) ─── */}
                 <div className="relative w-full h-44 rounded-xl bg-black/80 border border-white/[0.08] overflow-hidden flex items-center justify-center mb-4 shrink-0">
                   {/* Subtle Monochrome Blueprint Dotted Grid */}
@@ -453,26 +447,16 @@ export function HomeAdvantagesSection({
                 </div>
 
                 {/* Card Title (Uniform Min-Height) */}
-                <div className="min-h-[44px] flex items-center mb-2">
+                <div className="min-h-[44px] flex items-center mb-1.5">
                   <h3 className="text-white font-bold text-base sm:text-lg group-hover:text-zinc-200 transition-colors leading-snug">
                     {card.title}
                   </h3>
                 </div>
 
-                {/* Card Description (Uniform Min-Height, Simpel & Tidak Ramai) */}
-                <div className="min-h-[64px] mb-4">
-                  <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-                    {card.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Bottom Subtle Tag Indicator */}
-              <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between text-[11px] text-zinc-400 font-mono shrink-0">
-                <span>0{idx + 1} // {card.badge}</span>
-                <span className="text-zinc-400 group-hover:text-white transition-colors flex items-center gap-1">
-                  Keunggulan <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                </span>
+                {/* Card Description (Clean, Simpel, Tanpa Footer) */}
+                <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
+                  {card.description}
+                </p>
               </div>
             </motion.div>
           </ScrollReveal>
