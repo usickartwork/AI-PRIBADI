@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { BrainLogo } from "@/components/ui/brain-logo";
 
 interface MaintenanceScreenProps {
   isDark?: boolean;
@@ -8,8 +9,10 @@ interface MaintenanceScreenProps {
 
 /**
  * Tampilan Pemeliharaan Sistem (Maintenance Mode)
- * Sesuai spesifikasi brief:
- * - TULISAN SAJA (tidak ada card, kotak, border, panel, ilustrasi, atau dekorasi tambahan).
+ * Sesuai spesifikasi brief & permintaan pengguna:
+ * - TULISAN SAJA (tidak ada card, kotak, border, panel, atau dekorasi tambahan).
+ * - Ikon One Mind (Brain Logo) murni di bagian atas tanpa latar belakang kotakan.
+ * - Posisi terpusat sempurna di tengah layar (vertikal & horizontal).
  * - Dua bahasa sekaligus dalam satu halaman:
  *   1. Bahasa Indonesia di atas (teks normal)
  *   2. Bahasa Inggris di bawah (seluruh teks menggunakan huruf miring / italic)
@@ -21,7 +24,14 @@ export function MaintenanceScreen({ isDark = true }: MaintenanceScreenProps) {
         isDark ? "bg-[#09090b] text-white" : "bg-zinc-50 text-zinc-900"
       }`}
     >
-      <div className="max-w-xl space-y-8">
+      <div className="max-w-xl flex flex-col items-center space-y-8">
+        {/* Ikon One Mind Brain Logo Murni (Tanpa Kotakan) */}
+        <BrainLogo
+          className={`w-12 h-12 sm:w-14 sm:h-14 ${
+            isDark ? "text-white" : "text-zinc-900"
+          }`}
+        />
+
         {/* Versi Bahasa Indonesia (Bagian Atas, Normal) */}
         <div className="space-y-3">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -37,7 +47,7 @@ export function MaintenanceScreen({ isDark = true }: MaintenanceScreenProps) {
         </div>
 
         {/* Versi Bahasa Inggris (Bagian Bawah, Miring / Italic) */}
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-1">
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight italic">
             One Mind is Under Maintenance
           </h2>

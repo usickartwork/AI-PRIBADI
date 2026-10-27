@@ -1515,11 +1515,13 @@ export default function Home() {
   const [systemAccess, setSystemAccess] = useState<{
     maintenance: boolean;
     isHeld: boolean;
+    reason?: string | null;
     isAdmin: boolean;
     loaded: boolean;
   }>({
     maintenance: false,
     isHeld: false,
+    reason: null,
     isAdmin: false,
     loaded: false,
   });
@@ -1535,6 +1537,7 @@ export default function Home() {
         setSystemAccess({
           maintenance: Boolean(json.maintenance),
           isHeld: Boolean(json.isHeld),
+          reason: json.reason || null,
           isAdmin: serverIsAdmin,
           loaded: true,
         });
@@ -2215,7 +2218,8 @@ export default function Home() {
 
     const handleTouchStart = (e: TouchEvent) => {
       if (typeof window === "undefined" || window.innerWidth >= 768) return;
-      if (settingsOpen || e.touches.length > 1) {
+      // Jangan aktifkan slide panel jika berada di tampilan Admin Panel, Pengaturan dibuka, atau multi-touch
+      if (activeView === "admin" || settingsOpen || e.touches.length > 1) {
         isTracking = false;
         return;
       }
@@ -2435,7 +2439,7 @@ export default function Home() {
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
-  }, [sidebarOpen, settingsOpen, clearDragStyles]);
+  }, [sidebarOpen, settingsOpen, activeView, clearDragStyles]);
 
   // Load models from API
   useEffect(() => {
@@ -4539,7 +4543,7 @@ export default function Home() {
   // tampilkan layar pembatasan murni berupa tulisan saja tanpa card/panel/tombol.
   if (systemAccess.loaded && !systemAccess.isAdmin && !isAdmin) {
     if (systemAccess.isHeld) {
-      return <UserHoldScreen isDark={isDark} />;
+      return <UserHoldScreen isDark={isDark} reason={systemAccess.reason} />;
     }
     if (systemAccess.maintenance) {
       return <MaintenanceScreen isDark={isDark} />;

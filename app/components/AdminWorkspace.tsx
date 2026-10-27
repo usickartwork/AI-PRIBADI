@@ -21,6 +21,7 @@ import {
   Unlock,
   Power,
   X,
+  ChevronRight,
 } from "lucide-react";
 
 interface AdminWorkspaceProps {
@@ -212,6 +213,7 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
 
   // ─── USER HOLD ACTIONS ──────────────────────────────────────────────────
   type UserListItem = AdminStatsResponse["users"]["list"][number];
+  const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [holdModalUser, setHoldModalUser] = useState<UserListItem | null>(null);
   const [holdDuration, setHoldDuration] = useState<"24h" | "7d" | "30d" | "custom" | "indefinite">("24h");
   const [customExpiresAt, setCustomExpiresAt] = useState("");
@@ -262,6 +264,17 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
           },
         };
       });
+
+      setSelectedUser((prev) =>
+        prev && prev.id === holdModalUser.id
+          ? {
+              ...prev,
+              isHeld: true,
+              heldExpiresAt: resData.expiresAt || null,
+              heldReason: holdReason || null,
+            }
+          : prev
+      );
 
       setHoldModalUser(null);
       setHoldReason("");
@@ -318,6 +331,17 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
         };
       });
 
+      setSelectedUser((prev) =>
+        prev && prev.id === unholdModalUser.id
+          ? {
+              ...prev,
+              isHeld: false,
+              heldExpiresAt: null,
+              heldReason: null,
+            }
+          : prev
+      );
+
       setUnholdModalUser(null);
     } catch (err: unknown) {
       setUnholdError(err instanceof Error ? err.message : "Gagal membuka penguncian.");
@@ -350,6 +374,7 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
 
   return (
     <div
+      data-no-sidebar-swipe="true"
       className={`h-full w-full flex flex-col overflow-hidden select-text ${
         isDark ? "bg-black text-white" : "bg-zinc-50 text-zinc-900"
       }`}
@@ -440,7 +465,12 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id !== "users") {
+                  setSelectedUser(null);
+                }
+              }}
               className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer whitespace-nowrap ${
                 isActive
                   ? isDark
@@ -699,188 +729,348 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
 
             {/* ─── TAB 2: USERS ───────────────────────────────────────────── */}
             {activeTab === "users" && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className={`text-sm font-semibold ${textTitle}`}>Daftar Pengguna Terdaftar</h3>
-                    <p className={`text-xs ${textSub}`}>
-                      Total {data.users.total} akun terdata di sistem autentikasi Clerk (menampilkan {filteredUsers.length} pengguna).
-                    </p>
-                  </div>
-
-                  <div className="relative w-full sm:w-64">
-                    <Search
-                      className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 ${textMuted}`}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Cari email / username..."
-                      value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
-                      className={`w-full pl-9 pr-3 py-1.5 rounded-xl text-xs border outline-none transition ${
+              selectedUser ? (
+                <div className="space-y-5">
+                  {/* Back button & Status Pill */}
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUser(null)}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
                         isDark
-                          ? "bg-zinc-900/80 border-white/10 text-white focus:border-white/30"
-                          : "bg-white border-black/10 text-black focus:border-black/30"
+                          ? "border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white"
+                          : "border-black/10 hover:bg-black/10 text-zinc-700 hover:text-black"
                       }`}
-                    />
-                  </div>
-                </div>
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Kembali ke Daftar Pengguna</span>
+                    </button>
 
-                {/* Table */}
-                <div className={`rounded-2xl border overflow-hidden ${bgCard}`}>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className={tableHeaderBg}>
-                        <tr>
-                          <th className="px-4 py-3 font-semibold">Pengguna</th>
-                          <th className="px-4 py-3 font-semibold">Email & Verifikasi</th>
-                          <th className="px-4 py-3 font-semibold">Paket</th>
-                          <th className="px-4 py-3 font-semibold">Status Akses</th>
-                          <th className="px-4 py-3 font-semibold">Bergabung</th>
-                          <th className="px-4 py-3 font-semibold">Terakhir Aktif</th>
-                          <th className="px-4 py-3 font-semibold text-right">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {filteredUsers.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className={`px-4 py-8 text-center ${textMuted}`}>
-                              Tidak ada pengguna yang cocok dengan pencarian.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredUsers.map((u) => (
-                            <tr key={u.id} className={`transition ${tableRowHover}`}>
-                              <td className="px-4 py-3">
-                                <div className={`font-medium ${textTitle}`}>{u.fullName}</div>
-                                <div className={`text-[11px] ${textMuted}`}>@{u.username}</div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`truncate max-w-[200px] ${textTitle}`}>
-                                    {u.email}
-                                  </span>
-                                  {u.isEmailVerified ? (
-                                    <span title="Email Terverifikasi" className="inline-flex shrink-0">
-                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                    </span>
-                                  ) : (
-                                    <span title="Email Belum Terverifikasi" className="inline-flex shrink-0">
-                                      <XCircle className="w-3.5 h-3.5 text-zinc-500" />
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
-                                    u.plan === "pro"
-                                      ? isDark
-                                        ? "bg-zinc-800 text-white border-zinc-700"
-                                        : "bg-black text-white border-black"
-                                      : isDark
-                                      ? "bg-zinc-900 text-zinc-400 border-zinc-800"
-                                      : "bg-zinc-100 text-zinc-700 border-zinc-200"
-                                  }`}
-                                >
-                                  {u.plan}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                {u.isHeld ? (
-                                  <span
-                                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                                      isDark
-                                        ? "bg-zinc-800 text-zinc-200 border-zinc-600"
-                                        : "bg-zinc-200 text-zinc-800 border-zinc-300"
-                                    }`}
-                                    title={u.heldExpiresAt ? `Kedaluwarsa: ${new Date(u.heldExpiresAt).toLocaleString("id-ID")}` : "Tanpa batas waktu"}
-                                  >
-                                    <Lock className="w-3 h-3" />
-                                    On Hold
-                                  </span>
-                                ) : (
-                                  <span
-                                    className={`inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md border ${
-                                      isDark
-                                        ? "bg-zinc-900/50 text-zinc-400 border-zinc-800"
-                                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
-                                    }`}
-                                  >
-                                    Normal
-                                  </span>
-                                )}
-                              </td>
-                              <td className={`px-4 py-3 ${textSub}`}>
-                                {u.createdAt
-                                  ? new Date(u.createdAt).toLocaleDateString("id-ID", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    })
-                                  : "—"}
-                              </td>
-                              <td className={`px-4 py-3 ${textSub}`}>
-                                {u.lastSignInAt
-                                  ? new Date(u.lastSignInAt).toLocaleDateString("id-ID", {
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
+                          selectedUser.plan === "pro"
+                            ? isDark
+                              ? "bg-zinc-800 text-white border-zinc-700"
+                              : "bg-black text-white border-black"
+                            : isDark
+                            ? "bg-zinc-900 text-zinc-400 border-zinc-800"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                        }`}
+                      >
+                        Paket {selectedUser.plan}
+                      </span>
+                      {selectedUser.isHeld ? (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            isDark
+                              ? "bg-zinc-800 text-zinc-200 border-zinc-600"
+                              : "bg-zinc-200 text-zinc-800 border-zinc-300"
+                          }`}
+                        >
+                          <Lock className="w-3 h-3" />
+                          On Hold
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md border ${
+                            isDark
+                              ? "bg-zinc-900/50 text-zinc-400 border-zinc-800"
+                              : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                          }`}
+                        >
+                          Normal
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Profile Header Card */}
+                  <div className={`p-5 rounded-2xl ${bgCard} space-y-3`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h2 className={`text-lg font-bold ${textTitle}`}>
+                          {selectedUser.fullName}
+                        </h2>
+                        <div className={`text-xs ${textMuted}`}>@{selectedUser.username}</div>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <div className="flex items-center gap-1.5 sm:justify-end">
+                          <span className={`text-xs font-medium ${textTitle}`}>
+                            {selectedUser.email}
+                          </span>
+                          {selectedUser.isEmailVerified ? (
+                            <span title="Email Terverifikasi" className="inline-flex shrink-0">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            </span>
+                          ) : (
+                            <span title="Email Belum Terverifikasi" className="inline-flex shrink-0">
+                              <XCircle className="w-3.5 h-3.5 text-zinc-500" />
+                            </span>
+                          )}
+                        </div>
+                        <div className={`text-[11px] font-mono mt-0.5 ${textMuted}`}>
+                          ID: {selectedUser.id}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detail Attributes Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {/* Paket & Langganan */}
+                    <div className={`p-4 rounded-2xl ${bgCard} space-y-2`}>
+                      <div className={`text-xs font-semibold ${textTitle}`}>Paket & Langganan</div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className={textSub}>Paket Akun:</span>
+                          <span className={`font-semibold uppercase ${textTitle}`}>
+                            {selectedUser.plan}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={textSub}>Status Langganan:</span>
+                          <span className={`capitalize ${textTitle}`}>{selectedUser.status}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Riwayat Waktu */}
+                    <div className={`p-4 rounded-2xl ${bgCard} space-y-2`}>
+                      <div className={`text-xs font-semibold ${textTitle}`}>Waktu & Aktivitas</div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className={textSub}>Bergabung:</span>
+                          <span className={textTitle}>
+                            {selectedUser.createdAt
+                              ? new Date(selectedUser.createdAt).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={textSub}>Terakhir Aktif:</span>
+                          <span className={textTitle}>
+                            {selectedUser.lastSignInAt
+                              ? new Date(selectedUser.lastSignInAt).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Akses & Hold */}
+                    <div className={`p-4 rounded-2xl ${bgCard} space-y-2`}>
+                      <div className={`text-xs font-semibold ${textTitle}`}>Status Akses Sistem</div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className={textSub}>Akses:</span>
+                          <span className={`font-semibold ${selectedUser.isHeld ? "text-amber-400" : textTitle}`}>
+                            {selectedUser.isHeld ? "On Hold (Dibatasi)" : "Normal (Aktif)"}
+                          </span>
+                        </div>
+                        {selectedUser.isHeld && (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className={textSub}>Kedaluwarsa:</span>
+                              <span className={`text-[11px] ${textTitle}`}>
+                                {selectedUser.heldExpiresAt
+                                  ? new Date(selectedUser.heldExpiresAt).toLocaleString("id-ID", {
                                       day: "numeric",
                                       month: "short",
                                       year: "numeric",
                                       hour: "2-digit",
                                       minute: "2-digit",
                                     })
-                                  : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {u.email === data.admin.email ? (
-                                  <span className={`text-[11px] ${textMuted}`}>Akun Anda</span>
-                                ) : u.isHeld ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setUnholdError(null);
-                                      setUnholdModalUser(u);
-                                    }}
-                                    title="Unhold (Buka Kunci Akun)"
-                                    className={`p-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 text-xs ${
-                                      isDark
-                                        ? "border-white/10 hover:bg-white/10 text-white"
-                                        : "border-black/10 hover:bg-black/10 text-black"
-                                    }`}
-                                  >
-                                    <Unlock className="w-3.5 h-3.5" />
-                                    <span>Unhold</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setHoldError(null);
-                                      setHoldReason("");
-                                      setCustomExpiresAt("");
-                                      setHoldDuration("24h");
-                                      setHoldModalUser(u);
-                                    }}
-                                    title="Hold User (Kunci Akun)"
-                                    className={`p-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 text-xs ${
-                                      isDark
-                                        ? "border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white"
-                                        : "border-black/10 hover:bg-black/10 text-zinc-700 hover:text-black"
-                                    }`}
-                                  >
-                                    <Lock className="w-3.5 h-3.5" />
-                                    <span>Hold</span>
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))
+                                  : "Tanpa batas waktu"}
+                              </span>
+                            </div>
+                            {selectedUser.heldReason && (
+                              <div className="pt-1">
+                                <span className={`text-[11px] ${textSub}`}>Catatan Admin:</span>
+                                <p className={`text-[11px] italic mt-0.5 leading-relaxed ${textTitle}`}>
+                                  &ldquo;{selectedUser.heldReason}&rdquo;
+                                </p>
+                              </div>
+                            )}
+                          </>
                         )}
-                      </tbody>
-                    </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Card */}
+                  <div className={`p-5 rounded-2xl ${bgCard} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                    <div>
+                      <h3 className={`text-sm font-semibold ${textTitle}`}>Tindakan Administratif Akun</h3>
+                      <p className={`text-xs mt-0.5 ${textSub}`}>
+                        {selectedUser.email === data.admin.email
+                          ? "Ini adalah akun admin yang sedang Anda gunakan untuk mengelola panel ini."
+                          : selectedUser.isHeld
+                          ? "Akun ini sedang dibatasi oleh developer. Klik tombol di samping untuk membuka kembali akses pengguna."
+                          : "Akun berstatus normal. Anda dapat mengunci akun sementara waktu jika terdapat indikasi pelanggaran."}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {selectedUser.email === data.admin.email ? (
+                        <span className={`text-xs font-medium px-3 py-1.5 rounded-xl border ${
+                          isDark ? "bg-white/5 border-white/10 text-zinc-400" : "bg-black/5 border-black/10 text-zinc-600"
+                        }`}>
+                          Akun Anda (Admin)
+                        </span>
+                      ) : selectedUser.isHeld ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUnholdError(null);
+                            setUnholdModalUser(selectedUser);
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition cursor-pointer ${
+                            isDark
+                              ? "bg-white text-black hover:bg-zinc-200 border-white"
+                              : "bg-black text-white hover:bg-zinc-800 border-black"
+                          }`}
+                        >
+                          <Unlock className="w-4 h-4" />
+                          <span>Buka Kunci Akun (Unhold)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHoldError(null);
+                            setHoldReason("");
+                            setCustomExpiresAt("");
+                            setHoldDuration("24h");
+                            setHoldModalUser(selectedUser);
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition cursor-pointer ${
+                            isDark
+                              ? "border-white/15 hover:bg-white/10 text-white"
+                              : "border-black/15 hover:bg-black/10 text-black"
+                          }`}
+                        >
+                          <Lock className="w-4 h-4" />
+                          <span>Kunci Akun Pengguna (Hold)</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className={`text-sm font-semibold ${textTitle}`}>Daftar Pengguna Terdaftar</h3>
+                      <p className={`text-xs ${textSub}`}>
+                        Total {data.users.total} akun terdata di sistem autentikasi Clerk (menampilkan {filteredUsers.length} pengguna). Klik baris pengguna untuk melihat rincian detail.
+                      </p>
+                    </div>
+
+                    <div className="relative w-full sm:w-64">
+                      <Search
+                        className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 ${textMuted}`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Cari nama / email / username..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className={`w-full pl-9 pr-3 py-1.5 rounded-xl text-xs border outline-none transition ${
+                          isDark
+                            ? "bg-zinc-900/80 border-white/10 text-white focus:border-white/30"
+                            : "bg-white border-black/10 text-black focus:border-black/30"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Simplified User List Table */}
+                  <div className={`rounded-2xl border overflow-hidden ${bgCard}`}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className={tableHeaderBg}>
+                          <tr>
+                            <th className="px-4 py-3 font-semibold">Pengguna</th>
+                            <th className="px-4 py-3 font-semibold">Email & Status Verifikasi</th>
+                            <th className="px-4 py-3 font-semibold text-right">Rincian</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {filteredUsers.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className={`px-4 py-8 text-center ${textMuted}`}>
+                                Tidak ada pengguna yang cocok dengan pencarian.
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredUsers.map((u) => (
+                              <tr
+                                key={u.id}
+                                onClick={() => setSelectedUser(u)}
+                                className={`transition cursor-pointer group ${tableRowHover}`}
+                              >
+                                <td className="px-4 py-3.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`font-semibold text-xs sm:text-sm ${textTitle} group-hover:underline`}>
+                                      {u.fullName}
+                                    </div>
+                                    {u.isHeld && (
+                                      <span
+                                        className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                                          isDark
+                                            ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                                            : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                                        }`}
+                                      >
+                                        <Lock className="w-2.5 h-2.5" />
+                                        Hold
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className={`text-[11px] ${textMuted}`}>@{u.username}</div>
+                                </td>
+                                <td className="px-4 py-3.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`truncate max-w-[240px] ${textTitle}`}>
+                                      {u.email}
+                                    </span>
+                                    {u.isEmailVerified ? (
+                                      <span title="Email Terverifikasi" className="inline-flex shrink-0">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                      </span>
+                                    ) : (
+                                      <span title="Email Belum Terverifikasi" className="inline-flex shrink-0">
+                                        <XCircle className="w-3.5 h-3.5 text-zinc-500" />
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3.5 text-right">
+                                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${isDark ? "text-zinc-400 group-hover:text-white" : "text-zinc-600 group-hover:text-black"} transition`}>
+                                    <span>Lihat Detail</span>
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )
             )}
 
             {/* ─── TAB 3: AI USAGE ────────────────────────────────────────── */}

@@ -55,15 +55,18 @@ export async function GET() {
 
     // 5. Jika maintenance tidak aktif, cek apakah akun pengguna sedang di-hold
     let isHeld = false;
+    let holdReason: string | null = null;
     if (userId) {
       const hold = await getUserHoldStatus(userId);
       isHeld = hold.isHeld;
+      holdReason = hold.reason || null;
     }
 
     return NextResponse.json(
       {
         maintenance: false,
         isHeld,
+        reason: isHeld ? holdReason : null,
         isAdmin: false,
       },
       {
