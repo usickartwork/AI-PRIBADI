@@ -383,7 +383,7 @@ export function HomeAdvantagesSection({
   return (
     <section
       id="section-advantages"
-      className="scroll-mt-24 relative w-full pt-16 sm:pt-24 pb-14 sm:pb-20 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip"
+      className="hidden md:block scroll-mt-24 relative w-full pt-16 sm:pt-24 pb-14 sm:pb-20 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip"
     >
       {/* ─── SECTION HEADER (Simpel & Elegan) ───────────────────────────────── */}
       <ScrollReveal y={24} duration={0.6} className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">

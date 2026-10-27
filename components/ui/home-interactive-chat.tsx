@@ -18,10 +18,9 @@ interface HomeInteractiveChatProps {
 }
 
 const STARTER_PROMPTS = [
-  "Jelaskan tentang platform One Mind dan apa saja keunggulannya",
-  "Rancang arsitektur aplikasi SaaS modern dengan Next.js & AI",
-  "Bantu susun jadwal harian yang produktif dan terstruktur",
-  "Tuliskan ide proyek inovatif untuk startup teknologi AI",
+  "Jelaskan tentang platform One Mind dan apa saja fiturnya",
+  "Apa keunggulan One Mind dibanding tool atau langganan AI lain?",
+  "Model AI apa saja yang tersedia dan bisa digunakan di One Mind?",
 ];
 
 export function HomeInteractiveChat({
@@ -345,7 +344,7 @@ export function HomeInteractiveChat({
               onClick={() => onGetStarted?.("signup")}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-bold text-xs sm:text-sm hover:bg-zinc-200 transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
             >
-              <span>Get Started Gratis</span>
+              <span>Daftar Akun Gratis</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -374,8 +373,8 @@ export function HomeInteractiveChat({
                   disabled={isLimitReached || isStreaming}
                   placeholder={
                     isLimitReached
-                      ? "Batas 2 pertanyaan tercapai. Klik Get Started untuk melanjutkan..."
-                      : "Ask AI a question or make a request..."
+                      ? "Batas 2 pertanyaan uji coba tercapai. Daftar akun gratis untuk melanjutkan..."
+                      : "Tanyakan apa saja tentang One Mind atau pilih opsi di bawah..."
                   }
                   className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
                     isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
@@ -500,15 +499,15 @@ export function HomeInteractiveChat({
           </div>
         </div>
 
-        {/* ─── SUGGESTION PROMPTS (Tampil hanya saat belum ada pesan) ─────────── */}
+        {/* ─── SUGGESTION PROMPTS (Tampil hanya saat belum ada pesan: 3 opsi tentang One Mind) ─── */}
         {messages.length === 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-4">
             {STARTER_PROMPTS.map((promptText, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => handleSendMessage(promptText)}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-xs text-zinc-300 hover:text-white leading-snug cursor-pointer group flex items-center justify-between text-left"
+                className="p-3 sm:p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-xs text-zinc-300 hover:text-white leading-snug cursor-pointer group flex items-center justify-between text-left active:scale-[0.98]"
               >
                 <span>{promptText}</span>
                 <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />

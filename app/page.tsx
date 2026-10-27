@@ -4416,8 +4416,8 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          {/* ─── KEUNGGULAN ALL-IN-ONE (MOTION GRAPHIC CARDS, BG HITAM MURNI) ─── */}
-          <div className="relative w-full bg-black z-10 border-b border-white/[0.06]">
+          {/* ─── KEUNGGULAN ALL-IN-ONE (MOTION GRAPHIC CARDS, KHUSUS DESKTOP) ─── */}
+          <div className="hidden md:block relative w-full bg-black z-10 border-b border-white/[0.06]">
             <HomeAdvantagesSection
               isDark={isDark}
               onGetStarted={(targetMode) => {

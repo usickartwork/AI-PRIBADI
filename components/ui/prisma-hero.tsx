@@ -407,14 +407,21 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
 
               <motion.button
                 type="button"
-                onClick={() => onGetStarted?.("signup")}
+                onClick={() => {
+                  const el = document.getElementById("section-chat");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  } else {
+                    onGetStarted?.("signup");
+                  }
+                }}
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-4 sm:pl-5 pr-1 text-xs sm:text-sm md:text-base font-medium text-black transition-all hover:gap-3 hover:bg-zinc-100"
                 style={{ backgroundColor: WHITE }}
               >
-                Get Started
+                Try for free
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black transition-transform group-hover:scale-110 sm:h-10 sm:w-10">
                   <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: WHITE }} />
                 </span>
