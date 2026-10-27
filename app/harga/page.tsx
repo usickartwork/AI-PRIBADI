@@ -12,6 +12,7 @@ import {
   Zap,
   RefreshCw,
   HelpCircle,
+  Check,
 } from "lucide-react";
 import { LandingNavbar } from "@/components/ui/landing-navbar";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
@@ -36,7 +37,7 @@ export default function PricingLandingPage() {
       badge: "GRATIS SELAMANYA",
       desc: "Sempurna untuk eksplorasi AI harian, tanya jawab cepat, dan pembuatan prototipe kode dasar.",
       features: [
-        { text: "10.000 AI Credits (Reset Harian)", included: true },
+        { text: "10.000 AI Credits (Reset Harian 00:00 WIB)", included: true },
         { text: "50 Code Credits Studio PRD (Reset Harian)", included: true },
         { text: "Usick One Flagship & Voice Assistant", included: true },
         { text: "Upaya Penalaran: Mode Faster & Balanced", included: true },
@@ -57,10 +58,10 @@ export default function PricingLandingPage() {
       name: "Pro",
       price: "Rp49.000",
       period: "/bulan",
-      badge: "PALING POPULER",
+      badge: "REKOMENDASI UTAMA",
       desc: "Akses penuh ke seluruh model AI terbaik dunia, penalaran Mode Max, dan seluruh fitur produktivitas.",
       features: [
-        { text: "100.000 AI Credits (Reset Harian)", included: true },
+        { text: "100.000 AI Credits (Reset Harian 00:00 WIB)", included: true },
         { text: "200 Code Credits Studio PRD (Reset Harian)", included: true },
         { text: "Semua Model AI (Claude 3.7, Gemini 2.5, GPT-4o, DeepSeek)", included: true },
         { text: "Akses Penuh Mode Max Reasoning (Mendalam)", included: true },
@@ -78,16 +79,16 @@ export default function PricingLandingPage() {
     {
       id: "ultra",
       name: "Ultra",
-      price: "Coming Soon",
+      price: "Segera Hadir",
       period: "",
-      badge: "AKAN DATANG",
+      badge: "KOMPUTASI TINGGI",
       desc: "Dirancang untuk tim profesional, agensi, dan kebutuhan komputasi AI berkapasitas sangat tinggi.",
       features: [
         { text: "500.000 AI Credits (Reset Harian)", included: true },
         { text: "1.000 Code Credits Studio PRD", included: true },
         { text: "Seluruh Keunggulan Paket Pro", included: true },
         { text: "Smart Schedule Tanpa Batas (Unlimited)", included: true },
-        { text: "Dedicated Dedicated Compute Instance", included: true },
+        { text: "Dedicated Compute Instance Prioritas", included: true },
         { text: "Automasi Alur Kerja Multi-Agen Khusus", included: true },
       ],
       buttonText: "Segera Hadir",
@@ -101,42 +102,27 @@ export default function PricingLandingPage() {
       {/* Top Navbar */}
       <LandingNavbar onGetStarted={openAuth} isDark={true} />
 
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-16 px-6 sm:px-10 max-w-6xl mx-auto text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-white/5 text-[#E1E0CC] text-xs font-semibold uppercase tracking-wider mb-6"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-          Transparan & Kuota Segar Harian
-        </motion.div>
+      {/* Main Pricing Viewport - Direct & To the Point */}
+      <main className="pt-28 pb-16 px-4 sm:px-6 md:px-10 max-w-6xl mx-auto">
+        
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10 border-b border-white/10 pb-6">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[#E1E0CC]">
+              <span className="h-2 w-2 rounded-full bg-[#E1E0CC] animate-pulse" />
+              <span>Transparansi Kuota & Langganan</span>
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-2">
+              Pilih Paket Yang Tepat Untuk Produktivitas Anda.
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+            <RefreshCw className="h-3.5 w-3.5 text-[#E1E0CC]" />
+            <span>Reset Kuota Harian 00:00 WIB</span>
+          </div>
+        </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.05] max-w-4xl mx-auto"
-        >
-          Paket Langganan <br />
-          <span className="bg-gradient-to-r from-white via-[#E1E0CC] to-zinc-400 bg-clip-text text-transparent">
-            One Mind Ekosistem.
-          </span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-6 text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed"
-        >
-          Mulai gratis selamanya dengan kuota terbarukan setiap hari, atau nikmati kebebasan tanpa batas dengan paket Pro hanya seharga secangkir kopi.
-        </motion.p>
-      </section>
-
-      {/* Pricing Cards Grid */}
-      <section className="py-8 px-6 sm:px-10 max-w-6xl mx-auto">
+        {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
           {plans.map((p) => {
             const isPopular = p.popular;
@@ -145,7 +131,7 @@ export default function PricingLandingPage() {
                 key={p.id}
                 className={`relative rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
                   isPopular
-                    ? "bg-gradient-to-b from-white/[0.08] via-zinc-950 to-zinc-950 border-2 border-[#E1E0CC]/70 shadow-2xl shadow-black/80 md:-translate-y-2"
+                    ? "bg-gradient-to-b from-white/[0.08] via-zinc-950 to-zinc-950 border-2 border-[#E1E0CC] shadow-2xl shadow-black/80 md:-translate-y-2"
                     : "bg-zinc-950/60 border border-white/15 hover:border-white/25 backdrop-blur-xl"
                 }`}
               >
@@ -160,7 +146,7 @@ export default function PricingLandingPage() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-white">{p.name}</h3>
                     {!isPopular && (
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full">
+                      <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-zinc-400 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full">
                         {p.badge}
                       </span>
                     )}
@@ -168,7 +154,7 @@ export default function PricingLandingPage() {
 
                   <div className="flex items-baseline gap-1.5 my-4">
                     <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">{p.price}</span>
-                    {p.period && <span className="text-xs text-zinc-400 font-medium">{p.period}</span>}
+                    {p.period && <span className="text-xs text-zinc-400 font-mono font-medium">{p.period}</span>}
                   </div>
 
                   <p className="text-xs text-zinc-400 leading-relaxed mb-6">{p.desc}</p>
@@ -177,7 +163,7 @@ export default function PricingLandingPage() {
                     {p.features.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2.5 text-xs">
                         {feat.included ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                          <Check className="h-4 w-4 text-[#E1E0CC] shrink-0 mt-0.5" />
                         ) : (
                           <XCircle className="h-4 w-4 text-zinc-600 shrink-0 mt-0.5" />
                         )}
@@ -210,18 +196,17 @@ export default function PricingLandingPage() {
             );
           })}
         </div>
-      </section>
 
-      {/* Credit Reset Guarantee Infographic */}
-      <section className="py-16 px-6 sm:px-10 max-w-4xl mx-auto text-center">
-        <div className="rounded-3xl border border-white/15 bg-white/[0.03] p-8 sm:p-10 backdrop-blur-xl">
-          <RefreshCw className="h-8 w-8 text-[#E1E0CC] mx-auto mb-3" />
-          <h3 className="text-xl sm:text-2xl font-bold text-white">Reset Otomatis Setiap 24 Jam</h3>
+        {/* Credit Reset Guarantee Infographic (Clean Monochrome & Cream) */}
+        <div className="mt-16 rounded-3xl border border-white/15 bg-white/[0.02] p-8 sm:p-10 backdrop-blur-xl text-center max-w-3xl mx-auto">
+          <RefreshCw className="h-7 w-7 text-[#E1E0CC] mx-auto mb-3" />
+          <h3 className="text-xl sm:text-2xl font-bold text-white">Garansi Reset Kuota Otomatis Setiap 24 Jam</h3>
           <p className="mt-2 text-xs sm:text-sm text-zinc-400 max-w-lg mx-auto leading-relaxed">
             Tidak perlu cemas kehabisan kuota permanen. Setiap hari tepat pukul 00:00 WIB, kuota kredit AI dan Code Credits Anda akan diisi ulang secara penuh tanpa biaya tambahan.
           </p>
         </div>
-      </section>
+
+      </main>
 
       {/* FAQ Tabs Section */}
       <FAQ
