@@ -2783,15 +2783,28 @@ export default function MessagesWorkspace({
             {tab === "add" && addView}
           </div>
 
-          {/* Faith-style Sliding Pill Navigation at the bottom (elevated nicely away from bottom screen) */}
+          {/* Liquid Glass Floating Navigation Bar at the bottom */}
           <nav className="w-full px-4 pt-3 pb-[max(3.25rem,calc(env(safe-area-inset-bottom)+2.25rem))] sm:pb-12 md:pb-9 z-20 select-none bg-transparent shrink-0">
             <div
               ref={navContainerRef}
-              className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
+              className={`relative flex items-center justify-around max-w-[290px] sm:max-w-[320px] mx-auto p-1.5 rounded-full transition-all duration-300 ${
+                isDark
+                  ? "bg-[#0a0b0f]/80 border border-white/15 shadow-[0_22px_50px_rgba(0,0,0,0.75),inset_0_1px_1.5px_rgba(255,255,255,0.35),inset_0_-1px_1px_rgba(255,255,255,0.08),inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-2xl backdrop-saturate-150"
+                  : "bg-white/80 border border-black/10 shadow-[0_20px_50px_rgba(0,0,0,0.12),inset_0_1px_1.5px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(0,0,0,0.05),inset_0_0_0_1px_rgba(255,255,255,0.5)] backdrop-blur-2xl backdrop-saturate-150"
+              }`}
             >
+              {/* Glossy Liquid Glass Specular Top Curved Highlight Sheen */}
+              <div
+                className={`absolute inset-x-3.5 top-0 h-[45%] rounded-t-full pointer-events-none ${
+                  isDark
+                    ? "bg-gradient-to-b from-white/20 via-white/5 to-transparent opacity-70"
+                    : "bg-gradient-to-b from-white/90 via-white/25 to-transparent opacity-80"
+                }`}
+              />
+
               {/* Sliding Morph Pill Indicator */}
               <div
-                className={`absolute rounded-full shadow-xs pointer-events-none ${
+                className={`absolute rounded-full shadow-md pointer-events-none ${
                   isDark ? "bg-white" : "bg-[#111113]"
                 } ${
                   hasRenderedPill ? "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" : ""
@@ -2848,7 +2861,7 @@ export default function MessagesWorkspace({
                           ? `${isPillReady ? "bg-transparent" : "bg-white"} text-black px-4 py-2`
                           : `${isPillReady ? "bg-transparent" : "bg-[#111113]"} text-white px-4 py-2`
                         : isDark
-                        ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
+                        ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/10"
                         : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
                     }`}
                     title={item.label}
@@ -2877,9 +2890,13 @@ export default function MessagesWorkspace({
                       {item.label}
                     </span>
 
-                    {/* Badge if any */}
+                    {/* Badge if any (sleek red notification badge like reference) */}
                     {!!item.badge && item.badge > 0 && !isActive && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                      <span
+                        className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-rose-500 text-white shadow-xs ${
+                          isDark ? "ring-2 ring-[#0a0b0f]" : "ring-2 ring-white"
+                        }`}
+                      >
                         {item.badge > 99 ? "99+" : item.badge}
                       </span>
                     )}
