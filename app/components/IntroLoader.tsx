@@ -96,91 +96,50 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 
 /**
  * Custom hook to orchestrate application initialization and ensure smooth intro display:
- * - Guarantees minimum visual duration (~1.6s) so no glitch/flash occurs.
- * - Stays active if real initialization takes longer.
- * - Includes safety timeout fallback so the application is never permanently blocked.
+ * - Guarantees visual duration (~1.9s) so the "One Mind" TechText sweep and model slider play smoothly.
+ * - Transitions with an elegant fade-out exit.
+ * - Guaranteed self-contained timer so it NEVER gets stuck on page load or refresh.
  */
 export function useAppInitializer({
   authLoading,
   sessionsReady,
   subscriptionReady = true,
-  minDurationMs = 1200,
-  safetyTimeoutMs = 1800,
+  minDurationMs = 1900,
+  safetyTimeoutMs = 2500,
 }: {
-  authLoading: boolean;
-  sessionsReady: boolean;
+  authLoading?: boolean;
+  sessionsReady?: boolean;
   subscriptionReady?: boolean;
   minDurationMs?: number;
   safetyTimeoutMs?: number;
-}) {
-  const [alreadyPlayed] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return sessionStorage.getItem("onemind_intro_played") === "true";
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  });
+} = {}) {
+  const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">("visible");
 
-  const [minTimeElapsed, setMinTimeElapsed] = useState(alreadyPlayed);
-  const [safetyForced, setSafetyForced] = useState(alreadyPlayed);
-  const [gone, setGone] = useState(alreadyPlayed);
-
-  // 1. Minimum display timer (only if not already played in this session)
   useEffect(() => {
-    if (alreadyPlayed) {
-      setGone(true);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setMinTimeElapsed(true);
-      try {
-        sessionStorage.setItem("onemind_intro_played", "true");
-      } catch (e) {}
-    }, minDurationMs);
-    return () => clearTimeout(timer);
-  }, [minDurationMs, alreadyPlayed]);
-
-  // 2. Safety fallback timer to prevent infinite stuck loader (hard limit 1.8s)
-  useEffect(() => {
-    if (alreadyPlayed) {
-      setGone(true);
-      return;
-    }
-    const safety = setTimeout(() => {
-      setSafetyForced(true);
-      setGone(true);
-      try {
-        sessionStorage.setItem("onemind_intro_played", "true");
-      } catch (e) {}
-    }, safetyTimeoutMs);
-    return () => clearTimeout(safety);
-  }, [safetyTimeoutMs, alreadyPlayed]);
-
-  const shouldExit = alreadyPlayed || safetyForced || (!authLoading && sessionsReady && subscriptionReady && minTimeElapsed);
-
-  // 3. Trigger final unmount after 200ms exit transition
-  useEffect(() => {
-    if (!shouldExit || gone) return;
+    // 1. Play animation for minDurationMs (~1.9s), then trigger exit transition
     const exitTimer = setTimeout(() => {
-      setGone(true);
-      try {
-        sessionStorage.setItem("onemind_intro_played", "true");
-      } catch (e) {}
-    }, 200);
-    return () => clearTimeout(exitTimer);
-  }, [shouldExit, gone]);
+      setIntroState("exiting");
+    }, minDurationMs);
 
-  const introState: "visible" | "exiting" | "gone" = gone
-    ? "gone"
-    : shouldExit
-      ? "exiting"
-      : "visible";
+    // 2. Unmount loader after exit animation finishes (350ms transition)
+    const unmountTimer = setTimeout(() => {
+      setIntroState("gone");
+    }, minDurationMs + 350);
+
+    // 3. Absolute safety fallback to prevent any stuck state
+    const safetyTimer = setTimeout(() => {
+      setIntroState("gone");
+    }, safetyTimeoutMs);
+
+    return () => {
+      clearTimeout(exitTimer);
+      clearTimeout(unmountTimer);
+      clearTimeout(safetyTimer);
+    };
+  }, [minDurationMs, safetyTimeoutMs]);
 
   return {
     introState,
-    isInitializing: !alreadyPlayed && introState !== "gone",
+    isInitializing: introState !== "gone",
   };
 }

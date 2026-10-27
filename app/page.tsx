@@ -1080,11 +1080,8 @@ export default function Home() {
 
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
-    authLoading,
-    sessionsReady: !user || Array.isArray(sessions),
-    subscriptionReady,
-    minDurationMs: 1200,
-    safetyTimeoutMs: 1800,
+    minDurationMs: 1900,
+    safetyTimeoutMs: 2500,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -6771,7 +6768,7 @@ export default function Home() {
       )}
 
       {/* ─── ONE MIND: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
-      {user && isInitializing && (
+      {isInitializing && (
         <IntroLoader
           state={introState === "exiting" ? "exiting" : "visible"}
         />
