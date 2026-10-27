@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { TechText } from "./TechText";
 import { LogoCloud } from "@/components/ui/logo-cloud-3";
 import { BrainLogo } from "@/components/ui/brain-logo";
@@ -14,6 +14,7 @@ export interface IntroLoaderProps {
 
 /**
  * One Mind — TechText Intro Loader (from React Bits)
+ * 100% Solid Black Background (No transparency) to cover the page until video & content are loaded.
  */
 export function IntroLoader({ state }: IntroLoaderProps) {
   const isExiting = state === "exiting";
@@ -23,7 +24,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       role="status"
       aria-label="Memuat One Mind"
       aria-live="polite"
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] backdrop-blur-2xl bg-[#09090b]/85 text-white ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
         isExiting
           ? "opacity-0 scale-[1.03] pointer-events-none"
           : "opacity-100 scale-100"
@@ -31,9 +32,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       style={{
         width: "100vw",
         height: "100dvh",
-        backgroundColor: "rgba(9, 9, 11, 0.85)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
+        backgroundColor: "#09090b",
         color: "#ffffff",
       }}
     >
@@ -97,48 +96,77 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 }
 
 /**
- * Custom hook to orchestrate application initialization and ensure smooth intro display:
- * - Guarantees visual duration (~1.9s) so the "One Mind" TechText sweep and model slider play smoothly.
- * - Transitions with an elegant fade-out exit.
- * - Guaranteed self-contained timer so it NEVER gets stuck on page load or refresh.
+ * Custom hook to orchestrate application initialization:
+ * - Keeps the solid black intro screen active until the web process/hero video is ready.
+ * - Guarantees minimum duration (~2.2s) so the "One Mind" TechText sweep and model slider play smoothly.
+ * - Transitions with an elegant fade-out exit once both minDuration and isReady are met.
+ * - Has a safety timeout (~4s) to ensure the user never gets stuck.
  */
 export function useAppInitializer({
   authLoading,
   sessionsReady,
   subscriptionReady = true,
-  minDurationMs = 1900,
-  safetyTimeoutMs = 2500,
+  minDurationMs = 2200,
+  safetyTimeoutMs = 4200,
+  isReady = true,
 }: {
   authLoading?: boolean;
   sessionsReady?: boolean;
   subscriptionReady?: boolean;
   minDurationMs?: number;
   safetyTimeoutMs?: number;
+  isReady?: boolean;
 } = {}) {
   const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">("visible");
+  const minTimePassedRef = useRef(false);
+  const isReadyRef = useRef(isReady);
+  isReadyRef.current = isReady;
 
   useEffect(() => {
-    // 1. Play animation for minDurationMs (~1.9s), then trigger exit transition
-    const exitTimer = setTimeout(() => {
-      setIntroState("exiting");
+    let unmountTimer: NodeJS.Timeout | null = null;
+
+    const triggerExit = () => {
+      setIntroState((prev) => {
+        if (prev === "visible") {
+          unmountTimer = setTimeout(() => {
+            setIntroState("gone");
+          }, 350);
+          return "exiting";
+        }
+        return prev;
+      });
+    };
+
+    // 1. Min duration timer: allows the TechText & logo cloud animation to complete gracefully
+    const minTimer = setTimeout(() => {
+      minTimePassedRef.current = true;
+      if (isReadyRef.current) {
+        triggerExit();
+      }
     }, minDurationMs);
 
-    // 2. Unmount loader after exit animation finishes (350ms transition)
-    const unmountTimer = setTimeout(() => {
-      setIntroState("gone");
-    }, minDurationMs + 350);
-
-    // 3. Absolute safety fallback to prevent any stuck state
+    // 2. Absolute safety fallback to prevent any stuck state
     const safetyTimer = setTimeout(() => {
-      setIntroState("gone");
+      triggerExit();
     }, safetyTimeoutMs);
 
     return () => {
-      clearTimeout(exitTimer);
-      clearTimeout(unmountTimer);
+      clearTimeout(minTimer);
       clearTimeout(safetyTimer);
+      if (unmountTimer) clearTimeout(unmountTimer);
     };
   }, [minDurationMs, safetyTimeoutMs]);
+
+  // When isReady changes to true, if min time already passed, trigger exit immediately
+  useEffect(() => {
+    if (isReady && minTimePassedRef.current && introState === "visible") {
+      setIntroState("exiting");
+      const unmountTimer = setTimeout(() => {
+        setIntroState("gone");
+      }, 350);
+      return () => clearTimeout(unmountTimer);
+    }
+  }, [isReady, introState]);
 
   return {
     introState,

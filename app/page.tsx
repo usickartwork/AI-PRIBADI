@@ -1081,10 +1081,13 @@ export default function Home() {
     };
   }, [user?.id]);
 
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
+
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
-    minDurationMs: 1900,
-    safetyTimeoutMs: 2500,
+    isReady: heroVideoReady,
+    minDurationMs: 2200,
+    safetyTimeoutMs: 4000,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -4393,6 +4396,7 @@ export default function Home() {
         >
           <PrismaHero
             isDark={isDark}
+            onVideoReady={() => setHeroVideoReady(true)}
             onGetStarted={(targetMode) => {
               setAuthModalMode(targetMode || "signup");
               setShowAuthModal(true);

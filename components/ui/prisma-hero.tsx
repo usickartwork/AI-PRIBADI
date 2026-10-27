@@ -119,9 +119,10 @@ export interface PrismaHeroProps {
   onGetStarted?: (mode?: "signin" | "signup") => void;
   onOpenPricing?: () => void;
   isDark?: boolean;
+  onVideoReady?: () => void;
 }
 
-const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroProps) => {
+const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }: PrismaHeroProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -133,10 +134,12 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
       v.playsInline = true;
       const p = v.play();
       if (p !== undefined) {
-        p.catch(() => {});
+        p.then(() => {
+          onVideoReady?.();
+        }).catch(() => {});
       }
     }
-  }, []);
+  }, [onVideoReady]);
 
   const handleNav = (item: NavItem) => {
     if (item.action) {
@@ -181,6 +184,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
           muted
           playsInline
           preload="auto"
+          onPlaying={() => onVideoReady?.()}
+          onTimeUpdate={(e) => {
+            if (e.currentTarget.currentTime > 0) {
+              onVideoReady?.();
+            }
+          }}
+          onLoadedData={() => onVideoReady?.()}
           className="absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
           src="/hero-bw-logo.mp4"
         />
