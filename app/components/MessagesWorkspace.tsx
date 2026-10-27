@@ -2783,22 +2783,22 @@ export default function MessagesWorkspace({
             {tab === "add" && addView}
           </div>
 
-          {/* Liquid Glass Floating Navigation Bar at the bottom */}
+          {/* Liquid Glass Floating Navigation Bar at the bottom (transparent liquid glass) */}
           <nav className="w-full px-4 pt-3 pb-[max(3.25rem,calc(env(safe-area-inset-bottom)+2.25rem))] sm:pb-12 md:pb-9 z-20 select-none bg-transparent shrink-0">
             <div
               ref={navContainerRef}
               className={`relative flex items-center justify-around max-w-[290px] sm:max-w-[320px] mx-auto p-1.5 rounded-full transition-all duration-300 ${
                 isDark
-                  ? "bg-[#0a0b0f]/80 border border-white/15 shadow-[0_22px_50px_rgba(0,0,0,0.75),inset_0_1px_1.5px_rgba(255,255,255,0.35),inset_0_-1px_1px_rgba(255,255,255,0.08),inset_0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-2xl backdrop-saturate-150"
-                  : "bg-white/80 border border-black/10 shadow-[0_20px_50px_rgba(0,0,0,0.12),inset_0_1px_1.5px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(0,0,0,0.05),inset_0_0_0_1px_rgba(255,255,255,0.5)] backdrop-blur-2xl backdrop-saturate-150"
+                  ? "bg-white/[0.04] border border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.35),inset_0_1px_1.5px_rgba(255,255,255,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-xl"
+                  : "bg-black/[0.03] border border-black/10 shadow-[0_12px_36px_rgba(0,0,0,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.8),inset_0_0_0_1px_rgba(255,255,255,0.4)] backdrop-blur-xl"
               }`}
             >
               {/* Glossy Liquid Glass Specular Top Curved Highlight Sheen */}
               <div
                 className={`absolute inset-x-3.5 top-0 h-[45%] rounded-t-full pointer-events-none ${
                   isDark
-                    ? "bg-gradient-to-b from-white/20 via-white/5 to-transparent opacity-70"
-                    : "bg-gradient-to-b from-white/90 via-white/25 to-transparent opacity-80"
+                    ? "bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"
+                    : "bg-gradient-to-b from-white/80 via-white/20 to-transparent opacity-70"
                 }`}
               />
 
@@ -2894,7 +2894,7 @@ export default function MessagesWorkspace({
                     {!!item.badge && item.badge > 0 && !isActive && (
                       <span
                         className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-rose-500 text-white shadow-xs ${
-                          isDark ? "ring-2 ring-[#0a0b0f]" : "ring-2 ring-white"
+                          isDark ? "ring-2 ring-black/40" : "ring-2 ring-white/80"
                         }`}
                       >
                         {item.badge > 99 ? "99+" : item.badge}
