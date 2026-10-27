@@ -110,29 +110,28 @@ const FEATURE_NAV_ITEMS = [
   { label: "Faith", targetId: "card-faith" },
 ];
 
-const DESKTOP_NAV_ITEMS = [
-  ...FEATURE_NAV_ITEMS,
-  { label: "Pricing", targetId: "section-pricing" },
-  { label: "FAQ", targetId: "section-faq" },
-];
-
 const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }: PrismaHeroProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [mobileFeaturesOpen, setMobileFeaturesOpen] = useState(false);
-  const mobileFeaturesRef = useRef<HTMLDivElement>(null);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const featuresRef = useRef<HTMLDivElement>(null);
 
-  // Close mobile dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (mobileFeaturesRef.current && !mobileFeaturesRef.current.contains(e.target as Node)) {
-        setMobileFeaturesOpen(false);
+      if (featuresRef.current && !featuresRef.current.contains(e.target as Node)) {
+        setFeaturesOpen(false);
       }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFeaturesOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -278,56 +277,42 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                 <BrainLogo className="w-8 h-8 sm:w-9 sm:h-9 text-white group-hover:scale-110 transition-transform" />
               </div>
 
-              {/* ─── DESKTOP NAV (Side-by-Side Jejer Langsung: md:flex) ──────── */}
-              <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 overflow-x-auto no-scrollbar py-1">
-                {DESKTOP_NAV_ITEMS.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => handleNavClick(item.targetId)}
-                    className="whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-
-              {/* ─── MOBILE NAV (Khusus Mobile: Fitur ▾, Pricing, FAQ) ────────── */}
-              <nav className="flex md:hidden items-center gap-1 xs:gap-1.5 py-1">
-                {/* 1. Fitur dengan Tanda Panah ke Bawah */}
-                <div ref={mobileFeaturesRef} className="relative">
+              {/* ─── EXACTLY 4 NAV ITEMS: Fitur ▾, USICK ONE, Pricing, FAQ ────────── */}
+              <nav className="flex items-center gap-1 sm:gap-2 md:gap-3.5 lg:gap-4 py-1">
+                {/* 1. Fitur Dropdown (Pure text list, no boxy containers) */}
+                <div ref={featuresRef} className="relative">
                   <button
                     type="button"
-                    onClick={() => setMobileFeaturesOpen((prev) => !prev)}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95"
+                    onClick={() => setFeaturesOpen((prev) => !prev)}
+                    className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
                   >
                     <span>Fitur</span>
                     <ChevronDown
                       className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${
-                        mobileFeaturesOpen ? "rotate-180 text-white" : ""
+                        featuresOpen ? "rotate-180 text-white" : ""
                       }`}
                     />
                   </button>
 
-                  {/* Dropdown Menu Khusus Mobile */}
+                  {/* Dropdown Menu: Pure Typography List Down */}
                   <AnimatePresence>
-                    {mobileFeaturesOpen && (
+                    {featuresOpen && (
                       <motion.div
-                        initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute left-0 top-full mt-2 w-44 rounded-xl bg-zinc-950/98 border border-white/15 p-1.5 shadow-2xl backdrop-blur-2xl z-50 flex flex-col gap-0.5"
+                        className="absolute left-0 top-full mt-2 w-36 sm:w-40 rounded-xl bg-black/95 backdrop-blur-2xl border border-white/10 px-3.5 py-3 shadow-2xl z-50 flex flex-col gap-2.5 select-none"
                       >
                         {FEATURE_NAV_ITEMS.map((item) => (
                           <button
                             key={item.label}
                             type="button"
                             onClick={() => {
-                              setMobileFeaturesOpen(false);
+                              setFeaturesOpen(false);
                               handleNavClick(item.targetId);
                             }}
-                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                            className="w-full text-left text-xs sm:text-sm font-medium text-zinc-400 hover:text-white hover:translate-x-1 transition-all duration-150 cursor-pointer p-0 bg-transparent border-0"
                           >
                             {item.label}
                           </button>
@@ -337,20 +322,29 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                   </AnimatePresence>
                 </div>
 
-                {/* 2. Pricing */}
+                {/* 2. USICK ONE */}
+                <button
+                  type="button"
+                  onClick={() => handleNavClick("section-chat")}
+                  className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-semibold tracking-wide text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
+                >
+                  USICK ONE
+                </button>
+
+                {/* 3. Pricing */}
                 <button
                   type="button"
                   onClick={() => handleNavClick("section-pricing")}
-                  className="whitespace-nowrap px-2 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95"
+                  className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
                 >
                   Pricing
                 </button>
 
-                {/* 3. FAQ */}
+                {/* 4. FAQ */}
                 <button
                   type="button"
                   onClick={() => handleNavClick("section-faq")}
-                  className="whitespace-nowrap px-2 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer active:scale-95"
+                  className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
                 >
                   FAQ
                 </button>
