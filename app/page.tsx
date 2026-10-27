@@ -24,6 +24,9 @@ import {
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
+const HomeInteractiveChat = dynamic(() =>
+  import("@/components/ui/home-interactive-chat").then((m) => m.HomeInteractiveChat)
+);
 const HomeFeatureSections = dynamic(() =>
   import("@/components/ui/home-feature-sections").then((m) => m.HomeFeatureSections)
 );
@@ -4404,6 +4407,17 @@ export default function Home() {
             }}
             onOpenPricing={() => setShowPricingModal(true)}
           />
+
+          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE ONLY, NO VOICE ASSISTANT) ─── */}
+          <div id="section-chat" className="scroll-mt-10">
+            <HomeInteractiveChat
+              isDark={isDark}
+              onGetStarted={(targetMode) => {
+                setAuthModalMode(targetMode || "signup");
+                setShowAuthModal(true);
+              }}
+            />
+          </div>
 
           <HomeFeatureSections
             isDark={isDark}

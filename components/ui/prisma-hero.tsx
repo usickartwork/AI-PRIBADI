@@ -104,7 +104,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "AI Chat", targetId: "card-chat" },
+  { label: "AI Chat", targetId: "section-chat" },
   { label: "One Code", targetId: "card-code" },
   { label: "Music", targetId: "card-music" },
   { label: "Schedule", targetId: "card-schedule" },
