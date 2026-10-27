@@ -119,19 +119,49 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // Ensure smooth, immediate playback without initial freeze
     const v = videoRef.current;
-    if (v) {
+    if (!v) return;
+
+    // Strict muted setup for modern mobile browsers (iOS WebKit / Safari / Android Chrome)
+    v.muted = true;
+    v.defaultMuted = true;
+    v.playsInline = true;
+    v.setAttribute("playsinline", "true");
+    v.setAttribute("webkit-playsinline", "true");
+    v.setAttribute("x5-playsinline", "true");
+
+    const playVideo = () => {
       v.muted = true;
-      v.defaultMuted = true;
-      v.playsInline = true;
       const p = v.play();
       if (p !== undefined) {
         p.then(() => {
           onVideoReady?.();
-        }).catch(() => {});
+        }).catch(() => {
+          // Handled by user gesture listeners below
+        });
       }
-    }
+    };
+
+    playVideo();
+
+    // In case iOS Safari Low Power Mode restricts autoplay before initial gesture:
+    const handleGesturePlay = () => {
+      if (v.paused) {
+        playVideo();
+      }
+    };
+
+    window.addEventListener("touchstart", handleGesturePlay, { once: true, passive: true });
+    window.addEventListener("touchend", handleGesturePlay, { once: true, passive: true });
+    window.addEventListener("pointerdown", handleGesturePlay, { once: true, passive: true });
+    window.addEventListener("scroll", handleGesturePlay, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleGesturePlay);
+      window.removeEventListener("touchend", handleGesturePlay);
+      window.removeEventListener("pointerdown", handleGesturePlay);
+      window.removeEventListener("scroll", handleGesturePlay);
+    };
   }, [onVideoReady]);
 
   const handleNavClick = (targetId: string) => {
@@ -166,6 +196,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
           loop
           muted
           playsInline
+          {...({
+            "webkit-playsinline": "true",
+            "x5-playsinline": "true",
+          } as Record<string, string>)}
+          controls={false}
+          disablePictureInPicture
+          disableRemotePlayback
           preload="auto"
           onPlaying={() => onVideoReady?.()}
           onTimeUpdate={(e) => {
@@ -174,7 +211,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
             }
           }}
           onLoadedData={() => onVideoReady?.()}
-          className="absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
           src="/hero-bw-logo.mp4"
         />
 

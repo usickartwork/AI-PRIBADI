@@ -533,3 +533,24 @@ textarea:focus {
   background-repeat: repeat;
   background-size: 200px 200px;
 }
+
+/* ─── HIDE NATIVE MOBILE VIDEO PLAY BUTTON & CONTROLS (iOS Safari & Android Chrome) ─── */
+video::-webkit-media-controls {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+
+video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+
+video::-webkit-media-controls-play-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
