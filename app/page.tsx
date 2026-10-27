@@ -20,6 +20,7 @@ import {
   MagnifyingGlassIcon,
   Cog6ToothIcon,
   BookOpenIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
@@ -56,6 +57,10 @@ const GameWorkspace = dynamic(() => import("./components/GameWorkspace").then((m
 const MusicWorkspace = dynamic(() => import("./components/MusicWorkspace").then((m) => m.MusicWorkspace));
 const NotebookWorkspace = dynamic(() => import("./components/NotebookWorkspace").then((m) => m.NotebookWorkspace));
 const EmergencyWorkspace = dynamic(() => import("./components/EmergencyWorkspace"));
+const AdminWorkspace = dynamic(
+  () => import("./components/AdminWorkspace").then((m) => m.AdminWorkspace),
+  { ssr: false }
+);
 const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
 const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
 const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
@@ -877,12 +882,12 @@ export default function Home() {
   });
 
   // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game" (sementara dinonaktifkan), alihkan ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook" | "emergency">(() => {
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook" | "emergency" | "admin">(() => {
     if (typeof window !== "undefined") {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const viewParam = urlParams.get("view");
-        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency"].includes(viewParam)) {
+        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)) {
           return viewParam as any;
         }
         const saved = localStorage.getItem("usick-active-view");
@@ -890,7 +895,7 @@ export default function Home() {
           localStorage.removeItem("usick-active-view");
           return "chats";
         }
-        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook" || saved === "emergency") return saved;
+        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook" || saved === "emergency" || saved === "admin") return saved;
       } catch {}
     }
     return "chats";
@@ -973,7 +978,7 @@ export default function Home() {
         const viewParam = new URLSearchParams(window.location.search).get("view");
         if (
           viewParam &&
-          ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency"].includes(viewParam)
+          ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)
         ) {
           setActiveView(
             viewParam as
@@ -988,6 +993,7 @@ export default function Home() {
               | "music"
               | "notebook"
               | "emergency"
+              | "admin"
           );
           if (viewParam === "faith" || viewParam === "game") {
             setHalamanSubTab(viewParam);
@@ -1454,6 +1460,41 @@ export default function Home() {
     }
   }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
 
+  // Pemeriksaan hak akses Admin Usick One (hanya untuk visibilitas UI sidebar)
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!isClerkLoaded || !isClerkSignedIn || !clerkUser) {
+      setIsAdmin(false);
+      return;
+    }
+
+    let isCancelled = false;
+    fetch("/api/admin/check")
+      .then((res) => res.json())
+      .then((resData) => {
+        if (!isCancelled) {
+          setIsAdmin(Boolean(resData?.isAdmin));
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsAdmin(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
+
+  // Jika pengguna bukan admin tetapi mencoba membuka tampilan admin (misal lewat URL ?view=admin), alihkan ke chats
+  useEffect(() => {
+    if (isClerkLoaded && !isAdmin && activeView === "admin") {
+      setActiveView("chats");
+    }
+  }, [isClerkLoaded, isAdmin, activeView]);
+
   // Auth is now fully managed by Clerk — no Supabase auth session listener needed
 
   const handleSignOut = async () => {
@@ -1462,6 +1503,8 @@ export default function Home() {
         await clerkSignOut();
       }
     } catch {}
+    setIsAdmin(false);
+    setActiveView((prev) => (prev === "admin" ? "chats" : prev));
     navPrefsSaveAbortRef.current?.abort();
     navPrefsSaveAbortRef.current = null;
     navPrefsOwnerRef.current = null;
@@ -4787,6 +4830,41 @@ export default function Home() {
             </div>
           </div>
 
+          {/* ─── SECTION ADMIN (Hanya tampil jika akun terverifikasi memiliki izin admin) ─── */}
+          {isAdmin && (
+            <div className="pt-2 pb-1 space-y-1">
+              <div className="px-2 md:px-2.5 py-1 text-xs md:text-[11px] font-bold tracking-wider text-zinc-500 uppercase flex items-center justify-between">
+                <span>Admin</span>
+              </div>
+
+              <div
+                onClick={() => {
+                  setActiveView("admin");
+                  closeSidebarOnMobile();
+                }}
+                className={`flex items-center justify-between rounded-xl px-3.5 md:px-3.5 py-3 md:py-2.5 cursor-pointer transition text-[15px] md:text-sm ${
+                  activeView === "admin"
+                    ? (isDark ? "bg-zinc-800/90 text-white font-semibold" : "bg-zinc-100 text-black font-semibold")
+                    : (isDark ? "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-200" : "hover:bg-zinc-100/90 text-zinc-600 hover:text-zinc-950 font-medium")
+                }`}
+              >
+                <div className="flex items-center gap-3 md:gap-3">
+                  <ShieldCheckIcon className="w-5 h-5 md:w-5 md:h-5 shrink-0" />
+                  <span>Admin Panel</span>
+                </div>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
+                    isDark
+                      ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                      : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                  }`}
+                >
+                  ADMIN
+                </span>
+              </div>
+            </div>
+          )}
+
             {/* History / Recent Threads */}
             <div className="mt-4 md:mt-3">
               <div className={`flex items-center justify-between px-2 md:px-2.5 mb-2.5 md:mb-2 text-xs md:text-[11px] font-bold tracking-wider uppercase ${
@@ -5201,6 +5279,15 @@ export default function Home() {
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             />
           )
+        ) : activeView === "admin" ? (
+          <div className="h-full w-full flex flex-col flex-1">
+            <AdminWorkspace
+              key="admin-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          </div>
         ) : activeView === "code" || activeView === "messages" || activeView === "music" || activeView === "notebook" || activeView === "emergency" || isHalamanActive ? null : (
           <>
             {/* Top App Bar (Pure Floating Controls: absolute top-0, zero clipping barrier) */}
