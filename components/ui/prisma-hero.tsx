@@ -106,7 +106,7 @@ export interface PrismaHeroProps {
 
 const NAV_ITEMS = [
   { label: "AI Chat", targetId: "card-chat" },
-  { label: "Code Mind", targetId: "card-code" },
+  { label: "One Code", targetId: "card-code" },
   { label: "Music", targetId: "card-music" },
   { label: "Schedule", targetId: "card-schedule" },
   { label: "Image", targetId: "card-image" },
@@ -185,14 +185,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
 
         {/* ─── HEADER NAVBAR (Pure Logo, Direct Jejer Tabs, Highlighted Login) ─── */}
-        <header className="absolute top-0 left-0 right-0 z-30 w-full bg-black/40 backdrop-blur-md border-b border-white/[0.08]">
+        <header className="absolute top-0 left-0 right-0 z-30 w-full bg-transparent">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 sm:h-16 flex items-center justify-between gap-4">
             {/* ─── LEFT: PURE BRAIN LOGO + DIRECT JEJER TABS ─── */}
             <div className="flex items-center gap-3 sm:gap-6 md:gap-8 min-w-0">
               <div
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="cursor-pointer group select-none shrink-0 flex items-center p-0.5"
-                title="One Mind"
+                className="cursor-pointer group select-none shrink-0 flex items-center"
               >
                 <BrainLogo className="w-8 h-8 sm:w-9 sm:h-9 text-white group-hover:scale-110 transition-transform" />
               </div>
