@@ -27,6 +27,9 @@ const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ))
 const HomeInteractiveChat = dynamic(() =>
   import("@/components/ui/home-interactive-chat").then((m) => m.HomeInteractiveChat)
 );
+const HomeAdvantagesSection = dynamic(() =>
+  import("@/components/ui/home-advantages-section").then((m) => m.HomeAdvantagesSection)
+);
 const HomeFeatureSections = dynamic(() =>
   import("@/components/ui/home-feature-sections").then((m) => m.HomeFeatureSections)
 );
@@ -4413,7 +4416,19 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          {/* ─── KETERANGAN FITUR (BG HITAM MURNI, MENYATU LANGSUNG DENGAN HERO) ─── */}
+          {/* ─── KEUNGGULAN ALL-IN-ONE (MOTION GRAPHIC CARDS, BG HITAM MURNI) ─── */}
+          <div className="relative w-full bg-black z-10 border-b border-white/[0.06]">
+            <HomeAdvantagesSection
+              isDark={isDark}
+              onGetStarted={(targetMode) => {
+                setAuthModalMode(targetMode || "signup");
+                setShowAuthModal(true);
+              }}
+              onOpenPricing={() => setShowPricingModal(true)}
+            />
+          </div>
+
+          {/* ─── KETERANGAN FITUR (BG HITAM MURNI, MENYATU LANGSUNG DENGAN HERO & ADVANTAGES) ─── */}
           <div className="relative w-full bg-black z-10">
             <HomeFeatureSections
               isDark={isDark}
