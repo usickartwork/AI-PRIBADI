@@ -69,10 +69,10 @@ export function HomePricingSection({
     <section id="section-pricing" className="scroll-mt-24 relative w-full py-20 sm:py-28 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
       {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 25 }}
+        initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.15 }}
-        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
       >
         <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
@@ -88,10 +88,10 @@ export function HomePricingSection({
 
       {/* ─── 2-COLUMN PRICING CARDS ────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+        transition={{ duration: 0.65, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto items-stretch"
       >
         {plans.map((p) => {

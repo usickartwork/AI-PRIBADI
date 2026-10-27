@@ -4397,6 +4397,8 @@ export default function Home() {
         >
           {/* ─── Mesh Drift WebGL Background (Sama persis seperti di tab chat & tab schedule) ─── */}
           <MeshDriftBackground isDark={isDark} />
+          {/* Lapisan ambient halus untuk menyelaraskan kontras gelap shader dengan tema obsidian */}
+          <div className="fixed inset-0 pointer-events-none z-0 bg-black/15" aria-hidden="true" />
 
           <PrismaHero
             isDark={isDark}
@@ -4408,26 +4410,49 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE ONLY, NO VOICE ASSISTANT) ─── */}
-          <div id="section-chat" className="scroll-mt-10 bg-black relative border-y border-white/10 w-full">
-            <HomeInteractiveChat
+          {/* ─── KETERANGAN FITUR (AUTO-CYCLING TABS & ROTASI OTOMATIS) ────────── */}
+          <div className="relative w-full z-10">
+            {/* Transisi gradasi halus: Hitam Hero melebur mulus ke MeshDrift background */}
+            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none -mb-16 sm:-mb-24 relative z-20" />
+
+            <HomeFeatureSections
               isDark={isDark}
               onGetStarted={(targetMode) => {
                 setAuthModalMode(targetMode || "signup");
                 setShowAuthModal(true);
               }}
+              onOpenPricing={() => setShowPricingModal(true)}
             />
           </div>
 
-          <HomeFeatureSections
-            isDark={isDark}
-            onGetStarted={(targetMode) => {
-              setAuthModalMode(targetMode || "signup");
-              setShowAuthModal(true);
-            }}
-            onOpenPricing={() => setShowPricingModal(true)}
-          />
+          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, BLACK BG) ───── */}
+          <div id="section-chat" className="scroll-mt-10 relative w-full z-10">
+            {/* Transisi gradasi atas: MeshDrift melebur mulus ke warna hitam murni */}
+            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-transparent via-black/70 to-black pointer-events-none -mb-px" />
 
+            {/* Area Chat Berlatar Hitam Murni dengan animasi scroll dua arah yang mulus */}
+            <div className="w-full bg-black relative">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+                transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <HomeInteractiveChat
+                  isDark={isDark}
+                  onGetStarted={(targetMode) => {
+                    setAuthModalMode(targetMode || "signup");
+                    setShowAuthModal(true);
+                  }}
+                />
+              </motion.div>
+            </div>
+
+            {/* Transisi gradasi bawah: Hitam murni melebur kembali ke MeshDrift */}
+            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-black via-black/70 to-transparent pointer-events-none -mt-px" />
+          </div>
+
+          {/* ─── PRICING SECTION ───────────────────────────────────────────────── */}
           <HomePricingSection
             isDark={isDark}
             onGetStarted={(targetMode) => {
@@ -4440,11 +4465,11 @@ export default function Home() {
           {/* ─── FAQ SECTION ───────────────────────────────────────────────────── */}
           <motion.div
             id="section-faq"
-            initial={{ opacity: 0, y: 35 }}
+            initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.15, margin: "-20px 0px" }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="scroll-mt-20"
+            viewport={{ once: false, amount: 0.05, margin: "-60px 0px -60px 0px" }}
+            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            className="scroll-mt-20 relative z-10"
           >
             <FAQ
               title="Pertanyaan Umum Seputar One Mind"
@@ -4454,21 +4479,27 @@ export default function Home() {
           </motion.div>
 
           {/* ─── FOOTER SECTION ────────────────────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 35 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.1, margin: "-20px 0px" }}
-            transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Footer01
-              isDark={isDark}
-              onGetStarted={(targetMode) => {
-                setAuthModalMode(targetMode || "signup");
-                setShowAuthModal(true);
-              }}
-              onOpenPricing={() => setShowPricingModal(true)}
-            />
-          </motion.div>
+          <div className="relative w-full z-10">
+            {/* Transisi gradasi: MeshDrift melebur mulus ke latar hitam Footer */}
+            <div className="w-full h-20 sm:h-32 bg-gradient-to-b from-transparent via-black/70 to-black pointer-events-none -mb-px" />
+
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false, amount: 0.05, margin: "-40px 0px -40px 0px" }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-black"
+            >
+              <Footer01
+                isDark={isDark}
+                onGetStarted={(targetMode) => {
+                  setAuthModalMode(targetMode || "signup");
+                  setShowAuthModal(true);
+                }}
+                onOpenPricing={() => setShowPricingModal(true)}
+              />
+            </motion.div>
+          </div>
 
           <AuthModal
             isOpen={showAuthModal}

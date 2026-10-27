@@ -141,6 +141,22 @@ export function HomeFeatureSections({
   isDark = true,
 }: HomeFeatureSectionsProps) {
   const [activeTabId, setActiveTabId] = useState<string>("card-chat");
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+
+  // Otomatis berpindah fitur secara berkala (setiap 4.5 detik) tanpa harus diklik manual
+  useEffect(() => {
+    if (isPaused) return;
+
+    const interval = setInterval(() => {
+      setActiveTabId((currentId) => {
+        const currentIndex = FEATURE_ITEMS.findIndex((f) => f.id === currentId);
+        const nextIndex = (currentIndex + 1) % FEATURE_ITEMS.length;
+        return FEATURE_ITEMS[nextIndex].id;
+      });
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
 
   // Dengarkan event navigasi (misal klik menu di navbar atas)
   useEffect(() => {
@@ -164,10 +180,10 @@ export function HomeFeatureSections({
     <section id="section-features" className="scroll-mt-24 relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
       {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.3, margin: "-20px 0px" }}
-        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-10 sm:mb-12"
       >
         <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
@@ -181,8 +197,14 @@ export function HomeFeatureSections({
         </p>
       </motion.div>
 
-      {/* ─── FITUR TABS SELECTOR (Pill Buttons) ──────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10 sm:mb-14">
+      {/* ─── FITUR TABS SELECTOR (Pill Buttons dengan Auto-Cycle Progress) ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+        transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+        className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10 sm:mb-14"
+      >
         {FEATURE_ITEMS.map((item) => {
           const isActive = activeTabId === item.id;
           return (
@@ -190,20 +212,40 @@ export function HomeFeatureSections({
               key={item.id}
               type="button"
               onClick={() => setActiveTabId(item.id)}
-              className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer relative ${
+              className={`relative px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer overflow-hidden ${
                 isActive
                   ? "bg-white text-black shadow-lg scale-105"
                   : "bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10"
               }`}
             >
-              <span>{item.tabLabel}</span>
+              {/* Indikator progress rotasi otomatis pada tab aktif */}
+              {isActive && !isPaused && (
+                <motion.span
+                  key={`progress-${item.id}`}
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 4.5, ease: "linear" }}
+                  className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-black/35 rounded-full"
+                />
+              )}
+              <span className="relative z-10">{item.tabLabel}</span>
             </button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* ─── SELECTED FEATURE SHOWCASE DISPLAY ──────────────────────────────── */}
-      <div className="relative min-h-[480px]">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+        transition={{ duration: 0.65, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+        className="relative min-h-[460px]"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={() => setIsPaused(true)}
+        onTouchEnd={() => setIsPaused(false)}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={activeItem.id}
@@ -285,7 +327,7 @@ export function HomeFeatureSections({
             </div>
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
     </section>
   );
 }
