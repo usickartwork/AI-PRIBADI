@@ -46,13 +46,33 @@
   scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
+:root,
 html,
 body {
-  height: 100%;
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+}
+
+html,
+body {
   min-height: 100%;
   background-color: var(--background);
   color: var(--foreground);
   overflow-x: hidden;
+}
+
+.dark html,
+html.dark,
+.dark body,
+body.dark {
+  background-color: #000000;
+}
+
+#page-1-container {
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
 }
 
 body {

@@ -860,6 +860,69 @@ export default function Home() {
       setSidebarOpen(true);
     }
   }, []);
+
+  // ─── CLAMP OVERSCROLL BOUNCE ON MOBILE (ATAS MENTOK & BAWAH MENTOK LANGSUNG STOP) ───
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let touchStartY = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - touchStartY;
+
+      // Check if target is inside an internal scrollable element
+      let el = e.target as HTMLElement | null;
+      let isInsideScrollable = false;
+      while (el && el !== document.body && el !== document.documentElement) {
+        const style = window.getComputedStyle(el);
+        const overflowY = style.overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight > el.clientHeight
+        ) {
+          isInsideScrollable = true;
+          const atTop = el.scrollTop <= 0 && deltaY > 0;
+          const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && deltaY < 0;
+          if (atTop || atBottom) {
+            if (e.cancelable) e.preventDefault();
+          }
+          break;
+        }
+        el = el.parentElement;
+      }
+
+      if (!isInsideScrollable) {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+        const innerHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+        // At top: jika sudah di paling atas dan mencoba scroll ke bawah lagi (deltaY > 0)
+        if (scrollTop <= 0 && deltaY > 0) {
+          if (e.cancelable) e.preventDefault();
+        }
+        // At bottom: jika sudah di paling bawah dan mencoba scroll ke atas lagi (deltaY < 0)
+        else if (scrollTop + innerHeight >= scrollHeight - 1 && deltaY < 0) {
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
@@ -4397,7 +4460,7 @@ export default function Home() {
       {!user ? (
         <div
           id="page-1-container"
-          className={`relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-[#fafafc] dark:bg-[#121215] ${
+          className={`relative w-full min-h-screen overflow-x-hidden overscroll-none scroll-smooth bg-black ${
             isDark ? "text-zinc-100" : "text-zinc-900"
           }`}
         >

@@ -83,7 +83,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#18181b" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
     { media: "(prefers-color-scheme: light)", color: "#fafafc" },
   ],
   interactiveWidget: "resizes-content",
@@ -95,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html
         lang="id"
         suppressHydrationWarning
-        className={`${satoshi.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
+        className={`${satoshi.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-black overscroll-none`}
       >
         <head>
           <link rel="preconnect" href="https://api.fontshare.com" />
@@ -112,7 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   try {
                     var saved = localStorage.getItem('usick-theme');
                     var isDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                    var color = isDark ? '#18181b' : '#fafafc';
+                    var color = isDark ? '#000000' : '#fafafc';
                     if (isDark) {
                       document.documentElement.classList.add('dark');
                       document.documentElement.style.colorScheme = 'dark';
@@ -128,7 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </head>
-        <body className="min-h-screen w-full overflow-x-hidden flex flex-col bg-[#fafafc] dark:bg-[#121215] text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
+        <body className="min-h-screen w-full overflow-x-hidden overscroll-none flex flex-col bg-[#fafafc] dark:bg-black text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
           {children}
         </body>
       </html>
