@@ -4420,10 +4420,17 @@ export default function Home() {
               }}
               onOpenPricing={() => setShowPricingModal(true)}
             />
-
-            {/* Transisi gradasi halus: Hitam Fitur melebur lembut ke MeshDrift kanvas bergerak */}
-            <div className="w-full h-28 sm:h-40 bg-gradient-to-b from-black via-black/75 to-transparent pointer-events-none -mb-16 sm:-mb-24 relative z-20" />
           </div>
+
+          {/* ─── TRANSISI GRADASI HALUS & LAPANG: HITAM FITUR MELEBUR KE MESHDRIFT ─── */}
+          <div
+            className="w-full h-44 sm:h-64 pointer-events-none relative z-10 -mt-px"
+            style={{
+              background:
+                "linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.85) 25%, rgba(0,0,0,0.4) 65%, transparent 100%)",
+            }}
+            aria-hidden="true"
+          />
 
           {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, FLOATING DI ATAS MESHDRIFT) ─── */}
           <motion.div
@@ -4432,7 +4439,7 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
             transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-            className="scroll-mt-10 relative w-full z-10"
+            className="scroll-mt-20 relative w-full z-10 pt-6 sm:pt-12 pb-20 sm:pb-28"
           >
             <HomeInteractiveChat
               isDark={isDark}
