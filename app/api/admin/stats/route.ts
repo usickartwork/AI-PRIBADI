@@ -93,6 +93,55 @@ export async function GET() {
       console.warn("[admin/stats] Gagal membaca tabel subscriptions:", subErr);
     }
 
+    // ─── 3b. AMBIL DATA USER HOLDS DARI SUPABASE ─────────────────────────────
+    const userHoldsMap = new Map<
+      string,
+      { isHeld: boolean; expiresAt: string | null; reason: string | null }
+    >();
+    try {
+      const { data: holdsData } = await supabaseAdmin
+        .from("user_holds")
+        .select("user_id, is_held, expires_at, reason");
+
+      if (Array.isArray(holdsData)) {
+        const nowMs = Date.now();
+        for (const h of holdsData) {
+          let active = Boolean(h.is_held);
+          if (active && h.expires_at) {
+            const expMs = new Date(h.expires_at).getTime();
+            if (expMs <= nowMs) {
+              active = false;
+            }
+          }
+          if (active) {
+            userHoldsMap.set(h.user_id, {
+              isHeld: true,
+              expiresAt: h.expires_at || null,
+              reason: h.reason || null,
+            });
+          }
+        }
+      }
+    } catch (holdErr) {
+      console.warn("[admin/stats] Gagal membaca tabel user_holds:", holdErr);
+    }
+
+    // ─── 3c. AMBIL STATUS MAINTENANCE MODE GLOBAL ────────────────────────────
+    let isMaintenanceActive = false;
+    try {
+      const { data: maintData } = await supabaseAdmin
+        .from("system_maintenance")
+        .select("is_enabled")
+        .eq("id", "global_config")
+        .maybeSingle();
+
+      if (maintData) {
+        isMaintenanceActive = Boolean(maintData.is_enabled);
+      }
+    } catch (maintErr) {
+      console.warn("[admin/stats] Gagal membaca status system_maintenance:", maintErr);
+    }
+
     // ─── 4. AMBIL METRIK AI DARI CREDIT_TRANSACTIONS ─────────────────────────
     let totalAiRequests = 0;
     let totalInputTokens = 0;
@@ -195,6 +244,7 @@ export async function GET() {
         u.emailAddresses?.[0];
       const isVerified = primaryEmail?.verification?.status === "verified";
       const userSub = subscriptionMap.get(u.id);
+      const userHold = userHoldsMap.get(u.id);
 
       return {
         id: u.id,
@@ -206,6 +256,9 @@ export async function GET() {
         status: userSub?.status || "active",
         createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : null,
         lastSignInAt: u.lastSignInAt ? new Date(u.lastSignInAt).toISOString() : null,
+        isHeld: Boolean(userHold?.isHeld),
+        heldExpiresAt: userHold?.expiresAt || null,
+        heldReason: userHold?.reason || null,
       };
     });
 
@@ -246,6 +299,16 @@ export async function GET() {
       });
     }
 
+    if (isMaintenanceActive) {
+      alerts.push({
+        id: "alert-maintenance-active",
+        level: "warning",
+        title: "Mode Pemeliharaan (Maintenance) Sedang Aktif",
+        message: "Akses website untuk seluruh pengguna biasa saat ini dibatasi. Hanya admin yang dapat mengakses website.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     if (alerts.length === 0) {
       alerts.push({
         id: "alert-all-systems-normal",
@@ -270,6 +333,7 @@ export async function GET() {
           freeUsers: Math.max(0, (totalUsersCount || formattedUsers.length) - proSubscribersCount),
           totalAiRequests,
           totalTokensOverall,
+          maintenanceActive: isMaintenanceActive,
           services: {
             database: {
               status: isDbHealthy ? "online" : "offline",

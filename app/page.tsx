@@ -61,6 +61,14 @@ const AdminWorkspace = dynamic(
   () => import("./components/AdminWorkspace").then((m) => m.AdminWorkspace),
   { ssr: false }
 );
+const MaintenanceScreen = dynamic(
+  () => import("./components/MaintenanceScreen").then((m) => m.MaintenanceScreen),
+  { ssr: false }
+);
+const UserHoldScreen = dynamic(
+  () => import("./components/UserHoldScreen").then((m) => m.UserHoldScreen),
+  { ssr: false }
+);
 const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
 const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
 const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
@@ -1502,6 +1510,54 @@ export default function Home() {
 
   // Pemeriksaan hak akses Admin Usick One (hanya untuk visibilitas UI sidebar)
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Maintenance & User Hold)
+  const [systemAccess, setSystemAccess] = useState<{
+    maintenance: boolean;
+    isHeld: boolean;
+    isAdmin: boolean;
+    loaded: boolean;
+  }>({
+    maintenance: false,
+    isHeld: false,
+    isAdmin: false,
+    loaded: false,
+  });
+
+  const checkSystemStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/system/status", {
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const serverIsAdmin = Boolean(json.isAdmin);
+        setSystemAccess({
+          maintenance: Boolean(json.maintenance),
+          isHeld: Boolean(json.isHeld),
+          isAdmin: serverIsAdmin,
+          loaded: true,
+        });
+        if (serverIsAdmin) {
+          setIsAdmin(true);
+        }
+      }
+    } catch {
+      // Fail-open pada kegagalan jaringan frontend agar tidak langsung membuat browser error
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSystemStatus();
+    const interval = setInterval(checkSystemStatus, 30_000);
+    return () => clearInterval(interval);
+  }, [checkSystemStatus]);
+
+  useEffect(() => {
+    if (isClerkLoaded) {
+      checkSystemStatus();
+    }
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser, checkSystemStatus]);
 
   useEffect(() => {
     if (!isClerkLoaded || !isClerkSignedIn || !clerkUser) {
@@ -4477,6 +4533,18 @@ export default function Home() {
       </div>
     );
   };
+
+  // ─── AKSES DIBATASI: USER HOLD / MAINTENANCE MODE ────────────────────────
+  // Sesuai brief: Jika pengguna terkena User Hold atau Maintenance Mode aktif (dan bukan admin),
+  // tampilkan layar pembatasan murni berupa tulisan saja tanpa card/panel/tombol.
+  if (systemAccess.loaded && !systemAccess.isAdmin && !isAdmin) {
+    if (systemAccess.isHeld) {
+      return <UserHoldScreen isDark={isDark} />;
+    }
+    if (systemAccess.maintenance) {
+      return <MaintenanceScreen isDark={isDark} />;
+    }
+  }
 
   // ─── STEP 1 & 2: UNREGISTERED / UNAUTHENTICATED VISITORS ──────────────────
   // Menampilkan Page 1 (halaman perkenalan murni tanpa panel dashboard sebelah kiri)

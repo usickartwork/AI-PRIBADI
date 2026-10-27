@@ -17,7 +17,10 @@ import {
   Sparkles,
   Layers,
   HelpCircle,
-  Clock,
+  Lock,
+  Unlock,
+  Power,
+  X,
 } from "lucide-react";
 
 interface AdminWorkspaceProps {
@@ -39,6 +42,7 @@ interface AdminStatsResponse {
     freeUsers: number;
     totalAiRequests: number;
     totalTokensOverall: number;
+    maintenanceActive: boolean;
     services: {
       database: {
         status: "online" | "offline";
@@ -63,6 +67,9 @@ interface AdminStatsResponse {
       status: string;
       createdAt: string | null;
       lastSignInAt: string | null;
+      isHeld: boolean;
+      heldExpiresAt: string | null;
+      heldReason: string | null;
     }>;
   };
   aiUsage: {
@@ -156,8 +163,168 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAdminStats();
   }, [fetchAdminStats]);
+
+  // ─── MAINTENANCE MODE ACTIONS ───────────────────────────────────────────
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [isTogglingMaintenance, setIsTogglingMaintenance] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+
+  const handleToggleMaintenance = async () => {
+    if (!data) return;
+    setIsTogglingMaintenance(true);
+    setMaintenanceError(null);
+    const nextState = !data.overview.maintenanceActive;
+
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: nextState }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal mengubah status mode pemeliharaan.");
+      }
+
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              overview: {
+                ...prev.overview,
+                maintenanceActive: nextState,
+              },
+            }
+          : prev
+      );
+      setShowMaintenanceModal(false);
+      void fetchAdminStats(true);
+    } catch (err: unknown) {
+      setMaintenanceError(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsTogglingMaintenance(false);
+    }
+  };
+
+  // ─── USER HOLD ACTIONS ──────────────────────────────────────────────────
+  type UserListItem = AdminStatsResponse["users"]["list"][number];
+  const [holdModalUser, setHoldModalUser] = useState<UserListItem | null>(null);
+  const [holdDuration, setHoldDuration] = useState<"24h" | "7d" | "30d" | "custom" | "indefinite">("24h");
+  const [customExpiresAt, setCustomExpiresAt] = useState("");
+  const [holdReason, setHoldReason] = useState("");
+  const [isSubmittingHold, setIsSubmittingHold] = useState(false);
+  const [holdError, setHoldError] = useState<string | null>(null);
+
+  const handleConfirmHold = async () => {
+    if (!holdModalUser) return;
+    setIsSubmittingHold(true);
+    setHoldError(null);
+
+    try {
+      const res = await fetch("/api/admin/user-hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: holdModalUser.id,
+          userEmail: holdModalUser.email,
+          duration: holdDuration,
+          customExpiresAt: holdDuration === "custom" ? customExpiresAt : undefined,
+          reason: holdReason,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal mengunci akun pengguna.");
+      }
+
+      const resData = await res.json();
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          users: {
+            ...prev.users,
+            list: prev.users.list.map((u) =>
+              u.id === holdModalUser.id
+                ? {
+                    ...u,
+                    isHeld: true,
+                    heldExpiresAt: resData.expiresAt || null,
+                    heldReason: holdReason || null,
+                  }
+                : u
+            ),
+          },
+        };
+      });
+
+      setHoldModalUser(null);
+      setHoldReason("");
+      setCustomExpiresAt("");
+      setHoldDuration("24h");
+    } catch (err: unknown) {
+      setHoldError(err instanceof Error ? err.message : "Gagal mengunci akun.");
+    } finally {
+      setIsSubmittingHold(false);
+    }
+  };
+
+  // ─── USER UNHOLD ACTIONS ────────────────────────────────────────────────
+  const [unholdModalUser, setUnholdModalUser] = useState<UserListItem | null>(null);
+  const [isSubmittingUnhold, setIsSubmittingUnhold] = useState(false);
+  const [unholdError, setUnholdError] = useState<string | null>(null);
+
+  const handleConfirmUnhold = async () => {
+    if (!unholdModalUser) return;
+    setIsSubmittingUnhold(true);
+    setUnholdError(null);
+
+    try {
+      const res = await fetch("/api/admin/user-unhold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: unholdModalUser.id,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal membuka penguncian akun.");
+      }
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          users: {
+            ...prev.users,
+            list: prev.users.list.map((u) =>
+              u.id === unholdModalUser.id
+                ? {
+                    ...u,
+                    isHeld: false,
+                    heldExpiresAt: null,
+                    heldReason: null,
+                  }
+                : u
+            ),
+          },
+        };
+      });
+
+      setUnholdModalUser(null);
+    } catch (err: unknown) {
+      setUnholdError(err instanceof Error ? err.message : "Gagal membuka penguncian.");
+    } finally {
+      setIsSubmittingUnhold(false);
+    }
+  };
 
   // Styling helper tokens
   const bgCard = isDark
@@ -168,7 +335,6 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
   const textMuted = isDark ? "text-zinc-500" : "text-zinc-400";
   const tableHeaderBg = isDark ? "bg-zinc-900/90 text-zinc-400" : "bg-zinc-100 text-zinc-600";
   const tableRowHover = isDark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]";
-  const tableBorder = isDark ? "border-white/5" : "border-black/5";
 
   // Filtered users for Users tab
   const filteredUsers = (data?.users.list || []).filter((u) => {
@@ -372,6 +538,71 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                   </div>
                 </div>
 
+                {/* ─── FITUR B: MAINTENANCE MODE ON/OFF CONTROL CARD ─── */}
+                <div
+                  className={`p-5 rounded-2xl ${bgCard} flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all`}
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div
+                      className={`p-2.5 rounded-xl shrink-0 ${
+                        data.overview.maintenanceActive
+                          ? isDark
+                            ? "bg-white text-black"
+                            : "bg-black text-white"
+                          : isDark
+                          ? "bg-white/10 text-zinc-300"
+                          : "bg-black/10 text-zinc-700"
+                      }`}
+                    >
+                      <Power className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className={`text-sm font-semibold ${textTitle}`}>
+                          Mode Pemeliharaan (Maintenance Mode)
+                        </h3>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${
+                            data.overview.maintenanceActive
+                              ? isDark
+                                ? "bg-white text-black border-white"
+                                : "bg-black text-white border-black"
+                              : isDark
+                              ? "bg-zinc-800 text-zinc-400 border-zinc-700"
+                              : "bg-zinc-200 text-zinc-600 border-zinc-300"
+                          }`}
+                        >
+                          {data.overview.maintenanceActive ? "Maintenance ON" : "Maintenance OFF"}
+                        </span>
+                      </div>
+                      <p className={`text-xs ${textSub}`}>
+                        {data.overview.maintenanceActive
+                          ? "Mode pemeliharaan sedang aktif. Akses website untuk seluruh pengguna biasa dibatasi. Hanya akun admin sah yang dapat mengakses sistem."
+                          : "Sistem beroperasi normal. Seluruh pengguna biasa dapat masuk dan menggunakan seluruh fitur One Mind."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintenanceError(null);
+                      setShowMaintenanceModal(true);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold shrink-0 border transition cursor-pointer ${
+                      data.overview.maintenanceActive
+                        ? isDark
+                          ? "bg-white text-black hover:bg-zinc-200 border-white"
+                          : "bg-black text-white hover:bg-zinc-800 border-black"
+                        : isDark
+                        ? "border-white/15 hover:bg-white/10 text-zinc-200"
+                        : "border-black/15 hover:bg-black/10 text-zinc-800"
+                    }`}
+                  >
+                    {data.overview.maintenanceActive ? "Nonaktifkan Maintenance" : "Aktifkan Maintenance"}
+                  </button>
+                </div>
+
                 {/* Service Health Snapshot */}
                 <div className={`p-5 rounded-2xl ${bgCard} space-y-4`}>
                   <h3 className={`text-sm font-semibold ${textTitle}`}>Status Layanan Inti</h3>
@@ -504,14 +735,16 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                           <th className="px-4 py-3 font-semibold">Pengguna</th>
                           <th className="px-4 py-3 font-semibold">Email & Verifikasi</th>
                           <th className="px-4 py-3 font-semibold">Paket</th>
+                          <th className="px-4 py-3 font-semibold">Status Akses</th>
                           <th className="px-4 py-3 font-semibold">Bergabung</th>
                           <th className="px-4 py-3 font-semibold">Terakhir Aktif</th>
+                          <th className="px-4 py-3 font-semibold text-right">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {filteredUsers.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className={`px-4 py-8 text-center ${textMuted}`}>
+                            <td colSpan={7} className={`px-4 py-8 text-center ${textMuted}`}>
                               Tidak ada pengguna yang cocok dengan pencarian.
                             </td>
                           </tr>
@@ -553,6 +786,31 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                                   {u.plan}
                                 </span>
                               </td>
+                              <td className="px-4 py-3">
+                                {u.isHeld ? (
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                      isDark
+                                        ? "bg-zinc-800 text-zinc-200 border-zinc-600"
+                                        : "bg-zinc-200 text-zinc-800 border-zinc-300"
+                                    }`}
+                                    title={u.heldExpiresAt ? `Kedaluwarsa: ${new Date(u.heldExpiresAt).toLocaleString("id-ID")}` : "Tanpa batas waktu"}
+                                  >
+                                    <Lock className="w-3 h-3" />
+                                    On Hold
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={`inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md border ${
+                                      isDark
+                                        ? "bg-zinc-900/50 text-zinc-400 border-zinc-800"
+                                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                                    }`}
+                                  >
+                                    Normal
+                                  </span>
+                                )}
+                              </td>
                               <td className={`px-4 py-3 ${textSub}`}>
                                 {u.createdAt
                                   ? new Date(u.createdAt).toLocaleDateString("id-ID", {
@@ -572,6 +830,48 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                                       minute: "2-digit",
                                     })
                                   : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {u.email === data.admin.email ? (
+                                  <span className={`text-[11px] ${textMuted}`}>Akun Anda</span>
+                                ) : u.isHeld ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setUnholdError(null);
+                                      setUnholdModalUser(u);
+                                    }}
+                                    title="Unhold (Buka Kunci Akun)"
+                                    className={`p-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 text-xs ${
+                                      isDark
+                                        ? "border-white/10 hover:bg-white/10 text-white"
+                                        : "border-black/10 hover:bg-black/10 text-black"
+                                    }`}
+                                  >
+                                    <Unlock className="w-3.5 h-3.5" />
+                                    <span>Unhold</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setHoldError(null);
+                                      setHoldReason("");
+                                      setCustomExpiresAt("");
+                                      setHoldDuration("24h");
+                                      setHoldModalUser(u);
+                                    }}
+                                    title="Hold User (Kunci Akun)"
+                                    className={`p-1.5 rounded-lg border transition cursor-pointer inline-flex items-center gap-1.5 text-xs ${
+                                      isDark
+                                        ? "border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white"
+                                        : "border-black/10 hover:bg-black/10 text-zinc-700 hover:text-black"
+                                    }`}
+                                  >
+                                    <Lock className="w-3.5 h-3.5" />
+                                    <span>Hold</span>
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -911,6 +1211,303 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
           </div>
         ) : null}
       </div>
+
+      {/* ─── MODAL 1: KONFIRMASI MAINTENANCE MODE ──────────────────────────── */}
+      {showMaintenanceModal && data && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl space-y-4 ${
+              isDark ? "bg-zinc-900 border-white/15 text-white" : "bg-white border-black/15 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  }`}
+                >
+                  <Power className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-semibold">
+                  {data.overview.maintenanceActive
+                    ? "Nonaktifkan Maintenance Mode?"
+                    : "Aktifkan Maintenance Mode?"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMaintenanceModal(false)}
+                disabled={isTogglingMaintenance}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className={`text-xs leading-relaxed ${textSub}`}>
+              {data.overview.maintenanceActive
+                ? "Mode pemeliharaan akan dinonaktifkan. Seluruh pengguna biasa dapat kembali masuk dan menggunakan One Mind secara normal."
+                : "PERINGATAN: Mengaktifkan mode pemeliharaan akan membatasi akses ke website dan seluruh API untuk seluruh pengguna biasa. Hanya akun admin terverifikasi yang dapat mengakses website. Apakah Anda yakin?"}
+            </p>
+
+            {maintenanceError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-400 text-xs">
+                {maintenanceError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMaintenanceModal(false)}
+                disabled={isTogglingMaintenance}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                  isDark
+                    ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                    : "border-black/10 hover:bg-black/5 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleMaintenance}
+                disabled={isTogglingMaintenance}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                } disabled:opacity-50`}
+              >
+                {isTogglingMaintenance
+                  ? "Memproses..."
+                  : data.overview.maintenanceActive
+                  ? "Nonaktifkan"
+                  : "Aktifkan Maintenance"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 2: USER HOLD SETUP ───────────────────────────────────────── */}
+      {holdModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div
+            className={`w-full max-w-lg p-6 rounded-2xl border shadow-2xl space-y-4 my-8 ${
+              isDark ? "bg-zinc-900 border-white/15 text-white" : "bg-white border-black/15 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  }`}
+                >
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Kunci Akun Pengguna (Hold)</h3>
+                  <p className={`text-[11px] ${textSub}`}>
+                    {holdModalUser.fullName} · {holdModalUser.email}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHoldModalUser(null)}
+                disabled={isSubmittingHold}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Pilihan Durasi */}
+            <div className="space-y-2">
+              <label className={`text-xs font-medium ${textTitle}`}>Pilih Durasi Penguncian</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { id: "24h", label: "24 Jam" },
+                  { id: "7d", label: "7 Hari" },
+                  { id: "30d", label: "30 Hari" },
+                  { id: "custom", label: "Kustom Waktu" },
+                  { id: "indefinite", label: "Tanpa Batas" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setHoldDuration(opt.id as typeof holdDuration)}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium border text-center transition cursor-pointer ${
+                      holdDuration === opt.id
+                        ? isDark
+                          ? "bg-white text-black border-white"
+                          : "bg-black text-white border-black"
+                        : isDark
+                        ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                        : "border-black/10 hover:bg-black/5 text-zinc-700"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Input Waktu Kustom */}
+            {holdDuration === "custom" && (
+              <div className="space-y-1.5 pt-1">
+                <label className={`text-xs font-medium ${textTitle}`}>
+                  Pilih Tanggal & Waktu Kedaluwarsa
+                </label>
+                <input
+                  type="datetime-local"
+                  value={customExpiresAt}
+                  onChange={(e) => setCustomExpiresAt(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl text-xs border outline-none transition ${
+                    isDark
+                      ? "bg-zinc-950/80 border-white/15 text-white focus:border-white/40"
+                      : "bg-zinc-50 border-black/15 text-black focus:border-black/40"
+                  }`}
+                />
+              </div>
+            )}
+
+            {/* Catatan Internal Opsional */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <label className={`text-xs font-medium ${textTitle}`}>
+                  Catatan Internal (Opsional)
+                </label>
+                <span className={`text-[10px] ${textMuted}`}>Khusus Admin</span>
+              </div>
+              <textarea
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                placeholder="Alasan penguncian untuk dokumentasi admin (tidak akan pernah ditampilkan kepada pengguna)..."
+                rows={3}
+                className={`w-full px-3 py-2 rounded-xl text-xs border outline-none resize-none transition ${
+                  isDark
+                    ? "bg-zinc-950/80 border-white/15 text-white focus:border-white/40"
+                    : "bg-zinc-50 border-black/15 text-black focus:border-black/40"
+                }`}
+              />
+            </div>
+
+            <div
+              className={`p-3 rounded-xl border text-[11px] leading-relaxed ${
+                isDark ? "bg-zinc-950/50 border-white/5 text-zinc-400" : "bg-zinc-50 border-black/5 text-zinc-600"
+              }`}
+            >
+              Catatan: Halaman penguncian akun pengguna hanya akan menampilkan tulisan standar (&quot;Akun Dikunci&quot;) tanpa informasi tanggal berakhir atau alasan penguncian.
+            </div>
+
+            {holdError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-400 text-xs">
+                {holdError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setHoldModalUser(null)}
+                disabled={isSubmittingHold}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                  isDark
+                    ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                    : "border-black/10 hover:bg-black/5 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmHold}
+                disabled={isSubmittingHold || (holdDuration === "custom" && !customExpiresAt)}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                } disabled:opacity-50`}
+              >
+                {isSubmittingHold ? "Memproses..." : "Kunci Akun (Hold)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 3: USER UNHOLD CONFIRMATION ──────────────────────────────── */}
+      {unholdModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl space-y-4 ${
+              isDark ? "bg-zinc-900 border-white/15 text-white" : "bg-white border-black/15 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  }`}
+                >
+                  <Unlock className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-semibold">Buka Kunci Akun (Unhold)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnholdModalUser(null)}
+                disabled={isSubmittingUnhold}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className={`text-xs leading-relaxed ${textSub}`}>
+              Buka penguncian untuk <span className={`font-semibold ${textTitle}`}>{unholdModalUser.fullName}</span> ({unholdModalUser.email})? Pengguna akan dapat langsung kembali masuk dan mengakses One Mind.
+            </p>
+
+            {unholdError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-400 text-xs">
+                {unholdError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setUnholdModalUser(null)}
+                disabled={isSubmittingUnhold}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                  isDark
+                    ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                    : "border-black/10 hover:bg-black/5 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmUnhold}
+                disabled={isSubmittingUnhold}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                } disabled:opacity-50`}
+              >
+                {isSubmittingUnhold ? "Memproses..." : "Buka Kunci Akun"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

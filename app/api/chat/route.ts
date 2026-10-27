@@ -7,6 +7,7 @@ import { isModelAllowedForPlan, calculateCreditUsage } from "@/lib/pricing";
 import { getUserSubscription, deductCredits } from "@/lib/subscriptionServer";
 import { supabase } from "@/lib/supabase";
 import { getUsickOneKnowledgeContext } from "@/lib/usickKnowledge";
+import { validateUserAccess } from "@/lib/accessControl";
 
 // ─── Provider Configuration ───────────────────────────────────────────────────
 type ProviderConfig = {
@@ -302,6 +303,21 @@ export async function POST(request: Request) {
     }
   }
   if (!userId) userId = "guest";
+
+  // ── Access Control (Maintenance Mode & User Hold) ──────────────────────────
+  const accessCheck = await validateUserAccess({ userId });
+  if (!accessCheck.allowed) {
+    return Response.json(
+      {
+        error: accessCheck.error || "Akses dibatasi.",
+        reason: accessCheck.reason,
+      },
+      {
+        status: accessCheck.status,
+        headers: CORS_HEADERS,
+      }
+    );
+  }
 
   const userSub = await getUserSubscription(userId);
 
