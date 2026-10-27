@@ -168,16 +168,13 @@ export default function PricingLandingPage() {
       <Footer01 isDark={true} onGetStarted={openAuth} />
 
       {/* Auth Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <AuthModal
-            isDark={true}
-            initialMode={authMode}
-            onSuccess={() => setShowAuthModal(false)}
-            onClose={() => setShowAuthModal(false)}
-          />
-        )}
-      </AnimatePresence>
+      <AuthModal
+        isOpen={showAuthModal}
+        isDark={true}
+        initialMode={authMode}
+        onSuccess={() => setShowAuthModal(false)}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

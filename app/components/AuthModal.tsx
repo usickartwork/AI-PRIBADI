@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useClerk } from "@clerk/nextjs";
 import { Mail, Lock, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
@@ -10,11 +10,12 @@ import { BrainLogo } from "@/components/ui/brain-logo";
 type AuthModalProps = {
   isDark: boolean;
   initialMode?: "signin" | "signup";
+  isOpen?: boolean;
   onSuccess: () => void;
   onClose?: () => void;
 };
 
-export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
+export function AuthModal({ isDark, isOpen = true, onSuccess, onClose }: AuthModalProps) {
   const [identifier, setIdentifier] = useState(""); // email or username
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +26,38 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Video Ref untuk instant auto-play & time sync
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    v.muted = true;
+    v.defaultMuted = true;
+    v.playsInline = true;
+
+    // Sinkronkan waktu video dengan video latar belakang halaman 1 jika ada
+    try {
+      const heroVid = document.querySelector<HTMLVideoElement>("section video[src='/hero-bw-logo.mp4']");
+      if (heroVid && heroVid.currentTime > 0) {
+        v.currentTime = heroVid.currentTime;
+      }
+    } catch {}
+
+    const play = () => {
+      const p = v.play();
+      if (p !== undefined) {
+        p.catch(() => {});
+      }
+    };
+
+    play();
+    if (isOpen) {
+      play();
+    }
+  }, [isOpen]);
 
   // ─── CLERK OAUTH (GOOGLE & APPLE) HANDLER ───────────────────────────────────
   // Sign in dan Sign up terintegrasi: otomatis membuat akun baru jika belum terdaftar.
@@ -120,21 +153,35 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
 
   return (
     <motion.div
-      initial={{ x: "100%", opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: "100%", opacity: 0 }}
+      initial={false}
+      animate={{
+        x: isOpen ? "0%" : "100%",
+        opacity: isOpen ? 1 : 0,
+      }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      style={{
+        pointerEvents: isOpen ? "auto" : "none",
+      }}
       className="fixed inset-0 z-[100] flex flex-col md:flex-row w-full h-[100dvh] bg-[#09090b] text-white overflow-hidden select-none"
     >
       {/* ─── SISI KIRI: ANIMASI / VIDEO DARI HALAMAN 1 DENGAN TOMBOL KEMBALI ─── */}
-      <div className="relative w-full md:w-1/2 h-44 sm:h-52 md:h-full overflow-hidden shrink-0 bg-black">
+      <div className="relative w-full md:w-1/2 h-44 sm:h-52 md:h-full overflow-hidden shrink-0 bg-[#09090b]">
+        {/* Gambar Poster Resolusi Tinggi sebagai fallback instan (mencegah layar hitam sekejap pun) */}
+        <img
+          src="/hero-bw-poster.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
+        />
+
         {/* Background Video dari Halaman 1 */}
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
+          poster="/hero-bw-poster.jpg"
           className="absolute inset-0 w-full h-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
           src="/hero-bw-logo.mp4"
         />
