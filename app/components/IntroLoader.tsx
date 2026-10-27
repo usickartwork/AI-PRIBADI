@@ -103,11 +103,11 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
  * - Has a safety timeout (~4s) to ensure the user never gets stuck.
  */
 export function useAppInitializer({
-  authLoading,
+  authLoading = false,
   sessionsReady,
   subscriptionReady = true,
   minDurationMs = 2200,
-  safetyTimeoutMs = 4200,
+  safetyTimeoutMs = 5000,
   isReady = true,
 }: {
   authLoading?: boolean;
@@ -119,8 +119,10 @@ export function useAppInitializer({
 } = {}) {
   const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">("visible");
   const minTimePassedRef = useRef(false);
-  const isReadyRef = useRef(isReady);
-  isReadyRef.current = isReady;
+
+  const combinedReady = Boolean(isReady && !authLoading && subscriptionReady);
+  const isReadyRef = useRef(combinedReady);
+  isReadyRef.current = combinedReady;
 
   useEffect(() => {
     let unmountTimer: NodeJS.Timeout | null = null;
@@ -157,16 +159,16 @@ export function useAppInitializer({
     };
   }, [minDurationMs, safetyTimeoutMs]);
 
-  // When isReady changes to true, if min time already passed, trigger exit immediately
+  // When combinedReady changes to true, if min time already passed, trigger exit immediately
   useEffect(() => {
-    if (isReady && minTimePassedRef.current && introState === "visible") {
+    if (combinedReady && minTimePassedRef.current && introState === "visible") {
       setIntroState("exiting");
       const unmountTimer = setTimeout(() => {
         setIntroState("gone");
       }, 350);
       return () => clearTimeout(unmountTimer);
     }
-  }, [isReady, introState]);
+  }, [combinedReady, introState]);
 
   return {
     introState,

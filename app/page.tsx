@@ -744,6 +744,7 @@ export default function Home() {
     return null;
   });
   const [subscriptionReady, setSubscriptionReady] = useState(() => Boolean(subscription));
+  const [subscriptionLoadedForUser, setSubscriptionLoadedForUser] = useState<string | null>(() => subscription?.userId || null);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
@@ -783,8 +784,10 @@ export default function Home() {
       if (res.ok) {
         const data: UserSubscriptionInfo = await res.json();
         setSubscription(data);
+        setSubscriptionLoadedForUser(targetUserId);
         try {
-          if (isClerkSignedIn) {
+          if (isClerkSignedIn && targetUserId && targetUserId !== "guest") {
+            localStorage.setItem(`usick-user-subscription-${targetUserId}`, JSON.stringify(data));
             localStorage.setItem("usick-user-subscription", JSON.stringify(data));
           } else {
             localStorage.removeItem("usick-user-subscription");
@@ -795,6 +798,10 @@ export default function Home() {
       console.warn("Failed to load subscription:", err);
     } finally {
       setSubscriptionReady(true);
+      const curTarget = isClerkSignedIn ? (user?.id || clerkUser?.id || "") : "guest";
+      if (curTarget) {
+        setSubscriptionLoadedForUser(curTarget);
+      }
     }
   }, [isClerkLoaded, isClerkSignedIn, user?.id, clerkUser?.id]);
 
@@ -1099,10 +1106,29 @@ export default function Home() {
   const [heroVideoReady, setHeroVideoReady] = useState(false);
 
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
+  // Intro loading animation menutupi layar sampai data esensial selesai diproses:
+  // 1. Hero background video sudah siap.
+  // 2. Clerk auth sudah selesai memeriksa status sesi.
+  // 3. Jika user login: subscription khusus user ini harus sudah selesai dimuat dari server
+  //    sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker badge Pro / tab terkunci.
+  const isUserSubscriptionSettled = !isClerkSignedIn || Boolean(
+    subscriptionLoadedForUser &&
+    subscriptionLoadedForUser === (clerkUser?.id || user?.id) &&
+    subscription !== null
+  );
+
+  const isAppReady = Boolean(
+    heroVideoReady &&
+    isClerkLoaded &&
+    isUserSubscriptionSettled
+  );
+
   const { introState, isInitializing } = useAppInitializer({
-    isReady: heroVideoReady,
+    isReady: isAppReady,
+    authLoading: !isClerkLoaded,
+    subscriptionReady: isUserSubscriptionSettled,
     minDurationMs: 2200,
-    safetyTimeoutMs: 4000,
+    safetyTimeoutMs: 5000,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1439,6 +1465,20 @@ export default function Home() {
   useEffect(() => {
     if (!isClerkLoaded) return;
     if (isClerkSignedIn && clerkUser) {
+      // Pulihkan subscription khusus user ini dari cache lokal jika tersedia
+      try {
+        const userSpecificKey = `usick-user-subscription-${clerkUser.id}`;
+        const cachedUserSub = localStorage.getItem(userSpecificKey) || localStorage.getItem("usick-user-subscription");
+        if (cachedUserSub) {
+          const parsed = JSON.parse(cachedUserSub);
+          if (parsed && typeof parsed === "object" && parsed.plan && (parsed.userId === clerkUser.id || !parsed.userId)) {
+            setSubscription(parsed);
+            setSubscriptionLoadedForUser(clerkUser.id);
+            setSubscriptionReady(true);
+          }
+        }
+      } catch {}
+
       setUser({
         id: clerkUser.id,
         app_metadata: {},
@@ -1505,6 +1545,12 @@ export default function Home() {
     } catch {}
     setIsAdmin(false);
     setActiveView((prev) => (prev === "admin" ? "chats" : prev));
+    setSubscription(null);
+    setSubscriptionLoadedForUser(null);
+    setSubscriptionReady(false);
+    try {
+      localStorage.removeItem("usick-user-subscription");
+    } catch {}
     navPrefsSaveAbortRef.current?.abort();
     navPrefsSaveAbortRef.current = null;
     navPrefsOwnerRef.current = null;
