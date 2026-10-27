@@ -91,23 +91,25 @@ export const WordsPullUpMultiStyle = ({ segments, className = "", style }: Words
 };
 
 /* ---------------- Hero ---------------- */
-const CREAM = "#E1E0CC";
-const CREAM_MUTED = "rgba(225, 224, 204, 0.8)";
+const WHITE = "#ffffff";
+const WHITE_MUTED = "rgba(255, 255, 255, 0.75)";
 
 type NavAction = "signup" | "signin" | "pricing";
 
 interface NavItem {
   label: string;
+  tabId?: string;
   targetId?: string;
   action?: NavAction;
 }
 
 const navItems: NavItem[] = [
-  { label: "AI Chat", targetId: "section-chat" },
-  { label: "One Code", targetId: "section-code" },
-  { label: "Music", targetId: "section-music" },
-  { label: "Schedule", targetId: "section-schedule" },
-  { label: "Creative & Faith", targetId: "section-image" },
+  { label: "AI Chat", tabId: "chat" },
+  { label: "One Code", tabId: "code" },
+  { label: "Music", tabId: "music" },
+  { label: "Schedule", tabId: "schedule" },
+  { label: "Image", tabId: "image" },
+  { label: "Faith", tabId: "faith" },
   { label: "FAQ", targetId: "section-faq" },
   { label: "Harga", action: "pricing" },
   { label: "Sign In", action: "signin" },
@@ -130,6 +132,20 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
       onGetStarted?.(item.action);
       return;
     }
+
+    if (item.tabId) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("onemind:select-tab", { detail: item.tabId })
+        );
+      }
+      const el = document.getElementById("section-showcase");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+      return;
+    }
+
     if (item.targetId) {
       const el = document.getElementById(item.targetId);
       if (el) {
@@ -163,16 +179,16 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
 
         {/* Navbar */}
         <nav className="absolute left-1/2 top-0 z-20 -translate-x-1/2 max-w-[96vw]">
-          <div className="flex items-center gap-2 whitespace-nowrap rounded-b-2xl bg-black px-3 py-2 sm:gap-4 md:gap-7 md:rounded-b-3xl md:px-7 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 whitespace-nowrap rounded-b-2xl bg-black px-3 py-2 sm:gap-4 md:gap-6 md:rounded-b-3xl md:px-7 overflow-x-auto no-scrollbar">
             {navItems.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => handleNav(item)}
                 className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm font-medium hover:scale-105 active:scale-95"
-                style={{ color: CREAM_MUTED }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
+                style={{ color: WHITE_MUTED }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = WHITE_MUTED)}
               >
                 {item.label}
               </button>
@@ -186,7 +202,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
             <div className="col-span-12 lg:col-span-8">
               <h1
                 className="font-black leading-[0.82] tracking-[-0.095em] text-[24vw] sm:text-[22vw] md:text-[20vw] lg:text-[13vw] xl:text-[12.5vw] select-none"
-                style={{ color: CREAM, fontWeight: 900 }}
+                style={{ color: WHITE, fontWeight: 900 }}
               >
                 <WordsPullUp text="One Mind" showAsterisk wordSpacing="0.08em" />
               </h1>
@@ -198,7 +214,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 className="text-sm font-semibold uppercase tracking-[0.18em] sm:text-xs md:text-sm"
-                style={{ color: CREAM }}
+                style={{ color: WHITE }}
               >
                 Infinite Intelligence.
               </motion.p>
@@ -208,7 +224,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 className="-mt-2 text-xs sm:text-sm md:text-base"
-                style={{ lineHeight: 1.25, color: "rgba(225, 224, 204, 0.7)" }}
+                style={{ lineHeight: 1.25, color: "rgba(255, 255, 255, 0.75)" }}
               >
                 Semua model AI dalam satu ruang kerja: Multi-Model AI Chat, Voice Assistant Realtime, Code Studio &amp;
                 PRD, Image Studio, Music, Messages Realtime, Smart Schedule, hingga Catatan Pintar — tanpa berpindah
@@ -221,12 +237,12 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-5 pr-1 text-sm font-medium text-black transition-all hover:gap-3 sm:text-base"
-                style={{ backgroundColor: CREAM }}
+                className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-5 pr-1 text-sm font-medium text-black transition-all hover:gap-3 sm:text-base hover:bg-zinc-100"
+                style={{ backgroundColor: WHITE }}
               >
                 Get Started
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black transition-transform group-hover:scale-110 sm:h-10 sm:w-10">
-                  <ArrowRight className="h-4 w-4" style={{ color: CREAM }} />
+                  <ArrowRight className="h-4 w-4" style={{ color: WHITE }} />
                 </span>
               </motion.button>
             </div>
