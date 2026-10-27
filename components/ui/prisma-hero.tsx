@@ -277,9 +277,18 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                 <BrainLogo className="w-8 h-8 sm:w-9 sm:h-9 text-white group-hover:scale-110 transition-transform" />
               </div>
 
-              {/* ─── EXACTLY 4 NAV ITEMS: Fitur ▾, USICK ONE, Pricing, FAQ ────────── */}
+              {/* ─── EXACTLY 4 NAV ITEMS: Usick One, Fitur ▾, Pricing, FAQ ────────── */}
               <nav className="flex items-center gap-1 sm:gap-2 md:gap-3.5 lg:gap-4 py-1">
-                {/* 1. Fitur Dropdown (Pure text list, no boxy containers) */}
+                {/* 1. Usick One */}
+                <button
+                  type="button"
+                  onClick={() => handleNavClick("section-chat")}
+                  className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
+                >
+                  Usick One
+                </button>
+
+                {/* 2. Fitur Dropdown (Pure text list, no boxy containers) */}
                 <div ref={featuresRef} className="relative">
                   <button
                     type="button"
@@ -321,15 +330,6 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                     )}
                   </AnimatePresence>
                 </div>
-
-                {/* 2. USICK ONE */}
-                <button
-                  type="button"
-                  onClick={() => handleNavClick("section-chat")}
-                  className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-semibold tracking-wide text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
-                >
-                  USICK ONE
-                </button>
 
                 {/* 3. Pricing */}
                 <button
