@@ -398,6 +398,14 @@ function warmUpAudio() {
   } catch {}
 }
 
+interface NavPillStyle {
+  left: number;
+  width: number;
+  height: number;
+  opacity: number;
+}
+let globalMessagesNavPill: NavPillStyle | null = null;
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 export default function MessagesWorkspace({
   isDark,
@@ -530,12 +538,11 @@ export default function MessagesWorkspace({
   // Faith-style sliding morph pill for bottom navigation
   const navContainerRef = useRef<HTMLDivElement>(null);
   const navTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [navPillStyle, setNavPillStyle] = useState<{ left: number; width: number; height: number; opacity: number }>({
-    left: 0,
-    width: 0,
-    height: 0,
-    opacity: 0,
+  const [navPillStyle, setNavPillStyle] = useState<NavPillStyle>(() => {
+    if (globalMessagesNavPill) return globalMessagesNavPill;
+    return { left: 0, width: 0, height: 0, opacity: 0 };
   });
+  const [hasRenderedPill, setHasRenderedPill] = useState(() => globalMessagesNavPill !== null);
 
   const activeNavIdx = useMemo(() => {
     if (tab === "friends" || tab === "requests") return 1;
@@ -545,19 +552,22 @@ export default function MessagesWorkspace({
 
   const updateNavPill = useCallback(() => {
     const activeIndex = activeNavIdx >= 0 ? activeNavIdx : 0;
-    if (navTabRefs.current[activeIndex] && navContainerRef.current) {
-      const tabEl = navTabRefs.current[activeIndex]!;
-      const containerEl = navContainerRef.current;
+    const tabEl = navTabRefs.current[activeIndex];
+    const containerEl = navContainerRef.current;
+    if (tabEl && containerEl) {
       const tabRect = tabEl.getBoundingClientRect();
       const containerRect = containerEl.getBoundingClientRect();
 
-      if (tabRect.width > 0) {
-        setNavPillStyle({
+      if (tabRect.width > 0 && containerRect.width > 0) {
+        const nextStyle: NavPillStyle = {
           left: tabRect.left - containerRect.left,
           width: tabRect.width,
           height: tabRect.height,
           opacity: 1,
-        });
+        };
+        globalMessagesNavPill = nextStyle;
+        setNavPillStyle(nextStyle);
+        setHasRenderedPill(true);
       }
     }
   }, [activeNavIdx]);
@@ -566,15 +576,37 @@ export default function MessagesWorkspace({
     updateNavPill();
   }, [updateNavPill]);
 
+  // When workspace becomes visible, ensure pill is measured immediately without layout glitch
   useEffect(() => {
-    const t1 = setTimeout(updateNavPill, 40);
-    const t2 = setTimeout(updateNavPill, 150);
-    const t3 = setTimeout(updateNavPill, 350);
-    window.addEventListener("resize", updateNavPill);
+    if (!isVisible) return;
+    updateNavPill();
+    const raf = requestAnimationFrame(() => {
+      updateNavPill();
+    });
+    const t1 = setTimeout(updateNavPill, 30);
+    const t2 = setTimeout(updateNavPill, 100);
+    const t3 = setTimeout(updateNavPill, 250);
     return () => {
+      cancelAnimationFrame(raf);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+    };
+  }, [isVisible, updateNavPill]);
+
+  // Container resize observer & window resize
+  useEffect(() => {
+    const el = navContainerRef.current;
+    let ro: ResizeObserver | null = null;
+    if (el && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => {
+        updateNavPill();
+      });
+      ro.observe(el);
+    }
+    window.addEventListener("resize", updateNavPill);
+    return () => {
+      if (ro) ro.disconnect();
       window.removeEventListener("resize", updateNavPill);
     };
   }, [updateNavPill]);
@@ -2742,105 +2774,6 @@ export default function MessagesWorkspace({
               </div>
             )}
 
-            {/* Faith-style Sliding Pill Navigation right below Messages */}
-            <div className="mt-3 mb-1">
-              <nav className="w-full select-none bg-transparent">
-                <div
-                  ref={navContainerRef}
-                  className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
-                >
-                  {/* Sliding Morph Pill Indicator */}
-                  <div
-                    className={`absolute rounded-full shadow-xs pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                      isDark ? "bg-white" : "bg-[#111113]"
-                    }`}
-                    style={{
-                      transform: `translate3d(${navPillStyle.left}px, -50%, 0)`,
-                      width: `${navPillStyle.width}px`,
-                      height: `${navPillStyle.height}px`,
-                      opacity: navPillStyle.opacity,
-                      left: 0,
-                      top: "50%",
-                    }}
-                  />
-
-                  {[
-                    { id: "chats" as const, label: "Chat", icon: MessageSquare, badge: totalUnread },
-                    { id: "friends" as const, label: "Friend", icon: User, badge: requestCount },
-                    { id: "add" as const, label: "Tambah", icon: Plus, badge: 0 },
-                  ].map((item, idx) => {
-                    const Icon = item.icon;
-                    const isActive = activeNavIdx === idx;
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        ref={(el) => {
-                          navTabRefs.current[idx] = el;
-                        }}
-                        onClick={() => {
-                          setTab(item.id);
-                          if (navTabRefs.current[idx] && navContainerRef.current) {
-                            const tabRect = navTabRefs.current[idx]!.getBoundingClientRect();
-                            const containerRect = navContainerRef.current.getBoundingClientRect();
-                            if (tabRect.width > 0) {
-                              setNavPillStyle({
-                                left: tabRect.left - containerRect.left,
-                                width: tabRect.width,
-                                height: tabRect.height,
-                                opacity: 1,
-                              });
-                            }
-                          }
-                        }}
-                        className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
-                          isActive
-                            ? isDark
-                              ? "bg-transparent text-black px-4 py-2"
-                              : "bg-transparent text-white px-4 py-2"
-                            : isDark
-                            ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
-                            : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
-                        }`}
-                        title={item.label}
-                        aria-label={item.label}
-                      >
-                        <Icon
-                          size={isActive ? 18 : 21}
-                          strokeWidth={isActive ? 2.2 : 1.9}
-                          className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
-                            isActive
-                              ? isDark
-                                ? "text-black scale-105"
-                                : "text-white scale-105"
-                              : isDark
-                              ? "text-[#8E8E93] hover:text-white scale-100"
-                              : "text-[#55555A] hover:text-[#111113] scale-100"
-                          }`}
-                        />
-                        <span
-                          className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                            isActive
-                              ? "max-w-[75px] opacity-100 ml-1.5"
-                              : "max-w-0 opacity-0 ml-0 pointer-events-none"
-                          }`}
-                        >
-                          {item.label}
-                        </span>
-
-                        {/* Badge if any */}
-                        {!!item.badge && item.badge > 0 && !isActive && (
-                          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
-                            {item.badge > 99 ? "99+" : item.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </nav>
-            </div>
           </div>
 
           {/* Scrollable list area (borderless above and below) */}
@@ -2849,6 +2782,112 @@ export default function MessagesWorkspace({
             {(tab === "friends" || tab === "requests") && friendsView}
             {tab === "add" && addView}
           </div>
+
+          {/* Faith-style Sliding Pill Navigation at the bottom (elevated nicely away from bottom screen) */}
+          <nav className="w-full px-4 pt-3 pb-[max(3.25rem,calc(env(safe-area-inset-bottom)+2.25rem))] sm:pb-12 md:pb-9 z-20 select-none bg-transparent shrink-0">
+            <div
+              ref={navContainerRef}
+              className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
+            >
+              {/* Sliding Morph Pill Indicator */}
+              <div
+                className={`absolute rounded-full shadow-xs pointer-events-none ${
+                  isDark ? "bg-white" : "bg-[#111113]"
+                } ${
+                  hasRenderedPill ? "transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" : ""
+                }`}
+                style={{
+                  transform: `translate3d(${navPillStyle.left}px, -50%, 0)`,
+                  width: `${navPillStyle.width}px`,
+                  height: `${navPillStyle.height}px`,
+                  opacity: navPillStyle.opacity,
+                  left: 0,
+                  top: "50%",
+                }}
+              />
+
+              {[
+                { id: "chats" as const, label: "Chat", icon: MessageSquare, badge: totalUnread },
+                { id: "friends" as const, label: "Friend", icon: User, badge: requestCount },
+                { id: "add" as const, label: "Tambah", icon: Plus, badge: 0 },
+              ].map((item, idx) => {
+                const Icon = item.icon;
+                const isActive = activeNavIdx === idx;
+                const isPillReady = navPillStyle.opacity > 0;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    ref={(el) => {
+                      navTabRefs.current[idx] = el;
+                    }}
+                    onClick={() => {
+                      setTab(item.id);
+                      const tabEl = navTabRefs.current[idx];
+                      const containerEl = navContainerRef.current;
+                      if (tabEl && containerEl) {
+                        const tabRect = tabEl.getBoundingClientRect();
+                        const containerRect = containerEl.getBoundingClientRect();
+                        if (tabRect.width > 0) {
+                          const nextStyle = {
+                            left: tabRect.left - containerRect.left,
+                            width: tabRect.width,
+                            height: tabRect.height,
+                            opacity: 1,
+                          };
+                          globalMessagesNavPill = nextStyle;
+                          setNavPillStyle(nextStyle);
+                          setHasRenderedPill(true);
+                        }
+                      }
+                    }}
+                    className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
+                      isActive
+                        ? isDark
+                          ? `${isPillReady ? "bg-transparent" : "bg-white"} text-black px-4 py-2`
+                          : `${isPillReady ? "bg-transparent" : "bg-[#111113]"} text-white px-4 py-2`
+                        : isDark
+                        ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
+                        : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
+                    }`}
+                    title={item.label}
+                    aria-label={item.label}
+                  >
+                    <Icon
+                      size={isActive ? 18 : 21}
+                      strokeWidth={isActive ? 2.2 : 1.9}
+                      className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
+                        isActive
+                          ? isDark
+                            ? "text-black scale-105"
+                            : "text-white scale-105"
+                          : isDark
+                          ? "text-[#8E8E93] hover:text-white scale-100"
+                          : "text-[#55555A] hover:text-[#111113] scale-100"
+                      }`}
+                    />
+                    <span
+                      className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                        isActive
+                          ? "max-w-[75px] opacity-100 ml-1.5"
+                          : "max-w-0 opacity-0 ml-0 pointer-events-none"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Badge if any */}
+                    {!!item.badge && item.badge > 0 && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
         </section>
 
         {/* Chat pane */}
