@@ -4397,7 +4397,7 @@ export default function Home() {
       {!user ? (
         <div
           id="page-1-container"
-          className={`relative w-full min-h-screen overflow-x-clip scroll-smooth bg-black ${
+          className={`relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-[#fafafc] dark:bg-[#121215] ${
             isDark ? "text-zinc-100" : "text-zinc-900"
           }`}
         >
