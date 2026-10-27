@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import GradientBarHeroSection from "@/components/ui/gradient-bar-hero-section";
+import { PrismaHero } from "@/components/ui/prisma-hero";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
@@ -4387,12 +4387,13 @@ export default function Home() {
             color: isDark ? "#ffffff" : "#09090b",
           }}
         >
-          <GradientBarHeroSection
+          <PrismaHero
             isDark={isDark}
             onGetStarted={(targetMode) => {
               setAuthModalMode(targetMode || "signup");
               setShowAuthModal(true);
             }}
+            onOpenPricing={() => setShowPricingModal(true)}
           />
 
           <Footer01
