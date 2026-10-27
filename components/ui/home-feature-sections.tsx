@@ -177,7 +177,7 @@ export function HomeFeatureSections({
   const activeItem = FEATURE_ITEMS.find((f) => f.id === activeTabId) || FEATURE_ITEMS[0];
 
   return (
-    <section id="section-features" className="scroll-mt-24 relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
+    <section id="section-features" className="scroll-mt-24 relative w-full pt-16 sm:pt-20 pb-8 sm:pb-12 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
       {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 24 }}

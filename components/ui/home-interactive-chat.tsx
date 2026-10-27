@@ -231,7 +231,7 @@ export function HomeInteractiveChat({
   };
 
   return (
-    <section className="relative w-full py-10 sm:py-16 px-4 sm:px-6 md:px-8 max-w-3xl mx-auto z-10 select-none">
+    <section className="relative w-full pt-4 sm:pt-6 pb-12 sm:pb-16 px-4 sm:px-6 md:px-8 max-w-3xl mx-auto z-10 select-none">
       {/* ─── EMPTY STATE (Persis seperti tampilan awal di dalam Web Tab Chat) ─── */}
       {messages.length === 0 && (
         <div className="flex flex-col items-center justify-center text-center select-none py-6 sm:py-10 animate-in fade-in-0 duration-300">

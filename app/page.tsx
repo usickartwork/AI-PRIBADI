@@ -4422,12 +4422,12 @@ export default function Home() {
             />
           </div>
 
-          {/* ─── TRANSISI GRADASI HALUS & LAPANG: HITAM FITUR MELEBUR KE MESHDRIFT ─── */}
+          {/* ─── TRANSISI GRADASI HALUS & PROPORSIONAL: HITAM FITUR MELEBUR KE MESHDRIFT ─── */}
           <div
-            className="w-full h-44 sm:h-64 pointer-events-none relative z-10 -mt-px"
+            className="w-full h-24 sm:h-36 pointer-events-none relative z-10 -mt-px"
             style={{
               background:
-                "linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.85) 25%, rgba(0,0,0,0.4) 65%, transparent 100%)",
+                "linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.3) 70%, transparent 100%)",
             }}
             aria-hidden="true"
           />
@@ -4439,7 +4439,7 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
             transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-            className="scroll-mt-20 relative w-full z-10 pt-6 sm:pt-12 pb-20 sm:pb-28"
+            className="scroll-mt-20 relative w-full z-10 pt-2 sm:pt-4 pb-16 sm:pb-24"
           >
             <HomeInteractiveChat
               isDark={isDark}
