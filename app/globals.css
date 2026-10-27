@@ -535,22 +535,17 @@ textarea:focus {
 }
 
 /* ─── HIDE NATIVE MOBILE VIDEO PLAY BUTTON & CONTROLS (iOS Safari & Android Chrome) ─── */
-video::-webkit-media-controls {
+video::-webkit-media-controls,
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-enclosure,
+video::-webkit-media-controls-panel {
   display: none !important;
   -webkit-appearance: none !important;
-}
-
-video::-webkit-media-controls-start-playback-button {
-  display: none !important;
-  -webkit-appearance: none !important;
-}
-
-video::-webkit-media-controls-play-button {
-  display: none !important;
-  -webkit-appearance: none !important;
-}
-
-video::-webkit-media-controls-enclosure {
-  display: none !important;
-  -webkit-appearance: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
 }
