@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Send, Square, Copy, Check, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight } from "lucide-react";
 import { Avatar } from "@/components/ui/components-primitives-avatar";
 import { BrainLogo } from "@/components/ui/brain-logo";
 import { MarkdownMessage } from "@/app/components/MarkdownMessage";
@@ -330,122 +330,172 @@ export function HomeInteractiveChat({
         </div>
       )}
 
-      {/* ─── LIMIT REACHED CTA BANNER (Maksimal 2 Pertanyaan Uji Coba) ────── */}
+      {/* ─── LIMIT REACHED NOTICE (Tanpa Kotakan, Menyatu Bersih Alami) ────── */}
       {isLimitReached && !isStreaming && (
-        <div className="mb-4 p-5 rounded-3xl bg-zinc-900/90 border border-white/20 backdrop-blur-xl text-center shadow-2xl space-y-3 animate-in fade-in-0 duration-300">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-semibold text-white">
-            <span>Batas 2 Pertanyaan Uji Coba Tercapai</span>
-          </div>
-          <p className="text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
-            Daftar akun gratis sekarang untuk melanjutkan percakapan tanpa batas bersama Usick One!
+        <div className="py-4 text-center space-y-2 animate-in fade-in-0 duration-300 select-none">
+          <p className="text-sm sm:text-base font-semibold text-white tracking-wide">
+            Batas 2 pertanyaan uji coba telah tercapai
           </p>
-          <div className="pt-1 flex items-center justify-center">
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
+            Daftar akun gratis sekarang untuk melanjutkan percakapan tanpa batas bersama Usick One.
+          </p>
+          <div className="pt-1.5 flex justify-center">
             <button
               type="button"
               onClick={() => onGetStarted?.("signup")}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-all cursor-pointer shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-bold text-xs sm:text-sm hover:bg-zinc-200 transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
             >
-              <span>Lanjutkan dengan Get Started</span>
+              <span>Get Started Gratis</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── FLOATING INPUT BAR (Sama persis dengan bilah input tab chat) ───── */}
+      {/* ─── FLOATING INPUT BAR (Identik 100% dengan Web Tab Chat Onemind) ─── */}
       <div className="w-full relative">
-        <div className="relative rounded-3xl border border-white/15 bg-zinc-900/85 backdrop-blur-xl p-3 sm:p-4 shadow-2xl transition-all focus-within:border-white/30">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={handleInputResize}
-            onKeyDown={handleKeyDown}
-            disabled={isLimitReached || isStreaming}
-            placeholder={
-              isLimitReached
-                ? "Batas 2 pertanyaan tercapai. Klik Get Started untuk melanjutkan..."
-                : "Tanyakan apa saja kepada Usick One..."
-            }
-            className="w-full resize-none bg-transparent px-2 py-1 text-sm sm:text-base text-white placeholder-zinc-500 focus:outline-hidden max-h-36 leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-
-          <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-white/5">
-            <div className="flex items-center gap-2">
-              {/* Model Pill: Eksklusif Usick One (Terkunci tanpa dropdown) */}
-              <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white text-xs font-semibold cursor-default shadow-xs select-none"
-                title="Model aktif: Usick One Flagship AI"
-              >
-                <BrainLogo className="w-3.5 h-3.5 text-white" />
-                <span>Usick One</span>
+        <div className="prompt-bar-glow relative w-full rounded-[26px] sm:rounded-[28px] p-[1.5px] shadow-2xl transition-all">
+          <div
+            className={`w-full rounded-[24px] sm:rounded-[26px] border transition-all relative ${
+              isDark
+                ? "bg-[#1c1c1f] border-zinc-800/80 shadow-black/80"
+                : "bg-white border-zinc-200/80 shadow-zinc-200/80"
+            }`}
+          >
+            <div className="p-3 sm:p-3.5 space-y-1.5">
+              {/* Textarea Input (Full width, narrowed vertically) */}
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                  onChange={handleInputResize}
+                  onKeyDown={handleKeyDown}
+                  disabled={isLimitReached || isStreaming}
+                  placeholder={
+                    isLimitReached
+                      ? "Batas 2 pertanyaan tercapai. Klik Get Started untuk melanjutkan..."
+                      : "Ask AI a question or make a request..."
+                  }
+                  className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
+                    isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                  style={{ maxHeight: "120px" }}
+                />
               </div>
 
-              {/* Browse Web Toggle Switch */}
-              <button
-                type="button"
-                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                className={`h-8 sm:h-9 flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition cursor-pointer ${
-                  webSearchEnabled
-                    ? "border-white bg-white text-black shadow-xs"
-                    : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
-                }`}
-                title="Aktifkan fitur Browse / Web Search"
-              >
-                <div className={`relative h-3 w-5 rounded-full transition-colors ${
-                  webSearchEnabled ? "bg-black/25" : "bg-zinc-700"
-                }`}>
-                  <div className={`absolute top-0.5 h-2 w-2 rounded-full transition-transform ${
-                    webSearchEnabled ? "translate-x-2.5 bg-black" : "translate-x-0.5 bg-zinc-400"
-                  }`} />
+              {/* Controls Row (Narrowed Vertically) */}
+              <div className="flex items-center justify-between pt-1 gap-1.5 sm:gap-2">
+                {/* Left Side: Model Selector + Browse */}
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  {/* Model Pill: Usick One (Persis seperti button model di Tab Chat) */}
+                  <div
+                    className={`h-9 sm:h-10 flex items-center gap-1.5 sm:gap-2 rounded-full border px-3 sm:px-3.5 py-1.5 sm:py-1.5 text-[13px] sm:text-[13px] font-medium transition cursor-default max-w-[140px] sm:max-w-[210px] ${
+                      isDark
+                        ? "bg-zinc-800/90 border-zinc-700/60 text-zinc-200"
+                        : "bg-zinc-100 border-zinc-200 text-zinc-800"
+                    }`}
+                    title="Model aktif: Usick One Flagship AI"
+                  >
+                    <BrainLogo className="w-3.5 h-3.5 text-white shrink-0" />
+                    <span className="truncate">Usick One</span>
+                  </div>
+
+                  {/* Browse Toggle Switch (Persis seperti switch di Tab Chat) */}
+                  <button
+                    type="button"
+                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                    className={`h-9 sm:h-10 flex items-center gap-2 sm:gap-2 rounded-full border px-3 sm:px-3.5 py-1.5 sm:py-1.5 text-xs sm:text-xs font-medium sm:font-semibold transition-all cursor-pointer shrink-0 ${
+                      webSearchEnabled
+                        ? (isDark
+                            ? "border-white bg-white text-black shadow-xs"
+                            : "border-black bg-black text-white shadow-xs")
+                        : (isDark
+                            ? "border-zinc-700/60 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+                            : "border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200")
+                    }`}
+                    title="Aktifkan fitur Browse / Web Search"
+                  >
+                    <div className={`relative h-3.5 w-6 sm:h-3.5 sm:w-6 rounded-full transition-colors ${
+                      webSearchEnabled
+                        ? (isDark ? "bg-black/25" : "bg-white/30")
+                        : (isDark ? "bg-zinc-700" : "bg-zinc-300")
+                    }`}>
+                      <div className={`absolute top-0.5 h-2.5 w-2.5 sm:h-2.5 sm:w-2.5 rounded-full transition-transform ${
+                        webSearchEnabled
+                          ? `translate-x-3 sm:translate-x-3 ${isDark ? "bg-black" : "bg-white"}`
+                          : `translate-x-0.5 ${isDark ? "bg-zinc-400" : "bg-white"}`
+                      }`} />
+                    </div>
+                    <span className="text-xs sm:text-xs font-medium sm:font-semibold">Browse</span>
+                  </button>
+
+                  {/* Sisa Pertanyaan Counter */}
+                  {userQuestionsCount > 0 && !isLimitReached && (
+                    <span className={`text-[11px] px-2.5 py-1 rounded-full border hidden sm:inline-block ${
+                      isDark
+                        ? "bg-zinc-800/60 border-zinc-700/60 text-zinc-400"
+                        : "bg-zinc-100 border-zinc-200 text-zinc-600"
+                    }`}>
+                      Sisa uji coba: {2 - userQuestionsCount} pertanyaan
+                    </span>
+                  )}
                 </div>
-                <span className="text-xs font-medium">Browse</span>
-              </button>
 
-              {/* Sisa Pertanyaan Counter */}
-              {userQuestionsCount > 0 && !isLimitReached && (
-                <span className="text-[11px] text-zinc-400 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 hidden sm:inline-block">
-                  Sisa uji coba: {2 - userQuestionsCount} pertanyaan
-                </span>
-              )}
-            </div>
-
-            {/* Right Action: Send / Stop / Get Started Button */}
-            <div className="flex items-center gap-2 shrink-0">
-              {isLimitReached ? (
-                <button
-                  type="button"
-                  onClick={() => onGetStarted?.("signup")}
-                  className="flex items-center gap-1.5 h-9 sm:h-10 px-4 rounded-full bg-white text-black hover:bg-zinc-200 transition cursor-pointer font-medium text-xs shadow-xs"
-                  title="Daftar akun untuk lanjut"
-                >
-                  <span>Get Started</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              ) : isStreaming ? (
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/20 text-white transition cursor-pointer shadow-xs"
-                  title="Hentikan respons"
-                >
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!input.trim()}
-                  onClick={() => handleSendMessage()}
-                  className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full transition cursor-pointer shadow-xs ${
-                    input.trim()
-                      ? "bg-white text-black hover:bg-zinc-200"
-                      : "bg-white/10 text-zinc-500 cursor-not-allowed"
-                  }`}
-                  title="Kirim pesan"
-                >
-                  <Send className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-                </button>
-              )}
+                {/* Right Side: Send / Stop / Get Started Button (Persis Tab Chat) */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {isLimitReached ? (
+                    <button
+                      type="button"
+                      onClick={() => onGetStarted?.("signup")}
+                      className={`flex h-9.5 w-9.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition cursor-pointer shadow-xs ${
+                        isDark
+                          ? "bg-white hover:bg-zinc-200 text-black"
+                          : "bg-black hover:bg-zinc-800 text-white"
+                      }`}
+                      title="Daftar akun untuk lanjut (Get Started)"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : isStreaming ? (
+                    <button
+                      type="button"
+                      onClick={handleStop}
+                      className={`flex h-9.5 w-9.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition shadow-sm cursor-pointer ${
+                        isDark
+                          ? "bg-white/10 hover:bg-white/15 text-white"
+                          : "bg-black/5 hover:bg-black/10 text-black"
+                      }`}
+                      title="Hentikan respons"
+                    >
+                      <div
+                        className="w-4 h-4 bg-black dark:bg-white rounded-sm animate-spin transition duration-700"
+                        style={{ animationDuration: "3s" }}
+                      />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!input.trim()}
+                      onClick={() => handleSendMessage()}
+                      className={`flex h-9.5 w-9.5 sm:h-10 sm:w-10 items-center justify-center rounded-full transition cursor-pointer shadow-xs ${
+                        input.trim()
+                          ? isDark
+                            ? "bg-white hover:bg-zinc-200 text-black"
+                            : "bg-black hover:bg-zinc-800 text-white"
+                          : isDark
+                            ? "bg-zinc-800/80 text-zinc-500 cursor-not-allowed"
+                            : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                      }`}
+                      title="Kirim pesan"
+                    >
+                      <svg className="w-5 h-5 sm:w-5 sm:h-5 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
