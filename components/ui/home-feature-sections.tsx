@@ -146,11 +146,11 @@ export function HomeFeatureSections({
 
   return (
     <section className="relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
-      {/* ─── SECTION HEADER (Bidirectional In/Out Animation) ─────────────────── */}
+      {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.3 }}
+        viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-16 sm:mb-24"
       >
@@ -249,26 +249,26 @@ export function HomeFeatureSections({
               id={item.id}
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center"
             >
-              {/* If NOT reverse: Image is LEFT (slides from/to left), Text is RIGHT (slides from/to right) */}
+              {/* If NOT reverse: Image is LEFT (slides from left), Text is RIGHT (slides from right) */}
               {!isReverse ? (
                 <>
-                  {/* LEFT COLUMN: IMAGE (animates in from left, out to left) */}
+                  {/* LEFT COLUMN: IMAGE */}
                   <motion.div
-                    initial={{ opacity: 0, x: -40 }}
+                    initial={{ opacity: 0, x: -30 }}
                     whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: false, amount: 0.2 }}
-                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    viewport={{ once: true, amount: 0.15 }}
+                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                     className="col-span-1 lg:col-span-7 order-1"
                   >
                     {imageElement}
                   </motion.div>
 
-                  {/* RIGHT COLUMN: TEXT (animates in from right, out to right) */}
+                  {/* RIGHT COLUMN: TEXT */}
                   <motion.div
-                    initial={{ opacity: 0, x: 40 }}
+                    initial={{ opacity: 0, x: 30 }}
                     whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: false, amount: 0.2 }}
-                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    viewport={{ once: true, amount: 0.15 }}
+                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                     className="col-span-1 lg:col-span-5 order-2"
                   >
                     {textElement}
@@ -276,23 +276,23 @@ export function HomeFeatureSections({
                 </>
               ) : (
                 <>
-                  {/* LEFT COLUMN: TEXT (animates in from left, out to left) */}
+                  {/* LEFT COLUMN: TEXT */}
                   <motion.div
-                    initial={{ opacity: 0, x: -40 }}
+                    initial={{ opacity: 0, x: -30 }}
                     whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: false, amount: 0.2 }}
-                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    viewport={{ once: true, amount: 0.15 }}
+                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                     className="col-span-1 lg:col-span-5 order-2 lg:order-1"
                   >
                     {textElement}
                   </motion.div>
 
-                  {/* RIGHT COLUMN: IMAGE (animates in from right, out to right) */}
+                  {/* RIGHT COLUMN: IMAGE */}
                   <motion.div
-                    initial={{ opacity: 0, x: 40 }}
+                    initial={{ opacity: 0, x: 30 }}
                     whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: false, amount: 0.2 }}
-                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    viewport={{ once: true, amount: 0.15 }}
+                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                     className="col-span-1 lg:col-span-7 order-1 lg:order-2"
                   >
                     {imageElement}

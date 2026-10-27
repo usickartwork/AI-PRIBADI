@@ -208,8 +208,8 @@ export default function Footer01({
         className={cn(
           "relative overflow-hidden border-t transition-colors select-none",
           isDark
-            ? "border-white/10 bg-black/40 backdrop-blur-md text-zinc-100"
-            : "border-zinc-200 bg-white/80 backdrop-blur-md text-zinc-900"
+            ? "border-white/10 bg-black text-zinc-100"
+            : "border-zinc-800 bg-black text-zinc-100"
         )}
       >
         <Container className="pt-16 sm:pt-20">

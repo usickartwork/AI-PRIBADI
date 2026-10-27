@@ -172,9 +172,9 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
 
   return (
     <section
-      className="h-[100dvh] w-full p-2 md:p-3 bg-transparent"
+      className="relative h-[100dvh] w-full bg-black overflow-hidden"
     >
-      <div className="relative h-full w-full overflow-hidden rounded-2xl md:rounded-[2rem] bg-black shadow-2xl ring-1 ring-white/10">
+      <div className="relative h-full w-full overflow-hidden bg-black">
         {/* Background video */}
         <video
           ref={videoRef}

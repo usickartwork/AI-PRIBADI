@@ -424,12 +424,30 @@ export function MeshDriftBackground({ isDark = true, paused = false }: { isDark?
     let lastRenderTime = 0;
     const targetFpsInterval = 1000 / 30; // 30 FPS untuk background gradasi halus, menghemat GPU drastis
 
+    let lastWidth = typeof window !== "undefined" ? window.innerWidth : 0;
+    let lastHeight = typeof window !== "undefined" ? window.innerHeight : 0;
+
     const resize = () => {
       if (!canvas) return;
+      const currentWidth = window.innerWidth;
+      const currentHeight = window.innerHeight;
+
+      // Hindari reset buffer WebGL saat user gulir atas/bawah akibat address bar browser berubah
+      if (
+        canvas.width > 0 &&
+        currentWidth === lastWidth &&
+        Math.abs(currentHeight - lastHeight) < 80
+      ) {
+        return;
+      }
+
+      lastWidth = currentWidth;
+      lastHeight = currentHeight;
+
       // Gunakan resolusi efisien (maks DPR 1.0) agar tidak membakar GPU pada layar Retina
       const dpr = Math.min(window.devicePixelRatio || 1, 1);
-      const width = Math.floor(window.innerWidth * dpr * 0.75);
-      const height = Math.floor(window.innerHeight * dpr * 0.75);
+      const width = Math.floor(currentWidth * dpr * 0.75);
+      const height = Math.floor(currentHeight * dpr * 0.75);
 
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
@@ -509,6 +527,8 @@ export function MeshDriftBackground({ isDark = true, paused = false }: { isDark?
         height: "100%",
         pointerEvents: "none",
         zIndex: 0,
+        transform: "translateZ(0)",
+        willChange: "transform",
       }}
       aria-hidden="true"
     />
