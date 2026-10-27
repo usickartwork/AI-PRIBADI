@@ -354,18 +354,18 @@ export default function Footer01({
         </Container>
 
         {/* Large Aesthetic Watermark */}
-        <Container aria-hidden className="pointer-events-none select-none">
+        <div aria-hidden className="w-full pointer-events-none select-none overflow-hidden text-center mt-6">
           <p
             className={cn(
-              "-mb-[0.22em] bg-clip-text text-center text-[clamp(4.5rem,20vw,14rem)] leading-none font-bold tracking-tighter text-transparent transition-opacity",
+              "-mb-[0.18em] bg-clip-text text-center text-[clamp(6rem,22vw,19rem)] leading-none font-black tracking-[-0.08em] text-transparent select-none whitespace-nowrap",
               isDark
-                ? "bg-gradient-to-b from-white/10 to-transparent"
-                : "bg-gradient-to-b from-black/10 to-transparent"
+                ? "bg-gradient-to-b from-white/45 via-white/20 to-transparent"
+                : "bg-gradient-to-b from-black/45 via-black/20 to-transparent"
             )}
           >
             One Mind
           </p>
-        </Container>
+        </div>
       </footer>
 
       {/* ─── DETAILED MODAL DIALOGS FOR ALL FOOTER ACTIONS ──────────────── */}
