@@ -2787,21 +2787,12 @@ export default function MessagesWorkspace({
           <nav className="w-full px-4 pt-3 pb-[max(3.25rem,calc(env(safe-area-inset-bottom)+2.25rem))] sm:pb-12 md:pb-9 z-20 select-none bg-transparent shrink-0">
             <div
               ref={navContainerRef}
-              className={`relative flex items-center justify-around max-w-[290px] sm:max-w-[320px] mx-auto p-1.5 rounded-full transition-all duration-300 ${
+              className={`relative flex items-center justify-around max-w-[290px] sm:max-w-[320px] mx-auto p-1.5 rounded-full backdrop-blur-xl transition-all duration-300 ${
                 isDark
-                  ? "bg-white/[0.04] border border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.35),inset_0_1px_1.5px_rgba(255,255,255,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-xl"
-                  : "bg-black/[0.03] border border-black/10 shadow-[0_12px_36px_rgba(0,0,0,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.8),inset_0_0_0_1px_rgba(255,255,255,0.4)] backdrop-blur-xl"
+                  ? "bg-white/[0.04] border border-white/15 shadow-lg shadow-black/20"
+                  : "bg-black/[0.03] border border-black/10 shadow-lg shadow-black/5"
               }`}
             >
-              {/* Glossy Liquid Glass Specular Top Curved Highlight Sheen */}
-              <div
-                className={`absolute inset-x-3.5 top-0 h-[45%] rounded-t-full pointer-events-none ${
-                  isDark
-                    ? "bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"
-                    : "bg-gradient-to-b from-white/80 via-white/20 to-transparent opacity-70"
-                }`}
-              />
-
               {/* Sliding Morph Pill Indicator */}
               <div
                 className={`absolute rounded-full shadow-md pointer-events-none ${
