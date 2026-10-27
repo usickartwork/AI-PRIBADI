@@ -3,7 +3,7 @@
 import { motion, useInView } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 /* ---------------- WordsPullUp ---------------- */
 interface WordsPullUpProps {
@@ -122,6 +122,15 @@ export interface PrismaHeroProps {
 }
 
 const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Ensure smooth, immediate playback without initial freeze
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
+
   const handleNav = (item: NavItem) => {
     if (item.action) {
       if (item.action === "pricing") {
@@ -149,13 +158,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
       <div className="relative h-full w-full overflow-hidden rounded-2xl md:rounded-[2rem] bg-black">
         {/* Background video */}
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-          poster="/hero-bw-poster.jpg"
-          className="absolute inset-0 h-full w-full object-cover filter grayscale contrast-[1.05] brightness-[0.95]"
+          className="absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
           src="/hero-bw-logo.mp4"
         />
 
@@ -167,13 +176,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
 
         {/* Navbar */}
         <nav className="absolute left-1/2 top-0 z-20 -translate-x-1/2 max-w-[96vw]">
-          <div className="flex items-center gap-2 whitespace-nowrap rounded-b-2xl bg-black px-3 py-2 sm:gap-4 md:gap-6 md:rounded-b-3xl md:px-7 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-b-2xl bg-black px-2.5 py-1.5 sm:gap-4 md:gap-6 md:rounded-b-3xl md:px-7 md:py-2 overflow-x-auto no-scrollbar">
             {navItems.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => handleNav(item)}
-                className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm font-medium hover:scale-105 active:scale-95"
+                className="cursor-pointer text-[9px] transition-colors sm:text-xs md:text-sm font-medium hover:scale-105 active:scale-95"
                 style={{ color: WHITE_MUTED }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
                 onMouseLeave={(e) => (e.currentTarget.style.color = WHITE_MUTED)}
@@ -185,23 +194,23 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
         </nav>
 
         {/* Hero content */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-2 sm:px-6 md:px-10">
-          <div className="grid grid-cols-12 items-end gap-4">
+        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 sm:px-6 sm:pb-4 md:px-10 md:pb-6">
+          <div className="grid grid-cols-12 items-end gap-3 sm:gap-4">
             <div className="col-span-12 lg:col-span-8">
               <h1
-                className="font-black leading-[0.82] tracking-[-0.095em] text-[24vw] sm:text-[22vw] md:text-[20vw] lg:text-[13vw] xl:text-[12.5vw] select-none"
+                className="font-black leading-[0.82] tracking-[-0.095em] text-[18vw] xs:text-[20vw] sm:text-[20vw] md:text-[18vw] lg:text-[13vw] xl:text-[12.5vw] select-none"
                 style={{ color: WHITE, fontWeight: 900 }}
               >
                 <WordsPullUp text="One Mind" showAsterisk wordSpacing="0.08em" />
               </h1>
             </div>
 
-            <div className="col-span-12 flex flex-col gap-5 pb-6 lg:col-span-4 lg:pb-10">
+            <div className="col-span-12 flex flex-col gap-3 sm:gap-4 md:gap-5 pb-2 sm:pb-4 lg:col-span-4 lg:pb-10">
               <motion.p
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="text-sm font-semibold uppercase tracking-[0.18em] sm:text-xs md:text-sm"
+                className="text-xs sm:text-xs md:text-sm font-semibold uppercase tracking-[0.16em]"
                 style={{ color: WHITE }}
               >
                 Infinite Intelligence.
@@ -211,8 +220,8 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="-mt-2 text-xs sm:text-sm md:text-base"
-                style={{ lineHeight: 1.25, color: "rgba(255, 255, 255, 0.75)" }}
+                className="-mt-1.5 text-xs sm:text-sm md:text-base leading-snug sm:leading-relaxed"
+                style={{ color: "rgba(255, 255, 255, 0.75)" }}
               >
                 Semua model AI dalam satu ruang kerja: Multi-Model AI Chat, Voice Assistant Realtime, Code Studio &amp;
                 PRD, Image Studio, Music, Messages Realtime, Smart Schedule, hingga Catatan Pintar — tanpa berpindah
@@ -225,12 +234,12 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-5 pr-1 text-sm font-medium text-black transition-all hover:gap-3 sm:text-base hover:bg-zinc-100"
+                className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-4 sm:pl-5 pr-1 text-xs sm:text-sm md:text-base font-medium text-black transition-all hover:gap-3 hover:bg-zinc-100"
                 style={{ backgroundColor: WHITE }}
               >
                 Get Started
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black transition-transform group-hover:scale-110 sm:h-10 sm:w-10">
-                  <ArrowRight className="h-4 w-4" style={{ color: WHITE }} />
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black transition-transform group-hover:scale-110 sm:h-10 sm:w-10">
+                  <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: WHITE }} />
                 </span>
               </motion.button>
             </div>
