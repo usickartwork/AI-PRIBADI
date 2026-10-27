@@ -104,8 +104,8 @@ export function useAppInitializer({
   authLoading,
   sessionsReady,
   subscriptionReady = true,
-  minDurationMs = 2200,
-  safetyTimeoutMs = 5000,
+  minDurationMs = 1200,
+  safetyTimeoutMs = 1800,
 }: {
   authLoading: boolean;
   sessionsReady: boolean;
@@ -130,7 +130,10 @@ export function useAppInitializer({
 
   // 1. Minimum display timer (only if not already played in this session)
   useEffect(() => {
-    if (alreadyPlayed) return;
+    if (alreadyPlayed) {
+      setGone(true);
+      return;
+    }
     const timer = setTimeout(() => {
       setMinTimeElapsed(true);
       try {
@@ -140,11 +143,15 @@ export function useAppInitializer({
     return () => clearTimeout(timer);
   }, [minDurationMs, alreadyPlayed]);
 
-  // 2. Safety fallback timer to prevent infinite stuck loader
+  // 2. Safety fallback timer to prevent infinite stuck loader (hard limit 1.8s)
   useEffect(() => {
-    if (alreadyPlayed) return;
+    if (alreadyPlayed) {
+      setGone(true);
+      return;
+    }
     const safety = setTimeout(() => {
       setSafetyForced(true);
+      setGone(true);
       try {
         sessionStorage.setItem("onemind_intro_played", "true");
       } catch (e) {}
@@ -154,7 +161,7 @@ export function useAppInitializer({
 
   const shouldExit = alreadyPlayed || safetyForced || (!authLoading && sessionsReady && subscriptionReady && minTimeElapsed);
 
-  // 3. Trigger final unmount after 280ms exit transition
+  // 3. Trigger final unmount after 200ms exit transition
   useEffect(() => {
     if (!shouldExit || gone) return;
     const exitTimer = setTimeout(() => {
@@ -162,7 +169,7 @@ export function useAppInitializer({
       try {
         sessionStorage.setItem("onemind_intro_played", "true");
       } catch (e) {}
-    }, 280);
+    }, 200);
     return () => clearTimeout(exitTimer);
   }, [shouldExit, gone]);
 
@@ -174,6 +181,6 @@ export function useAppInitializer({
 
   return {
     introState,
-    isInitializing: introState !== "gone",
+    isInitializing: !alreadyPlayed && introState !== "gone",
   };
 }

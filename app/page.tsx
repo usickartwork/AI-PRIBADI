@@ -24,8 +24,8 @@ import {
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
-const ProductPreviewShowcase = dynamic(() =>
-  import("@/components/ui/product-preview-showcase").then((m) => m.ProductPreviewShowcase)
+const HomeFeatureSections = dynamic(() =>
+  import("@/components/ui/home-feature-sections").then((m) => m.HomeFeatureSections)
 );
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
 const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
@@ -1081,10 +1081,10 @@ export default function Home() {
   // ─── Usick One: Initialization Controller for Intro Loading ───────────────
   const { introState, isInitializing } = useAppInitializer({
     authLoading,
-    sessionsReady: !user || sessions.length > 0,
+    sessionsReady: !user || Array.isArray(sessions),
     subscriptionReady,
-    minDurationMs: 2200, // Durasi tenang ~2.2s agar animasi sapuan One Mind dan model slider tampil anggun
-    safetyTimeoutMs: 5000, // 5s maximum fallback in case network hangs
+    minDurationMs: 1200,
+    safetyTimeoutMs: 1800,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -4400,13 +4400,22 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          <ProductPreviewShowcase />
-
-          <FAQ
-            title="Pertanyaan Umum Seputar One Mind"
-            subtitle="FAQ & Pusat Bantuan"
-            className="max-w-6xl mx-auto"
+          <HomeFeatureSections
+            isDark={isDark}
+            onGetStarted={(targetMode) => {
+              setAuthModalMode(targetMode || "signup");
+              setShowAuthModal(true);
+            }}
+            onOpenPricing={() => setShowPricingModal(true)}
           />
+
+          <div id="section-faq" className="scroll-mt-20">
+            <FAQ
+              title="Pertanyaan Umum Seputar One Mind"
+              subtitle="FAQ & Pusat Bantuan"
+              className="max-w-6xl mx-auto"
+            />
+          </div>
 
           <Footer01
             isDark={isDark}
@@ -6762,7 +6771,7 @@ export default function Home() {
       )}
 
       {/* ─── ONE MIND: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}
-      {isInitializing && (
+      {user && isInitializing && (
         <IntroLoader
           state={introState === "exiting" ? "exiting" : "visible"}
         />

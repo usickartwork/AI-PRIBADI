@@ -96,11 +96,20 @@ const CREAM_MUTED = "rgba(225, 224, 204, 0.8)";
 
 type NavAction = "signup" | "signin" | "pricing";
 
-const navItems: { label: string; href?: string; action?: NavAction }[] = [
-  { label: "AI Chat", href: "/ai-chat" },
-  { label: "Code Studio", href: "/code-studio" },
-  { label: "Music", href: "/music" },
-  { label: "Harga", href: "/harga" },
+interface NavItem {
+  label: string;
+  targetId?: string;
+  action?: NavAction;
+}
+
+const navItems: NavItem[] = [
+  { label: "AI Chat", targetId: "section-chat" },
+  { label: "One Code", targetId: "section-code" },
+  { label: "Music", targetId: "section-music" },
+  { label: "Schedule", targetId: "section-schedule" },
+  { label: "Creative & Faith", targetId: "section-image" },
+  { label: "FAQ", targetId: "section-faq" },
+  { label: "Harga", action: "pricing" },
   { label: "Sign In", action: "signin" },
 ];
 
@@ -111,7 +120,7 @@ export interface PrismaHeroProps {
 }
 
 const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroProps) => {
-  const handleNav = (item: (typeof navItems)[number]) => {
+  const handleNav = (item: NavItem) => {
     if (item.action) {
       if (item.action === "pricing") {
         if (onOpenPricing) onOpenPricing();
@@ -119,6 +128,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
         return;
       }
       onGetStarted?.(item.action);
+      return;
+    }
+    if (item.targetId) {
+      const el = document.getElementById(item.targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
     }
   };
 
@@ -146,34 +162,21 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60" />
 
         {/* Navbar */}
-        <nav className="absolute left-1/2 top-0 z-20 -translate-x-1/2">
-          <div className="flex items-center gap-3 whitespace-nowrap rounded-b-2xl bg-black px-4 py-2 sm:gap-6 md:gap-12 md:rounded-b-3xl md:px-8 lg:gap-14">
-            {navItems.map((item) =>
-              item.href ? (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm"
-                  style={{ color: CREAM_MUTED }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
-                >
-                  {item.label}
-                </Link>
-              ) : (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => handleNav(item)}
-                  className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm"
-                  style={{ color: CREAM_MUTED }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
-                >
-                  {item.label}
-                </button>
-              )
-            )}
+        <nav className="absolute left-1/2 top-0 z-20 -translate-x-1/2 max-w-[96vw]">
+          <div className="flex items-center gap-2 whitespace-nowrap rounded-b-2xl bg-black px-3 py-2 sm:gap-4 md:gap-7 md:rounded-b-3xl md:px-7 overflow-x-auto no-scrollbar">
+            {navItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => handleNav(item)}
+                className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm font-medium hover:scale-105 active:scale-95"
+                style={{ color: CREAM_MUTED }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </nav>
 
