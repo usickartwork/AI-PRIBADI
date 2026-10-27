@@ -27,6 +27,9 @@ const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ))
 const HomeFeatureSections = dynamic(() =>
   import("@/components/ui/home-feature-sections").then((m) => m.HomeFeatureSections)
 );
+const HomePricingSection = dynamic(() =>
+  import("@/components/ui/home-pricing-section").then((m) => m.HomePricingSection)
+);
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
 const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
 const Avatar = dynamic(() => import("@/components/ui/components-primitives-avatar"));
@@ -4398,6 +4401,15 @@ export default function Home() {
           />
 
           <HomeFeatureSections
+            isDark={isDark}
+            onGetStarted={(targetMode) => {
+              setAuthModalMode(targetMode || "signup");
+              setShowAuthModal(true);
+            }}
+            onOpenPricing={() => setShowPricingModal(true)}
+          />
+
+          <HomePricingSection
             isDark={isDark}
             onGetStarted={(targetMode) => {
               setAuthModalMode(targetMode || "signup");

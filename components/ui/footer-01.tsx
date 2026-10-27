@@ -149,10 +149,15 @@ export default function Footer01({
     if (action === "signup" || action === "signin") {
       onGetStarted?.(action);
     } else if (action === "pricing") {
+      const el = document.getElementById("section-pricing");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       if (onOpenPricing) {
         onOpenPricing();
       } else {
-        setActiveModal("pricing");
+        window.location.href = "/harga";
       }
     } else {
       setActiveModal(action);

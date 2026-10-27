@@ -98,8 +98,8 @@ type NavAction = "signup" | "signin" | "pricing";
 
 interface NavItem {
   label: string;
-  tabId?: string;
   targetId?: string;
+  href?: string;
   action?: NavAction;
 }
 
@@ -110,8 +110,8 @@ const navItems: NavItem[] = [
   { label: "Schedule", targetId: "card-schedule" },
   { label: "Image", targetId: "card-image" },
   { label: "Faith", targetId: "card-faith" },
+  { label: "Harga", targetId: "section-pricing", href: "/harga" },
   { label: "FAQ", targetId: "section-faq" },
-  { label: "Harga", action: "pricing" },
   { label: "Sign In", action: "signin" },
 ];
 
@@ -134,6 +134,11 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
   const handleNav = (item: NavItem) => {
     if (item.action) {
       if (item.action === "pricing") {
+        const el = document.getElementById("section-pricing");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
         if (onOpenPricing) onOpenPricing();
         else onGetStarted?.("signup");
         return;
@@ -145,8 +150,13 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
     if (item.targetId) {
       const el = document.getElementById(item.targetId);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
       }
+    }
+
+    if (item.href) {
+      window.location.href = item.href;
     }
   };
 

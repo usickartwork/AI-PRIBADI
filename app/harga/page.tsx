@@ -96,7 +96,7 @@ export default function PricingLandingPage() {
                 key={p.id}
                 className={`rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
                   isPopular
-                    ? "bg-zinc-950 border-2 border-[#E1E0CC] shadow-2xl"
+                    ? "bg-zinc-950 border border-white/30 shadow-[0_0_40px_-15px_rgba(255,255,255,0.15)] ring-1 ring-white/20"
                     : "bg-zinc-950/60 border border-white/10"
                 }`}
               >
@@ -104,7 +104,7 @@ export default function PricingLandingPage() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-bold text-lg text-white">{p.name}</h3>
                     {isPopular && (
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#E1E0CC] text-black">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-white text-black">
                         Pilihan Utama
                       </span>
                     )}
@@ -120,7 +120,7 @@ export default function PricingLandingPage() {
                   <div className="space-y-2.5 pt-6 border-t border-white/10 mb-8">
                     {p.features.map((feat, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-xs text-zinc-300">
-                        <Check className="h-3.5 w-3.5 text-[#E1E0CC] shrink-0 mt-0.5" />
+                        <Check className="h-3.5 w-3.5 text-white shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </div>
                     ))}
@@ -132,7 +132,7 @@ export default function PricingLandingPage() {
                   onClick={() => openAuth("signup")}
                   className={`w-full py-3 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-2 ${
                     isPopular
-                      ? "bg-[#E1E0CC] hover:bg-white text-black shadow-lg"
+                      ? "bg-white hover:bg-zinc-200 text-black shadow-lg"
                       : "bg-white/10 hover:bg-white/15 text-white"
                   }`}
                 >
