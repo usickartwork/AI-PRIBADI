@@ -185,7 +185,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
 
         {/* ─── HEADER NAVBAR (Pure Logo, Direct Jejer Tabs, Highlighted Login) ─── */}
-        <header className="absolute top-0 left-0 right-0 z-30 w-full bg-transparent">
+        <header className="absolute top-0 left-0 right-0 z-30 w-full bg-transparent pt-3.5 sm:pt-5 md:pt-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 sm:h-16 flex items-center justify-between gap-4">
             {/* ─── LEFT: PURE BRAIN LOGO + DIRECT JEJER TABS ─── */}
             <div className="flex items-center gap-3 sm:gap-6 md:gap-8 min-w-0">
