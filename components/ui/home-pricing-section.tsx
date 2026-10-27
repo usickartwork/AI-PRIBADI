@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
@@ -9,6 +9,15 @@ export interface HomePricingSectionProps {
   onGetStarted?: (mode?: "signin" | "signup") => void;
   onOpenPricing?: () => void;
 }
+
+const pricingCardVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] as const },
+  }),
+};
 
 export function HomePricingSection({
   isDark = true,
@@ -71,7 +80,7 @@ export function HomePricingSection({
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: false, amount: 0.3, margin: "-20px 0px" }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-16 sm:mb-20"
       >
@@ -87,16 +96,19 @@ export function HomePricingSection({
       </motion.div>
 
       {/* ─── 2-COLUMN PRICING CARDS ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto items-stretch">
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.2, margin: "-30px 0px" }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto items-stretch"
+      >
         {plans.map((p, idx) => {
           const isPro = p.popular;
           return (
             <motion.div
               key={p.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: 0.7, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              custom={idx}
+              variants={pricingCardVariants}
               className={`relative rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
                 isPro
                   ? "bg-zinc-950/80 backdrop-blur-md border border-white/30 shadow-[0_0_40px_-15px_rgba(255,255,255,0.15)] ring-1 ring-white/20"
@@ -161,7 +173,7 @@ export function HomePricingSection({
             </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* ─── RESET NOTE & DEDICATED LINK ───────────────────────────────────── */}
       <div className="mt-12 text-center flex flex-col items-center gap-3">

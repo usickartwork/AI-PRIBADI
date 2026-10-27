@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
 
 interface HomeFeatureSectionsProps {
@@ -135,6 +135,24 @@ const FEATURE_ITEMS: FeatureSectionItem[] = [
   },
 ];
 
+const slideLeftVariants: Variants = {
+  hidden: { opacity: 0, x: -35 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as const },
+  },
+};
+
+const slideRightVariants: Variants = {
+  hidden: { opacity: 0, x: 35 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as const },
+  },
+};
+
 export function HomeFeatureSections({
   onGetStarted,
   onOpenPricing,
@@ -150,7 +168,7 @@ export function HomeFeatureSections({
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: false, amount: 0.3, margin: "-20px 0px" }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-16 sm:mb-24"
       >
@@ -244,9 +262,12 @@ export function HomeFeatureSections({
           );
 
           return (
-            <div
+            <motion.div
               key={item.id}
               id={item.id}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: false, amount: 0.2, margin: "-40px 0px" }}
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center"
             >
               {/* If NOT reverse: Image is LEFT (slides from left), Text is RIGHT (slides from right) */}
@@ -254,10 +275,7 @@ export function HomeFeatureSections({
                 <>
                   {/* LEFT COLUMN: IMAGE */}
                   <motion.div
-                    initial={{ opacity: 0, x: -30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                    variants={slideLeftVariants}
                     className="col-span-1 lg:col-span-7 order-1"
                   >
                     {imageElement}
@@ -265,10 +283,7 @@ export function HomeFeatureSections({
 
                   {/* RIGHT COLUMN: TEXT */}
                   <motion.div
-                    initial={{ opacity: 0, x: 30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                    variants={slideRightVariants}
                     className="col-span-1 lg:col-span-5 order-2"
                   >
                     {textElement}
@@ -278,10 +293,7 @@ export function HomeFeatureSections({
                 <>
                   {/* LEFT COLUMN: TEXT */}
                   <motion.div
-                    initial={{ opacity: 0, x: -30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                    variants={slideLeftVariants}
                     className="col-span-1 lg:col-span-5 order-2 lg:order-1"
                   >
                     {textElement}
@@ -289,17 +301,14 @@ export function HomeFeatureSections({
 
                   {/* RIGHT COLUMN: IMAGE */}
                   <motion.div
-                    initial={{ opacity: 0, x: 30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                    variants={slideRightVariants}
                     className="col-span-1 lg:col-span-7 order-1 lg:order-2"
                   >
                     {imageElement}
                   </motion.div>
                 </>
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>

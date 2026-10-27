@@ -401,17 +401,17 @@ export function MeshDriftBackground({ isDark = true, paused = false }: { isDark?
     ]);
     if (uColorsLoc) gl.uniform3fv(uColorsLoc, colorsData);
 
-    // Shape: scale=1.16, intensity=0.34, paramA=0.50, warp=0.00
-    if (uShapeLoc) gl.uniform4f(uShapeLoc, 1.16, 0.34, 0.50, 0.00);
+    // Shape: scale=1.16, intensity=0.40, paramA=0.50, warp=0.15 (animasi gelombang halus aktif)
+    if (uShapeLoc) gl.uniform4f(uShapeLoc, 1.16, 0.40, 0.50, 0.15);
 
     // Surface: detail=2.40, contrast=1.16, brightness=0.00, saturation=1.00
     if (uSurfaceLoc) gl.uniform4f(uSurfaceLoc, 2.40, 1.16, 0.00, 1.00);
 
-    // Finish: hue=0.00, vignette=0.00, blur=0.00, grain=0.09
-    if (uFinishLoc) gl.uniform4f(uFinishLoc, 0.00, 0.00, 0.000, 0.09);
+    // Finish: hue=0.00, vignette=0.00, blur=0.00, grain=0.00 (Texture grain dihapus total agar bersih halus)
+    if (uFinishLoc) gl.uniform4f(uFinishLoc, 0.00, 0.00, 0.000, 0.00);
 
-    // Transform: seed=1453.0, rotation=0.00, drift=0.00, oklab=0.0
-    if (uTransformLoc) gl.uniform4f(uTransformLoc, 1453.0, 0.00, 0.00, 0.0);
+    // Transform: seed=1453.0, rotation=0.00, drift=0.18 (Drift aktif agar gradasi mengalir bergerak dinamis), oklab=0.0
+    if (uTransformLoc) gl.uniform4f(uTransformLoc, 1453.0, 0.00, 0.18, 0.0);
 
     // Space: offset=(0, 0), mouse=(0, 0)
     if (uSpaceLoc) gl.uniform4f(uSpaceLoc, 0.00, 0.00, 0.00, 0.00);
@@ -471,8 +471,8 @@ export function MeshDriftBackground({ isDark = true, paused = false }: { isDark?
       const elapsedSeconds = (currentTime - startTime) * 0.001;
 
       if (uSceneLoc) {
-        // resolution.xy, time (seconds * 0.73), colour count (4.0)
-        gl.uniform4f(uSceneLoc, canvas.width, canvas.height, elapsedSeconds * 0.73, 4.0);
+        // resolution.xy, time (seconds * 1.15 agar pergerakan gradasi terlihat dinamis mengalir), colour count (4.0)
+        gl.uniform4f(uSceneLoc, canvas.width, canvas.height, elapsedSeconds * 1.15, 4.0);
       }
 
       if (uIsDarkLoc) {
