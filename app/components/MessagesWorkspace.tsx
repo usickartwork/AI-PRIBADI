@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react";
 import { useSession, useUser } from "@clerk/nextjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -510,6 +510,58 @@ export default function MessagesWorkspace({
         (f.user.username && f.user.username.toLowerCase().includes(q))
     );
   }, [friendsData.friends, searchQuery]);
+
+  // Faith-style sliding morph pill for bottom navigation
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const navTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [navPillStyle, setNavPillStyle] = useState<{ left: number; width: number; height: number; opacity: number }>({
+    left: 0,
+    width: 0,
+    height: 0,
+    opacity: 0,
+  });
+
+  const activeNavIdx = useMemo(() => {
+    if (tab === "friends" || tab === "requests") return 1;
+    if (tab === "add") return 2;
+    return 0;
+  }, [tab]);
+
+  const updateNavPill = useCallback(() => {
+    const activeIndex = activeNavIdx >= 0 ? activeNavIdx : 0;
+    if (navTabRefs.current[activeIndex] && navContainerRef.current) {
+      const tabEl = navTabRefs.current[activeIndex]!;
+      const containerEl = navContainerRef.current;
+      const tabRect = tabEl.getBoundingClientRect();
+      const containerRect = containerEl.getBoundingClientRect();
+
+      if (tabRect.width > 0) {
+        setNavPillStyle({
+          left: tabRect.left - containerRect.left,
+          width: tabRect.width,
+          height: tabRect.height,
+          opacity: 1,
+        });
+      }
+    }
+  }, [activeNavIdx]);
+
+  useLayoutEffect(() => {
+    updateNavPill();
+  }, [updateNavPill]);
+
+  useEffect(() => {
+    const t1 = setTimeout(updateNavPill, 40);
+    const t2 = setTimeout(updateNavPill, 150);
+    const t3 = setTimeout(updateNavPill, 350);
+    window.addEventListener("resize", updateNavPill);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener("resize", updateNavPill);
+    };
+  }, [updateNavPill]);
 
   const [toast, setToast] = useState<{ text: string; kind: "error" | "info" } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -2675,117 +2727,109 @@ export default function MessagesWorkspace({
             )}
           </div>
 
-          {/* Scrollable list area */}
-          <div className={`relative flex-1 min-h-0 overflow-y-auto border-t ${divider}`}>
+          {/* Scrollable list area (borderless above and below) */}
+          <div className="relative flex-1 min-h-0 overflow-y-auto">
             {tab === "chats" && chatsView}
             {(tab === "friends" || tab === "requests") && friendsView}
             {tab === "add" && addView}
-
-            {/* Pink Floating Action Button (+) as in reference picture */}
-            {tab === "chats" && (
-              <button
-                type="button"
-                onClick={() => setTab("add")}
-                className="absolute right-5 bottom-4 w-13 h-13 rounded-full bg-pink-500 hover:bg-pink-600 active:scale-95 text-white shadow-lg shadow-pink-500/35 flex items-center justify-center transition-all duration-200 z-10 cursor-pointer"
-                title="Tambah Teman / Chat Baru"
-                aria-label="Tambah Teman / Chat Baru"
-              >
-                <Plus className="w-6 h-6 stroke-[2.5]" />
-              </button>
-            )}
           </div>
 
-          {/* Bottom Navigation Bar (1: Chat, 2: Friend, 3: + Add Friend) */}
-          <nav
-            className={`h-16 shrink-0 border-t flex items-center justify-around px-6 z-10 backdrop-blur-md ${
-              isDark ? "bg-zinc-950/70 border-white/10" : "bg-white/85 border-black/5"
-            }`}
-          >
-            {/* 1. Chat */}
-            <button
-              type="button"
-              onClick={() => setTab("chats")}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
-                tab === "chats"
-                  ? isDark
-                    ? "text-white"
-                    : "text-zinc-900"
-                  : isDark
-                    ? "text-zinc-500 hover:text-zinc-300"
-                    : "text-zinc-400 hover:text-zinc-700"
-              }`}
-              title="Chat"
-              aria-label="Chat"
+          {/* Bottom Navigation Bar (Faith-style Sliding Pill, completely borderless) */}
+          <nav className="w-full px-3 pt-2 pb-3.5 z-20 select-none bg-transparent shrink-0">
+            <div
+              ref={navContainerRef}
+              className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
             >
-              <MessageSquare className="w-6 h-6 stroke-[1.8]" />
-              {totalUnread > 0 && (
-                <span className="absolute -top-0.5 right-2 min-w-[17px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
-                  {totalUnread > 99 ? "99+" : totalUnread}
-                </span>
-              )}
-              <span
-                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
-                  tab === "chats" ? (isDark ? "bg-white opacity-100" : "bg-zinc-900 opacity-100") : "opacity-0"
+              {/* Sliding Morph Pill Indicator */}
+              <div
+                className={`absolute rounded-full shadow-xs pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  isDark ? "bg-white" : "bg-[#111113]"
                 }`}
+                style={{
+                  transform: `translate3d(${navPillStyle.left}px, -50%, 0)`,
+                  width: `${navPillStyle.width}px`,
+                  height: `${navPillStyle.height}px`,
+                  opacity: navPillStyle.opacity,
+                  left: 0,
+                  top: "50%",
+                }}
               />
-            </button>
 
-            {/* 2. Friend */}
-            <button
-              type="button"
-              onClick={() => setTab("friends")}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
-                tab === "friends" || tab === "requests"
-                  ? isDark
-                    ? "text-white"
-                    : "text-zinc-900"
-                  : isDark
-                    ? "text-zinc-500 hover:text-zinc-300"
-                    : "text-zinc-400 hover:text-zinc-700"
-              }`}
-              title="Friend"
-              aria-label="Friend"
-            >
-              <User className="w-6 h-6 stroke-[1.8]" />
-              {requestCount > 0 && (
-                <span className="absolute -top-0.5 right-2 min-w-[17px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
-                  {requestCount}
-                </span>
-              )}
-              <span
-                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
-                  tab === "friends" || tab === "requests"
-                    ? isDark
-                      ? "bg-white opacity-100"
-                      : "bg-zinc-900 opacity-100"
-                    : "opacity-0"
-                }`}
-              />
-            </button>
+              {[
+                { id: "chats" as const, label: "Chat", icon: MessageSquare, badge: totalUnread },
+                { id: "friends" as const, label: "Friend", icon: User, badge: requestCount },
+                { id: "add" as const, label: "Tambah", icon: Plus, badge: 0 },
+              ].map((item, idx) => {
+                const Icon = item.icon;
+                const isActive = activeNavIdx === idx;
 
-            {/* 3. + (Add Friend) */}
-            <button
-              type="button"
-              onClick={() => setTab("add")}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
-                tab === "add"
-                  ? isDark
-                    ? "text-white"
-                    : "text-zinc-900"
-                  : isDark
-                    ? "text-zinc-500 hover:text-zinc-300"
-                    : "text-zinc-400 hover:text-zinc-700"
-              }`}
-              title="Add Friend"
-              aria-label="Add Friend"
-            >
-              <Plus className="w-6 h-6 stroke-[2.2]" />
-              <span
-                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
-                  tab === "add" ? (isDark ? "bg-white opacity-100" : "bg-zinc-900 opacity-100") : "opacity-0"
-                }`}
-              />
-            </button>
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    ref={(el) => {
+                      navTabRefs.current[idx] = el;
+                    }}
+                    onClick={() => {
+                      setTab(item.id);
+                      if (navTabRefs.current[idx] && navContainerRef.current) {
+                        const tabRect = navTabRefs.current[idx]!.getBoundingClientRect();
+                        const containerRect = navContainerRef.current.getBoundingClientRect();
+                        if (tabRect.width > 0) {
+                          setNavPillStyle({
+                            left: tabRect.left - containerRect.left,
+                            width: tabRect.width,
+                            height: tabRect.height,
+                            opacity: 1,
+                          });
+                        }
+                      }
+                    }}
+                    className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
+                      isActive
+                        ? isDark
+                          ? "bg-transparent text-black px-4 py-2"
+                          : "bg-transparent text-white px-4 py-2"
+                        : isDark
+                        ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
+                        : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
+                    }`}
+                    title={item.label}
+                    aria-label={item.label}
+                  >
+                    <Icon
+                      size={isActive ? 18 : 21}
+                      strokeWidth={isActive ? 2.2 : 1.9}
+                      className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
+                        isActive
+                          ? isDark
+                            ? "text-black scale-105"
+                            : "text-white scale-105"
+                          : isDark
+                          ? "text-[#8E8E93] hover:text-white scale-100"
+                          : "text-[#55555A] hover:text-[#111113] scale-100"
+                      }`}
+                    />
+                    <span
+                      className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                        isActive
+                          ? "max-w-[75px] opacity-100 ml-1.5"
+                          : "max-w-0 opacity-0 ml-0 pointer-events-none"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Badge if any */}
+                    {!!item.badge && item.badge > 0 && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </nav>
         </section>
 
