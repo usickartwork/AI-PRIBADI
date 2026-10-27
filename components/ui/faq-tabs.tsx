@@ -31,7 +31,7 @@ export const ONE_MIND_FAQ_DATA: Record<string, FAQItemData[]> = {
     {
       question: "Apa saja model AI yang tersedia di ekosistem One Mind?",
       answer:
-        "One Mind mengintegrasikan model-model AI terbaik dunia dalam satu workspace: Claude 3.7 Sonnet & 3.5 Sonnet (Anthropic), Gemini 2.5 Flash & Flash Lite (Google), GPT-4o & GPT OSS 120B (OpenAI), DeepSeek R1 & V3, Qwen 3.8 Flash, Kimi K2, Llama 3.3 70B, serta model unggulan eksklusif Usick One Flagship.",
+        "One Mind mengintegrasikan model-model AI terbaik dunia dalam satu workspace: Claude 3.7 Sonnet & 3.5 Sonnet (Anthropic), Gemini 3.6 Flash & 3.5 Flash Lite (Google), DeepSeek R1 Distill & DeepSeek V4, Qwen 3.8 Flash, Kimi K2 Instruct (Moonshot), Ling 3.1 Flash, Llama 3.3 70B, GPT OSS 120B, serta model unggulan utama Usick One Flagship.",
     },
     {
       question: "Bagaimana cara kerja Upaya Penalaran (Reasoning Efforts)?",

@@ -22,7 +22,7 @@ const PREVIEW_ITEMS: PreviewItem[] = [
     label: "AI Chat",
     icon: Bot,
     title: "Ruang Kerja AI Multi-Model",
-    desc: "Beralih bebas antara Claude 3.7, Gemini 2.5, DeepSeek R1, dan GPT-4o dalam satu percakapan.",
+    desc: "Beralih bebas antara Claude 3.7 Sonnet, Gemini 3.6 Flash, DeepSeek R1, Qwen 3.8, dan Usick One dalam satu percakapan.",
     href: "/ai-chat",
     imageSrc: "/previews/preview-ai-chat.png",
   },

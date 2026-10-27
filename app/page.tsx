@@ -33,6 +33,9 @@ const HomeFeatureSections = dynamic(() =>
 const HomePricingSection = dynamic(() =>
   import("@/components/ui/home-pricing-section").then((m) => m.HomePricingSection)
 );
+const ScrollReveal = dynamic(() =>
+  import("@/components/ui/scroll-reveal").then((m) => m.ScrollReveal)
+);
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
 const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
 const Avatar = dynamic(() => import("@/components/ui/components-primitives-avatar"));
@@ -4433,12 +4436,10 @@ export default function Home() {
           />
 
           {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, FLOATING DI ATAS MESHDRIFT) ─── */}
-          <motion.div
+          <ScrollReveal
             id="section-chat"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            y={20}
+            duration={0.65}
             className="scroll-mt-20 relative w-full z-10 pt-2 sm:pt-4 pb-16 sm:pb-24"
           >
             <HomeInteractiveChat
@@ -4448,7 +4449,7 @@ export default function Home() {
                 setShowAuthModal(true);
               }}
             />
-          </motion.div>
+          </ScrollReveal>
 
           {/* ─── PRICING SECTION ───────────────────────────────────────────────── */}
           <HomePricingSection
@@ -4461,12 +4462,10 @@ export default function Home() {
           />
 
           {/* ─── FAQ SECTION ───────────────────────────────────────────────────── */}
-          <motion.div
+          <ScrollReveal
             id="section-faq"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.05, margin: "-60px 0px -60px 0px" }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            y={20}
+            duration={0.65}
             className="scroll-mt-20 relative z-10"
           >
             <FAQ
@@ -4474,20 +4473,14 @@ export default function Home() {
               subtitle="FAQ & Pusat Bantuan"
               className="max-w-6xl mx-auto"
             />
-          </motion.div>
+          </ScrollReveal>
 
           {/* ─── FOOTER SECTION ────────────────────────────────────────────────── */}
           <div className="relative w-full z-10">
             {/* Transisi gradasi: MeshDrift melebur mulus ke latar hitam Footer */}
             <div className="w-full h-20 sm:h-32 bg-gradient-to-b from-transparent via-black/70 to-black pointer-events-none -mb-px" />
 
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: false, amount: 0.05, margin: "-40px 0px -40px 0px" }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-black"
-            >
+            <ScrollReveal y={20} duration={0.7} className="bg-black">
               <Footer01
                 isDark={isDark}
                 onGetStarted={(targetMode) => {
@@ -4496,7 +4489,7 @@ export default function Home() {
                 }}
                 onOpenPricing={() => setShowPricingModal(true)}
               />
-            </motion.div>
+            </ScrollReveal>
           </div>
 
           <AuthModal

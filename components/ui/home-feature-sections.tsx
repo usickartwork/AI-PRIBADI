@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 interface HomeFeatureSectionsProps {
   onGetStarted?: (mode?: "signin" | "signup") => void;
@@ -179,13 +180,7 @@ export function HomeFeatureSections({
   return (
     <section id="section-features" className="scroll-mt-24 relative w-full pt-16 sm:pt-20 pb-8 sm:pb-12 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
       {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center max-w-2xl mx-auto mb-10 sm:mb-12"
-      >
+      <ScrollReveal y={24} duration={0.6} className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
         <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
           Eksplorasi Fitur
         </span>
@@ -195,16 +190,10 @@ export function HomeFeatureSections({
         <p className="mt-3 text-sm sm:text-base text-zinc-400">
           Setiap modul terintegrasi secara harmonis di dalam satu ruang kerja One Mind.
         </p>
-      </motion.div>
+      </ScrollReveal>
 
       {/* ─── FITUR TABS SELECTOR (Pill Buttons dengan Auto-Cycle Progress) ─── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
-        transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-        className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10 sm:mb-14"
-      >
+      <ScrollReveal y={20} delay={0.08} duration={0.6} className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10 sm:mb-14">
         {FEATURE_ITEMS.map((item) => {
           const isActive = activeTabId === item.id;
           return (
@@ -232,29 +221,30 @@ export function HomeFeatureSections({
             </button>
           );
         })}
-      </motion.div>
+      </ScrollReveal>
 
       {/* ─── SELECTED FEATURE SHOWCASE DISPLAY ──────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
-        transition={{ duration: 0.65, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+      <ScrollReveal
+        y={24}
+        delay={0.12}
+        duration={0.65}
         className="relative min-h-[460px]"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeItem.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center max-w-6xl mx-auto"
-          >
+        <div
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={() => setIsPaused(true)}
+          onTouchEnd={() => setIsPaused(false)}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeItem.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center max-w-6xl mx-auto"
+            >
             {/* Screenshot Side (7 Cols) */}
             <div className="col-span-1 lg:col-span-7">
               <div
@@ -327,8 +317,9 @@ export function HomeFeatureSections({
             </div>
           </motion.div>
         </AnimatePresence>
-      </motion.div>
-    </section>
+      </div>
+    </ScrollReveal>
+  </section>
   );
 }
 export default HomeFeatureSections;
