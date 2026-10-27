@@ -4410,11 +4410,8 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          {/* ─── KETERANGAN FITUR (AUTO-CYCLING TABS & ROTASI OTOMATIS) ────────── */}
-          <div className="relative w-full z-10">
-            {/* Transisi gradasi halus: Hitam Hero melebur mulus ke MeshDrift background */}
-            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none -mb-16 sm:-mb-24 relative z-20" />
-
+          {/* ─── KETERANGAN FITUR (BG HITAM MURNI, MENYATU LANGSUNG DENGAN HERO) ─── */}
+          <div className="relative w-full bg-black z-10">
             <HomeFeatureSections
               isDark={isDark}
               onGetStarted={(targetMode) => {
@@ -4423,34 +4420,28 @@ export default function Home() {
               }}
               onOpenPricing={() => setShowPricingModal(true)}
             />
+
+            {/* Transisi gradasi halus: Hitam Fitur melebur lembut ke MeshDrift kanvas bergerak */}
+            <div className="w-full h-28 sm:h-40 bg-gradient-to-b from-black via-black/75 to-transparent pointer-events-none -mb-16 sm:-mb-24 relative z-20" />
           </div>
 
-          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, BLACK BG) ───── */}
-          <div id="section-chat" className="scroll-mt-10 relative w-full z-10">
-            {/* Transisi gradasi atas: MeshDrift melebur mulus ke warna hitam murni */}
-            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-transparent via-black/70 to-black pointer-events-none -mb-px" />
-
-            {/* Area Chat Berlatar Hitam Murni dengan animasi scroll dua arah yang mulus */}
-            <div className="w-full bg-black relative">
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
-                transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <HomeInteractiveChat
-                  isDark={isDark}
-                  onGetStarted={(targetMode) => {
-                    setAuthModalMode(targetMode || "signup");
-                    setShowAuthModal(true);
-                  }}
-                />
-              </motion.div>
-            </div>
-
-            {/* Transisi gradasi bawah: Hitam murni melebur kembali ke MeshDrift */}
-            <div className="w-full h-24 sm:h-36 bg-gradient-to-b from-black via-black/70 to-transparent pointer-events-none -mt-px" />
-          </div>
+          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, FLOATING DI ATAS MESHDRIFT) ─── */}
+          <motion.div
+            id="section-chat"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.05, margin: "-50px 0px -50px 0px" }}
+            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            className="scroll-mt-10 relative w-full z-10"
+          >
+            <HomeInteractiveChat
+              isDark={isDark}
+              onGetStarted={(targetMode) => {
+                setAuthModalMode(targetMode || "signup");
+                setShowAuthModal(true);
+              }}
+            />
+          </motion.div>
 
           {/* ─── PRICING SECTION ───────────────────────────────────────────────── */}
           <HomePricingSection
