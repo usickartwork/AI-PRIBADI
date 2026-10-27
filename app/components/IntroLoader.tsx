@@ -113,33 +113,55 @@ export function useAppInitializer({
   minDurationMs?: number;
   safetyTimeoutMs?: number;
 }) {
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-  const [safetyForced, setSafetyForced] = useState(false);
-  const [gone, setGone] = useState(false);
+  const [alreadyPlayed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return sessionStorage.getItem("onemind_intro_played") === "true";
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
 
-  // 1. Minimum display timer
+  const [minTimeElapsed, setMinTimeElapsed] = useState(alreadyPlayed);
+  const [safetyForced, setSafetyForced] = useState(alreadyPlayed);
+  const [gone, setGone] = useState(alreadyPlayed);
+
+  // 1. Minimum display timer (only if not already played in this session)
   useEffect(() => {
+    if (alreadyPlayed) return;
     const timer = setTimeout(() => {
       setMinTimeElapsed(true);
+      try {
+        sessionStorage.setItem("onemind_intro_played", "true");
+      } catch (e) {}
     }, minDurationMs);
     return () => clearTimeout(timer);
-  }, [minDurationMs]);
+  }, [minDurationMs, alreadyPlayed]);
 
   // 2. Safety fallback timer to prevent infinite stuck loader
   useEffect(() => {
+    if (alreadyPlayed) return;
     const safety = setTimeout(() => {
       setSafetyForced(true);
+      try {
+        sessionStorage.setItem("onemind_intro_played", "true");
+      } catch (e) {}
     }, safetyTimeoutMs);
     return () => clearTimeout(safety);
-  }, [safetyTimeoutMs]);
+  }, [safetyTimeoutMs, alreadyPlayed]);
 
-  const shouldExit = safetyForced || (!authLoading && sessionsReady && subscriptionReady && minTimeElapsed);
+  const shouldExit = alreadyPlayed || safetyForced || (!authLoading && sessionsReady && subscriptionReady && minTimeElapsed);
 
   // 3. Trigger final unmount after 280ms exit transition
   useEffect(() => {
     if (!shouldExit || gone) return;
     const exitTimer = setTimeout(() => {
       setGone(true);
+      try {
+        sessionStorage.setItem("onemind_intro_played", "true");
+      } catch (e) {}
     }, 280);
     return () => clearTimeout(exitTimer);
   }, [shouldExit, gone]);

@@ -18,7 +18,7 @@ export default function CodeStudioLandingPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
+    <div className="w-full min-h-screen overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
       
       {/* Minimal Top Header (Clean Back Link Only) */}
       <header className="max-w-5xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">

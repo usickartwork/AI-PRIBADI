@@ -80,7 +80,7 @@ export default function AIChatLandingPage() {
   }, [selectedModel]);
 
   return (
-    <div className="min-h-screen w-full bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
+    <div className="w-full min-h-screen overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
       
       {/* Minimal Top Header with clean Back link only (No floating navbar pill) */}
       <header className="max-w-5xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">

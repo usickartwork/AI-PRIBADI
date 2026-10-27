@@ -24,6 +24,9 @@ import {
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
+const ProductPreviewShowcase = dynamic(() =>
+  import("@/components/ui/product-preview-showcase").then((m) => m.ProductPreviewShowcase)
+);
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
 const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
 const Avatar = dynamic(() => import("@/components/ui/components-primitives-avatar"));
@@ -4382,7 +4385,7 @@ export default function Home() {
       {!user ? (
         <div
           id="page-1-container"
-          className="relative h-full min-h-full w-full overflow-y-auto overflow-x-hidden scroll-smooth"
+          className="relative w-full min-h-screen overflow-x-hidden scroll-smooth"
           style={{
             backgroundColor: isDark ? "#09090b" : "#ffffff",
             color: isDark ? "#ffffff" : "#09090b",
@@ -4396,6 +4399,8 @@ export default function Home() {
             }}
             onOpenPricing={() => setShowPricingModal(true)}
           />
+
+          <ProductPreviewShowcase />
 
           <FAQ
             title="Pertanyaan Umum Seputar One Mind"
