@@ -46,20 +46,21 @@
   scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
-:root,
-html,
-body {
-  overscroll-behavior: none !important;
-  overscroll-behavior-y: none !important;
-  overscroll-behavior-x: none !important;
-}
-
 html,
 body {
   min-height: 100%;
   background-color: var(--background);
   color: var(--foreground);
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* ─── KHUSUS MOBILE: KUNCI MENTOK DI ATAS & DI BAWAH (NO RUBBER-BAND / BOUNCE) ─── */
+@media (max-width: 768px) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .dark html,
@@ -67,12 +68,6 @@ html.dark,
 .dark body,
 body.dark {
   background-color: #000000;
-}
-
-#page-1-container {
-  overscroll-behavior: none !important;
-  overscroll-behavior-y: none !important;
-  overscroll-behavior-x: none !important;
 }
 
 body {

@@ -95,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html
         lang="id"
         suppressHydrationWarning
-        className={`${satoshi.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-black overscroll-none`}
+        className={`${satoshi.variable} ${geistSans.variable} ${geistMono.variable} min-h-full antialiased bg-[#fafafc] dark:bg-black`}
       >
         <head>
           <link rel="preconnect" href="https://api.fontshare.com" />
@@ -128,7 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </head>
-        <body className="min-h-screen w-full overflow-x-hidden overscroll-none flex flex-col bg-[#fafafc] dark:bg-black text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
+        <body className="min-h-screen w-full flex flex-col bg-[#fafafc] dark:bg-black text-zinc-900 dark:text-zinc-100 antialiased selection:bg-violet-100 dark:selection:bg-zinc-800 selection:text-violet-900 dark:selection:text-zinc-200">
           {children}
         </body>
       </html>
