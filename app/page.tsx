@@ -4409,7 +4409,7 @@ export default function Home() {
           />
 
           {/* ─── LIVE INTERACTIVE CHAT (USICK ONE ONLY, NO VOICE ASSISTANT) ─── */}
-          <div id="section-chat" className="scroll-mt-10">
+          <div id="section-chat" className="scroll-mt-10 bg-black relative border-y border-white/10 w-full">
             <HomeInteractiveChat
               isDark={isDark}
               onGetStarted={(targetMode) => {
@@ -4437,22 +4437,38 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          <div id="section-faq" className="scroll-mt-20">
+          {/* ─── FAQ SECTION ───────────────────────────────────────────────────── */}
+          <motion.div
+            id="section-faq"
+            initial={{ opacity: 0, y: 35 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.15, margin: "-20px 0px" }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="scroll-mt-20"
+          >
             <FAQ
               title="Pertanyaan Umum Seputar One Mind"
               subtitle="FAQ & Pusat Bantuan"
               className="max-w-6xl mx-auto"
             />
-          </div>
+          </motion.div>
 
-          <Footer01
-            isDark={isDark}
-            onGetStarted={(targetMode) => {
-              setAuthModalMode(targetMode || "signup");
-              setShowAuthModal(true);
-            }}
-            onOpenPricing={() => setShowPricingModal(true)}
-          />
+          {/* ─── FOOTER SECTION ────────────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 35 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.1, margin: "-20px 0px" }}
+            transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Footer01
+              isDark={isDark}
+              onGetStarted={(targetMode) => {
+                setAuthModalMode(targetMode || "signup");
+                setShowAuthModal(true);
+              }}
+              onOpenPricing={() => setShowPricingModal(true)}
+            />
+          </motion.div>
 
           <AuthModal
             isOpen={showAuthModal}

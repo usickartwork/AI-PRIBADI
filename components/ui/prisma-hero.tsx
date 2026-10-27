@@ -158,7 +158,10 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
     }
 
     if (item.targetId) {
-      const el = document.getElementById(item.targetId);
+      if (typeof window !== "undefined" && item.targetId.startsWith("card-")) {
+        window.dispatchEvent(new CustomEvent("select-feature-tab", { detail: item.targetId }));
+      }
+      const el = document.getElementById(item.targetId) || document.getElementById("section-features");
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
