@@ -178,15 +178,31 @@ function formatListTime(iso: string | null): string {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
 
-  if (diffMin < 1) return "baru saja";
-  if (diffMin < 60) return `${diffMin} min`;
-  if (diffHr < 24) return `${diffHr} hour`;
-  if (diffDay === 1) return "Kemarin";
-  if (diffDay < 7) return `${diffDay} d`;
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" });
+  const isSameDay = d.toDateString() === now.toDateString();
+  if (isSameDay) {
+    if (diffMin < 1) return "Baru saja";
+    if (diffMin < 60) return `${diffMin} mnt lalu`;
+    return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return "Kemarin";
+  }
+
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  if (diffDays < 7) {
+    const dayName = d.toLocaleDateString("id-ID", { weekday: "long" });
+    return dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  }
+
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  }
+
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function formatBubbleTime(iso: string): string {
@@ -2667,17 +2683,17 @@ export default function MessagesWorkspace({
       <div className={active ? "hidden md:block" : undefined}>{header}</div>
 
       <div className={`flex-1 min-h-0 flex gap-3 px-0 md:px-4 lg:px-6 pb-0 md:pb-4 ${active ? "pt-0 md:pt-[4.25rem]" : "pt-[4.25rem]"}`}>
-        {/* Sidebar list container (matching custom mobile card layout) */}
+        {/* Sidebar list container (matching custom mobile card layout, borderless above) */}
         <section
           className={`${
             active ? "hidden md:flex" : "flex"
-          } flex-col w-full md:w-[380px] lg:w-[410px] shrink-0 min-h-0 md:rounded-3xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0 relative`}
+          } flex-col w-full md:w-[380px] lg:w-[410px] shrink-0 min-h-0 md:rounded-3xl overflow-hidden border-0 md:border md:border-t-0 ${isDark ? "md:border-white/10" : "md:border-black/10"} relative`}
         >
           {/* Header row: Title on the left, Search on the right */}
           <div className="px-5 pt-4 pb-2 shrink-0">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                {tab === "chats" ? "Messages" : tab === "friends" || tab === "requests" ? "Friends" : "Add Friend"}
+                Messages
               </h1>
               <button
                 type="button"
@@ -2703,7 +2719,7 @@ export default function MessagesWorkspace({
 
             {/* Collapsible Search Input */}
             {searchOpen && (
-              <div className="mt-3 animate-in fade-in-0 duration-150">
+              <div className="mt-2.5 animate-in fade-in-0 duration-150">
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
@@ -2725,112 +2741,114 @@ export default function MessagesWorkspace({
                 </div>
               </div>
             )}
+
+            {/* Faith-style Sliding Pill Navigation right below Messages */}
+            <div className="mt-3 mb-1">
+              <nav className="w-full select-none bg-transparent">
+                <div
+                  ref={navContainerRef}
+                  className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
+                >
+                  {/* Sliding Morph Pill Indicator */}
+                  <div
+                    className={`absolute rounded-full shadow-xs pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      isDark ? "bg-white" : "bg-[#111113]"
+                    }`}
+                    style={{
+                      transform: `translate3d(${navPillStyle.left}px, -50%, 0)`,
+                      width: `${navPillStyle.width}px`,
+                      height: `${navPillStyle.height}px`,
+                      opacity: navPillStyle.opacity,
+                      left: 0,
+                      top: "50%",
+                    }}
+                  />
+
+                  {[
+                    { id: "chats" as const, label: "Chat", icon: MessageSquare, badge: totalUnread },
+                    { id: "friends" as const, label: "Friend", icon: User, badge: requestCount },
+                    { id: "add" as const, label: "Tambah", icon: Plus, badge: 0 },
+                  ].map((item, idx) => {
+                    const Icon = item.icon;
+                    const isActive = activeNavIdx === idx;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        ref={(el) => {
+                          navTabRefs.current[idx] = el;
+                        }}
+                        onClick={() => {
+                          setTab(item.id);
+                          if (navTabRefs.current[idx] && navContainerRef.current) {
+                            const tabRect = navTabRefs.current[idx]!.getBoundingClientRect();
+                            const containerRect = navContainerRef.current.getBoundingClientRect();
+                            if (tabRect.width > 0) {
+                              setNavPillStyle({
+                                left: tabRect.left - containerRect.left,
+                                width: tabRect.width,
+                                height: tabRect.height,
+                                opacity: 1,
+                              });
+                            }
+                          }
+                        }}
+                        className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
+                          isActive
+                            ? isDark
+                              ? "bg-transparent text-black px-4 py-2"
+                              : "bg-transparent text-white px-4 py-2"
+                            : isDark
+                            ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
+                            : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
+                        }`}
+                        title={item.label}
+                        aria-label={item.label}
+                      >
+                        <Icon
+                          size={isActive ? 18 : 21}
+                          strokeWidth={isActive ? 2.2 : 1.9}
+                          className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
+                            isActive
+                              ? isDark
+                                ? "text-black scale-105"
+                                : "text-white scale-105"
+                              : isDark
+                              ? "text-[#8E8E93] hover:text-white scale-100"
+                              : "text-[#55555A] hover:text-[#111113] scale-100"
+                          }`}
+                        />
+                        <span
+                          className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                            isActive
+                              ? "max-w-[75px] opacity-100 ml-1.5"
+                              : "max-w-0 opacity-0 ml-0 pointer-events-none"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+
+                        {/* Badge if any */}
+                        {!!item.badge && item.badge > 0 && !isActive && (
+                          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                            {item.badge > 99 ? "99+" : item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
+            </div>
           </div>
 
           {/* Scrollable list area (borderless above and below) */}
-          <div className="relative flex-1 min-h-0 overflow-y-auto">
+          <div className="relative flex-1 min-h-0 overflow-y-auto pb-4">
             {tab === "chats" && chatsView}
             {(tab === "friends" || tab === "requests") && friendsView}
             {tab === "add" && addView}
           </div>
-
-          {/* Bottom Navigation Bar (Faith-style Sliding Pill, completely borderless) */}
-          <nav className="w-full px-3 pt-2 pb-3.5 z-20 select-none bg-transparent shrink-0">
-            <div
-              ref={navContainerRef}
-              className="relative flex items-center justify-around max-w-[280px] sm:max-w-[310px] mx-auto p-1 rounded-full"
-            >
-              {/* Sliding Morph Pill Indicator */}
-              <div
-                className={`absolute rounded-full shadow-xs pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  isDark ? "bg-white" : "bg-[#111113]"
-                }`}
-                style={{
-                  transform: `translate3d(${navPillStyle.left}px, -50%, 0)`,
-                  width: `${navPillStyle.width}px`,
-                  height: `${navPillStyle.height}px`,
-                  opacity: navPillStyle.opacity,
-                  left: 0,
-                  top: "50%",
-                }}
-              />
-
-              {[
-                { id: "chats" as const, label: "Chat", icon: MessageSquare, badge: totalUnread },
-                { id: "friends" as const, label: "Friend", icon: User, badge: requestCount },
-                { id: "add" as const, label: "Tambah", icon: Plus, badge: 0 },
-              ].map((item, idx) => {
-                const Icon = item.icon;
-                const isActive = activeNavIdx === idx;
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    ref={(el) => {
-                      navTabRefs.current[idx] = el;
-                    }}
-                    onClick={() => {
-                      setTab(item.id);
-                      if (navTabRefs.current[idx] && navContainerRef.current) {
-                        const tabRect = navTabRefs.current[idx]!.getBoundingClientRect();
-                        const containerRect = navContainerRef.current.getBoundingClientRect();
-                        if (tabRect.width > 0) {
-                          setNavPillStyle({
-                            left: tabRect.left - containerRect.left,
-                            width: tabRect.width,
-                            height: tabRect.height,
-                            opacity: 1,
-                          });
-                        }
-                      }
-                    }}
-                    className={`relative z-10 flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-90 cursor-pointer ${
-                      isActive
-                        ? isDark
-                          ? "bg-transparent text-black px-4 py-2"
-                          : "bg-transparent text-white px-4 py-2"
-                        : isDark
-                        ? "text-[#8E8E93] hover:text-white p-2 hover:bg-white/5"
-                        : "text-[#66666E] hover:text-[#111113] p-2 hover:bg-black/5"
-                    }`}
-                    title={item.label}
-                    aria-label={item.label}
-                  >
-                    <Icon
-                      size={isActive ? 18 : 21}
-                      strokeWidth={isActive ? 2.2 : 1.9}
-                      className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
-                        isActive
-                          ? isDark
-                            ? "text-black scale-105"
-                            : "text-white scale-105"
-                          : isDark
-                          ? "text-[#8E8E93] hover:text-white scale-100"
-                          : "text-[#55555A] hover:text-[#111113] scale-100"
-                      }`}
-                    />
-                    <span
-                      className={`text-[12.5px] font-semibold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                        isActive
-                          ? "max-w-[75px] opacity-100 ml-1.5"
-                          : "max-w-0 opacity-0 ml-0 pointer-events-none"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-
-                    {/* Badge if any */}
-                    {!!item.badge && item.badge > 0 && !isActive && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
-                        {item.badge > 99 ? "99+" : item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
         </section>
 
         {/* Chat pane */}
