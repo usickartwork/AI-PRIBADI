@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
-import { Mail, Lock, X, ArrowLeft } from "lucide-react";
+import { Mail, Lock, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { AnimatedFormField, SocialButton, FloatingParticles } from "@/components/ui/sign-in-flo";
+import { AnimatedFormField, SocialButton } from "@/components/ui/sign-in-flo";
 import { BrainLogo } from "@/components/ui/brain-logo";
 
 type AuthModalProps = {
@@ -155,35 +155,11 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
         )}
       </div>
 
-      {/* ─── SISI KANAN: DESAIN PERSIS SEPERTI SEBELUMNYA ────────────────────── */}
-      <div className="flex-1 h-full overflow-y-auto flex items-center justify-center p-4 sm:p-6 md:p-8 bg-[#09090b]">
-        {/* Kartu Modal Sign In Flo Elegance (Desain Asli yang Dipertahankan Penuh) */}
-        <div
-          className={`w-full max-w-[400px] rounded-3xl p-7 sm:p-8 transition-all relative overflow-hidden shadow-2xl ${
-            isDark
-              ? "bg-[#111113]/90 border border-white/10 text-white shadow-black/90"
-              : "bg-white/95 border border-black/10 text-black shadow-zinc-900/15"
-          }`}
-        >
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className={`absolute top-5 right-5 z-20 p-2 rounded-full transition cursor-pointer ${
-                isDark
-                  ? "text-zinc-400 hover:text-white hover:bg-white/10"
-                  : "text-zinc-500 hover:text-black hover:bg-black/5"
-              }`}
-              aria-label="Tutup"
-            >
-              <X size={18} />
-            </button>
-          )}
-
-          {/* Interactive Floating Particle Background Effect */}
-          <FloatingParticles isDark={isDark} />
-
-          {/* Ambient Top Glow */}
+      {/* ─── SISI KANAN: DESAIN MENYATU (SEAMLESS, TANPA KOTAK PINGGIRAN & TANPA TANDA X) ─── */}
+      <div className="flex-1 h-full overflow-y-auto flex items-center justify-center p-6 sm:p-10 lg:p-14 bg-[#09090b]">
+        {/* Form Container Seamless (Menyatu tanpa box/kotak border) */}
+        <div className="w-full max-w-[400px] relative">
+          {/* Ambient Top Depth Glow */}
           <div
             className={`absolute -top-20 left-1/2 -translate-x-1/2 w-48 h-32 blur-3xl pointer-events-none rounded-full ${
               isDark ? "bg-white/5" : "bg-black/5"
@@ -191,7 +167,7 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
           />
 
           <div className="relative z-10">
-            {/* Header Brand: Usick One Standalone Brain Logo & One Mind */}
+            {/* Header Brand: Brain Logo & One Mind */}
             <div className="flex flex-col items-center text-center mb-6">
               <div className="mb-3 flex items-center justify-center">
                 <BrainLogo
@@ -287,10 +263,10 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
             <div className="mt-6 mb-5">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className={`w-full border-t ${isDark ? "border-zinc-800" : "border-zinc-200"}`} />
+                  <div className="w-full border-t border-zinc-800" />
                 </div>
                 <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
-                  <span className={`px-2.5 ${isDark ? "bg-[#111113] text-zinc-500" : "bg-white text-zinc-400"}`}>
+                  <span className="px-2.5 bg-[#09090b] text-zinc-500 font-mono">
                     Atau lanjutkan dengan
                   </span>
                 </div>
@@ -351,7 +327,7 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
 
             {/* Info Footer: Pendaftaran Akun Baru Otomatis via OAuth */}
             <div className="mt-6 text-center">
-              <p className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+              <p className="text-xs leading-relaxed text-zinc-400">
                 Belum punya akun? Cukup masuk dengan Google atau Apple untuk mendaftar otomatis.
               </p>
             </div>
