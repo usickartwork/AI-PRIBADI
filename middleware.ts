@@ -22,6 +22,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     pathname === "/terms" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
+    pathname === "/ai-chat" ||
+    pathname === "/code-studio" ||
+    pathname === "/music" ||
+    pathname === "/harga" ||
+    pathname === "/pricing" ||
     pathname.startsWith("/share");
 
   if (isPublicPage && isTargetMethod) {

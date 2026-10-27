@@ -2,6 +2,7 @@
 
 import { motion, useInView } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useRef } from "react";
 
 /* ---------------- WordsPullUp ---------------- */
@@ -10,9 +11,16 @@ interface WordsPullUpProps {
   className?: string;
   showAsterisk?: boolean;
   style?: React.CSSProperties;
+  wordSpacing?: string;
 }
 
-export const WordsPullUp = ({ text, className = "", showAsterisk = false, style }: WordsPullUpProps) => {
+export const WordsPullUp = ({
+  text,
+  className = "",
+  showAsterisk = false,
+  style,
+  wordSpacing = "0.08em",
+}: WordsPullUpProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true });
   const words = text.split(" ");
@@ -28,7 +36,7 @@ export const WordsPullUp = ({ text, className = "", showAsterisk = false, style 
             animate={isInView ? { y: 0, opacity: 1 } : {}}
             transition={{ duration: 0.6, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
             className="inline-block relative"
-            style={{ marginRight: isLast ? 0 : "0.25em" }}
+            style={{ marginRight: isLast ? 0 : wordSpacing }}
           >
             {word}
             {showAsterisk && isLast && (
@@ -88,11 +96,11 @@ const CREAM_MUTED = "rgba(225, 224, 204, 0.8)";
 
 type NavAction = "signup" | "signin" | "pricing";
 
-const navItems: { label: string; action: NavAction }[] = [
-  { label: "AI Chat", action: "signup" },
-  { label: "Code Studio", action: "signup" },
-  { label: "Music", action: "signup" },
-  { label: "Harga", action: "pricing" },
+const navItems: { label: string; href?: string; action?: NavAction }[] = [
+  { label: "AI Chat", href: "/ai-chat" },
+  { label: "Code Studio", href: "/code-studio" },
+  { label: "Music", href: "/music" },
+  { label: "Harga", href: "/harga" },
   { label: "Sign In", action: "signin" },
 ];
 
@@ -103,13 +111,15 @@ export interface PrismaHeroProps {
 }
 
 const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroProps) => {
-  const handleNav = (action: NavAction) => {
-    if (action === "pricing") {
-      if (onOpenPricing) onOpenPricing();
-      else onGetStarted?.("signup");
-      return;
+  const handleNav = (item: (typeof navItems)[number]) => {
+    if (item.action) {
+      if (item.action === "pricing") {
+        if (onOpenPricing) onOpenPricing();
+        else onGetStarted?.("signup");
+        return;
+      }
+      onGetStarted?.(item.action);
     }
-    onGetStarted?.(action);
   };
 
   return (
@@ -138,19 +148,32 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
         {/* Navbar */}
         <nav className="absolute left-1/2 top-0 z-20 -translate-x-1/2">
           <div className="flex items-center gap-3 whitespace-nowrap rounded-b-2xl bg-black px-4 py-2 sm:gap-6 md:gap-12 md:rounded-b-3xl md:px-8 lg:gap-14">
-            {navItems.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => handleNav(item.action)}
-                className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm"
-                style={{ color: CREAM_MUTED }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
-              >
-                {item.label}
-              </button>
-            ))}
+            {navItems.map((item) =>
+              item.href ? (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm"
+                  style={{ color: CREAM_MUTED }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => handleNav(item)}
+                  className="cursor-pointer text-[10px] transition-colors sm:text-xs md:text-sm"
+                  style={{ color: CREAM_MUTED }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_MUTED)}
+                >
+                  {item.label}
+                </button>
+              )
+            )}
           </div>
         </nav>
 
@@ -159,10 +182,10 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
           <div className="grid grid-cols-12 items-end gap-4">
             <div className="col-span-12 lg:col-span-8">
               <h1
-                className="font-medium leading-[0.85] tracking-[-0.07em] text-[24vw] sm:text-[22vw] md:text-[20vw] lg:text-[13vw] xl:text-[12.5vw]"
-                style={{ color: CREAM }}
+                className="font-black leading-[0.82] tracking-[-0.095em] text-[24vw] sm:text-[22vw] md:text-[20vw] lg:text-[13vw] xl:text-[12.5vw] select-none"
+                style={{ color: CREAM, fontWeight: 900 }}
               >
-                <WordsPullUp text="One Mind" showAsterisk />
+                <WordsPullUp text="One Mind" showAsterisk wordSpacing="0.08em" />
               </h1>
             </div>
 

@@ -23,6 +23,7 @@ import {
 } from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
+const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
 const MeshDriftBackground = dynamic(() => import("@/components/ui/mesh-drift-background").then((m) => m.MeshDriftBackground));
 const ShiningText = dynamic(() => import("@/components/ui/shining-text").then((m) => m.ShiningText));
 const Avatar = dynamic(() => import("@/components/ui/components-primitives-avatar"));
@@ -4394,6 +4395,12 @@ export default function Home() {
               setShowAuthModal(true);
             }}
             onOpenPricing={() => setShowPricingModal(true)}
+          />
+
+          <FAQ
+            title="Pertanyaan Umum Seputar One Mind"
+            subtitle="FAQ & Pusat Bantuan"
+            className="max-w-6xl mx-auto"
           />
 
           <Footer01
