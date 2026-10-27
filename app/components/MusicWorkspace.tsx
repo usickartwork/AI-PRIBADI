@@ -69,6 +69,21 @@ type SubTab = "home" | "search" | "playlists" | "radio";
 const SILENT_AUDIO_URI =
   "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
 
+// Legacy dialogue-heavy Official Music Videos mapped to clean studio audio / lyric video IDs
+const LEGACY_DIALOGUE_VIDEO_FIXES: Record<string, string> = {
+  AQpEIZ8dNcU: "lABZ_-uhC0E", // Gala bunga matahari (removes 17.5s dialogue)
+  JGwWNGJdvx8: "_dK2tDK9grQ", // Shape of You (removes 6s dialogue)
+  "4NRXx6U8ABQ": "fHI8X4OXluQ", // Blinding Lights (removes 23s dialogue)
+  "eVli-tstM5E": "51zjlMhdSTE", // Espresso (removes 14s dialogue)
+  KEG7b851Ric: "z9Q9OzL_wI8", // Taste (removes 21s dialogue)
+  yjnSX_iUFVo: "7Jm2Il2U-c0", // Satu Bulan (removes 7.5s dialogue)
+  cWrSjCZ5AeE: "saXhrw-7rQI", // Evaluasi (removes 15s dialogue)
+  ekr2nIex040: "8Ebqe2Dbzls", // APT. (lyric studio audio)
+  "34Na4j8AVgA": "Rif-RTvmmss", // Starboy (removes 42.5s dialogue)
+  "2Vv-BfVoq4g": "iKzRIweSBLA", // Perfect (removes 21.3s dialogue)
+  G7KNmW9a75Y: "SWpAYbgHmTo", // Flowers (removes 4s dialogue)
+};
+
 // Curated starter tracks with 100% verified Spotify artworks & pre-resolved YouTube IDs
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
@@ -83,7 +98,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 236873,
     externalUrl: "https://open.spotify.com/track/4jXpabLpCjQ6Fk9x1hWfS2",
     uri: "spotify:track:4jXpabLpCjQ6Fk9x1hWfS2",
-    youtubeVideoId: "AQpEIZ8dNcU",
+    youtubeVideoId: "lABZ_-uhC0E",
   },
   {
     id: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
@@ -97,7 +112,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 233712,
     externalUrl: "https://open.spotify.com/track/7qiZfU4dY1lWllzX7mPBI3",
     uri: "spotify:track:7qiZfU4dY1lWllzX7mPBI3",
-    youtubeVideoId: "JGwWNGJdvx8",
+    youtubeVideoId: "_dK2tDK9grQ",
   },
   {
     id: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
@@ -111,7 +126,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200040,
     externalUrl: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
     uri: "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
-    youtubeVideoId: "4NRXx6U8ABQ",
+    youtubeVideoId: "fHI8X4OXluQ",
   },
   {
     id: "spotify:track:5QO79kh1waicV47BqGRL3g",
@@ -167,7 +182,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 175459,
     externalUrl: "https://open.spotify.com/track/2qSkIjg1o9h3YT9RAgYN75",
     uri: "spotify:track:2qSkIjg1o9h3YT9RAgYN75",
-    youtubeVideoId: "eVli-tstM5E",
+    youtubeVideoId: "51zjlMhdSTE",
   },
   {
     id: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
@@ -181,7 +196,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 157279,
     externalUrl: "https://open.spotify.com/track/5G2f63n7IPVPPjfNIGih7Q",
     uri: "spotify:track:5G2f63n7IPVPPjfNIGih7Q",
-    youtubeVideoId: "KEG7b851Ric",
+    youtubeVideoId: "z9Q9OzL_wI8",
   },
   {
     id: "spotify:track:1BxfuPKGuaTgP7aM0Bbdwr",
@@ -209,7 +224,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 200476,
     externalUrl: "https://open.spotify.com/track/7zOVh5fGpEwSbZd0g9z80B",
     uri: "spotify:track:7zOVh5fGpEwSbZd0g9z80B",
-    youtubeVideoId: "yjnSX_iUFVo",
+    youtubeVideoId: "7Jm2Il2U-c0",
   },
   {
     id: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
@@ -223,7 +238,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 194469,
     externalUrl: "https://open.spotify.com/track/2dIBMHByUGcNPzmYBJ6OAj",
     uri: "spotify:track:2dIBMHByUGcNPzmYBJ6OAj",
-    youtubeVideoId: "cWrSjCZ5AeE",
+    youtubeVideoId: "saXhrw-7rQI",
   },
   {
     id: "spotify:track:1nYdkPCbHdYi4w7s2L6SHA",
@@ -293,7 +308,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 169917,
     externalUrl: "https://open.spotify.com/track/5vNRhkKd0yEAg8suGBpjeY",
     uri: "spotify:track:5vNRhkKd0yEAg8suGBpjeY",
-    youtubeVideoId: "ekr2nIex040",
+    youtubeVideoId: "8Ebqe2Dbzls",
   },
   {
     id: "spotify:track:2gcMYiZzzmzoF8PPAfL3IO",
@@ -363,7 +378,7 @@ const FEATURED_STARTER_TRACKS: MusicItem[] = [
     durationMs: 230453,
     externalUrl: "https://open.spotify.com/track/7MXVkk9YMctZqd1Srtv4MB",
     uri: "spotify:track:7MXVkk9YMctZqd1Srtv4MB",
-    youtubeVideoId: "34Na4j8AVgA",
+    youtubeVideoId: "Rif-RTvmmss",
   },
   {
     id: "spotify:track:6O0WEM0QNEhqpU50BKui7o",
@@ -1723,7 +1738,7 @@ export function MusicWorkspace({
         return;
       }
 
-      const startSec = Math.max(0, options?.startSeconds || 0);
+      let startSec = Math.max(0, options?.startSeconds || 0);
       const shouldAutoPlay = options?.autoPlay !== false;
 
       // Start verified local playback telemetry session (finalizing previous session with exact reason)
@@ -1782,6 +1797,10 @@ export function MusicWorkspace({
       }
 
       let videoId = track.youtubeVideoId;
+      if (videoId && LEGACY_DIALOGUE_VIDEO_FIXES[videoId]) {
+        videoId = LEGACY_DIALOGUE_VIDEO_FIXES[videoId];
+        track.youtubeVideoId = videoId;
+      }
 
       if (!videoId) {
         setIsResolvingAudio(true);
@@ -1794,6 +1813,15 @@ export function MusicWorkspace({
           if (data.success && data.videoId) {
             videoId = data.videoId;
             track.youtubeVideoId = videoId;
+            // If the resolved video has an intro dialogue/skit to skip and caller didn't pass custom seek
+            if (data.startSeconds && data.startSeconds > 0 && !options?.startSeconds) {
+              startSec = data.startSeconds;
+              setCurrentTime(startSec);
+              if (playbackClockRef.current) {
+                playbackClockRef.current.positionSeconds = startSec;
+                playbackClockRef.current.snapshotPerfTime = performance.now();
+              }
+            }
             // Persist the resolved videoId to the queue
             setQueue((prevQueue) => {
               const updated = prevQueue.map((item) =>
