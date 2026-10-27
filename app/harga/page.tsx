@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
 import Footer01 from "@/components/ui/footer-01";
+import { AnimatePresence } from "framer-motion";
 import { AuthModal } from "@/app/components/AuthModal";
 
 export default function PricingLandingPage() {
@@ -167,14 +168,16 @@ export default function PricingLandingPage() {
       <Footer01 isDark={true} onGetStarted={openAuth} />
 
       {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal
-          isDark={true}
-          initialMode={authMode}
-          onSuccess={() => setShowAuthModal(false)}
-          onClose={() => setShowAuthModal(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showAuthModal && (
+          <AuthModal
+            isDark={true}
+            initialMode={authMode}
+            onSuccess={() => setShowAuthModal(false)}
+            onClose={() => setShowAuthModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

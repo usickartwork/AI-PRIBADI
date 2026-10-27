@@ -23,7 +23,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       role="status"
       aria-label="Memuat One Mind"
       aria-live="polite"
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] backdrop-blur-2xl bg-[#09090b]/85 text-white ${
         isExiting
           ? "opacity-0 scale-[1.03] pointer-events-none"
           : "opacity-100 scale-100"
@@ -31,7 +31,9 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       style={{
         width: "100vw",
         height: "100dvh",
-        backgroundColor: "#09090b",
+        backgroundColor: "rgba(9, 9, 11, 0.85)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         color: "#ffffff",
       }}
     >

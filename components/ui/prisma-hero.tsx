@@ -126,8 +126,15 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
 
   useEffect(() => {
     // Ensure smooth, immediate playback without initial freeze
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
+    const v = videoRef.current;
+    if (v) {
+      v.muted = true;
+      v.defaultMuted = true;
+      v.playsInline = true;
+      const p = v.play();
+      if (p !== undefined) {
+        p.catch(() => {});
+      }
     }
   }, []);
 

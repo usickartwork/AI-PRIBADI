@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
-import { Mail, Lock, X } from "lucide-react";
-import { AnimatedFormField, SocialButton, FloatingParticles } from "@/components/ui/sign-in-flo";
+import { Mail, Lock, X, ArrowLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { AnimatedFormField, SocialButton } from "@/components/ui/sign-in-flo";
 import { BrainLogo } from "@/components/ui/brain-logo";
 
 type AuthModalProps = {
@@ -13,7 +14,8 @@ type AuthModalProps = {
   onClose?: () => void;
 };
 
-export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
+export function AuthModal({ isDark, initialMode = "signin", onSuccess, onClose }: AuthModalProps) {
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [identifier, setIdentifier] = useState(""); // email or username
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +28,6 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // ─── CLERK OAUTH (GOOGLE & APPLE) HANDLER ───────────────────────────────────
-  // Sign in dan Sign up terintegrasi: otomatis membuat akun baru jika belum terdaftar.
   const handleOAuth = async (strategy: "oauth_google" | "oauth_apple") => {
     setErrorMsg(null);
 
@@ -118,60 +119,103 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
   };
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in-0 duration-300"
+    <motion.div
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: "100%", opacity: 0 }}
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-0 z-[100] flex flex-col md:flex-row w-full h-[100dvh] bg-[#09090b] text-white overflow-hidden select-none"
     >
-      {/* Kartu Modal Sign In Flo Elegance */}
-      <div
-        className={`w-full max-w-[400px] rounded-3xl p-7 sm:p-8 transition-all relative overflow-hidden shadow-2xl ${
-          isDark
-            ? "bg-[#111113]/90 border border-white/10 text-white shadow-black/90"
-            : "bg-white/95 border border-black/10 text-black shadow-zinc-900/15"
-        }`}
-      >
+      {/* ─── LEFT HALF: PAGE 1 ANIMATION / VIDEO ─────────────────────────────── */}
+      <div className="relative w-full md:w-1/2 h-52 sm:h-64 md:h-full overflow-hidden shrink-0 bg-black">
+        {/* Background Video from Page 1 */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
+          src="/hero-bw-logo.mp4"
+        />
+
+        {/* Cinematic Vignette Overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/80 via-transparent to-black/30 md:to-transparent" />
+
+        {/* Back Button (matching the user's mockup) */}
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className={`absolute top-5 right-5 z-20 p-2 rounded-full transition cursor-pointer ${
-              isDark
-                ? "text-zinc-400 hover:text-white hover:bg-white/10"
-                : "text-zinc-500 hover:text-black hover:bg-black/5"
-            }`}
-            aria-label="Tutup"
+            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 border border-white/20 text-white backdrop-blur-md transition-all hover:bg-black/90 hover:scale-105 active:scale-95 cursor-pointer shadow-xl"
+            aria-label="Kembali ke halaman utama"
           >
-            <X size={18} />
+            <ArrowLeft className="h-5 w-5" />
           </button>
         )}
 
-        {/* Interactive Floating Particle Background Effect */}
-        <FloatingParticles isDark={isDark} />
+        {/* Desktop Brand Note on Left Panel */}
+        <div className="hidden md:flex absolute bottom-8 left-8 right-8 z-20 flex-col gap-2 pointer-events-none">
+          <div className="flex items-center gap-2.5">
+            <BrainLogo className="w-7 h-7 text-white" />
+            <span className="font-extrabold text-lg text-white tracking-tight">One Mind</span>
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed max-w-sm">
+            Infinite Intelligence — Semua model AI dunia dalam satu ruang kerja yang terintegrasi dan harmonis.
+          </p>
+        </div>
+      </div>
 
-        {/* Ambient Top Glow */}
-        <div
-          className={`absolute -top-20 left-1/2 -translate-x-1/2 w-48 h-32 blur-3xl pointer-events-none rounded-full ${
-            isDark ? "bg-white/5" : "bg-black/5"
-          }`}
-        />
+      {/* ─── RIGHT HALF: AUTHENTICATION FORM ─────────────────────────────────── */}
+      <div className="relative w-full md:w-1/2 h-full flex flex-col justify-center items-center p-6 sm:p-10 lg:p-16 overflow-y-auto bg-[#09090b]">
+        {/* Desktop Top-Right Close Button */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="hidden md:flex absolute top-6 right-6 z-20 p-2.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            aria-label="Tutup"
+          >
+            <X size={20} />
+          </button>
+        )}
 
-        <div className="relative z-10">
-          {/* Header Brand: Usick One Standalone Brain Logo & One Mind */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="mb-3 flex items-center justify-center">
-              <BrainLogo
-                className={`w-11 h-11 transition-transform duration-300 hover:scale-110 drop-shadow-sm ${
-                  isDark ? "text-white" : "text-black"
-                }`}
-              />
-            </div>
-            <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-zinc-900"}`}>
-              Welcome to One Mind
+        <div className="w-full max-w-[420px] mx-auto py-2 sm:py-6">
+          {/* Header */}
+          <div className="mb-7">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              {mode === "signin" ? "Welcome Back" : "Create an Account"}
             </h1>
-            <p className={`text-xs sm:text-sm mt-1.5 max-w-[290px] leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-              Masuk atau daftar otomatis via Google & Apple.
+            <p className="mt-2 text-xs sm:text-sm text-zinc-400">
+              {mode === "signin" ? (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signup");
+                      setErrorMsg(null);
+                    }}
+                    className="font-semibold text-white underline underline-offset-4 hover:text-zinc-200 transition-colors cursor-pointer"
+                  >
+                    Sign up
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signin");
+                      setErrorMsg(null);
+                    }}
+                    className="font-semibold text-white underline underline-offset-4 hover:text-zinc-200 transition-colors cursor-pointer"
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
             </p>
           </div>
 
@@ -179,7 +223,7 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
           {errorMsg && (
             <div
               role="alert"
-              className="mb-5 p-3 rounded-xl text-xs bg-red-500/10 border border-red-500/25 text-red-400 flex items-start gap-2.5 animate-in fade-in-0 duration-200"
+              className="mb-5 p-3.5 rounded-xl text-xs bg-red-500/10 border border-red-500/25 text-red-400 flex items-start gap-2.5 animate-in fade-in-0 duration-200"
             >
               <svg className="w-4 h-4 shrink-0 mt-0.5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                 <path
@@ -194,54 +238,54 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
 
           {/* Form Login: Email/Username & Password dengan Animated Effect */}
           <form onSubmit={handleAuthSubmit} className="space-y-4">
-            <AnimatedFormField
-              type="text"
-              placeholder="Username atau Email"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              icon={<Mail size={17} />}
-              autoComplete="username"
-              required
-              isDark={isDark}
-            />
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                Username atau Email
+              </label>
+              <AnimatedFormField
+                type="text"
+                placeholder="nama@email.com atau username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                icon={<Mail size={17} />}
+                autoComplete="username"
+                required
+                isDark={isDark}
+              />
+            </div>
 
-            <AnimatedFormField
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock size={17} />}
-              showToggle
-              onToggle={() => setShowPassword(!showPassword)}
-              showPassword={showPassword}
-              autoComplete="current-password"
-              required
-              isDark={isDark}
-            />
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                Password
+              </label>
+              <AnimatedFormField
+                type={showPassword ? "text" : "password"}
+                placeholder="Masukkan password Anda"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                icon={<Lock size={17} />}
+                showToggle
+                onToggle={() => setShowPassword(!showPassword)}
+                showPassword={showPassword}
+                autoComplete="current-password"
+                required
+                isDark={isDark}
+              />
+            </div>
 
-            {/* Tombol Sign In */}
+            {/* Tombol Submit */}
             <button
               type="submit"
               disabled={loading || Boolean(oauthLoading)}
-              className={`w-full relative group py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 ease-in-out overflow-hidden shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                isDark
-                  ? "bg-white text-black hover:bg-zinc-100 shadow-white/10"
-                  : "bg-black text-white hover:bg-zinc-800 shadow-black/20"
-              }`}
+              className="w-full relative group py-3 px-4 rounded-xl font-bold text-sm transition-all duration-300 ease-in-out overflow-hidden shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-200 mt-2"
             >
               <span className={`transition-opacity duration-200 ${loading ? "opacity-0" : "opacity-100"}`}>
-                Sign In
+                {mode === "signin" ? "Sign In" : "Sign Up"}
               </span>
 
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div
-                    className={`w-4 h-4 border-2 rounded-full animate-spin ${
-                      isDark
-                        ? "border-black/30 border-t-black"
-                        : "border-white/30 border-t-white"
-                    }`}
-                  />
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                 </div>
               )}
 
@@ -251,14 +295,14 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
           </form>
 
           {/* Divider: Or continue with */}
-          <div className="mt-6 mb-5">
+          <div className="mt-7 mb-5">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className={`w-full border-t ${isDark ? "border-zinc-800" : "border-zinc-200"}`} />
+                <div className="w-full border-t border-zinc-800" />
               </div>
               <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
-                <span className={`px-2.5 ${isDark ? "bg-[#111113] text-zinc-500" : "bg-white text-zinc-400"}`}>
-                  Atau lanjutkan dengan
+                <span className="px-3 bg-[#09090b] text-zinc-500 font-mono">
+                  or
                 </span>
               </div>
             </div>
@@ -316,14 +360,16 @@ export function AuthModal({ isDark, onSuccess, onClose }: AuthModalProps) {
             />
           </div>
 
-          {/* Info Footer: Pendaftaran Akun Baru Otomatis via OAuth */}
+          {/* Info Footer */}
           <div className="mt-6 text-center">
-            <p className={`text-xs leading-relaxed ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+            <p className="text-xs text-zinc-500 leading-relaxed">
               Belum punya akun? Cukup masuk dengan Google atau Apple untuk mendaftar otomatis.
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
+
+export default AuthModal;

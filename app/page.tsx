@@ -4435,16 +4435,18 @@ export default function Home() {
             onOpenPricing={() => setShowPricingModal(true)}
           />
 
-          {showAuthModal && (
-            <AuthModal
-              isDark={isDark}
-              initialMode={authModalMode}
-              onSuccess={() => {
-                setShowAuthModal(false);
-              }}
-              onClose={() => setShowAuthModal(false)}
-            />
-          )}
+          <AnimatePresence>
+            {showAuthModal && (
+              <AuthModal
+                isDark={isDark}
+                initialMode={authModalMode}
+                onSuccess={() => {
+                  setShowAuthModal(false);
+                }}
+                onClose={() => setShowAuthModal(false)}
+              />
+            )}
+          </AnimatePresence>
         </div>
       ) : (
         <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
@@ -6619,14 +6621,16 @@ export default function Home() {
       )}
 
       {/* ─── MANDATORY AUTH MODAL (Login & Register via Supabase) ────────── */}
-      {showAuthModal ? (
-        <AuthModal
-          isDark={isDark}
-          initialMode={authModalMode}
-          onSuccess={() => setShowAuthModal(false)}
-          onClose={() => setShowAuthModal(false)}
-        />
-      ) : null}
+      <AnimatePresence>
+        {showAuthModal ? (
+          <AuthModal
+            isDark={isDark}
+            initialMode={authModalMode}
+            onSuccess={() => setShowAuthModal(false)}
+            onClose={() => setShowAuthModal(false)}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {/* ─── MANDATORY SETUP MODAL FOR NEW ACCOUNTS (USERNAME & PASSWORD) ─── */}
       {needsProfileSetup && clerkUser ? (
