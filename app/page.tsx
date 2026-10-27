@@ -4388,12 +4388,13 @@ export default function Home() {
       {!user ? (
         <div
           id="page-1-container"
-          className="relative w-full min-h-screen overflow-x-hidden scroll-smooth"
-          style={{
-            backgroundColor: isDark ? "#09090b" : "#ffffff",
-            color: isDark ? "#ffffff" : "#09090b",
-          }}
+          className={`relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-[#fafafc] dark:bg-[#121215] ${
+            isDark ? "text-zinc-100" : "text-zinc-900"
+          }`}
         >
+          {/* ─── Mesh Drift WebGL Background (Sama persis seperti di tab chat & tab schedule) ─── */}
+          <MeshDriftBackground isDark={isDark} />
+
           <PrismaHero
             isDark={isDark}
             onVideoReady={() => setHeroVideoReady(true)}

@@ -99,8 +99,8 @@ export function HomePricingSection({
               transition={{ duration: 0.7, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
               className={`relative rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
                 isPro
-                  ? "bg-zinc-950 border border-white/30 shadow-[0_0_40px_-15px_rgba(255,255,255,0.15)] ring-1 ring-white/20"
-                  : "bg-zinc-950/60 border border-white/10"
+                  ? "bg-zinc-950/80 backdrop-blur-md border border-white/30 shadow-[0_0_40px_-15px_rgba(255,255,255,0.15)] ring-1 ring-white/20"
+                  : "bg-zinc-950/60 backdrop-blur-md border border-white/10"
               }`}
             >
               <div>

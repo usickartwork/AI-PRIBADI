@@ -174,7 +174,7 @@ export function HomeFeatureSections({
           const imageElement = (
             <div
               onClick={handleAction}
-              className="group relative w-full rounded-2xl sm:rounded-3xl bg-zinc-950 p-2 sm:p-3 shadow-2xl transition-all cursor-pointer overflow-hidden"
+              className="group relative w-full rounded-2xl sm:rounded-3xl bg-zinc-950/80 backdrop-blur-md p-2 sm:p-3 shadow-2xl transition-all cursor-pointer overflow-hidden border border-white/10"
             >
               {/* Subtle Window Top Bar (Borderless) */}
               <div className="flex items-center justify-between pb-2 px-2 text-xs text-zinc-500">
