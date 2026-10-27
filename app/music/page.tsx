@@ -1,25 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Play, Pause, Disc3, Radio, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
 import Footer01 from "@/components/ui/footer-01";
 import { AuthModal } from "@/app/components/AuthModal";
 
-const SAMPLE_LYRICS = [
-  { time: "00:12", text: "Gelombang suara mengalir tenang melintasi pikiran" },
-  { time: "00:24", text: "Fokus terbentuk tanpa distraksi, ritme kerja menyatu" },
-  { time: "00:38", text: "Setiap baris kode terangkai dalam hening yang harmonis" },
-  { time: "00:52", text: "Denyut frekuensi menjaga ketenangan dan kejernihan ide" },
-];
-
 export default function MusicLandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [activeLine, setActiveLine] = useState(1);
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [imported, setImported] = useState(false);
 
@@ -27,15 +18,6 @@ export default function MusicLandingPage() {
     setAuthMode(mode);
     setShowAuthModal(true);
   };
-
-  // Auto-scroll lyrics simulation
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setActiveLine((prev) => (prev + 1) % SAMPLE_LYRICS.length);
-    }, 3200);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
 
   const handleImport = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,61 +59,29 @@ export default function MusicLandingPage() {
           </p>
         </div>
 
-        {/* Central Audio & Lyrics Showcase */}
-        <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 sm:p-10 shadow-2xl">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-            
-            {/* Spinning Vinyl Simulation */}
-            <div className="md:col-span-5 flex flex-col items-center justify-center text-center">
-              <motion.div
-                animate={{ rotate: isPlaying ? 360 : 0 }}
-                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-                className="h-44 w-44 sm:h-52 sm:w-52 rounded-full border-2 border-zinc-800 bg-black flex items-center justify-center shadow-xl relative"
-              >
-                <div className="h-16 w-16 rounded-full border border-white/10 bg-zinc-900 flex items-center justify-center">
-                  <span className="h-3 w-3 rounded-full bg-[#E1E0CC]" />
-                </div>
-              </motion.div>
-
-              <div className="mt-6">
-                <h4 className="font-semibold text-white text-sm">Deep Resonance (Focus Flow)</h4>
-                <p className="text-xs text-zinc-500 mt-0.5">One Mind Ambient Labs</p>
-              </div>
-
-              {/* Minimal Player Control */}
-              <button
-                type="button"
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="mt-4 h-9 w-9 rounded-full bg-[#E1E0CC] hover:bg-white text-black flex items-center justify-center transition cursor-pointer"
-                aria-label={isPlaying ? "Jeda" : "Putar"}
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
-              </button>
+        {/* Real Screenshot Preview Frame */}
+        <div className="rounded-2xl border border-white/15 bg-zinc-950 p-3 sm:p-5 shadow-2xl overflow-hidden mb-12">
+          <div className="flex items-center justify-between pb-3 px-2 border-b border-white/10 text-xs text-zinc-400">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="ml-2 font-mono text-[11px] text-zinc-500">
+                Tampilan Asli: Music One & Dynamic Lyrics
+              </span>
             </div>
+            <span className="text-[11px] text-[#E1E0CC] font-mono">Hi-Res Player View</span>
+          </div>
 
-            {/* Clean Synchronized Lyrics */}
-            <div className="md:col-span-7 space-y-4 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-8">
-              <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                Lirik Sinkron
-              </div>
-              {SAMPLE_LYRICS.map((line, idx) => {
-                const isCurrent = idx === activeLine;
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => setActiveLine(idx)}
-                    className={`transition-all duration-300 cursor-pointer text-sm sm:text-base leading-relaxed ${
-                      isCurrent
-                        ? "text-[#E1E0CC] font-semibold translate-x-1"
-                        : "text-zinc-600 hover:text-zinc-400"
-                    }`}
-                  >
-                    {line.text}
-                  </div>
-                );
-              })}
-            </div>
-
+          <div className="relative mt-3 rounded-xl overflow-hidden border border-white/10 bg-black aspect-[16/10] w-full">
+            <Image
+              src="/previews/preview-music.png"
+              alt="Tampilan Antarmuka Music One"
+              fill
+              priority
+              sizes="(max-width: 1200px) 100vw, 1200px"
+              className="object-cover object-top"
+            />
           </div>
         </div>
 

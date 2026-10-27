@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Send, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, Sparkles, Check } from "lucide-react";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
 import Footer01 from "@/components/ui/footer-01";
 import { AuthModal } from "@/app/components/AuthModal";
@@ -50,34 +50,11 @@ const PRESET_MODELS: ModelPreset[] = [
 export default function AIChatLandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
-  const [selectedModel, setSelectedModel] = useState<ModelPreset>(PRESET_MODELS[0]);
-  const [streamedText, setStreamedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
 
   const openAuth = (mode: "signin" | "signup" = "signup") => {
     setAuthMode(mode);
     setShowAuthModal(true);
   };
-
-  // Simulate smooth streaming response when switching models
-  useEffect(() => {
-    setIsTyping(true);
-    setStreamedText("");
-
-    const fullText = selectedModel.sampleResponse;
-    let idx = 0;
-    const interval = setInterval(() => {
-      if (idx < fullText.length) {
-        setStreamedText((prev) => prev + fullText.charAt(idx));
-        idx++;
-      } else {
-        clearInterval(interval);
-        setIsTyping(false);
-      }
-    }, 18);
-
-    return () => clearInterval(interval);
-  }, [selectedModel]);
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
@@ -113,70 +90,29 @@ export default function AIChatLandingPage() {
           </p>
         </div>
 
-        {/* Central Clean Chat Canvas */}
-        <div className="rounded-2xl border border-white/10 bg-zinc-950 p-6 sm:p-8 shadow-2xl">
-          
-          {/* Model Switcher Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-white/10">
-            <span className="text-xs text-zinc-400">Pilih Model:</span>
+        {/* Real Screenshot Preview Frame */}
+        <div className="rounded-2xl border border-white/15 bg-zinc-950 p-3 sm:p-5 shadow-2xl overflow-hidden mb-12">
+          <div className="flex items-center justify-between pb-3 px-2 border-b border-white/10 text-xs text-zinc-400">
             <div className="flex items-center gap-2">
-              {PRESET_MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setSelectedModel(m)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                    selectedModel.id === m.id
-                      ? "bg-white text-black font-semibold"
-                      : "bg-white/5 text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  {m.name}
-                </button>
-              ))}
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+              <span className="ml-2 font-mono text-[11px] text-zinc-500">
+                Tampilan Asli AI Chat Workspace
+              </span>
             </div>
+            <span className="text-[11px] text-[#E1E0CC] font-mono">Claude 3.7 • Gemini 2.5 • DeepSeek R1</span>
           </div>
 
-          {/* Conversation Stream */}
-          <div className="py-8 space-y-6 min-h-[220px]">
-            {/* User Message */}
-            <div className="flex justify-end">
-              <div className="max-w-lg rounded-2xl bg-white/10 px-4 py-3 text-sm text-white">
-                {selectedModel.samplePrompt}
-              </div>
-            </div>
-
-            {/* AI Response Stream */}
-            <div className="flex justify-start">
-              <div className="max-w-2xl text-sm sm:text-base text-zinc-300 leading-relaxed">
-                <div className="flex items-center gap-2 text-xs font-medium text-[#E1E0CC] mb-2">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{selectedModel.name}</span>
-                </div>
-                <p className="whitespace-pre-wrap">{streamedText}</p>
-                {isTyping && (
-                  <span className="inline-block h-3.5 w-1.5 bg-[#E1E0CC] ml-1 animate-pulse" />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Prompt Input Box Mockup */}
-          <div className="pt-4 border-t border-white/10 flex items-center gap-3">
-            <input
-              type="text"
-              readOnly
-              value={selectedModel.samplePrompt}
-              className="flex-1 bg-transparent text-xs sm:text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none"
+          <div className="relative mt-3 rounded-xl overflow-hidden border border-white/10 bg-black aspect-[16/10] w-full">
+            <Image
+              src="/previews/preview-ai-chat.png"
+              alt="Tampilan Antarmuka AI Chat One Mind"
+              fill
+              priority
+              sizes="(max-width: 1200px) 100vw, 1200px"
+              className="object-cover object-top"
             />
-            <button
-              type="button"
-              onClick={() => openAuth("signup")}
-              className="h-9 w-9 rounded-full bg-[#E1E0CC] hover:bg-white text-black flex items-center justify-center transition cursor-pointer shrink-0"
-              aria-label="Kirim"
-            >
-              <Send className="h-4 w-4" />
-            </button>
           </div>
         </div>
 
