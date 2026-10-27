@@ -12,11 +12,14 @@ import {
   Copy,
   Inbox,
   MessageCircle,
+  MessageSquare,
   Phone,
+  Plus,
   Reply,
   Search,
   Send,
   Trash2,
+  User,
   UserMinus,
   UserPlus,
   Users,
@@ -173,12 +176,17 @@ function formatListTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return "Kemarin";
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffMin < 1) return "baru saja";
+  if (diffMin < 60) return `${diffMin} min`;
+  if (diffHr < 24) return `${diffHr} hour`;
+  if (diffDay === 1) return "Kemarin";
+  if (diffDay < 7) return `${diffDay} d`;
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" });
 }
 
 function formatBubbleTime(iso: string): string {
@@ -441,6 +449,67 @@ export default function MessagesWorkspace({
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SearchResult | null | undefined>(undefined);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!userId) return;
+    const presenceChannel = supabase.channel("online_presence", {
+      config: { presence: { key: userId } },
+    });
+
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = presenceChannel.presenceState();
+        const set = new Set<string>();
+        Object.keys(state).forEach((id) => set.add(id));
+        setOnlineUserIds(set);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          try {
+            await presenceChannel.track({ online_at: new Date().toISOString() });
+          } catch {}
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(presenceChannel);
+    };
+  }, [userId]);
+
+  const isPeerOnline = useCallback(
+    (peerId: string, lastMessageAt: string | null) => {
+      if (onlineUserIds.has(peerId)) return true;
+      if (!lastMessageAt) return false;
+      const diffMs = Date.now() - new Date(lastMessageAt).getTime();
+      return diffMs < 15 * 60 * 1000;
+    },
+    [onlineUserIds]
+  );
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase().trim();
+    return conversations.filter(
+      (c) =>
+        c.peer.name.toLowerCase().includes(q) ||
+        (c.peer.username && c.peer.username.toLowerCase().includes(q)) ||
+        (c.lastMessage && c.lastMessage.toLowerCase().includes(q))
+    );
+  }, [conversations, searchQuery]);
+
+  const filteredFriends = useMemo(() => {
+    if (!searchQuery.trim()) return friendsData.friends;
+    const q = searchQuery.toLowerCase().trim();
+    return friendsData.friends.filter(
+      (f) =>
+        f.user.name.toLowerCase().includes(q) ||
+        (f.user.username && f.user.username.toLowerCase().includes(q))
+    );
+  }, [friendsData.friends, searchQuery]);
 
   const [toast, setToast] = useState<{ text: string; kind: "error" | "info" } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -1819,122 +1888,262 @@ export default function MessagesWorkspace({
   );
 
   const chatsView = listLoading ? (
-    <div className="p-3 space-y-2">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className={`h-14 rounded-xl animate-pulse ${isDark ? "bg-zinc-800/50" : "bg-zinc-200/70"}`} />
+    <div className="p-4 space-y-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-3.5 px-3.5 py-2">
+          <div className={`w-12 h-12 rounded-full shrink-0 animate-pulse ${isDark ? "bg-zinc-800/60" : "bg-zinc-200/80"}`} />
+          <div className="flex-1 space-y-2">
+            <div className={`h-4 w-32 rounded animate-pulse ${isDark ? "bg-zinc-800/60" : "bg-zinc-200/80"}`} />
+            <div className={`h-3 w-48 rounded animate-pulse ${isDark ? "bg-zinc-800/40" : "bg-zinc-200/60"}`} />
+          </div>
+        </div>
       ))}
     </div>
   ) : conversations.length === 0 ? (
     emptyState(
-      <MessageCircle size={28} strokeWidth={1.6} />,
+      <MessageCircle size={32} strokeWidth={1.5} />,
       "Belum ada percakapan",
       "Mulai chat dari daftar teman, atau tambahkan teman baru lewat username.",
-      <button onClick={() => setTab(friendsData.friends.length ? "friends" : "add")} className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition ${primaryBtn}`}>
+      <button
+        onClick={() => setTab(friendsData.friends.length ? "friends" : "add")}
+        className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition ${primaryBtn}`}
+      >
         {friendsData.friends.length ? "Lihat Teman" : "Tambah Teman"}
       </button>
     )
+  ) : filteredConversations.length === 0 ? (
+    emptyState(
+      <Search size={28} strokeWidth={1.5} />,
+      "Tidak ada hasil",
+      `Tidak ditemukan percakapan untuk "${searchQuery}".`
+    )
   ) : (
-    <ul className="p-2 space-y-0.5">
-      {conversations.map((c) => (
-        <li key={c.id}>
-          <button
-            onClick={() => openConversation({ id: c.id, peer: c.peer })}
-            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition cursor-pointer ${
-              active?.id === c.id ? activeRow : hoverRow
-            }`}
-          >
-            <Avatar user={c.peer} isDark={isDark} size={42} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className={`text-sm truncate ${c.unread ? "font-bold" : "font-semibold"}`}>{c.peer.name}</p>
-                <span className={`text-[11px] shrink-0 ${c.unread ? (isDark ? "text-white font-semibold" : "text-black font-semibold") : muted}`}>
-                  {formatListTime(c.lastMessageAt)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 mt-0.5">
-                <p className={`text-xs truncate ${c.unread ? (isDark ? "text-zinc-200" : "text-zinc-800") : muted}`}>
-                  {c.lastMessageFromMe ? "Anda: " : ""}
-                  {c.lastMessage ? cleanMarkdownSnippet(c.lastMessage) : ""}
-                </p>
-                {c.unread > 0 && (
-                  <span className={`min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${primaryBtn}`}>
-                    {c.unread > 99 ? "99+" : c.unread}
-                  </span>
+    <ul className="px-3 py-2 space-y-1">
+      {filteredConversations.map((c) => {
+        const isOnline = isPeerOnline(c.peer.id, c.lastMessageAt);
+        return (
+          <li key={c.id}>
+            <button
+              onClick={() => openConversation({ id: c.id, peer: c.peer })}
+              className={`w-full flex items-center gap-3.5 px-3.5 py-3 text-left transition-all cursor-pointer rounded-2xl ${
+                active?.id === c.id ? activeRow : hoverRow
+              }`}
+            >
+              {/* Avatar with Online Green Dot */}
+              <div className="relative shrink-0">
+                <Avatar user={c.peer} isDark={isDark} size={48} />
+                {isOnline && (
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900 shadow-xs" />
                 )}
               </div>
-            </div>
-          </button>
-        </li>
-      ))}
+
+              {/* Middle & Right Content */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3
+                    className={`text-[15px] truncate ${
+                      c.unread ? "font-bold text-zinc-900 dark:text-white" : "font-semibold text-zinc-800 dark:text-zinc-200"
+                    }`}
+                  >
+                    {c.peer.name}
+                  </h3>
+                  <span
+                    className={`text-xs font-medium shrink-0 ${
+                      c.unread ? (isDark ? "text-blue-400 font-semibold" : "text-blue-600 font-semibold") : muted
+                    }`}
+                  >
+                    {formatListTime(c.lastMessageAt)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <p
+                    className={`text-[13px] line-clamp-1 leading-normal ${
+                      c.unread
+                        ? isDark
+                          ? "text-zinc-200 font-medium"
+                          : "text-zinc-800 font-medium"
+                        : "text-zinc-500 dark:text-zinc-400"
+                    }`}
+                  >
+                    {c.lastMessageFromMe ? "Anda: " : ""}
+                    {c.lastMessage ? cleanMarkdownSnippet(c.lastMessage) : "Mulai percakapan baru"}
+                  </p>
+                  {c.unread > 0 && (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 bg-blue-600 text-white shadow-xs">
+                      {c.unread > 99 ? "99+" : c.unread}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 
-  const friendsView =
-    listLoading && friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
-      <div className="p-3 space-y-2">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className={`h-14 rounded-xl animate-pulse ${isDark ? "bg-zinc-800/50" : "bg-zinc-200/70"}`} />
-        ))}
-      </div>
-    ) : friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
-      emptyState(
-        <Users size={28} strokeWidth={1.6} />,
-        "Belum ada teman",
-        "Cari pengguna lain dengan username atau email untuk mengirim permintaan pertemanan.",
-        <button onClick={() => setTab("add")} className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition ${primaryBtn}`}>
-          Tambah Teman
-        </button>
-      )
-    ) : (
-      <div className="p-2">
-        <ul className="space-y-0.5">
-          {friendsData.friends.map((f) => (
-            <li key={f.friendshipId} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${hoverRow}`}>
-              <Avatar user={f.user} isDark={isDark} />
-              {userLine(f.user)}
-              <button
-                onClick={() => openChatWithUser(f.user)}
-                disabled={busyId === f.user.id}
-                className={`p-2 rounded-lg transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
-                title="Chat"
-                aria-label={`Chat dengan ${f.user.name}`}
-              >
-                <MessageCircle size={15} />
-              </button>
-              <button
-                onClick={() => removeFriend(f.user)}
-                disabled={busyId === f.user.id}
-                className={`p-2 rounded-lg transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
-                title="Hapus teman"
-                aria-label={`Hapus ${f.user.name}`}
-              >
-                <UserMinus size={15} />
-              </button>
-            </li>
-          ))}
-        </ul>
-        {friendsData.blocked.length > 0 && (
-          <div className={`mt-4 pt-3 border-t ${divider}`}>
-            <p className={`px-3 pb-2 text-[11px] uppercase tracking-wider font-semibold ${muted}`}>Diblokir</p>
-            <ul className="space-y-0.5">
-              {friendsData.blocked.map((u) => (
-                <li key={u.id} className="flex items-center gap-3 rounded-xl px-3 py-2">
-                  <Avatar user={u} isDark={isDark} size={34} />
-                  {userLine(u)}
-                  <button
-                    onClick={() => blockAction(u, "unblock")}
-                    disabled={busyId === u.id}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
-                  >
-                    Buka blokir
-                  </button>
-                </li>
-              ))}
-            </ul>
+  const friendsView = (
+    <div className="p-3 space-y-4">
+      {/* Incoming Requests Section (if any) */}
+      {friendsData.incoming.length > 0 && (
+        <div className={`p-3 rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"}`}>
+          <div className="flex items-center justify-between px-1 pb-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-500">
+              Permintaan Pertemanan ({friendsData.incoming.length})
+            </p>
           </div>
-        )}
-      </div>
-    );
+          <ul className="space-y-1.5">
+            {friendsData.incoming.map((r) => (
+              <li key={r.friendshipId} className={`flex items-center gap-3 rounded-xl px-2.5 py-2 transition ${hoverRow}`}>
+                <Avatar user={r.user} isDark={isDark} size={40} />
+                {userLine(r.user)}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() =>
+                      friendAction(
+                        { action: "accept", friendshipId: r.friendshipId },
+                        r.friendshipId,
+                        `Anda sekarang berteman dengan ${r.user.name}.`
+                      )
+                    }
+                    disabled={busyId === r.friendshipId}
+                    className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer disabled:opacity-50 shadow-xs"
+                    title="Terima"
+                    aria-label="Terima"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    onClick={() => friendAction({ action: "decline", friendshipId: r.friendshipId }, r.friendshipId)}
+                    disabled={busyId === r.friendshipId}
+                    className={`p-2 rounded-xl transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
+                    title="Tolak"
+                    aria-label="Tolak"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Friends List */}
+      {listLoading && friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`h-14 rounded-2xl animate-pulse ${isDark ? "bg-zinc-800/50" : "bg-zinc-200/70"}`} />
+          ))}
+        </div>
+      ) : friendsData.friends.length === 0 && friendsData.blocked.length === 0 ? (
+        emptyState(
+          <Users size={32} strokeWidth={1.5} />,
+          "Belum ada teman",
+          "Cari pengguna lain dengan username atau email untuk mengirim permintaan pertemanan.",
+          <button
+            onClick={() => setTab("add")}
+            className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition ${primaryBtn}`}
+          >
+            Tambah Teman
+          </button>
+        )
+      ) : filteredFriends.length === 0 && searchQuery ? (
+        emptyState(<Search size={28} strokeWidth={1.5} />, "Tidak ada hasil", `Tidak ditemukan teman untuk "${searchQuery}".`)
+      ) : (
+        <div>
+          <p className={`px-2 pb-2 text-[11px] uppercase tracking-wider font-semibold ${muted}`}>
+            Daftar Teman ({filteredFriends.length})
+          </p>
+          <ul className="space-y-1">
+            {filteredFriends.map((f) => {
+              const isOnline = isPeerOnline(f.user.id, null);
+              return (
+                <li key={f.friendshipId} className={`flex items-center gap-3.5 rounded-2xl px-3 py-2.5 transition ${hoverRow}`}>
+                  <div className="relative shrink-0">
+                    <Avatar user={f.user} isDark={isDark} size={44} />
+                    {isOnline && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900 shadow-xs" />
+                    )}
+                  </div>
+                  {userLine(f.user)}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => openChatWithUser(f.user)}
+                      disabled={busyId === f.user.id}
+                      className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer disabled:opacity-50 shadow-xs"
+                      title="Chat"
+                      aria-label={`Chat dengan ${f.user.name}`}
+                    >
+                      <MessageSquare size={15} />
+                    </button>
+                    <button
+                      onClick={() => removeFriend(f.user)}
+                      disabled={busyId === f.user.id}
+                      className={`p-2.5 rounded-xl transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
+                      title="Hapus teman"
+                      aria-label={`Hapus ${f.user.name}`}
+                    >
+                      <UserMinus size={15} />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Outgoing Requests (if any) */}
+      {friendsData.outgoing.length > 0 && (
+        <div className={`mt-4 pt-3 border-t ${divider}`}>
+          <p className={`px-2 pb-2 text-[11px] uppercase tracking-wider font-semibold ${muted}`}>
+            Permintaan Terkirim ({friendsData.outgoing.length})
+          </p>
+          <ul className="space-y-1">
+            {friendsData.outgoing.map((r) => (
+              <li key={r.friendshipId} className="flex items-center gap-3 rounded-2xl px-3 py-2">
+                <Avatar user={r.user} isDark={isDark} size={36} />
+                {userLine(r.user)}
+                <span className={`flex items-center gap-1 text-[11px] ${muted}`}>
+                  <Clock size={12} /> Menunggu
+                </span>
+                <button
+                  onClick={() => friendAction({ action: "cancel", friendshipId: r.friendshipId }, r.friendshipId)}
+                  disabled={busyId === r.friendshipId}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
+                >
+                  Batalkan
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Blocked Users (if any) */}
+      {friendsData.blocked.length > 0 && (
+        <div className={`mt-4 pt-3 border-t ${divider}`}>
+          <p className={`px-2 pb-2 text-[11px] uppercase tracking-wider font-semibold ${muted}`}>Diblokir</p>
+          <ul className="space-y-1">
+            {friendsData.blocked.map((u) => (
+              <li key={u.id} className="flex items-center gap-3 rounded-2xl px-3 py-2">
+                <Avatar user={u} isDark={isDark} size={36} />
+                {userLine(u)}
+                <button
+                  onClick={() => blockAction(u, "unblock")}
+                  disabled={busyId === u.id}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer disabled:opacity-50 ${ghostBtn}`}
+                >
+                  Buka blokir
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 
   const requestsView =
     friendsData.incoming.length === 0 && friendsData.outgoing.length === 0 ? (
@@ -2406,42 +2615,178 @@ export default function MessagesWorkspace({
       <div className={active ? "hidden md:block" : undefined}>{header}</div>
 
       <div className={`flex-1 min-h-0 flex gap-3 px-0 md:px-4 lg:px-6 pb-0 md:pb-4 ${active ? "pt-0 md:pt-[4.25rem]" : "pt-[4.25rem]"}`}>
-        {/* Sidebar list */}
-        <section className={`${active ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] lg:w-[360px] shrink-0 min-h-0 md:rounded-2xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0`}>
-          <div className="px-4 pt-4 pb-3">
-            <h1 className="text-lg font-extrabold tracking-tight">Messages</h1>
-            <div className={`mt-3 grid grid-cols-4 gap-1 p-1 rounded-xl ${isDark ? "bg-white/5 border border-white/10" : "bg-black/5 border border-black/5"}`}>
-              {tabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`relative flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs transition cursor-pointer ${
-                    tab === t.id
-                      ? isDark
-                        ? "bg-white/15 text-white font-semibold shadow-sm"
-                        : "bg-white text-black font-semibold shadow-sm"
-                      : isDark
-                        ? "text-zinc-400 hover:text-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-900"
-                  }`}
-                >
-                  <span className="hidden sm:inline-flex">{t.icon}</span>
-                  {t.label}
-                  {!!t.badge && (
-                    <span className={`absolute -top-1 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center ${primaryBtn}`}>
-                      {t.badge > 99 ? "99+" : t.badge}
-                    </span>
-                  )}
-                </button>
-              ))}
+        {/* Sidebar list container (matching custom mobile card layout) */}
+        <section
+          className={`${
+            active ? "hidden md:flex" : "flex"
+          } flex-col w-full md:w-[380px] lg:w-[410px] shrink-0 min-h-0 md:rounded-3xl overflow-hidden ${panel} max-md:border-x-0 max-md:border-b-0 relative`}
+        >
+          {/* Header row: Title on the left, Search on the right */}
+          <div className="px-5 pt-4 pb-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                {tab === "chats" ? "Messages" : tab === "friends" || tab === "requests" ? "Friends" : "Add Friend"}
+              </h1>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen((prev) => !prev);
+                  if (searchOpen) setSearchQuery("");
+                }}
+                className={`p-2 rounded-full transition-colors cursor-pointer ${
+                  searchOpen
+                    ? isDark
+                      ? "bg-white/15 text-white"
+                      : "bg-black/10 text-black"
+                    : isDark
+                      ? "text-zinc-400 hover:text-white hover:bg-white/10"
+                      : "text-zinc-500 hover:text-black hover:bg-black/5"
+                }`}
+                title="Cari"
+                aria-label="Cari"
+              >
+                <Search className="w-5 h-5 stroke-[2]" />
+              </button>
             </div>
+
+            {/* Collapsible Search Input */}
+            {searchOpen && (
+              <div className="mt-3 animate-in fade-in-0 duration-150">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={tab === "chats" ? "Cari percakapan..." : "Cari teman..."}
+                    className={`w-full pl-9.5 pr-8 py-2 rounded-xl text-sm outline-none transition ${inputCls}`}
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <div className={`flex-1 min-h-0 overflow-y-auto border-t ${divider}`}>
+
+          {/* Scrollable list area */}
+          <div className={`relative flex-1 min-h-0 overflow-y-auto border-t ${divider}`}>
             {tab === "chats" && chatsView}
-            {tab === "friends" && friendsView}
-            {tab === "requests" && requestsView}
+            {(tab === "friends" || tab === "requests") && friendsView}
             {tab === "add" && addView}
+
+            {/* Pink Floating Action Button (+) as in reference picture */}
+            {tab === "chats" && (
+              <button
+                type="button"
+                onClick={() => setTab("add")}
+                className="absolute right-5 bottom-4 w-13 h-13 rounded-full bg-pink-500 hover:bg-pink-600 active:scale-95 text-white shadow-lg shadow-pink-500/35 flex items-center justify-center transition-all duration-200 z-10 cursor-pointer"
+                title="Tambah Teman / Chat Baru"
+                aria-label="Tambah Teman / Chat Baru"
+              >
+                <Plus className="w-6 h-6 stroke-[2.5]" />
+              </button>
+            )}
           </div>
+
+          {/* Bottom Navigation Bar (1: Chat, 2: Friend, 3: + Add Friend) */}
+          <nav
+            className={`h-16 shrink-0 border-t flex items-center justify-around px-6 z-10 backdrop-blur-md ${
+              isDark ? "bg-zinc-950/70 border-white/10" : "bg-white/85 border-black/5"
+            }`}
+          >
+            {/* 1. Chat */}
+            <button
+              type="button"
+              onClick={() => setTab("chats")}
+              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
+                tab === "chats"
+                  ? isDark
+                    ? "text-white"
+                    : "text-zinc-900"
+                  : isDark
+                    ? "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-400 hover:text-zinc-700"
+              }`}
+              title="Chat"
+              aria-label="Chat"
+            >
+              <MessageSquare className="w-6 h-6 stroke-[1.8]" />
+              {totalUnread > 0 && (
+                <span className="absolute -top-0.5 right-2 min-w-[17px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                  {totalUnread > 99 ? "99+" : totalUnread}
+                </span>
+              )}
+              <span
+                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
+                  tab === "chats" ? (isDark ? "bg-white opacity-100" : "bg-zinc-900 opacity-100") : "opacity-0"
+                }`}
+              />
+            </button>
+
+            {/* 2. Friend */}
+            <button
+              type="button"
+              onClick={() => setTab("friends")}
+              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
+                tab === "friends" || tab === "requests"
+                  ? isDark
+                    ? "text-white"
+                    : "text-zinc-900"
+                  : isDark
+                    ? "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-400 hover:text-zinc-700"
+              }`}
+              title="Friend"
+              aria-label="Friend"
+            >
+              <User className="w-6 h-6 stroke-[1.8]" />
+              {requestCount > 0 && (
+                <span className="absolute -top-0.5 right-2 min-w-[17px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center bg-blue-600 text-white shadow-xs">
+                  {requestCount}
+                </span>
+              )}
+              <span
+                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
+                  tab === "friends" || tab === "requests"
+                    ? isDark
+                      ? "bg-white opacity-100"
+                      : "bg-zinc-900 opacity-100"
+                    : "opacity-0"
+                }`}
+              />
+            </button>
+
+            {/* 3. + (Add Friend) */}
+            <button
+              type="button"
+              onClick={() => setTab("add")}
+              className={`relative flex flex-col items-center justify-center py-1.5 px-4 transition-colors cursor-pointer ${
+                tab === "add"
+                  ? isDark
+                    ? "text-white"
+                    : "text-zinc-900"
+                  : isDark
+                    ? "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-400 hover:text-zinc-700"
+              }`}
+              title="Add Friend"
+              aria-label="Add Friend"
+            >
+              <Plus className="w-6 h-6 stroke-[2.2]" />
+              <span
+                className={`w-1.5 h-1.5 rounded-full mt-1 transition-opacity ${
+                  tab === "add" ? (isDark ? "bg-white opacity-100" : "bg-zinc-900 opacity-100") : "opacity-0"
+                }`}
+              />
+            </button>
+          </nav>
         </section>
 
         {/* Chat pane */}
