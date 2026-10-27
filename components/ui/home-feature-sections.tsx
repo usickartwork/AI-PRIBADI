@@ -145,12 +145,12 @@ export function HomeFeatureSections({
   };
 
   return (
-    <section className="relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-hidden">
-      {/* ─── SECTION HEADER ─────────────────────────────────────────────────── */}
+    <section className="relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
+      {/* ─── SECTION HEADER (Bidirectional In/Out Animation) ─────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-60px" }}
+        viewport={{ once: false, amount: 0.3 }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="text-center max-w-2xl mx-auto mb-16 sm:mb-24"
       >
@@ -166,101 +166,140 @@ export function HomeFeatureSections({
       </motion.div>
 
       {/* ─── ZIGZAG ALTERNATING FEATURE SECTIONS ────────────────────────────── */}
-      <div className="space-y-20 sm:space-y-32">
+      <div className="space-y-24 sm:space-y-36">
         {FEATURE_ITEMS.map((item, index) => {
           const isReverse = item.reverse;
 
+          // IMAGE COMPONENT
+          const imageElement = (
+            <div
+              onClick={handleAction}
+              className="group relative w-full rounded-2xl sm:rounded-3xl bg-zinc-950 p-2 sm:p-3 shadow-2xl transition-all cursor-pointer overflow-hidden"
+            >
+              {/* Subtle Window Top Bar (Borderless) */}
+              <div className="flex items-center justify-between pb-2 px-2 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-yellow-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-green-500/80" />
+                  <span className="ml-2 font-mono text-[10px] text-zinc-500 hidden sm:inline">
+                    {item.urlPath}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500">Live Workspace</span>
+              </div>
+
+              {/* Full, Uncut Screenshot Display */}
+              <div className="relative mt-1 w-full rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                <Image
+                  src={item.imageSrc}
+                  alt={item.title}
+                  width={item.imageWidth}
+                  height={item.imageHeight}
+                  className="w-full h-auto object-contain block select-none group-hover:scale-[1.01] transition-transform duration-500"
+                  sizes="(max-width: 1200px) 100vw, 750px"
+                  priority={index === 0}
+                />
+              </div>
+            </div>
+          );
+
+          // DETAIL TEXT COMPONENT
+          const textElement = (
+            <div>
+              <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
+                {item.category}
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 leading-snug">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-sm sm:text-base text-zinc-400 leading-relaxed">
+                {item.subtitle}
+              </p>
+
+              {/* Bullet Highlights from the Real Product */}
+              <ul className="mt-6 space-y-3 text-xs sm:text-sm text-zinc-300">
+                {item.highlights.map((highlight, hIdx) => (
+                  <li key={hIdx} className="flex items-start gap-2.5">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white mt-0.5">
+                      <Check className="h-3 w-3" />
+                    </span>
+                    <span className="leading-snug">{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Action CTA */}
+              <div className="mt-8">
+                <button
+                  type="button"
+                  onClick={handleAction}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all cursor-pointer group"
+                >
+                  <span>Coba {item.category}</span>
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+          );
+
           return (
-            <motion.div
+            <div
               key={item.id}
               id={item.id}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center"
             >
-              {/* IMAGE COLUMN */}
-              <div
-                className={`col-span-1 lg:col-span-7 ${
-                  isReverse ? "order-1 lg:order-2" : "order-1 lg:order-1"
-                }`}
-              >
-                <div
-                  onClick={handleAction}
-                  className="group relative w-full rounded-2xl sm:rounded-3xl bg-zinc-950 p-2 sm:p-3 shadow-2xl transition-all cursor-pointer overflow-hidden"
-                >
-                  {/* Subtle Window Top Bar (Borderless) */}
-                  <div className="flex items-center justify-between pb-2 px-2 text-xs text-zinc-500">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-red-500/80" />
-                      <span className="h-2 w-2 rounded-full bg-yellow-500/80" />
-                      <span className="h-2 w-2 rounded-full bg-green-500/80" />
-                      <span className="ml-2 font-mono text-[10px] text-zinc-500 hidden sm:inline">
-                        {item.urlPath}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono text-zinc-500">Live Workspace</span>
-                  </div>
+              {/* If NOT reverse: Image is LEFT (slides from/to left), Text is RIGHT (slides from/to right) */}
+              {!isReverse ? (
+                <>
+                  {/* LEFT COLUMN: IMAGE (animates in from left, out to left) */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -60 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    className="col-span-1 lg:col-span-7 order-1"
+                  >
+                    {imageElement}
+                  </motion.div>
 
-                  {/* Full, Uncut Screenshot Display */}
-                  <div className="relative mt-1 w-full rounded-xl overflow-hidden bg-black flex items-center justify-center">
-                    <Image
-                      src={item.imageSrc}
-                      alt={item.title}
-                      width={item.imageWidth}
-                      height={item.imageHeight}
-                      className="w-full h-auto object-contain block select-none group-hover:scale-[1.01] transition-transform duration-500"
-                      sizes="(max-width: 1200px) 100vw, 750px"
-                      priority={index === 0}
-                    />
-                  </div>
-                </div>
-              </div>
+                  {/* RIGHT COLUMN: TEXT (animates in from right, out to right) */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 60 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    className="col-span-1 lg:col-span-5 order-2"
+                  >
+                    {textElement}
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  {/* LEFT COLUMN: TEXT (animates in from left, out to left) */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -60 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    className="col-span-1 lg:col-span-5 order-2 lg:order-1"
+                  >
+                    {textElement}
+                  </motion.div>
 
-              {/* DETAIL DESCRIPTION COLUMN */}
-              <div
-                className={`col-span-1 lg:col-span-5 ${
-                  isReverse ? "order-2 lg:order-1" : "order-2 lg:order-2"
-                }`}
-              >
-                <div>
-                  <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
-                    {item.category}
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 leading-snug">
-                    {item.title}
-                  </h3>
-                  <p className="mt-3 text-sm sm:text-base text-zinc-400 leading-relaxed">
-                    {item.subtitle}
-                  </p>
-
-                  {/* Bullet Highlights from the Real Product */}
-                  <ul className="mt-6 space-y-3 text-xs sm:text-sm text-zinc-300">
-                    {item.highlights.map((highlight, hIdx) => (
-                      <li key={hIdx} className="flex items-start gap-2.5">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white mt-0.5">
-                          <Check className="h-3 w-3" />
-                        </span>
-                        <span className="leading-snug">{highlight}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Action CTA */}
-                  <div className="mt-8">
-                    <button
-                      type="button"
-                      onClick={handleAction}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all cursor-pointer group"
-                    >
-                      <span>Coba {item.category}</span>
-                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+                  {/* RIGHT COLUMN: IMAGE (animates in from right, out to right) */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 60 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                    className="col-span-1 lg:col-span-7 order-1 lg:order-2"
+                  >
+                    {imageElement}
+                  </motion.div>
+                </>
+              )}
+            </div>
           );
         })}
       </div>
