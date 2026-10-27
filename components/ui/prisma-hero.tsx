@@ -136,7 +136,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
     if (item.targetId) {
       const el = document.getElementById(item.targetId);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   };

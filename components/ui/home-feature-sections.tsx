@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 
 interface HomeFeatureSectionsProps {
   onGetStarted?: (mode?: "signin" | "signup") => void;
@@ -11,70 +11,127 @@ interface HomeFeatureSectionsProps {
   isDark?: boolean;
 }
 
-interface FeatureCard {
+interface FeatureSectionItem {
   id: string;
   category: string;
   title: string;
   subtitle: string;
+  highlights: string[];
   imageSrc: string;
   imageWidth: number;
   imageHeight: number;
+  urlPath: string;
+  reverse?: boolean;
 }
 
-const CARDS: FeatureCard[] = [
+const FEATURE_ITEMS: FeatureSectionItem[] = [
   {
     id: "card-chat",
     category: "AI Chat",
-    title: "Ruang Kerja AI Multi-Model",
-    subtitle: "Claude 3.7 Sonnet, Gemini 2.5 Flash, DeepSeek R1 & GPT-4o dalam satu kanvas.",
+    title: "Ruang Percakapan Cerdas & Penelusuran Web",
+    subtitle:
+      "Berinteraksi langsung dengan asisten pintar bertenaga mesin Usick One untuk menganalisis data, merangkai ide, hingga menelusuri web secara realtime.",
+    highlights: [
+      "Mesin percakapan cerdas Usick One yang responsif dan terarah",
+      "Mode Browse untuk pencarian dan verifikasi fakta web langsung",
+      "Dukungan input suara dan audio interaktif realtime",
+      "Terintegrasi otomatis dengan riwayat sesi dan catatan pribadi",
+    ],
     imageSrc: "/showcase/ai-chat.png",
     imageWidth: 1024,
     imageHeight: 589,
+    urlPath: "onemind.web.id/workspace/chat",
+    reverse: false, // Image Left, Text Right
   },
   {
     id: "card-code",
     category: "One Code",
-    title: "One Code & PRD Studio",
-    subtitle: "Rancang arsitektur aplikasi dan dokumen PRD lengkap secara instan.",
+    title: "Rancang Ide Aplikasi & Dokumen PRD Lengkap",
+    subtitle:
+      "Transformasikan ide kasar menjadi dokumen spesifikasi produk (PRD) yang matang, arsitektur modul, hingga rekomendasi alur aplikasi siap bangun.",
+    highlights: [
+      "Wawancara kebutuhan cerdas untuk membedah konsep aplikasi",
+      "Template starter: Katalog Busana, E-Commerce, LMS, hingga SaaS",
+      "Penyusunan arsitektur sistem dan flow pengguna terstruktur",
+      "Ekspor dokumen spesifikasi teknis dan panduan implementasi",
+    ],
     imageSrc: "/showcase/one-code.png",
     imageWidth: 1024,
     imageHeight: 593,
+    urlPath: "onemind.web.id/workspace/code",
+    reverse: true, // Text Left, Image Right
   },
   {
     id: "card-music",
     category: "Music One",
-    title: "Streaming Musik & Lirik Realtime",
-    subtitle: "Audio beresolusi tinggi tanpa jeda iklan dengan stasiun siaran 24/7 LIVE.",
+    title: "Streaming Musik & Lirik Berjalan Realtime",
+    subtitle:
+      "Fokus bekerja ditemani pemutar musik audio jernih tanpa jeda iklan, dilengkapi lirik karaoke sinkron dan stasiun siaran radio populer 24/7 LIVE.",
+    highlights: [
+      "Pemutar audio resolusi tinggi yang ringan dan bebas distraksi",
+      "Tampilan lirik realtime yang sinkron mengikuti alunan nada",
+      "Saluran siaran radio 24/7 LIVE: Top Hits, Chill Beats, dan Deep Work",
+      "Koleksi playlist rekomendasi cerdas yang dapat disesuaikan",
+    ],
     imageSrc: "/showcase/music-one.png",
     imageWidth: 1024,
     imageHeight: 591,
+    urlPath: "onemind.web.id/workspace/music",
+    reverse: false, // Image Left, Text Right
   },
   {
     id: "card-schedule",
     category: "Smart Schedule",
-    title: "Smart Schedule Assistant",
-    subtitle: "Manajemen rapat, blok fokus deep work, dan kalender otomatis cerdas.",
+    title: "Manajemen Jadwal & Asisten Produktivitas",
+    subtitle:
+      "Kelola kalender kerja, blok waktu fokus, dan tenggat waktu tugas harian secara otomatis lewat perintah bahasa alami bersama Schedule Assistant.",
+    highlights: [
+      "Perintah jadwal cerdas: tambahkan agenda hanya dengan mengetik perintah",
+      "Blok waktu deep work terproteksi untuk konsentrasi tanpa interupsi",
+      "Sinkronisasi agenda harian dengan kalender digital Anda",
+      "Pengingat otomatis untuk memastikan tidak ada milestone terlewat",
+    ],
     imageSrc: "/showcase/schedule.png",
     imageWidth: 1024,
     imageHeight: 592,
+    urlPath: "onemind.web.id/workspace/schedule",
+    reverse: true, // Text Left, Image Right
   },
   {
     id: "card-image",
     category: "One Image",
-    title: "Studio Generasi Gambar AI",
-    subtitle: "Generasi visual presisi dengan kendali rasio aspek dan preset sinematik.",
+    title: "Studio Generasi Visual Rasio Fleksibel",
+    subtitle:
+      "Wujudkan imajinasi visual Anda dalam hitungan detik dengan kebebasan memilih rasio aspek kustom dan preset gaya artistik yang memukau.",
+    highlights: [
+      "Dukungan format rasio lengkap: 1:1 Persegi, 16:9 Lanskap, 9:16 Potret, 4:3 Klasik",
+      "Koleksi preset estetika: Origami 3D, Sommelier Warm Film, Pin, hingga Fotorealistis",
+      "Render visual tajam beresolusi tinggi langsung dari deskripsi teks",
+      "Galeri tersimpan rapi untuk kebutuhan materi kreatif dan presentasi",
+    ],
     imageSrc: "/showcase/one-image.png",
     imageWidth: 1024,
     imageHeight: 591,
+    urlPath: "onemind.web.id/workspace/image",
+    reverse: false, // Image Left, Text Right
   },
   {
     id: "card-faith",
     category: "Faith Hub",
-    title: "Ruang Hening & Perenungan",
-    subtitle: "Ruang pribadi untuk mencurahkan isi hati, perenungan, dan doa dalam damai.",
+    title: "Ruang Hening & Perenungan Pribadi",
+    subtitle:
+      "Ruang kontemplatif yang tenang dan menyejukkan untuk mencurahkan isi hati, membaca renungan, membagikan pergumulan, dan memanjatkan rasa syukur.",
+    highlights: [
+      "Ruang pribadi yang aman, damai, dan bebas dari penghakiman",
+      "Panduan topik refleksi: kedamaian batin, mengatasi cemas, dan relasi",
+      "Dukungan pencatatan doa pribadi dan ucapan syukur hari ini",
+      "Ayat-ayat perenungan yang menguatkan untuk menemani hari Anda",
+    ],
     imageSrc: "/showcase/faith-hub.png",
     imageWidth: 1024,
     imageHeight: 587,
+    urlPath: "onemind.web.id/workspace/faith",
+    reverse: true, // Text Left, Image Right
   },
 ];
 
@@ -83,184 +140,129 @@ export function HomeFeatureSections({
   onOpenPricing,
   isDark = true,
 }: HomeFeatureSectionsProps) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState<number>(0);
-
-  // Scroll smoothly by index
-  const scrollToIndex = (index: number) => {
-    if (!trackRef.current) return;
-    const cards = trackRef.current.children;
-    if (cards[index]) {
-      const cardEl = cards[index] as HTMLElement;
-      cardEl.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
-      setActiveIndex(index);
-    }
+  const handleAction = () => {
+    onGetStarted?.("signup");
   };
-
-  const handlePrev = () => {
-    const next = Math.max(0, activeIndex - 1);
-    scrollToIndex(next);
-  };
-
-  const handleNext = () => {
-    const next = Math.min(CARDS.length - 1, activeIndex + 1);
-    scrollToIndex(next);
-  };
-
-  // Track active index on scroll
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      const scrollLeft = el.scrollLeft;
-      const cardWidth = el.offsetWidth * 0.8;
-      const idx = Math.round(scrollLeft / cardWidth);
-      if (idx >= 0 && idx < CARDS.length && idx !== activeIndex) {
-        setActiveIndex(idx);
-      }
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [activeIndex]);
 
   return (
-    <section
-      id="section-showcase"
-      className="relative w-full py-16 sm:py-24 overflow-hidden select-none"
-    >
-      {/* ─── SECTION HEADER (Clean, minimal, borderless) ────────────────────── */}
+    <section className="relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-hidden">
+      {/* ─── SECTION HEADER ─────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-60px" }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-        className="px-4 sm:px-8 md:px-12 max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8"
+        className="text-center max-w-2xl mx-auto mb-16 sm:mb-24"
       >
-        <div>
-          <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
-            Ruang Kerja Terpadu
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mt-1">
-            Jelajahi Setiap Modul.
-          </h2>
-          <p className="mt-1.5 text-xs sm:text-sm text-zinc-400">
-            Geser ke kiri atau ke kanan untuk melihat antarmuka nyata di dalam One Mind.
-          </p>
-        </div>
-
-        {/* Minimal Navigation Arrows */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handlePrev}
-            disabled={activeIndex === 0}
-            aria-label="Geser ke kiri"
-            className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={activeIndex === CARDS.length - 1}
-            aria-label="Geser ke kanan"
-            className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
+        <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
+          Eksplorasi Fitur
+        </span>
+        <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-1.5 leading-tight">
+          Satu Platform, Seluruh Kemampuan.
+        </h2>
+        <p className="mt-3 text-sm sm:text-base text-zinc-400">
+          Setiap modul terintegrasi secara harmonis di dalam satu ruang kerja One Mind.
+        </p>
       </motion.div>
 
-      {/* ─── QUICK CATEGORY PILLS (Horizontal selector, borderless) ─────────── */}
-      <div className="px-4 sm:px-8 md:px-12 max-w-7xl mx-auto mb-8">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-          {CARDS.map((card, idx) => {
-            const isActive = activeIndex === idx;
-            return (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => scrollToIndex(idx)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-white text-black font-semibold shadow-md"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+      {/* ─── ZIGZAG ALTERNATING FEATURE SECTIONS ────────────────────────────── */}
+      <div className="space-y-20 sm:space-y-32">
+        {FEATURE_ITEMS.map((item, index) => {
+          const isReverse = item.reverse;
+
+          return (
+            <motion.div
+              key={item.id}
+              id={item.id}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center"
+            >
+              {/* IMAGE COLUMN */}
+              <div
+                className={`col-span-1 lg:col-span-7 ${
+                  isReverse ? "order-1 lg:order-2" : "order-1 lg:order-1"
                 }`}
               >
-                {card.category}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                <div
+                  onClick={handleAction}
+                  className="group relative w-full rounded-2xl sm:rounded-3xl bg-zinc-950 p-2 sm:p-3 shadow-2xl transition-all cursor-pointer overflow-hidden"
+                >
+                  {/* Subtle Window Top Bar (Borderless) */}
+                  <div className="flex items-center justify-between pb-2 px-2 text-xs text-zinc-500">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-red-500/80" />
+                      <span className="h-2 w-2 rounded-full bg-yellow-500/80" />
+                      <span className="h-2 w-2 rounded-full bg-green-500/80" />
+                      <span className="ml-2 font-mono text-[10px] text-zinc-500 hidden sm:inline">
+                        {item.urlPath}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-500">Live Workspace</span>
+                  </div>
 
-      {/* ─── HORIZONTAL SLIDER TRACK (Uniform card size, borderless) ────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 35 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-60px" }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        ref={trackRef}
-        className="flex gap-6 sm:gap-8 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar px-4 sm:px-8 md:px-12 pb-4"
-        style={{ scrollPaddingLeft: "1rem", scrollPaddingRight: "1rem" }}
-      >
-        {CARDS.map((card, idx) => (
-          <div
-            key={card.id}
-            id={card.id}
-            onClick={() => onGetStarted?.("signup")}
-            className="snap-center shrink-0 w-[88vw] sm:w-[680px] md:w-[780px] lg:w-[860px] rounded-3xl bg-zinc-950 p-4 sm:p-6 shadow-2xl transition-all cursor-pointer group"
-          >
-            {/* Card Minimal Header (No border, minimal text) */}
-            <div className="mb-4">
-              <span className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase">
-                {card.category}
-              </span>
-              <h3 className="text-lg sm:text-2xl font-bold text-white mt-1 leading-tight group-hover:text-zinc-100 transition-colors">
-                {card.title}
-              </h3>
-              <p className="mt-1 text-xs sm:text-sm text-zinc-400">
-                {card.subtitle}
-              </p>
-            </div>
+                  {/* Full, Uncut Screenshot Display */}
+                  <div className="relative mt-1 w-full rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                    <Image
+                      src={item.imageSrc}
+                      alt={item.title}
+                      width={item.imageWidth}
+                      height={item.imageHeight}
+                      className="w-full h-auto object-contain block select-none group-hover:scale-[1.01] transition-transform duration-500"
+                      sizes="(max-width: 1200px) 100vw, 750px"
+                      priority={index === 0}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            {/* Complete, Uncut, Borderless Full Screenshot */}
-            <div className="relative w-full rounded-2xl overflow-hidden bg-black shadow-inner flex items-center justify-center">
-              <Image
-                src={card.imageSrc}
-                alt={card.title}
-                width={card.imageWidth}
-                height={card.imageHeight}
-                className="w-full h-auto object-contain block select-none group-hover:scale-[1.01] transition-transform duration-500"
-                sizes="(max-width: 1200px) 100vw, 860px"
-                priority={idx === 0}
-              />
-            </div>
-          </div>
-        ))}
-      </motion.div>
+              {/* DETAIL DESCRIPTION COLUMN */}
+              <div
+                className={`col-span-1 lg:col-span-5 ${
+                  isReverse ? "order-2 lg:order-1" : "order-2 lg:order-2"
+                }`}
+              >
+                <div>
+                  <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
+                    {item.category}
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-1.5 leading-snug">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm sm:text-base text-zinc-400 leading-relaxed">
+                    {item.subtitle}
+                  </p>
 
-      {/* ─── BOTTOM DOT INDICATORS ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-1.5 mt-6">
-        {CARDS.map((_, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => scrollToIndex(idx)}
-            aria-label={`Buka slide ${idx + 1}`}
-            className={`h-1.5 rounded-full transition-all cursor-pointer ${
-              activeIndex === idx
-                ? "w-7 bg-white"
-                : "w-1.5 bg-white/20 hover:bg-white/40"
-            }`}
-          />
-        ))}
+                  {/* Bullet Highlights from the Real Product */}
+                  <ul className="mt-6 space-y-3 text-xs sm:text-sm text-zinc-300">
+                    {item.highlights.map((highlight, hIdx) => (
+                      <li key={hIdx} className="flex items-start gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-white mt-0.5">
+                          <Check className="h-3 w-3" />
+                        </span>
+                        <span className="leading-snug">{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Action CTA */}
+                  <div className="mt-8">
+                    <button
+                      type="button"
+                      onClick={handleAction}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all cursor-pointer group"
+                    >
+                      <span>Coba {item.category}</span>
+                      <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
