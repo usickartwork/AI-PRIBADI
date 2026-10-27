@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, Search, Play, Camera, Sparkles } from "lucide-react";
 
 interface HomeFeatureSectionsProps {
@@ -11,9 +11,9 @@ interface HomeFeatureSectionsProps {
   isDark?: boolean;
 }
 
-interface ShowcaseTab {
+interface FeatureCardData {
   id: string;
-  label: string;
+  category: string;
   title: string;
   subtitle: string;
   promptPlaceholder: string;
@@ -24,16 +24,17 @@ interface ShowcaseTab {
   imageHeight: number;
   urlPath: string;
   aspectRatios?: string[];
+  colSpan?: string;
 }
 
-const TABS: ShowcaseTab[] = [
+const COLLAGE_CARDS: FeatureCardData[] = [
   {
-    id: "chat",
-    label: "AI Chat",
+    id: "card-chat",
+    category: "AI CHAT MULTI-MODEL",
     title: "Ruang Kerja AI Multi-Model",
     subtitle:
       "Beralih instan antara Claude 3.7 Sonnet, Gemini 2.5 Flash, DeepSeek R1, dan GPT-4o dalam satu riwayat percakapan.",
-    promptPlaceholder: "Tanyakan apa saja, analisis data, atau kembangkan strategi...",
+    promptPlaceholder: "Ask AI a question or make a request...",
     actionText: "Kirim",
     chips: [
       "Analisis Finansial Q3",
@@ -41,14 +42,15 @@ const TABS: ShowcaseTab[] = [
       "Review Kode TypeScript",
       "Strategi Go-To-Market",
     ],
-    imageSrc: "/previews/preview-ai-chat.png",
-    imageWidth: 1440,
-    imageHeight: 900,
+    imageSrc: "/showcase/ai-chat.png",
+    imageWidth: 1024,
+    imageHeight: 589,
     urlPath: "onemind.web.id/workspace/chat",
+    colSpan: "lg:col-span-12",
   },
   {
-    id: "code",
-    label: "One Code",
+    id: "card-code",
+    category: "ONE CODE STUDIO",
     title: "Selamat Datang, apa yang ingin Anda bangun?",
     subtitle:
       "Rancang ide aplikasi atau website Anda bersama One code. Dari wawancara kebutuhan hingga dokumen PRD lengkap.",
@@ -64,13 +66,14 @@ const TABS: ShowcaseTab[] = [
     imageWidth: 1024,
     imageHeight: 593,
     urlPath: "onemind.web.id/workspace/code",
+    colSpan: "lg:col-span-6",
   },
   {
-    id: "music",
-    label: "Music One",
+    id: "card-music",
+    category: "MUSIC ONE",
     title: "Mau dengar apa hari ini?",
     subtitle:
-      "Streaming musik beresolusi tinggi, bebas jeda iklan, dengan lirik realtime sinkron dan radio siaran 24/7 LIVE.",
+      "Streaming musik audio jernih bebas jeda iklan, dengan lirik realtime sinkron dan stasiun radio siaran 24/7 LIVE.",
     promptPlaceholder: "Cari lagu, artis, atau album favorit Anda...",
     actionText: "Putar",
     chips: [
@@ -83,13 +86,14 @@ const TABS: ShowcaseTab[] = [
     imageWidth: 1024,
     imageHeight: 591,
     urlPath: "onemind.web.id/workspace/music",
+    colSpan: "lg:col-span-6",
   },
   {
-    id: "schedule",
-    label: "Schedule",
+    id: "card-schedule",
+    category: "SMART SCHEDULE",
     title: "Smart Schedule Assistant",
     subtitle:
-      "What would you like to schedule today? Atur jadwal rapat, blok waktu fokus, hingga deadline otomatis.",
+      "What would you like to schedule today? Atur jadwal rapat, blok waktu fokus, hingga deadline tugas secara otomatis.",
     promptPlaceholder: "Ask Schedule AI to add or manage your schedule...",
     actionText: "Jadwalkan",
     chips: [
@@ -102,20 +106,21 @@ const TABS: ShowcaseTab[] = [
     imageWidth: 1024,
     imageHeight: 592,
     urlPath: "onemind.web.id/workspace/schedule",
+    colSpan: "lg:col-span-6",
   },
   {
-    id: "image",
-    label: "One Image",
+    id: "card-image",
+    category: "ONE IMAGE STUDIO",
     title: "Deskripsikan gambar Anda",
     subtitle:
-      "Studio kreasi visual dengan kendali rasio aspek, preset gaya artistik, dan render beresolusi tinggi.",
+      "Studio kreasi visual dengan kendali rasio aspek kustom, preset gaya artistik, dan rendering resolusi ultra-tinggi.",
     promptPlaceholder: "Deskripsikan visual imajinasi Anda secara detail...",
     actionText: "Generate",
     aspectRatios: ["1:1 Persegi", "16:9 Lanskap", "9:16 Potret", "4:3 Klasik"],
     chips: [
       "Pin Minimalist",
       "Baris Depan Cinematic",
-      "Origami 3D",
+      "Origami 3D Papercraft",
       "Sommelier Warm Film",
       "Pelatih Photoreal",
     ],
@@ -123,13 +128,14 @@ const TABS: ShowcaseTab[] = [
     imageWidth: 1024,
     imageHeight: 591,
     urlPath: "onemind.web.id/workspace/image",
+    colSpan: "lg:col-span-6",
   },
   {
-    id: "faith",
-    label: "Faith Hub",
+    id: "card-faith",
+    category: "FAITH HUB",
     title: "Apa yang sedang ada di dalam hatimu hari ini?",
     subtitle:
-      "Ruang hening dan perenungan pribadi untuk mencurahkan isi hati, pergumulan, atau syukur dalam ketenangan.",
+      "Ruang hening dan perenungan pribadi untuk mencurahkan isi hati, pergumulan, atau ucapan syukur dalam ketenangan damai.",
     promptPlaceholder: "Tuliskan apa yang ada di dalam hatimu hari ini...",
     actionText: "Bagikan",
     chips: [
@@ -137,12 +143,13 @@ const TABS: ShowcaseTab[] = [
       "Mencari Kedamaian Batin",
       "Mengatasi Kekhawatiran",
       "Keluarga & Relasi",
-      "Ucapan Syukur",
+      "Ucapan Syukur Hari Ini",
     ],
     imageSrc: "/showcase/faith-hub.png",
     imageWidth: 1024,
     imageHeight: 587,
     urlPath: "onemind.web.id/workspace/faith",
+    colSpan: "lg:col-span-12",
   },
 ];
 
@@ -151,167 +158,151 @@ export function HomeFeatureSections({
   onOpenPricing,
   isDark = true,
 }: HomeFeatureSectionsProps) {
-  const [activeTabId, setActiveTabId] = useState<string>("chat");
-
-  // Listen to tab selection events triggered from the top navbar
-  useEffect(() => {
-    const handleSelectTab = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
-        const found = TABS.find((t) => t.id === customEvent.detail);
-        if (found) {
-          setActiveTabId(found.id);
-        }
-      }
-    };
-
-    window.addEventListener("onemind:select-tab", handleSelectTab);
-    return () => window.removeEventListener("onemind:select-tab", handleSelectTab);
-  }, []);
-
-  const activeTab = TABS.find((t) => t.id === activeTabId) || TABS[0];
-
   const handleAction = () => {
     onGetStarted?.("signup");
   };
 
   return (
-    <section
-      id="section-showcase"
-      className="relative w-full py-16 sm:py-20 px-4 sm:px-6 md:px-8 max-w-6xl mx-auto scroll-mt-6"
-    >
-      {/* ─── TAB SWITCHER (Clean, minimal, horizontal pill bar) ─────────────── */}
-      <div className="flex items-center justify-center mb-10">
-        <div className="inline-flex items-center gap-1.5 p-1 rounded-full bg-zinc-900/90 border border-white/10 backdrop-blur-xl shadow-xl max-w-full overflow-x-auto no-scrollbar">
-          {TABS.map((tab) => {
-            const isActive = activeTab.id === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTabId(tab.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-white text-black font-semibold shadow-md"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    <section className="relative w-full py-16 sm:py-24 px-4 sm:px-6 md:px-10 max-w-7xl mx-auto">
+      {/* Section Header with Scroll-triggered Animation */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center max-w-3xl mx-auto mb-14"
+      >
+        <span className="text-xs font-mono tracking-widest text-zinc-400 uppercase">
+          Eksplorasi Antarmuka
+        </span>
+        <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white mt-2">
+          Seluruh Ruang Kerja dalam Satu Kolase.
+        </h2>
+        <p className="mt-3 text-sm sm:text-base text-zinc-400">
+          Semua modul dirancang terpadu, bersih, dan langsung siap digunakan tanpa perlu berpindah-pindah aplikasi.
+        </p>
+      </motion.div>
 
-      {/* ─── DYNAMIC TAB CONTENT ────────────────────────────────────────────── */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab.id}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.28, ease: "easeOut" }}
-          className="flex flex-col items-center"
-        >
-          {/* Header Typography (No boxed icon) */}
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              {activeTab.title}
-            </h2>
-            <p className="mt-2.5 text-xs sm:text-sm text-zinc-400 leading-relaxed">
-              {activeTab.subtitle}
-            </p>
-          </div>
-
-          {/* Aspect Ratio Selector (Only for One Image) */}
-          {activeTab.aspectRatios && (
-            <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
-              {activeTab.aspectRatios.map((ratio, idx) => (
-                <span
-                  key={ratio}
-                  className={`px-3 py-1 rounded-full text-xs font-mono transition-colors ${
-                    idx === 0
-                      ? "bg-white text-black font-medium"
-                      : "bg-zinc-900 border border-white/10 text-zinc-400"
-                  }`}
-                >
-                  {ratio}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Realistic Prompt Box (Directly matches the screenshot input bar) */}
-          <div
-            onClick={handleAction}
-            className="w-full max-w-2xl mb-5 p-2 sm:p-2.5 rounded-2xl bg-zinc-900/90 border border-white/15 shadow-xl flex items-center justify-between gap-3 cursor-pointer hover:border-white/30 transition-all group"
+      {/* ─── BENTO COLLAGE GRID (All features visible directly) ───────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {COLLAGE_CARDS.map((card, idx) => (
+          <motion.div
+            key={card.id}
+            id={card.id}
+            initial={{ opacity: 0, y: 45, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{
+              duration: 0.7,
+              delay: (idx % 2) * 0.1,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            className={`scroll-mt-24 col-span-1 ${card.colSpan || "lg:col-span-6"} rounded-3xl border border-white/10 bg-zinc-950/80 p-5 sm:p-7 backdrop-blur-2xl shadow-2xl flex flex-col justify-between hover:border-white/20 transition-all duration-300 group`}
           >
-            <div className="flex items-center gap-2.5 pl-3 text-zinc-400 text-xs sm:text-sm flex-1 truncate">
-              {activeTab.id === "music" ? (
-                <Search className="h-4 w-4 text-zinc-500 shrink-0" />
-              ) : activeTab.id === "faith" ? (
-                <Camera className="h-4 w-4 text-zinc-500 shrink-0" />
-              ) : null}
-              <span className="truncate">{activeTab.promptPlaceholder}</span>
-            </div>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black text-xs font-semibold group-hover:bg-zinc-100 transition-colors shrink-0"
-            >
-              <span>{activeTab.actionText}</span>
-              {activeTab.id === "music" ? (
-                <Play className="h-3 w-3 fill-black" />
-              ) : activeTab.id === "image" ? (
-                <Sparkles className="h-3 w-3" />
-              ) : (
-                <ArrowRight className="h-3.5 w-3.5" />
+            {/* Card Content Top */}
+            <div>
+              <span className="text-[11px] font-mono tracking-wider text-zinc-400 uppercase">
+                {card.category}
+              </span>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mt-1.5 leading-snug">
+                {card.title}
+              </h3>
+              <p className="mt-1.5 text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                {card.subtitle}
+              </p>
+
+              {/* Aspect Ratio Selector (One Image Card) */}
+              {card.aspectRatios && (
+                <div className="flex items-center gap-1.5 my-3 flex-wrap">
+                  {card.aspectRatios.map((ratio, rIdx) => (
+                    <span
+                      key={ratio}
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono transition-colors ${
+                        rIdx === 0
+                          ? "bg-white text-black font-semibold"
+                          : "bg-zinc-900 border border-white/10 text-zinc-400"
+                      }`}
+                    >
+                      {ratio}
+                    </span>
+                  ))}
+                </div>
               )}
-            </button>
-          </div>
 
-          {/* Suggestion Chips (Clean typography, no emoji clutter) */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8 max-w-2xl">
-            {activeTab.chips.map((chip, idx) => (
-              <button
-                key={idx}
-                type="button"
+              {/* Authentic Interactive Prompt Simulation Bar */}
+              <div
                 onClick={handleAction}
-                className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium text-zinc-400 border border-white/10 bg-zinc-900/60 hover:text-white hover:border-white/20 hover:bg-zinc-800 transition-all cursor-pointer"
+                className="mt-4 mb-4 p-2 sm:p-2.5 rounded-2xl bg-zinc-900/90 border border-white/15 shadow-md flex items-center justify-between gap-2.5 cursor-pointer hover:border-white/30 transition-all"
               >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Screenshot Frame (Full image, never cropped, complete UI visibility) */}
-          <div className="w-full rounded-2xl sm:rounded-3xl border border-white/15 bg-zinc-950 p-2 sm:p-3 shadow-2xl backdrop-blur-2xl">
-            {/* Window Top Bar */}
-            <div className="flex items-center justify-between pb-2.5 px-3 border-b border-white/10 text-xs text-zinc-400">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
-                <span className="ml-2 font-mono text-[11px] text-zinc-500 hidden sm:inline">
-                  {activeTab.urlPath}
-                </span>
+                <div className="flex items-center gap-2 pl-2 text-zinc-400 text-xs sm:text-sm flex-1 truncate">
+                  {card.id === "card-music" ? (
+                    <Search className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                  ) : card.id === "card-faith" ? (
+                    <Camera className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                  ) : null}
+                  <span className="truncate">{card.promptPlaceholder}</span>
+                </div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-semibold hover:bg-zinc-100 transition-colors shrink-0"
+                >
+                  <span>{card.actionText}</span>
+                  {card.id === "card-music" ? (
+                    <Play className="h-3 w-3 fill-black" />
+                  ) : card.id === "card-image" ? (
+                    <Sparkles className="h-3 w-3" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
               </div>
-              <span className="text-[11px] font-mono text-zinc-500">Tampilan Asli Workspace</span>
+
+              {/* Clean Suggestion Pills (No emoji clutter) */}
+              <div className="flex flex-wrap items-center gap-1.5 mb-5">
+                {card.chips.map((chip, cIdx) => (
+                  <button
+                    key={cIdx}
+                    type="button"
+                    onClick={handleAction}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium text-zinc-400 border border-white/10 bg-zinc-900/50 hover:text-white hover:border-white/20 hover:bg-zinc-800 transition-all cursor-pointer"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Complete, Uncut Screenshot Display */}
-            <div className="relative mt-2.5 w-full rounded-xl overflow-hidden border border-white/10 bg-black flex items-center justify-center">
-              <Image
-                src={activeTab.imageSrc}
-                alt={activeTab.title}
-                width={activeTab.imageWidth}
-                height={activeTab.imageHeight}
-                className="w-full h-auto object-contain block select-none"
-                priority
-              />
+            {/* Desktop Window Frame with Full Uncut Screenshot */}
+            <div className="w-full mt-2 rounded-2xl border border-white/10 bg-black/60 p-2 sm:p-2.5 shadow-inner">
+              {/* Window Chrome Top Bar */}
+              <div className="flex items-center justify-between pb-2 px-2 border-b border-white/10 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-yellow-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-green-500/80" />
+                  <span className="ml-2 font-mono text-[10px] text-zinc-500 hidden sm:inline">
+                    {card.urlPath}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500">Live Workspace</span>
+              </div>
+
+              {/* Complete, Uncut Full Image Display */}
+              <div className="relative mt-2 w-full rounded-lg overflow-hidden border border-white/10 bg-black flex items-center justify-center">
+                <Image
+                  src={card.imageSrc}
+                  alt={card.title}
+                  width={card.imageWidth}
+                  height={card.imageHeight}
+                  className="w-full h-auto object-contain block select-none group-hover:scale-[1.01] transition-transform duration-500"
+                  sizes="(max-width: 1200px) 100vw, 1200px"
+                  priority={idx === 0}
+                />
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
+          </motion.div>
+        ))}
+      </div>
     </section>
   );
 }

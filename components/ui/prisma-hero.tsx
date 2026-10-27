@@ -104,12 +104,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "AI Chat", tabId: "chat" },
-  { label: "One Code", tabId: "code" },
-  { label: "Music", tabId: "music" },
-  { label: "Schedule", tabId: "schedule" },
-  { label: "Image", tabId: "image" },
-  { label: "Faith", tabId: "faith" },
+  { label: "AI Chat", targetId: "card-chat" },
+  { label: "One Code", targetId: "card-code" },
+  { label: "Music", targetId: "card-music" },
+  { label: "Schedule", targetId: "card-schedule" },
+  { label: "Image", targetId: "card-image" },
+  { label: "Faith", targetId: "card-faith" },
   { label: "FAQ", targetId: "section-faq" },
   { label: "Harga", action: "pricing" },
   { label: "Sign In", action: "signin" },
@@ -133,23 +133,10 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true }: PrismaHeroPr
       return;
     }
 
-    if (item.tabId) {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("onemind:select-tab", { detail: item.tabId })
-        );
-      }
-      const el = document.getElementById("section-showcase");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
-      return;
-    }
-
     if (item.targetId) {
       const el = document.getElementById(item.targetId);
       if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
   };

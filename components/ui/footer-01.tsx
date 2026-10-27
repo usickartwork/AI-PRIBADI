@@ -326,7 +326,6 @@ export default function Footer01({
                   isDark ? "hover:text-white text-zinc-300" : "hover:text-black text-zinc-700"
                 )}
               >
-                <StatusDot />
                 <span>Seluruh Sistem Beroperasi Normal</span>
               </button>
             </div>
