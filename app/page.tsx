@@ -4924,10 +4924,8 @@ export default function Home() {
           />
         </div>
 
-        {/* ─── FLOATING CREATOR ATTRIBUTION BADGE (PERSISTENT / STICKY OVER SCROLL) ─── */}
-        <div className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto max-w-[calc(100vw-24px)]">
-          <CreatorBadge />
-        </div>
+        {/* ─── FLOATING CREATOR ATTRIBUTION BADGE (POPS UP PAST HERO ON SCROLL) ─── */}
+        <CreatorBadge />
       </>
       ) : (
         <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
