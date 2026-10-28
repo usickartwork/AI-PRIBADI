@@ -6,7 +6,6 @@ import { PrismaHero } from "@/components/ui/prisma-hero";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
-import { StrokeDrawType } from "@/components/ui/stroke-draw-type";
 import { TypewriterText } from "@/components/ui/typewriter-text";
 import {
   ChatBubbleBottomCenterTextIcon,
@@ -4948,58 +4947,41 @@ export default function Home() {
         <div className="w-full md:w-72 lg:w-80 flex flex-col h-full min-w-[18rem] lg:min-w-[20rem]">
           {/* Brand & Logo Header */}
           <div className="flex items-center justify-between px-4 py-4 md:px-5 md:py-4">
-            <div className="flex items-center">
-              <div className="relative w-52 sm:w-48 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
-                {isAdmin ? (
-                  <div className="flex items-center gap-2 w-full">
-                    <BrainLogo className={`w-6 h-6 shrink-0 transition-transform duration-300 hover:scale-105 ${isDark ? "text-white" : "text-black"}`} />
-                    <StrokeDrawType
-                      text="Developer"
-                      trigger="loop"
-                      strokeWidth={1.8}
-                      duration={1.3}
-                      stagger={0.08}
-                      hold={1.6}
-                      fontSize={24}
-                      fontWeight={800}
-                      letterSpacing={-0.03}
-                      color={isDark ? "#ffffff" : "#09090b"}
-                      fillColor={isDark ? "#ffffff" : "#09090b"}
-                      accentColor={isDark ? "#e4e4e7" : "#27272a"}
-                      tone={isDark ? "dark" : "light"}
-                      className="justify-start items-center"
-                      ariaLabel="Developer Panel"
-                    />
-                  </div>
-                ) : (
-                  <TechText
-                    text="One Mind"
-                    fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
-                    fontWeight={700}
-                    fontSize={28}
-                    letterSpacing={-0.03}
-                    color={isDark ? "#ffffff" : "#09090b"}
-                    accentColor={isDark ? "#ffffff" : "#09090b"}
-                    align="left"
-                    leftPadding={22}
-                    reveal="letter"
-                    dashLength={3}
-                    dashGap={2}
-                    strokeWidth={1.2}
-                    specks={8}
-                    sweep={true}
-                    speed={0.9}
-                    draggable={true}
-                    labels={false}
-                  />
-                )}
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="relative w-44 sm:w-40 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
+                <TechText
+                  text="One Mind"
+                  fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
+                  fontWeight={700}
+                  fontSize={28}
+                  letterSpacing={-0.03}
+                  color={isDark ? "#ffffff" : "#09090b"}
+                  accentColor={isDark ? "#ffffff" : "#09090b"}
+                  align="left"
+                  leftPadding={22}
+                  reveal="letter"
+                  dashLength={3}
+                  dashGap={2}
+                  strokeWidth={1.2}
+                  specks={8}
+                  sweep={true}
+                  speed={0.9}
+                  draggable={true}
+                  labels={false}
+                />
               </div>
-              {/* Original static One Mind brand text preserved for easy reversion:
-              <span className={`tracking-tight text-2xl md:text-[26px] select-none ${isDark ? "text-white" : "text-zinc-950"}`}>
-                <span className="font-extrabold">One</span>{" "}
-                <span className="font-normal opacity-90">Mind</span>
-              </span>
-              */}
+              {isAdmin && (
+                <span
+                  className={`inline-flex items-center text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-full border shrink-0 select-none transition-colors ${
+                    isDark
+                      ? "bg-zinc-800/90 text-zinc-300 border-zinc-700/80 shadow-xs"
+                      : "bg-zinc-100 text-zinc-700 border-zinc-300/80 shadow-xs"
+                  }`}
+                  title="Mode Pengembang (Admin)"
+                >
+                  DEV
+                </span>
+              )}
             </div>
             <button
               type="button"
