@@ -4952,13 +4952,13 @@ export default function Home() {
               <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
                 {isAdmin ? (
                   <StrokeDrawType
-                    text="DEVELOPER"
-                    trigger="in-view"
+                    text="Developer"
+                    trigger="loop"
                     strokeWidth={1.8}
-                    duration={1.4}
+                    duration={1.3}
                     stagger={0.08}
-                    drainOnHover
-                    fontSize={26}
+                    hold={1.6}
+                    fontSize={28}
                     fontWeight={800}
                     letterSpacing={-0.03}
                     color={isDark ? "#ffffff" : "#09090b"}
