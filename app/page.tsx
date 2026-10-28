@@ -5059,9 +5059,8 @@ export default function Home() {
                         <div className="pl-6 pr-1 space-y-1 pt-0.5">
                           {navPrefs.lainnyaOrder.map((subId) => {
                             const isSubActive = isNavTabActive(subId);
-                            const isSubMaintenance = Boolean(getFeatureMaintenance(subId));
                             const isSubProLocked =
-                              isFreePlanGroup && NAV_TAB_METADATA[subId].isProBadgeTab && !isSubMaintenance;
+                              isFreePlanGroup && NAV_TAB_METADATA[subId].isProBadgeTab;
                             const showSubUnreadBadge =
                               subId === "messages" && !isFreePlanGroup && unreadMessagesCount > 0;
                             return (
@@ -5078,20 +5077,7 @@ export default function Home() {
                                   {renderSidebarSlotIcon(subId, "w-4 h-4 shrink-0")}
                                   <span>{NAV_TAB_METADATA[subId].sidebarLabel}</span>
                                 </div>
-                                {isSubMaintenance ? (
-                                  <span
-                                    className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                                      isDark
-                                        ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                                        : "bg-amber-50 text-amber-700 border-amber-300"
-                                    }`}
-                                  >
-                                    <svg className="w-2.5 h-2.5 opacity-80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    MAINTENANCE
-                                  </span>
-                                ) : isSubProLocked ? (
+                                {isSubProLocked ? (
                                   <span
                                     className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                                       isDark
@@ -5124,8 +5110,7 @@ export default function Home() {
 
                 const isActive = isNavTabActive(slotId);
                 const isFreePlan = (subscription?.plan || "free") === "free";
-                const isSlotMaintenance = Boolean(getFeatureMaintenance(slotId));
-                const showProLock = isFreePlan && NAV_TAB_METADATA[slotId].isProBadgeTab && !isSlotMaintenance;
+                const showProLock = isFreePlan && NAV_TAB_METADATA[slotId].isProBadgeTab;
                 const showUnreadBadge =
                   slotId === "messages" && !isFreePlan && unreadMessagesCount > 0;
 
@@ -5143,20 +5128,20 @@ export default function Home() {
                       {renderSidebarSlotIcon(slotId, "w-5 h-5 md:w-5 md:h-5 shrink-0")}
                       <span>{NAV_TAB_METADATA[slotId].sidebarLabel}</span>
                     </div>
-                    {isSlotMaintenance ? (
+                    {showProLock ? (
                       <span
                         className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                           isDark
-                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                            : "bg-amber-50 text-amber-700 border-amber-300"
+                            ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-300"
                         }`}
                       >
-                        <svg className="w-2.5 h-2.5 opacity-80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                        MAINTENANCE
+                        PRO
                       </span>
-                    ) : showProLock ? (
+                    ) : showUnreadBadge ? (
                       <span
                         className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                           isDark
@@ -5597,7 +5582,6 @@ export default function Home() {
                 message={getFeatureMaintenance("code")?.message}
                 estimatedEnd={getFeatureMaintenance("code")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5634,7 +5618,6 @@ export default function Home() {
               message={getFeatureMaintenance("music")?.message}
               estimatedEnd={getFeatureMaintenance("music")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5658,7 +5641,6 @@ export default function Home() {
                 message={getFeatureMaintenance("notebook")?.message}
                 estimatedEnd={getFeatureMaintenance("notebook")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5680,7 +5662,6 @@ export default function Home() {
               message={getFeatureMaintenance("emergency")?.message}
               estimatedEnd={getFeatureMaintenance("emergency")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5715,7 +5696,6 @@ export default function Home() {
               message={getFeatureMaintenance("faith")?.message}
               estimatedEnd={getFeatureMaintenance("faith")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5754,7 +5734,6 @@ export default function Home() {
               message={getFeatureMaintenance("messages")?.message}
               estimatedEnd={getFeatureMaintenance("messages")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5779,7 +5758,6 @@ export default function Home() {
               message={getFeatureMaintenance("game")?.message}
               estimatedEnd={getFeatureMaintenance("game")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5802,7 +5780,6 @@ export default function Home() {
                 message={getFeatureMaintenance("schedule")?.message}
                 estimatedEnd={getFeatureMaintenance("schedule")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5837,7 +5814,6 @@ export default function Home() {
                 message={getFeatureMaintenance("image")?.message}
                 estimatedEnd={getFeatureMaintenance("image")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -6510,7 +6486,6 @@ export default function Home() {
             title={getFeatureMaintenance("chat")?.title}
             message={getFeatureMaintenance("chat")?.message}
             estimatedEnd={getFeatureMaintenance("chat")?.estimatedEnd}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             isDark={isDark}
           />
         )}
