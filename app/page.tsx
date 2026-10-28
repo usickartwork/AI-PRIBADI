@@ -24,6 +24,9 @@ import {
 } from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
+const CreatorBadge = dynamic(() =>
+  import("@/components/ui/creator-badge").then((m) => m.CreatorBadge)
+);
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
 const HomeInteractiveChat = dynamic(() =>
   import("@/components/ui/home-interactive-chat").then((m) => m.HomeInteractiveChat)
@@ -4797,8 +4800,9 @@ export default function Home() {
   return (
     <>
       {!user ? (
-        <div
-          id="page-1-container"
+        <>
+          <div
+            id="page-1-container"
           className={`relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-[#fafafc] dark:bg-[#121215] ${
             isDark ? "text-zinc-100" : "text-zinc-900"
           }`}
@@ -4919,6 +4923,12 @@ export default function Home() {
             onClose={() => setShowAuthModal(false)}
           />
         </div>
+
+        {/* ─── FLOATING CREATOR ATTRIBUTION BADGE (PERSISTENT / STICKY OVER SCROLL) ─── */}
+        <div className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto max-w-[calc(100vw-24px)]">
+          <CreatorBadge />
+        </div>
+      </>
       ) : (
         <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
