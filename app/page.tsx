@@ -1335,8 +1335,8 @@ export default function Home() {
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
     subscriptionReady: isUserSubscriptionSettled && isAdminAndAvatarSettled && isSessionsSettled,
-    minDurationMs: 1100,
-    safetyTimeoutMs: 5000,
+    minDurationMs: 1000,
+    safetyTimeoutMs: 2200,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);

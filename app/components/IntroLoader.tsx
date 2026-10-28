@@ -18,12 +18,24 @@ export interface IntroLoaderProps {
  */
 export function IntroLoader({ state }: IntroLoaderProps) {
   const isExiting = state === "exiting";
+  const [forceHide, setForceHide] = useState(false);
+
+  // Absolute safety fallback: IntroLoader cannot stay visible longer than 3s under any condition
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceHide(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (forceHide) return null;
 
   return (
     <div
       role="status"
       aria-label="Memuat One Mind"
       aria-live="polite"
+      suppressHydrationWarning
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
         isExiting
           ? "opacity-0 scale-[1.03] pointer-events-none"
@@ -95,48 +107,41 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
   );
 }
 
-// Module-scoped memory flag: persists across client-side page navigation in the same session
-let hasIntroEverCompleted = false;
+// Module-scoped memory flag: tracks whether intro was already dismissed in the current SPA session.
+// Strictly in-memory to prevent SSR/Client hydration mismatch on hard page refresh (F5).
+let hasPlayedIntroInSession = false;
+
+// Clean up any stale sessionStorage keys from previous builds
+if (typeof window !== "undefined") {
+  try {
+    sessionStorage.removeItem("onemind_intro_completed");
+    sessionStorage.removeItem("onemind_intro_shown");
+  } catch {
+    // ignore
+  }
+}
 
 export function isIntroCompleted(): boolean {
-  if (hasIntroEverCompleted) return true;
-  if (typeof window !== "undefined") {
-    try {
-      if (sessionStorage.getItem("onemind_intro_completed") === "true") {
-        hasIntroEverCompleted = true;
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return false;
+  return hasPlayedIntroInSession;
 }
 
 export function markIntroCompleted(): void {
-  hasIntroEverCompleted = true;
-  if (typeof window !== "undefined") {
-    try {
-      sessionStorage.setItem("onemind_intro_completed", "true");
-    } catch {
-      // ignore
-    }
-  }
+  hasPlayedIntroInSession = true;
 }
 
 /**
  * Custom hook to orchestrate application initialization:
  * - Keeps the solid black intro screen active until the web process/hero video is ready.
- * - Guarantees minimum duration (~1.1s) on first entrance so the "One Mind" TechText sweep and model slider play smoothly.
+ * - Guarantees minimum duration (~1.0s) so the "One Mind" TechText sweep and model slider play smoothly.
  * - Transitions with an elegant fade-out exit once both minDuration and isReady are met.
- * - Saves session state so navigating back from /usick-one, /harga, etc. NEVER re-runs the intro or delays the user.
- * - Has a safety timeout (~5s) to ensure the user never gets stuck.
+ * - In-app client navigation (/usick-one, /harga, etc.) skips intro immediately on back navigation.
+ * - Absolute safety timeout (~2.2s) guarantees the user never gets stuck under any circumstance.
  */
 export function useAppInitializer({
   authLoading = false,
   subscriptionReady = true,
-  minDurationMs = 1100,
-  safetyTimeoutMs = 5000,
+  minDurationMs = 1000,
+  safetyTimeoutMs = 2200,
   isReady = true,
 }: {
   authLoading?: boolean;
@@ -146,10 +151,12 @@ export function useAppInitializer({
   safetyTimeoutMs?: number;
   isReady?: boolean;
 } = {}) {
+  // Client-side in-app navigation: hasPlayedIntroInSession is true in memory -> start directly as "gone".
+  // Hard refresh (F5) / initial load: hasPlayedIntroInSession is false -> start as "visible", matching SSR 100%.
   const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">(() => {
-    return isIntroCompleted() ? "gone" : "visible";
+    return hasPlayedIntroInSession ? "gone" : "visible";
   });
-  const minTimePassedRef = useRef(isIntroCompleted());
+  const minTimePassedRef = useRef(hasPlayedIntroInSession);
 
   const combinedReady = Boolean(isReady && !authLoading && subscriptionReady);
   const isReadyRef = useRef(combinedReady);
@@ -159,8 +166,8 @@ export function useAppInitializer({
   }, [combinedReady]);
 
   useEffect(() => {
-    // Jika intro sudah pernah selesai di sesi ini, langsung selesai tanpa timer/animasi ulang
-    if (isIntroCompleted()) {
+    // Jika intro sudah pernah selesai di sesi ini (navigasi balik), langsung gone
+    if (hasPlayedIntroInSession) {
       setIntroState("gone");
       return;
     }
@@ -188,7 +195,7 @@ export function useAppInitializer({
       }
     }, minDurationMs);
 
-    // 2. Absolute safety fallback to prevent any stuck state
+    // 2. Absolute safety fallback to prevent any stuck state (maksimal 2.2 detik)
     const safetyTimer = setTimeout(() => {
       triggerExit();
     }, safetyTimeoutMs);
@@ -202,7 +209,7 @@ export function useAppInitializer({
 
   // When combinedReady changes to true, if min time already passed, trigger exit immediately
   useEffect(() => {
-    if (isIntroCompleted() && introState === "gone") return;
+    if (hasPlayedIntroInSession && introState === "gone") return;
 
     if (combinedReady && minTimePassedRef.current && introState === "visible") {
       markIntroCompleted();
