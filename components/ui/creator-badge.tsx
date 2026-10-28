@@ -97,8 +97,8 @@ export function CreatorBadge({
           : "opacity-0 translate-y-4 scale-95 pointer-events-none"
       } ${className}`}
     >
-      {/* ─── Unified Single Bubble Pill: [ Product by | Avatar | Username | Followers | IG Icon | (Jarak jelas) | Behance Icon ] ─── */}
-      <div className="group relative inline-flex items-center gap-3 sm:gap-3.5 pl-3.5 pr-4 sm:pl-4.5 sm:pr-4.5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
+      {/* ─── Unified Bubble Panel (Pure obsidian black, tanpa tone biru navy) ─── */}
+      <div className="group relative inline-flex items-center gap-2.5 sm:gap-3 pl-4 pr-4 sm:pl-5 sm:pr-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
         {/* Subtle Ambient Hover Glow */}
         <div
           className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
@@ -109,7 +109,7 @@ export function CreatorBadge({
           aria-hidden="true"
         />
 
-        {/* ─── Link Instagram: Product by | Avatar | Username | Followers | IG Icon ─── */}
+        {/* ─── Instagram Link: Product by | Avatar | Username | Followers | IG Icon ─── */}
         <a
           href={instagramUrl}
           target="_blank"
@@ -123,10 +123,10 @@ export function CreatorBadge({
             Product by
           </span>
 
-          {/* Pemisah vertikal */}
-          <span className="w-px h-3.5 sm:h-4 bg-white/20 shrink-0" aria-hidden="true" />
+          {/* Pemisah halus vertikal */}
+          <span className="w-px h-4 bg-white/20 shrink-0" aria-hidden="true" />
 
-          {/* Avatar Profile */}
+          {/* Circular Profile Avatar */}
           <div className="w-6.5 h-6.5 sm:w-7 sm:h-7 rounded-full overflow-hidden ring-1 ring-white/25 shrink-0 bg-zinc-800">
             {!imgError ? (
               <img
@@ -186,14 +186,14 @@ export function CreatorBadge({
           </div>
         </a>
 
-        {/* ─── Link Behance: Jarak jelas & terpisah (tidak nempel) baik di mobile maupun desktop ─── */}
+        {/* ─── Behance Link: Tetap di samping icon IG, tanpa margin negatif di mobile agar tidak tumpang tindih ─── */}
         <a
           href={behanceUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Kunjungi Behance filiuspatrislahendra"
           title="Behance @filiuspatrislahendra"
-          className="relative z-10 shrink-0 flex items-center justify-center p-0.5 no-underline cursor-pointer group/be ml-1 sm:ml-1.5"
+          className="relative z-10 shrink-0 flex items-center justify-center p-0.5 no-underline cursor-pointer group/be ml-0"
         >
           <svg
             className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover/be:scale-115 transition-transform duration-200"
