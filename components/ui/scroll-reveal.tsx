@@ -29,7 +29,7 @@ export function ScrollReveal({
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const isInView = useInView(sentinelRef, {
-    once: true,
+    once: false,
     amount: 0.08,
     margin: "0px 0px -40px 0px",
   });

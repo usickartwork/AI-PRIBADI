@@ -4795,7 +4795,7 @@ export default function Home() {
         <>
           <div
             id="page-1-container"
-            className="relative w-full min-h-screen overflow-x-clip bg-black text-white selection:bg-white/20 antialiased font-sans"
+            className="relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-black text-white selection:bg-white/20 antialiased font-sans"
           >
             <PrismaHero
               isDark={isDark}
@@ -4876,7 +4876,7 @@ export default function Home() {
         <CreatorBadge />
       </>
       ) : (
-        <div className={`relative z-10 flex h-screen min-h-screen w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
+        <div className={`relative z-10 flex h-full min-h-full w-full max-w-[100vw] overflow-hidden bg-[#fafafc] dark:bg-[#121215] ${
           isDark ? "text-zinc-100" : "text-zinc-900"
         } font-sans antialiased p-0`}>
           <MeshDriftBackground
