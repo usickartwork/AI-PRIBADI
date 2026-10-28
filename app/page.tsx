@@ -1330,8 +1330,8 @@ export default function Home() {
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
     subscriptionReady: isUserSubscriptionSettled && isAdminSettled && isAvatarSettled,
-    minDurationMs: 1400,
-    safetyTimeoutMs: 5000,
+    minDurationMs: 750,
+    safetyTimeoutMs: 4000,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -4949,25 +4949,28 @@ export default function Home() {
           {/* Brand & Logo Header */}
           <div className="flex items-center justify-between px-4 py-4 md:px-5 md:py-4">
             <div className="flex items-center">
-              <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
+              <div className="relative w-52 sm:w-48 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
                 {isAdmin ? (
-                  <StrokeDrawType
-                    text="Developer"
-                    trigger="loop"
-                    strokeWidth={1.8}
-                    duration={1.3}
-                    stagger={0.08}
-                    hold={1.6}
-                    fontSize={28}
-                    fontWeight={800}
-                    letterSpacing={-0.03}
-                    color={isDark ? "#ffffff" : "#09090b"}
-                    fillColor={isDark ? "#ffffff" : "#09090b"}
-                    accentColor={isDark ? "#e4e4e7" : "#27272a"}
-                    tone={isDark ? "dark" : "light"}
-                    className="justify-start items-center"
-                    ariaLabel="Developer Panel"
-                  />
+                  <div className="flex items-center gap-2 w-full">
+                    <BrainLogo className={`w-6 h-6 shrink-0 transition-transform duration-300 hover:scale-105 ${isDark ? "text-white" : "text-black"}`} />
+                    <StrokeDrawType
+                      text="Developer"
+                      trigger="loop"
+                      strokeWidth={1.8}
+                      duration={1.3}
+                      stagger={0.08}
+                      hold={1.6}
+                      fontSize={24}
+                      fontWeight={800}
+                      letterSpacing={-0.03}
+                      color={isDark ? "#ffffff" : "#09090b"}
+                      fillColor={isDark ? "#ffffff" : "#09090b"}
+                      accentColor={isDark ? "#e4e4e7" : "#27272a"}
+                      tone={isDark ? "dark" : "light"}
+                      className="justify-start items-center"
+                      ariaLabel="Developer Panel"
+                    />
+                  </div>
                 ) : (
                   <TechText
                     text="One Mind"
