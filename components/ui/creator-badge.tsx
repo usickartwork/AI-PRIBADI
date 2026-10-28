@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export interface CreatorBadgeProps {
   username?: string;
@@ -16,8 +16,7 @@ export interface CreatorBadgeProps {
  * CreatorBadge: Floating creator attribution pill
  * Displays unified "[ Product by | Avatar | filius_pl | Followers | Instagram Logo | Behance Logo ]"
  * Styled as a single enclosed black obsidian pill so nothing clashes with background content.
- * Only appears as a pop-up after the user scrolls past the top hero screen on homepage,
- * or always visible directly on sub-pages like /usick-one and /harga.
+ * Di halaman paling atas (hero) menghilang, baru ketika scroll masuk ke halaman fitur akan muncul.
  */
 export function CreatorBadge({
   username = "filius_pl",
@@ -26,13 +25,71 @@ export function CreatorBadge({
   behanceUrl = "https://www.behance.net/filiuspatrislahendra",
   avatarUrl = "/filius-avatar.png",
   className = "",
-  alwaysVisible = true,
+  alwaysVisible = false,
 }: CreatorBadgeProps) {
   const [imgError, setImgError] = useState(false);
+  const [isVisible, setIsVisible] = useState(alwaysVisible);
+
+  useEffect(() => {
+    if (alwaysVisible) {
+      setIsVisible(true);
+      return;
+    }
+
+    const checkScroll = () => {
+      const page1 = typeof document !== "undefined" ? document.getElementById("page-1-container") : null;
+      const currentScroll = Math.max(
+        (typeof window !== "undefined" ? window.pageYOffset : 0) || 0,
+        (typeof window !== "undefined" ? window.scrollY : 0) || 0,
+        (typeof document !== "undefined" ? document.documentElement?.scrollTop : 0) || 0,
+        (typeof document !== "undefined" ? document.body?.scrollTop : 0) || 0,
+        page1?.scrollTop || 0
+      );
+
+      // Sembunyi saat di bagian paling atas (hero), dan muncul saat scroll masuk ke fitur (> 100px)
+      const threshold = 100;
+      setIsVisible(currentScroll > threshold);
+    };
+
+    checkScroll();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("scroll", checkScroll, { passive: true, capture: true });
+      window.addEventListener("resize", checkScroll, { passive: true });
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("scroll", checkScroll, { passive: true, capture: true });
+      const pageContainer = document.getElementById("page-1-container");
+      if (pageContainer) {
+        pageContainer.addEventListener("scroll", checkScroll, { passive: true });
+      }
+    }
+
+    const timer = setInterval(checkScroll, 200);
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("scroll", checkScroll, true);
+        window.removeEventListener("resize", checkScroll);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("scroll", checkScroll, true);
+        const pageContainer = document.getElementById("page-1-container");
+        if (pageContainer) {
+          pageContainer.removeEventListener("scroll", checkScroll);
+        }
+      }
+      clearInterval(timer);
+    };
+  }, [alwaysVisible]);
 
   return (
     <div
-      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-20px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none opacity-100 translate-y-0 scale-100 pointer-events-auto ${className}`}
+      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-20px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
+        isVisible
+          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+          : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+      } ${className}`}
     >
       {/* ─── Unified Bubble Panel (Pure obsidian black, padding kanan mobile diperluas pr-8 agar pas dan simetris) ─── */}
       <div className="group relative inline-flex items-center gap-1 sm:gap-1.5 pl-4 pr-8 sm:pl-4.5 sm:pr-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">

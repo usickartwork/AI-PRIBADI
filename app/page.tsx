@@ -4797,7 +4797,7 @@ export default function Home() {
         <>
           <div
             id="page-1-container"
-            className="relative w-full min-h-screen bg-black text-white selection:bg-white/20 antialiased font-sans"
+            className="relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-black text-white selection:bg-white/20 antialiased font-sans"
           >
             <PrismaHero
               isDark={isDark}
