@@ -73,6 +73,11 @@ const FeatureMaintenanceView = dynamic(
   () => import("./components/FeatureMaintenanceView").then((m) => m.FeatureMaintenanceView),
   { ssr: false }
 );
+const AdminAvatarModal = dynamic(
+  () => import("./components/AdminAvatarModal").then((m) => m.AdminAvatarModal),
+  { ssr: false }
+);
+import { AdminAvatarConfig, ADMIN_AVATAR_STORAGE_KEY } from "@/lib/adminAvatarTypes";
 const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
 const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
 const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
@@ -1519,6 +1524,18 @@ export default function Home() {
   // Pemeriksaan hak akses Admin Usick One (hanya untuk visibilitas UI sidebar)
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Kustomisasi Foto Profil Admin (Khusus Admin)
+  const [adminAvatarConfig, setAdminAvatarConfig] = useState<AdminAvatarConfig | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const local = localStorage.getItem(ADMIN_AVATAR_STORAGE_KEY);
+        if (local) return JSON.parse(local);
+      } catch {}
+    }
+    return null;
+  });
+  const [showAdminAvatarModal, setShowAdminAvatarModal] = useState(false);
+
   // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Global, Per-Fitur, & User Hold)
   const [systemAccess, setSystemAccess] = useState<{
     maintenance: boolean;
@@ -1622,6 +1639,56 @@ export default function Home() {
       setActiveView("chats");
     }
   }, [isClerkLoaded, isAdmin, activeView]);
+
+  // Sinkronisasi konfigurasi foto profil admin dari cloud server
+  useEffect(() => {
+    if (!isAdmin) return;
+    let isCancelled = false;
+    fetch("/api/admin/profile-avatar")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCancelled && data?.success) {
+          if (data.config) {
+            setAdminAvatarConfig(data.config);
+            try {
+              localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(data.config));
+            } catch {}
+          } else if (data.config === null) {
+            setAdminAvatarConfig(null);
+            try {
+              localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+            } catch {}
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdmin]);
+
+  const handleSaveAdminAvatar = async (config: AdminAvatarConfig | null) => {
+    if (!isAdmin) return;
+    setAdminAvatarConfig(config);
+    try {
+      if (config) {
+        localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(config));
+      } else {
+        localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+      }
+    } catch {}
+
+    const res = await fetch("/api/admin/profile-avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || "Gagal menyimpan foto profil ke server.");
+    }
+  };
 
   // Auth is now fully managed by Clerk — no Supabase auth session listener needed
 
@@ -5230,10 +5297,73 @@ export default function Home() {
 
             <div className="flex items-center justify-between px-2 py-1.5 transition-colors">
               <div className="flex items-center gap-3 md:gap-2.5 min-w-0 pr-1">
-                <div className={`relative flex h-10 w-10 md:h-8.5 md:w-8.5 shrink-0 items-center justify-center rounded-full text-sm md:text-xs font-bold shadow-sm ${
-                  isDark ? "bg-white text-black" : "bg-black text-white"
-                }`}>
-                  {userInitial}
+                {/* Avatar Icon: Khusus Admin, menampilkan foto kustom dan dapat diklik untuk mengkustomisasi tampilan */}
+                <div
+                  onClick={isAdmin ? () => setShowAdminAvatarModal(true) : undefined}
+                  className={`group relative flex h-10 w-10 md:h-8.5 md:w-8.5 shrink-0 items-center justify-center overflow-hidden text-sm md:text-xs font-bold shadow-sm transition-all duration-200 select-none ${
+                    isAdmin && adminAvatarConfig?.imageUrl
+                      ? adminAvatarConfig.shape === "circle"
+                        ? "rounded-full"
+                        : adminAvatarConfig.shape === "squircle"
+                        ? "rounded-2xl"
+                        : "rounded-xl"
+                      : "rounded-full"
+                  } ${
+                    isAdmin && adminAvatarConfig?.imageUrl
+                      ? adminAvatarConfig.borderStyle === "minimal"
+                        ? isDark ? "ring-1 ring-white/30" : "ring-1 ring-black/25"
+                        : adminAvatarConfig.borderStyle === "glow"
+                        ? isDark
+                          ? "ring-2 ring-white/70 shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                          : "ring-2 ring-black/60 shadow-[0_0_12px_rgba(0,0,0,0.25)]"
+                        : adminAvatarConfig.borderStyle === "double"
+                        ? isDark
+                          ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-950"
+                          : "ring-2 ring-black ring-offset-2 ring-offset-white"
+                        : ""
+                      : isDark ? "bg-white text-black" : "bg-black text-white"
+                  } ${isAdmin ? "cursor-pointer hover:scale-105" : ""}`}
+                  title={isAdmin ? "Kustomisasi Foto Profil (Khusus Admin)" : undefined}
+                >
+                  {isAdmin && adminAvatarConfig?.imageUrl ? (
+                    <>
+                      <img
+                        src={adminAvatarConfig.imageUrl}
+                        alt="Foto Profil Admin"
+                        style={{
+                          transform: `scale(${adminAvatarConfig.zoom || 1})`,
+                          filter:
+                            adminAvatarConfig.filter === "grayscale"
+                              ? "grayscale(100%)"
+                              : adminAvatarConfig.filter === "contrast"
+                              ? "grayscale(100%) contrast(140%)"
+                              : "none",
+                        }}
+                        className="h-full w-full object-cover transition-transform duration-200"
+                      />
+                      {/* Overlay Edit Kamera saat hover untuk Admin */}
+                      <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200">
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span>{userInitial}</span>
+                      {isAdmin && (
+                        <div
+                          className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-zinc-900 border border-white/30 flex items-center justify-center text-white shadow-xs group-hover:bg-white group-hover:text-black transition-colors"
+                          title="Tambah Foto Profil Admin"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="truncate">
                   <div
@@ -5562,6 +5692,7 @@ export default function Home() {
               isDark={isDark}
               onClose={() => setActiveView("chats")}
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              onOpenAvatarModal={() => setShowAdminAvatarModal(true)}
             />
           </div>
         ) : activeView === "code" || activeView === "messages" || activeView === "music" || activeView === "notebook" || activeView === "emergency" || isHalamanActive ? null : (
@@ -7220,6 +7351,20 @@ export default function Home() {
       )}
 
         </div>
+      )}
+
+      {/* ─── MODAL KUSTOMISASI FOTO PROFIL ADMIN (KHUSUS ADMIN) ─── */}
+      {isAdmin && showAdminAvatarModal && (
+        <AdminAvatarModal
+          isOpen={showAdminAvatarModal}
+          onClose={() => setShowAdminAvatarModal(false)}
+          isDark={isDark}
+          currentConfig={adminAvatarConfig}
+          onSave={handleSaveAdminAvatar}
+          clerkImageUrl={clerkUser?.imageUrl}
+          userInitial={userInitial}
+          userEmail={user?.email || clerkUser?.primaryEmailAddress?.emailAddress}
+        />
       )}
 
       {/* ─── ONE MIND: INTRO LOADING ANIMATION (Awakening Screen) ──────── */}

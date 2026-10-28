@@ -33,6 +33,7 @@ import {
   BookOpen,
   HeartPulse,
   Gamepad2,
+  Camera,
 } from "lucide-react";
 import {
   FEATURE_KEYS,
@@ -46,6 +47,7 @@ interface AdminWorkspaceProps {
   isDark?: boolean;
   onClose: () => void;
   onTogglePanel?: () => void;
+  onOpenAvatarModal?: () => void;
 }
 
 type AdminTab = "overview" | "users" | "ai" | "performance" | "alerts";
@@ -146,7 +148,7 @@ interface AdminStatsResponse {
   };
 }
 
-export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) {
+export function AdminWorkspace({ isDark = true, onClose, onOpenAvatarModal }: AdminWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [data, setData] = useState<AdminStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -680,6 +682,22 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onOpenAvatarModal && (
+            <button
+              type="button"
+              onClick={onOpenAvatarModal}
+              title="Kustomisasi Foto Profil Admin"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                isDark
+                  ? "bg-white/10 hover:bg-white/15 text-white border-white/20"
+                  : "bg-black/10 hover:bg-black/15 text-black border-black/20"
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Foto Profil</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => fetchAdminStats(true)}
