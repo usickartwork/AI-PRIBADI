@@ -175,15 +175,15 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
 
     const timer = setTimeout(() => clearInterval(interval), 5000);
 
-    // Automatic trigger on first gesture (touch, pointer, scroll)
+    // Automatic trigger on first gesture (touch or pointer only once, never on scroll to preserve mobile fling inertia)
     const onGesture = () => {
       tryPlay();
+      window.removeEventListener("touchstart", onGesture);
+      window.removeEventListener("pointerdown", onGesture);
     };
 
-    window.addEventListener("touchstart", onGesture, { passive: true });
-    window.addEventListener("touchend", onGesture, { passive: true });
-    window.addEventListener("pointerdown", onGesture, { passive: true });
-    window.addEventListener("scroll", onGesture, { passive: true });
+    window.addEventListener("touchstart", onGesture, { passive: true, once: true });
+    window.addEventListener("pointerdown", onGesture, { passive: true, once: true });
     document.addEventListener("visibilitychange", tryPlay);
 
     return () => {
@@ -194,9 +194,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
       v.removeEventListener("canplay", tryPlay);
       v.removeEventListener("canplaythrough", tryPlay);
       window.removeEventListener("touchstart", onGesture);
-      window.removeEventListener("touchend", onGesture);
       window.removeEventListener("pointerdown", onGesture);
-      window.removeEventListener("scroll", onGesture);
       document.removeEventListener("visibilitychange", tryPlay);
     };
   }, [onVideoReady]);
@@ -222,7 +220,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
   };
 
   return (
-    <section className="relative h-[100dvh] w-full bg-black overflow-hidden">
+    <section className="relative h-screen sm:h-[100dvh] w-full bg-black overflow-hidden">
       <div className="relative h-full w-full overflow-hidden bg-black">
         {/* Instant background poster behind video */}
         <img
