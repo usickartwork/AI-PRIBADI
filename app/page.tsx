@@ -5236,11 +5236,32 @@ export default function Home() {
                   {userInitial}
                 </div>
                 <div className="truncate">
-                  <div className={`text-[14.5px] md:text-sm font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}>
-                    {user ? userDisplayName : "Belum Masuk"}
+                  <div
+                    title={user?.email || "Belum Masuk"}
+                    className={`text-[13.5px] md:text-xs font-semibold truncate ${isDark ? "text-zinc-100" : "text-black"}`}
+                  >
+                    {user ? (user.email || userDisplayName) : "Belum Masuk"}
                   </div>
-                  <div className={`text-xs md:text-[11px] font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
-                    {user ? user.email : "Akun Diperlukan"}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {user ? (
+                      <span
+                        className={`inline-flex items-center text-[9.5px] md:text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none tracking-wide ${
+                          isProPlan
+                            ? isDark
+                              ? "bg-white text-black border-white"
+                              : "bg-black text-white border-black"
+                            : isDark
+                              ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                              : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                        }`}
+                      >
+                        {isProPlan ? "PRO" : "Free"}
+                      </span>
+                    ) : (
+                      <span className={`text-xs md:text-[11px] font-medium truncate ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        Akun Diperlukan
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
