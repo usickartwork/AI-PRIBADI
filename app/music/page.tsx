@@ -158,7 +158,10 @@ export default function MusicLandingPage() {
         <AuthModal
           isDark={true}
           initialMode={authMode}
-          onSuccess={() => setShowAuthModal(false)}
+          onSuccess={() => {
+            setShowAuthModal(false);
+            window.location.href = "/";
+          }}
           onClose={() => setShowAuthModal(false)}
         />
       )}

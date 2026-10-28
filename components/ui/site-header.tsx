@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BrainLogo } from "@/components/ui/brain-logo";
@@ -30,6 +31,7 @@ export function SiteHeader({
   onGetStarted,
   className = "",
 }: SiteHeaderProps) {
+  const { isSignedIn } = useUser();
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const featuresRef = useRef<HTMLDivElement>(null);
 
@@ -154,15 +156,24 @@ export function SiteHeader({
           </nav>
         </div>
 
-        {/* ─── RIGHT: HIGHLIGHTED LOGIN BUTTON ─── */}
+        {/* ─── RIGHT: HIGHLIGHTED LOGIN / WORKSPACE BUTTON ─── */}
         <div className="shrink-0 flex items-center pl-1 sm:pl-2">
-          <button
-            type="button"
-            onClick={() => onGetStarted?.("signin")}
-            className="px-3.5 xs:px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer"
-          >
-            Log in
-          </button>
+          {isSignedIn ? (
+            <Link
+              href="/"
+              className="px-3.5 xs:px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer no-underline"
+            >
+              Masuk ke Web
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onGetStarted?.("signin")}
+              className="px-3.5 xs:px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+            >
+              Log in
+            </button>
+          )}
         </div>
       </div>
     </header>

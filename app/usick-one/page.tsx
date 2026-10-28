@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 import { SiteHeader } from "@/components/ui/site-header";
 import { HomeInteractiveChat } from "@/components/ui/home-interactive-chat";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
@@ -8,10 +9,22 @@ import { CreatorBadge } from "@/components/ui/creator-badge";
 import { AuthModal } from "@/app/components/AuthModal";
 
 export default function UsickOnePage() {
+  const { isSignedIn, isLoaded } = useUser();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
 
+  // Jika sudah login, langsung arahkan masuk ke workspace aplikasi utama
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      window.location.href = "/";
+    }
+  }, [isLoaded, isSignedIn]);
+
   const openAuth = (mode: "signin" | "signup" = "signup") => {
+    if (isSignedIn) {
+      window.location.href = "/";
+      return;
+    }
     setAuthMode(mode);
     setShowAuthModal(true);
   };
@@ -53,6 +66,7 @@ export default function UsickOnePage() {
         initialMode={authMode}
         onSuccess={() => {
           setShowAuthModal(false);
+          window.location.href = "/";
         }}
         onClose={() => setShowAuthModal(false)}
       />

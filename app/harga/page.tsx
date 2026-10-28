@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import { ArrowRight, Check } from "lucide-react";
 import Footer01 from "@/components/ui/footer-01";
 import { SiteHeader } from "@/components/ui/site-header";
@@ -11,10 +12,22 @@ import { AnimatePresence } from "framer-motion";
 import { AuthModal } from "@/app/components/AuthModal";
 
 export default function PricingLandingPage() {
+  const { isSignedIn, isLoaded } = useUser();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
 
+  // Jika sudah login, langsung arahkan masuk ke workspace aplikasi utama
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      window.location.href = "/";
+    }
+  }, [isLoaded, isSignedIn]);
+
   const openAuth = (mode: "signin" | "signup" = "signup") => {
+    if (isSignedIn) {
+      window.location.href = "/";
+      return;
+    }
     setAuthMode(mode);
     setShowAuthModal(true);
   };
@@ -170,7 +183,10 @@ export default function PricingLandingPage() {
         isOpen={showAuthModal}
         isDark={true}
         initialMode={authMode}
-        onSuccess={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false);
+          window.location.href = "/";
+        }}
         onClose={() => setShowAuthModal(false)}
       />
     </div>
