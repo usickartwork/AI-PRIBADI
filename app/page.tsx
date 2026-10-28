@@ -4572,16 +4572,24 @@ export default function Home() {
   // tampilkan layar pembatasan murni berupa tulisan saja tanpa card/panel/tombol.
   if (systemAccess.loaded && !systemAccess.isAdmin && !isAdmin) {
     if (systemAccess.isHeld) {
-      return <UserHoldScreen isDark={isDark} reason={systemAccess.reason} />;
+      return (
+        <div className="relative min-h-screen w-full overflow-hidden bg-[#fafafc] dark:bg-[#121215]">
+          <MeshDriftBackground isDark={isDark} />
+          <UserHoldScreen isDark={isDark} reason={systemAccess.reason} />
+        </div>
+      );
     }
     if (systemAccess.maintenance) {
       return (
-        <MaintenanceScreen
-          isDark={isDark}
-          title={systemAccess.global?.title}
-          message={systemAccess.global?.message}
-          estimatedEnd={systemAccess.global?.estimatedEnd}
-        />
+        <div className="relative min-h-screen w-full overflow-hidden bg-[#fafafc] dark:bg-[#121215]">
+          <MeshDriftBackground isDark={isDark} />
+          <MaintenanceScreen
+            isDark={isDark}
+            title={systemAccess.global?.title}
+            message={systemAccess.global?.message}
+            estimatedEnd={systemAccess.global?.estimatedEnd}
+          />
+        </div>
       );
     }
   }
@@ -5275,8 +5283,16 @@ export default function Home() {
       <main className="relative flex flex-1 flex-col h-full w-full min-w-0 overflow-hidden bg-transparent border-0 shadow-none">
         {/* CodeWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
         {activeView === "code" || visitedViewsRef.current.code ? (
-          <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
-            {getFeatureMaintenance("code") ? (
+          <div className={`relative h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
+            <CodeWorkspace
+              key="code-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              userId={user?.id}
+              userName={chatAccountName}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+            {getFeatureMaintenance("code") && (
               <FeatureMaintenanceView
                 featureName="Code Studio & PRD"
                 title={getFeatureMaintenance("code")?.title}
@@ -5285,31 +5301,13 @@ export default function Home() {
                 onBack={() => setActiveView("chats")}
                 isDark={isDark}
               />
-            ) : (
-              <CodeWorkspace
-                key="code-workspace-instance"
-                isDark={isDark}
-                onClose={() => setActiveView("chats")}
-                userId={user?.id}
-                userName={chatAccountName}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-              />
             )}
           </div>
         ) : null}
 
         {/* MusicWorkspace dijaga tetap ter-mount di latar belakang untuk pengguna Pro agar audio player & Music Connect tidak terputus saat beralih tab */}
-        <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
-          {getFeatureMaintenance("music") ? (
-            <FeatureMaintenanceView
-              featureName="Music One & Connect"
-              title={getFeatureMaintenance("music")?.title}
-              message={getFeatureMaintenance("music")?.message}
-              estimatedEnd={getFeatureMaintenance("music")?.estimatedEnd}
-              onBack={() => setActiveView("chats")}
-              isDark={isDark}
-            />
-          ) : (subscription?.plan || "free") === "free" ? (
+        <div className={`relative h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
+          {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Music One & Connect (Eksklusif Pro)"
@@ -5330,12 +5328,30 @@ export default function Home() {
               userName={chatAccountName}
             />
           )}
+          {getFeatureMaintenance("music") && (
+            <FeatureMaintenanceView
+              featureName="Music One & Connect"
+              title={getFeatureMaintenance("music")?.title}
+              message={getFeatureMaintenance("music")?.message}
+              estimatedEnd={getFeatureMaintenance("music")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          )}
         </div>
 
         {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
         {activeView === "notebook" || visitedViewsRef.current.notebook ? (
-          <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
-            {getFeatureMaintenance("notebook") ? (
+          <div className={`relative h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
+            <NotebookWorkspace
+              key={user?.id || "guest-notebook"}
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              user={user}
+              setShowAuthModal={setShowAuthModal}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+            {getFeatureMaintenance("notebook") && (
               <FeatureMaintenanceView
                 featureName="Notebook"
                 title={getFeatureMaintenance("notebook")?.title}
@@ -5344,22 +5360,19 @@ export default function Home() {
                 onBack={() => setActiveView("chats")}
                 isDark={isDark}
               />
-            ) : (
-              <NotebookWorkspace
-                key={user?.id || "guest-notebook"}
-                isDark={isDark}
-                onClose={() => setActiveView("chats")}
-                user={user}
-                setShowAuthModal={setShowAuthModal}
-                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-              />
             )}
           </div>
         ) : null}
 
         {/* EmergencyWorkspace */}
-        <div className={`h-full w-full ${activeView === "emergency" ? "flex flex-col flex-1" : "hidden"}`}>
-          {getFeatureMaintenance("emergency") ? (
+        <div className={`relative h-full w-full ${activeView === "emergency" ? "flex flex-col flex-1" : "hidden"}`}>
+          <EmergencyWorkspace
+            key="emergency-workspace-instance"
+            isDark={isDark}
+            onClose={() => setActiveView("chats")}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+          />
+          {getFeatureMaintenance("emergency") && (
             <FeatureMaintenanceView
               featureName="Emergency Contact"
               title={getFeatureMaintenance("emergency")?.title}
@@ -5368,28 +5381,12 @@ export default function Home() {
               onBack={() => setActiveView("chats")}
               isDark={isDark}
             />
-          ) : (
-            <EmergencyWorkspace
-              key="emergency-workspace-instance"
-              isDark={isDark}
-              onClose={() => setActiveView("chats")}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            />
           )}
         </div>
 
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
-        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
-          {getFeatureMaintenance("faith") ? (
-            <FeatureMaintenanceView
-              featureName="Faith Space"
-              title={getFeatureMaintenance("faith")?.title}
-              message={getFeatureMaintenance("faith")?.message}
-              estimatedEnd={getFeatureMaintenance("faith")?.estimatedEnd}
-              onBack={() => setActiveView("chats")}
-              isDark={isDark}
-            />
-          ) : (subscription?.plan || "free") === "free" ? (
+        <div className={`relative h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
+          {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Faith Space (Eksklusif Pro)"
@@ -5409,20 +5406,21 @@ export default function Home() {
               subTabsElement={halamanSubTabsBar}
             />
           ) : null}
-        </div>
-
-        {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
-        <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
-          {getFeatureMaintenance("messages") ? (
+          {getFeatureMaintenance("faith") && (
             <FeatureMaintenanceView
-              featureName="Messages"
-              title={getFeatureMaintenance("messages")?.title}
-              message={getFeatureMaintenance("messages")?.message}
-              estimatedEnd={getFeatureMaintenance("messages")?.estimatedEnd}
+              featureName="Faith Space"
+              title={getFeatureMaintenance("faith")?.title}
+              message={getFeatureMaintenance("faith")?.message}
+              estimatedEnd={getFeatureMaintenance("faith")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
               isDark={isDark}
             />
-          ) : (subscription?.plan || "free") === "free" ? (
+          )}
+        </div>
+
+        {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
+        <div className={`relative h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
+          {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Messages (Eksklusif Pro)"
@@ -5446,20 +5444,21 @@ export default function Home() {
               onNavigateToMessages={() => setActiveView("messages")}
             />
           )}
-        </div>
-
-        {/* GameHub (Game Center: Chess Arena & Neon Drift — Offline-First) */}
-        <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
-          {getFeatureMaintenance("game") ? (
+          {getFeatureMaintenance("messages") && (
             <FeatureMaintenanceView
-              featureName="Game Center"
-              title={getFeatureMaintenance("game")?.title}
-              message={getFeatureMaintenance("game")?.message}
-              estimatedEnd={getFeatureMaintenance("game")?.estimatedEnd}
+              featureName="Messages"
+              title={getFeatureMaintenance("messages")?.title}
+              message={getFeatureMaintenance("messages")?.message}
+              estimatedEnd={getFeatureMaintenance("messages")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
               isDark={isDark}
             />
-          ) : (isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
+          )}
+        </div>
+
+        {/* GameHub (Game Center: Chess Arena & Neon Drift — Offline-First) */}
+        <div className={`relative h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
+          {(isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
             <GameHub
               key="game-hub-instance"
               isDark={isDark}
@@ -5469,19 +5468,20 @@ export default function Home() {
               subTabsElement={halamanSubTabsBar}
             />
           ) : null}
-        </div>
-
-        {activeView === "schedule" ? (
-          getFeatureMaintenance("schedule") ? (
+          {getFeatureMaintenance("game") && (
             <FeatureMaintenanceView
-              featureName="Schedule & Kalender"
-              title={getFeatureMaintenance("schedule")?.title}
-              message={getFeatureMaintenance("schedule")?.message}
-              estimatedEnd={getFeatureMaintenance("schedule")?.estimatedEnd}
+              featureName="Game Center"
+              title={getFeatureMaintenance("game")?.title}
+              message={getFeatureMaintenance("game")?.message}
+              estimatedEnd={getFeatureMaintenance("game")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
               isDark={isDark}
             />
-          ) : (
+          )}
+        </div>
+
+        {activeView === "schedule" ? (
+          <div className="relative h-full w-full flex flex-col flex-1">
             <ScheduleWorkspace
               key={user?.id || "guest"}
               isDark={isDark}
@@ -5490,38 +5490,51 @@ export default function Home() {
               setShowAuthModal={setShowAuthModal}
               onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             />
-          )
+            {getFeatureMaintenance("schedule") && (
+              <FeatureMaintenanceView
+                featureName="Schedule & Kalender"
+                title={getFeatureMaintenance("schedule")?.title}
+                message={getFeatureMaintenance("schedule")?.message}
+                estimatedEnd={getFeatureMaintenance("schedule")?.estimatedEnd}
+                onBack={() => setActiveView("chats")}
+                isDark={isDark}
+              />
+            )}
+          </div>
         ) : activeView === "image" ? (
-          getFeatureMaintenance("image") ? (
-            <FeatureMaintenanceView
-              featureName="Image Studio"
-              title={getFeatureMaintenance("image")?.title}
-              message={getFeatureMaintenance("image")?.message}
-              estimatedEnd={getFeatureMaintenance("image")?.estimatedEnd}
-              onBack={() => setActiveView("chats")}
-              isDark={isDark}
-            />
-          ) : (subscription?.plan || "free") === "free" ? (
-            <LockedFeatureView
-              isDark={isDark}
-              title="Image Generator & Translator (Eksklusif Pro)"
-              description="Fitur kreasi gambar AI kualitas tinggi dan penerjemahan visual inteligensi hanya dapat diakses pada paket Usick One Pro."
-              onUpgrade={() => {
-                setSelectedLockedModelName("Image Generator & Translator (Pro)");
-                setShowUpgradeModal(true);
-              }}
-              onBack={() => setActiveView("chats")}
-            />
-          ) : (
-            <ImageWorkspace
-              key={user?.id || "guest"}
-              isDark={isDark}
-              onClose={() => setActiveView("chats")}
-              userId={user?.id}
-              userName={chatAccountName}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            />
-          )
+          <div className="relative h-full w-full flex flex-col flex-1">
+            {(subscription?.plan || "free") === "free" ? (
+              <LockedFeatureView
+                isDark={isDark}
+                title="Image Generator & Translator (Eksklusif Pro)"
+                description="Fitur kreasi gambar AI kualitas tinggi dan penerjemahan visual inteligensi hanya dapat diakses pada paket Usick One Pro."
+                onUpgrade={() => {
+                  setSelectedLockedModelName("Image Generator & Translator (Pro)");
+                  setShowUpgradeModal(true);
+                }}
+                onBack={() => setActiveView("chats")}
+              />
+            ) : (
+              <ImageWorkspace
+                key={user?.id || "guest"}
+                isDark={isDark}
+                onClose={() => setActiveView("chats")}
+                userId={user?.id}
+                userName={chatAccountName}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              />
+            )}
+            {getFeatureMaintenance("image") && (
+              <FeatureMaintenanceView
+                featureName="Image Studio"
+                title={getFeatureMaintenance("image")?.title}
+                message={getFeatureMaintenance("image")?.message}
+                estimatedEnd={getFeatureMaintenance("image")?.estimatedEnd}
+                onBack={() => setActiveView("chats")}
+                isDark={isDark}
+              />
+            )}
+          </div>
         ) : activeView === "admin" ? (
           <div className="h-full w-full flex flex-col flex-1">
             <AdminWorkspace
@@ -5611,19 +5624,7 @@ export default function Home() {
               </div>
             </header>
 
-            {getFeatureMaintenance("chat") ? (
-              <div className="h-full w-full flex-1 flex flex-col items-center justify-center p-6 select-none">
-                <FeatureMaintenanceView
-                  featureName="Chat AI"
-                  title={getFeatureMaintenance("chat")?.title}
-                  message={getFeatureMaintenance("chat")?.message}
-                  estimatedEnd={getFeatureMaintenance("chat")?.estimatedEnd}
-                  isDark={isDark}
-                />
-              </div>
-            ) : (
-              <>
-                {/* Top fade: gradasi ke transparan murni menggunakan mask-image (tanpa warna hitam/putih) */}
+            {/* Top fade: gradasi ke transparan murni menggunakan mask-image (tanpa warna hitam/putih) */}
                 {/* ─── SCROLLABLE CHAT CONTENT ─── */}
                 <div
                   ref={scrollContainerRef}
@@ -6156,10 +6157,18 @@ export default function Home() {
             {renderChatInputCard()}
           </div>
         </div>
+
+        {getFeatureMaintenance("chat") && (
+          <FeatureMaintenanceView
+            featureName="Chat AI"
+            title={getFeatureMaintenance("chat")?.title}
+            message={getFeatureMaintenance("chat")?.message}
+            estimatedEnd={getFeatureMaintenance("chat")?.estimatedEnd}
+            isDark={isDark}
+          />
+        )}
       </>
     )}
-  </>
-)}
   </main>
 
       {/* ─── SETTINGS FULL PAGE ───────────────────────────────────────────── */}

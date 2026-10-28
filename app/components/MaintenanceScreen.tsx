@@ -51,11 +51,11 @@ export function MaintenanceScreen({
 
   return (
     <div
-      className={`min-h-screen w-full flex flex-col items-center justify-center px-6 py-12 select-none text-center ${
-        isDark ? "bg-[#09090b] text-white" : "bg-zinc-50 text-zinc-900"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 py-12 select-none text-center backdrop-blur-2xl sm:backdrop-blur-3xl ${
+        isDark ? "bg-black/50 text-white" : "bg-white/60 text-zinc-900"
       }`}
     >
-      <div className="max-w-xl flex flex-col items-center space-y-8">
+      <div className="max-w-xl flex flex-col items-center space-y-8 animate-in fade-in-0 duration-300">
         {/* Ikon One Mind Brain Logo Murni (Tanpa Kotakan) */}
         <BrainLogo
           className={`w-12 h-12 sm:w-14 sm:h-14 ${
@@ -69,21 +69,21 @@ export function MaintenanceScreen({
             {displayTitle}
           </h1>
           <p
-            className={`text-sm sm:text-base leading-relaxed ${
-              isDark ? "text-zinc-400" : "text-zinc-600"
+            className={`text-sm sm:text-base leading-relaxed max-w-lg mx-auto ${
+              isDark ? "text-zinc-300" : "text-zinc-700"
             }`}
           >
             {displayMessage}
           </p>
 
           {formattedEstimatedEnd && (
-            <div
-              className={`text-xs font-mono pt-2 tracking-wide ${
-                isDark ? "text-zinc-500" : "text-zinc-400"
+            <p
+              className={`text-xs font-mono pt-1 tracking-wide ${
+                isDark ? "text-zinc-400" : "text-zinc-500"
               }`}
             >
               Perkiraan Selesai: {formattedEstimatedEnd}
-            </div>
+            </p>
           )}
         </div>
 
@@ -93,7 +93,7 @@ export function MaintenanceScreen({
             One Mind is Under Maintenance
           </h2>
           <p
-            className={`text-sm sm:text-base leading-relaxed italic ${
+            className={`text-sm sm:text-base leading-relaxed italic max-w-lg mx-auto ${
               isDark ? "text-zinc-400" : "text-zinc-600"
             }`}
           >

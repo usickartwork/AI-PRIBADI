@@ -2,7 +2,6 @@
 
 import React from "react";
 import { BrainLogo } from "@/components/ui/brain-logo";
-import { ArrowLeft } from "lucide-react";
 
 interface FeatureMaintenanceViewProps {
   isDark?: boolean;
@@ -13,18 +12,26 @@ interface FeatureMaintenanceViewProps {
   onBack?: () => void;
 }
 
+/**
+ * Overlay Pemeliharaan Fitur (Feature Maintenance Full Blur Overlay)
+ * Sesuai arahan spesifik:
+ * - Halaman fitur tetap tampil di bawahnya, tetapi diberikan efek full blur (backdrop-blur-2xl).
+ * - Tidak menggunakan background hitam pekat (translucent backdrop blur).
+ * - Pure cuma tulisan dan grafiknya (Brain Logo) saja.
+ * - Tanpa kotakan, tanpa card, tanpa border, tanpa badge box, tanpa tombol berbingkai.
+ * - Terpusat sempurna di tengah layar (vertikal & horizontal).
+ */
 export function FeatureMaintenanceView({
   isDark = true,
   featureName,
   title,
   message,
   estimatedEnd,
-  onBack,
 }: FeatureMaintenanceViewProps) {
-  const displayTitle = title?.trim() || `${featureName} Sedang Dalam Pemeliharaan`;
+  const displayTitle = title?.trim() || `${featureName} sedang dalam pemeliharaan`;
   const displayMessage =
     message?.trim() ||
-    `Layanan ${featureName} sedang dalam peningkatan sistem. Fitur One Mind lainnya tetap dapat Anda gunakan dengan normal.`;
+    `Kami sedang melakukan pemeliharaan pada layanan ${featureName}. Fitur lainnya tetap dapat Anda gunakan.`;
 
   let formattedEstimatedEnd: string | null = null;
   if (estimatedEnd) {
@@ -47,66 +54,42 @@ export function FeatureMaintenanceView({
 
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center p-6 select-none text-center ${
-        isDark ? "bg-[#09090b] text-white" : "bg-zinc-50 text-zinc-900"
+      className={`absolute inset-0 z-40 flex flex-col items-center justify-center px-6 py-12 select-none text-center pointer-events-auto backdrop-blur-2xl sm:backdrop-blur-3xl transition-all duration-300 ${
+        isDark ? "bg-black/40 text-white" : "bg-white/45 text-zinc-900"
       }`}
     >
-      <div className="max-w-md flex flex-col items-center space-y-6">
-        {/* Brain Logo (Clean without box) */}
+      <div className="max-w-xl flex flex-col items-center justify-center space-y-6 animate-in fade-in-0 duration-300">
+        {/* Ikon One Mind (Brain Logo) murni tanpa kotakan */}
         <BrainLogo
-          className={`w-10 h-10 sm:w-12 sm:h-12 ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 ${
             isDark ? "text-white" : "text-zinc-900"
           }`}
         />
 
-        <div className="space-y-2">
-          <span
-            className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${
-              isDark
-                ? "bg-white/5 border-white/10 text-zinc-400"
-                : "bg-black/5 border-black/10 text-zinc-600"
-            }`}
-          >
-            Pemeliharaan Fitur
-          </span>
-
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight pt-1">
+        {/* Teks Judul & Deskripsi Murni Tanpa Kotakan / Border */}
+        <div className="space-y-3">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {displayTitle}
           </h2>
 
           <p
-            className={`text-xs sm:text-sm leading-relaxed max-w-sm mx-auto ${
-              isDark ? "text-zinc-400" : "text-zinc-600"
+            className={`text-sm sm:text-base leading-relaxed max-w-md mx-auto ${
+              isDark ? "text-zinc-300" : "text-zinc-700"
             }`}
           >
             {displayMessage}
           </p>
 
           {formattedEstimatedEnd && (
-            <div
-              className={`text-[11px] font-mono pt-1 ${
-                isDark ? "text-zinc-500" : "text-zinc-400"
+            <p
+              className={`text-xs font-mono pt-1 tracking-wide ${
+                isDark ? "text-zinc-400" : "text-zinc-500"
               }`}
             >
               Perkiraan Selesai: {formattedEstimatedEnd}
-            </div>
+            </p>
           )}
         </div>
-
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className={`px-4 py-2 rounded-xl text-xs font-medium border inline-flex items-center gap-2 transition cursor-pointer ${
-              isDark
-                ? "border-white/15 hover:bg-white/10 text-zinc-200"
-                : "border-black/15 hover:bg-black/10 text-zinc-800"
-            }`}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali ke Percakapan (Chats)</span>
-          </button>
-        )}
       </div>
     </div>
   );

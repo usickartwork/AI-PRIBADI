@@ -22,8 +22,8 @@ interface UserHoldScreenProps {
 export function UserHoldScreen({ isDark = true, reason }: UserHoldScreenProps) {
   return (
     <div
-      className={`min-h-screen w-full flex flex-col items-center justify-center px-6 py-12 select-none text-center ${
-        isDark ? "bg-[#09090b] text-white" : "bg-zinc-50 text-zinc-900"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 py-12 select-none text-center backdrop-blur-2xl sm:backdrop-blur-3xl ${
+        isDark ? "bg-black/50 text-white" : "bg-white/60 text-zinc-900"
       }`}
     >
       <div className="max-w-xl flex flex-col items-center space-y-8">
