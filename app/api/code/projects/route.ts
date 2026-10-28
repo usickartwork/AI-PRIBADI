@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { validateUserAccess } from "@/lib/accessControl";
 import fs from "fs";
 import path from "path";
 
@@ -83,6 +84,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const accessCheck = await validateUserAccess({ userId, feature: "code" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Code Studio sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
+      );
+    }
+
     // 1. Coba ambil dari Supabase terlebih dahulu
     if (isSupabaseConfigured) {
       try {
@@ -157,6 +166,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "userId wajib disertakan untuk menyimpan project." },
         { status: 400 }
+      );
+    }
+
+    const accessCheck = await validateUserAccess({ userId, feature: "code" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Code Studio sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
       );
     }
 

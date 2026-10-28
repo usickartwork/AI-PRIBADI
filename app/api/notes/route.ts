@@ -3,12 +3,20 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireUserId, getNotesAdmin, errorResponse, NoteError, UserNote } from "@/lib/notesServer";
+import { validateUserAccess } from "@/lib/accessControl";
 import crypto from "crypto";
 
 // GET /api/notes - Ambil semua catatan milik pengguna yang sedang login
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const userId = await requireUserId();
+    const accessCheck = await validateUserAccess({ userId, feature: "notebook" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Catatan sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
+      );
+    }
     const db = getNotesAdmin();
 
     if (!db) {
@@ -46,6 +54,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const userId = await requireUserId();
+    const accessCheck = await validateUserAccess({ userId, feature: "notebook" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Catatan sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
+      );
+    }
     const body = await req.json().catch(() => ({}));
     const title = typeof body.title === "string" ? body.title.trim() : "Catatan Baru";
     const content = typeof body.content === "string" ? body.content : "";

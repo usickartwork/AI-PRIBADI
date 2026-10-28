@@ -305,7 +305,7 @@ export async function POST(request: Request) {
   if (!userId) userId = "guest";
 
   // ── Access Control (Maintenance Mode & User Hold) ──────────────────────────
-  const accessCheck = await validateUserAccess({ userId });
+  const accessCheck = await validateUserAccess({ userId, feature: "chat" });
   if (!accessCheck.allowed) {
     return Response.json(
       {

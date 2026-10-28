@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { validateUserAccess } from "@/lib/accessControl";
 import { ScheduleItem, isSchedulePast, parseScheduleDateTime } from "@/lib/schedules";
 import { getUserSubscription } from "@/lib/subscriptionServer";
 import {
@@ -56,6 +57,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { error: "User ID diperlukan untuk mengambil schedule akun." },
         { status: 400 }
+      );
+    }
+
+    const accessCheck = await validateUserAccess({ userId, feature: "schedule" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Jadwal sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
       );
     }
 
@@ -146,6 +155,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "user_id wajib disertakan untuk kepemilikan schedule." },
         { status: 400 }
+      );
+    }
+
+    const accessCheck = await validateUserAccess({ userId: user_id, feature: "schedule" });
+    if (!accessCheck.allowed) {
+      return NextResponse.json(
+        { error: accessCheck.error || "Akses ke Jadwal sedang dibatasi.", reason: accessCheck.reason },
+        { status: accessCheck.status }
       );
     }
 

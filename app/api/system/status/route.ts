@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getMaintenanceStatus, getUserHoldStatus } from "@/lib/accessControl";
+import { getAllMaintenanceStatus, getUserHoldStatus } from "@/lib/accessControl";
 import { verifyAdminSession } from "@/lib/adminServer";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +21,8 @@ export async function GET() {
       }
     }
 
-    // 2. Ambil status maintenance mode global
-    const maintenance = await getMaintenanceStatus();
+    // 2. Ambil status maintenance mode global & seluruh fitur dalam 1 query ringan
+    const dict = await getAllMaintenanceStatus();
 
     // 3. Jika pengguna adalah admin yang sah, bypass maintenance & hold
     if (isAdmin) {
@@ -31,7 +31,9 @@ export async function GET() {
           maintenance: false,
           isHeld: false,
           isAdmin: true,
-          maintenanceRaw: maintenance.isEnabled,
+          maintenanceRaw: dict.global.isEnabled,
+          global: dict.global,
+          features: dict.features,
         },
         {
           headers: { "Cache-Control": "no-store, max-age=0" },
@@ -39,13 +41,15 @@ export async function GET() {
       );
     }
 
-    // 4. Jika bukan admin dan maintenance aktif -> kembalikan status maintenance
-    if (maintenance.isEnabled) {
+    // 4. Jika bukan admin dan global maintenance aktif -> kembalikan status maintenance global
+    if (dict.global.isEnabled) {
       return NextResponse.json(
         {
           maintenance: true,
           isHeld: false,
           isAdmin: false,
+          global: dict.global,
+          features: dict.features,
         },
         {
           headers: { "Cache-Control": "no-store, max-age=0" },
@@ -53,7 +57,7 @@ export async function GET() {
       );
     }
 
-    // 5. Jika maintenance tidak aktif, cek apakah akun pengguna sedang di-hold
+    // 5. Jika global maintenance tidak aktif, cek apakah akun pengguna sedang di-hold
     let isHeld = false;
     let holdReason: string | null = null;
     if (userId) {
@@ -65,6 +69,8 @@ export async function GET() {
     return NextResponse.json(
       {
         maintenance: false,
+        global: dict.global,
+        features: dict.features,
         isHeld,
         reason: isHeld ? holdReason : null,
         isAdmin: false,

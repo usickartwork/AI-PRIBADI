@@ -22,7 +22,25 @@ import {
   Power,
   X,
   ChevronRight,
+  Edit3,
+  Clock,
+  Sliders,
+  MessageSquare,
+  Calendar,
+  Code,
+  Image as ImageIcon,
+  Music as MusicIcon,
+  BookOpen,
+  HeartPulse,
+  Gamepad2,
 } from "lucide-react";
+import {
+  FEATURE_KEYS,
+  FEATURE_METADATA,
+  FeatureKey,
+  MaintenanceItem,
+  MaintenanceDictionary,
+} from "@/lib/maintenanceTypes";
 
 interface AdminWorkspaceProps {
   isDark?: boolean;
@@ -44,6 +62,7 @@ interface AdminStatsResponse {
     totalAiRequests: number;
     totalTokensOverall: number;
     maintenanceActive: boolean;
+    maintenance?: MaintenanceDictionary;
     services: {
       database: {
         status: "online" | "offline";
@@ -168,22 +187,41 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
     fetchAdminStats();
   }, [fetchAdminStats]);
 
-  // ─── MAINTENANCE MODE ACTIONS ───────────────────────────────────────────
+  // ─── MAINTENANCE MODE ACTIONS (GLOBAL & PER-FITUR) ──────────────────────
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [isTogglingMaintenance, setIsTogglingMaintenance] = useState(false);
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+
+  // State modal kustomisasi pesan & estimasi waktu pemeliharaan (Global & Per-Fitur)
+  const [editMaintenanceTarget, setEditMaintenanceTarget] = useState<{
+    target: "global" | FeatureKey;
+    targetName: string;
+    enabled: boolean;
+    title: string;
+    message: string;
+    estimatedEnd: string;
+  } | null>(null);
+  const [isSavingMaintenance, setIsSavingMaintenance] = useState(false);
+  const [saveMaintenanceError, setSaveMaintenanceError] = useState<string | null>(null);
 
   const handleToggleMaintenance = async () => {
     if (!data) return;
     setIsTogglingMaintenance(true);
     setMaintenanceError(null);
     const nextState = !data.overview.maintenanceActive;
+    const currentGlobal = data.overview.maintenance?.global;
 
     try {
       const res = await fetch("/api/admin/maintenance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: nextState }),
+        body: JSON.stringify({
+          target: "global",
+          enabled: nextState,
+          title: currentGlobal?.title || null,
+          message: currentGlobal?.message || null,
+          estimatedEnd: currentGlobal?.estimatedEnd || null,
+        }),
       });
 
       if (!res.ok) {
@@ -191,23 +229,171 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
         throw new Error(errJson.error || "Gagal mengubah status mode pemeliharaan.");
       }
 
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              overview: {
-                ...prev.overview,
-                maintenanceActive: nextState,
+      setData((prev) => {
+        if (!prev) return prev;
+        const currentMaint = prev.overview.maintenance;
+        return {
+          ...prev,
+          overview: {
+            ...prev.overview,
+            maintenanceActive: nextState,
+            maintenance: {
+              global: {
+                ...(currentMaint?.global || { isEnabled: nextState }),
+                isEnabled: nextState,
+                updatedAt: new Date().toISOString(),
+                updatedBy: prev.admin.email,
               },
-            }
-          : prev
-      );
+              features: currentMaint?.features || ({} as Record<FeatureKey, MaintenanceItem>),
+            },
+          },
+        };
+      });
       setShowMaintenanceModal(false);
       void fetchAdminStats(true);
     } catch (err: unknown) {
       setMaintenanceError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setIsTogglingMaintenance(false);
+    }
+  };
+
+  const handleQuickToggleFeature = async (featureKey: FeatureKey) => {
+    if (!data) return;
+    const currentFeat = data.overview.maintenance?.features?.[featureKey];
+    const nextState = !currentFeat?.isEnabled;
+    const defaultMeta = FEATURE_METADATA[featureKey];
+
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: featureKey,
+          enabled: nextState,
+          title: currentFeat?.title || null,
+          message: currentFeat?.message || defaultMeta.defaultMessage,
+          estimatedEnd: currentFeat?.estimatedEnd || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal memperbarui status fitur.");
+      }
+
+      setData((prev) => {
+        if (!prev) return prev;
+        const currentFeatures = prev.overview.maintenance?.features || ({} as Record<FeatureKey, MaintenanceItem>);
+        return {
+          ...prev,
+          overview: {
+            ...prev.overview,
+            maintenance: {
+              global: prev.overview.maintenance?.global || { isEnabled: prev.overview.maintenanceActive },
+              features: {
+                ...currentFeatures,
+                [featureKey]: {
+                  ...(currentFeatures[featureKey] || {
+                    isEnabled: nextState,
+                    title: `${defaultMeta.name} Sedang Dalam Pemeliharaan`,
+                    message: defaultMeta.defaultMessage,
+                  }),
+                  isEnabled: nextState,
+                  updatedAt: new Date().toISOString(),
+                  updatedBy: prev.admin.email,
+                },
+              },
+            },
+          },
+        };
+      });
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal memperbarui status fitur.");
+    }
+  };
+
+  const handleSaveMaintenanceConfig = async () => {
+    if (!editMaintenanceTarget || !data) return;
+    setIsSavingMaintenance(true);
+    setSaveMaintenanceError(null);
+
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: editMaintenanceTarget.target,
+          enabled: editMaintenanceTarget.enabled,
+          title: editMaintenanceTarget.title.trim() || null,
+          message: editMaintenanceTarget.message.trim() || null,
+          estimatedEnd: editMaintenanceTarget.estimatedEnd.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal menyimpan konfigurasi pemeliharaan.");
+      }
+
+      const isGlobal = editMaintenanceTarget.target === "global";
+      const nowIso = new Date().toISOString();
+
+      setData((prev) => {
+        if (!prev) return prev;
+        const currentMaint = prev.overview.maintenance;
+
+        if (isGlobal) {
+          return {
+            ...prev,
+            overview: {
+              ...prev.overview,
+              maintenanceActive: editMaintenanceTarget.enabled,
+              maintenance: {
+                global: {
+                  isEnabled: editMaintenanceTarget.enabled,
+                  title: editMaintenanceTarget.title.trim() || null,
+                  message: editMaintenanceTarget.message.trim() || null,
+                  estimatedEnd: editMaintenanceTarget.estimatedEnd.trim() || null,
+                  updatedAt: nowIso,
+                  updatedBy: prev.admin.email,
+                },
+                features: currentMaint?.features || ({} as Record<FeatureKey, MaintenanceItem>),
+              },
+            },
+          };
+        } else {
+          const fk = editMaintenanceTarget.target as FeatureKey;
+          const currentFeatures = currentMaint?.features || ({} as Record<FeatureKey, MaintenanceItem>);
+          return {
+            ...prev,
+            overview: {
+              ...prev.overview,
+              maintenance: {
+                global: currentMaint?.global || { isEnabled: prev.overview.maintenanceActive },
+                features: {
+                  ...currentFeatures,
+                  [fk]: {
+                    ...(currentFeatures[fk] || {}),
+                    isEnabled: editMaintenanceTarget.enabled,
+                    title: editMaintenanceTarget.title.trim() || null,
+                    message: editMaintenanceTarget.message.trim() || null,
+                    estimatedEnd: editMaintenanceTarget.estimatedEnd.trim() || null,
+                    updatedAt: nowIso,
+                    updatedBy: prev.admin.email,
+                  },
+                },
+              },
+            },
+          };
+        }
+      });
+
+      setEditMaintenanceTarget(null);
+    } catch (err: unknown) {
+      setSaveMaintenanceError(err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan.");
+    } finally {
+      setIsSavingMaintenance(false);
     }
   };
 
@@ -634,69 +820,267 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                   </div>
                 </div>
 
-                {/* ─── FITUR B: MAINTENANCE MODE ON/OFF CONTROL CARD ─── */}
-                <div
-                  className={`p-5 rounded-2xl ${bgCard} flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all`}
-                >
-                  <div className="flex items-start gap-3.5">
-                    <div
-                      className={`p-2.5 rounded-xl shrink-0 ${
-                        data.overview.maintenanceActive
-                          ? isDark
-                            ? "bg-white text-black"
-                            : "bg-black text-white"
-                          : isDark
-                          ? "bg-white/10 text-zinc-300"
-                          : "bg-black/10 text-zinc-700"
-                      }`}
-                    >
-                      <Power className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className={`text-sm font-semibold ${textTitle}`}>
-                          Mode Pemeliharaan (Maintenance Mode)
-                        </h3>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${
-                            data.overview.maintenanceActive
-                              ? isDark
-                                ? "bg-white text-black border-white"
-                                : "bg-black text-white border-black"
-                              : isDark
-                              ? "bg-zinc-800 text-zinc-400 border-zinc-700"
-                              : "bg-zinc-200 text-zinc-600 border-zinc-300"
-                          }`}
-                        >
-                          {data.overview.maintenanceActive ? "Maintenance ON" : "Maintenance OFF"}
-                        </span>
+                {/* ─── FITUR B: MAINTENANCE MANAGEMENT (GLOBAL & PER-FITUR) ─── */}
+                <div className="space-y-4">
+                  {/* Card 1: Global Maintenance */}
+                  <div
+                    className={`p-5 rounded-2xl ${bgCard} flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all`}
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div
+                        className={`p-2.5 rounded-xl shrink-0 ${
+                          data.overview.maintenanceActive
+                            ? isDark
+                              ? "bg-white text-black"
+                              : "bg-black text-white"
+                            : isDark
+                            ? "bg-white/10 text-zinc-300"
+                            : "bg-black/10 text-zinc-700"
+                        }`}
+                      >
+                        <Power className="w-5 h-5" />
                       </div>
-                      <p className={`text-xs ${textSub}`}>
-                        {data.overview.maintenanceActive
-                          ? "Mode pemeliharaan sedang aktif. Akses website untuk seluruh pengguna biasa dibatasi. Hanya akun admin sah yang dapat mengakses sistem."
-                          : "Sistem beroperasi normal. Seluruh pengguna biasa dapat masuk dan menggunakan seluruh fitur One Mind."}
-                      </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`text-sm font-semibold ${textTitle}`}>
+                            Mode Pemeliharaan Global (Global Maintenance)
+                          </h3>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${
+                              data.overview.maintenanceActive
+                                ? isDark
+                                  ? "bg-white text-black border-white"
+                                  : "bg-black text-white border-black"
+                                : isDark
+                                ? "bg-zinc-800 text-zinc-400 border-zinc-700"
+                                : "bg-zinc-200 text-zinc-600 border-zinc-300"
+                            }`}
+                          >
+                            {data.overview.maintenanceActive ? "Maintenance ON" : "Maintenance OFF"}
+                          </span>
+                        </div>
+                        <p className={`text-xs ${textSub} max-w-2xl`}>
+                          {data.overview.maintenanceActive
+                            ? "Akses seluruh website & API saat ini dibatasi untuk pengguna biasa. Pengguna akan melihat layar pemberitahuan terpusat. Akun admin sah tetap memiliki akses penuh."
+                            : "Sistem beroperasi normal. Seluruh pengguna biasa dapat mengakses aplikasi dan menggunakan fitur-fitur yang tidak dalam pemeliharaan."}
+                        </p>
+
+                        {/* Ringkasan pesan kustom global */}
+                        {data.overview.maintenance?.global && (data.overview.maintenance.global.title || data.overview.maintenance.global.message || data.overview.maintenance.global.estimatedEnd) && (
+                          <div className={`mt-2 p-2.5 rounded-xl border text-[11px] space-y-0.5 ${
+                            isDark ? "bg-zinc-950/40 border-white/5 text-zinc-400" : "bg-zinc-50 border-black/5 text-zinc-600"
+                          }`}>
+                            {data.overview.maintenance.global.title && (
+                              <div className="font-semibold text-zinc-200">
+                                Judul: &ldquo;{data.overview.maintenance.global.title}&rdquo;
+                              </div>
+                            )}
+                            {data.overview.maintenance.global.message && (
+                              <div>Pesan: &ldquo;{data.overview.maintenance.global.message}&rdquo;</div>
+                            )}
+                            {data.overview.maintenance.global.estimatedEnd && (
+                              <div className="flex items-center gap-1 font-mono text-[10px] text-zinc-400 pt-0.5">
+                                <Clock className="w-3 h-3" />
+                                <span>
+                                  Estimasi Selesai: {new Date(data.overview.maintenance.global.estimatedEnd).toLocaleString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const g = data.overview.maintenance?.global;
+                          setSaveMaintenanceError(null);
+                          setEditMaintenanceTarget({
+                            target: "global",
+                            targetName: "Global Website",
+                            enabled: data.overview.maintenanceActive,
+                            title: g?.title || "",
+                            message: g?.message || "",
+                            estimatedEnd: g?.estimatedEnd ? g.estimatedEnd.slice(0, 16) : "",
+                          });
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
+                          isDark
+                            ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                            : "border-black/10 hover:bg-black/5 text-zinc-700"
+                        }`}
+                        title="Kustomisasi Pesan Global"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Kustomisasi Pesan</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMaintenanceError(null);
+                          setShowMaintenanceModal(true);
+                        }}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                          data.overview.maintenanceActive
+                            ? isDark
+                              ? "bg-white text-black hover:bg-zinc-200 border-white"
+                              : "bg-black text-white hover:bg-zinc-800 border-black"
+                            : isDark
+                            ? "border-white/15 hover:bg-white/10 text-zinc-200"
+                            : "border-black/15 hover:bg-black/10 text-zinc-800"
+                        }`}
+                      >
+                        {data.overview.maintenanceActive ? "Nonaktifkan Global" : "Aktifkan Global"}
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMaintenanceError(null);
-                      setShowMaintenanceModal(true);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold shrink-0 border transition cursor-pointer ${
-                      data.overview.maintenanceActive
-                        ? isDark
-                          ? "bg-white text-black hover:bg-zinc-200 border-white"
-                          : "bg-black text-white hover:bg-zinc-800 border-black"
-                        : isDark
-                        ? "border-white/15 hover:bg-white/10 text-zinc-200"
-                        : "border-black/15 hover:bg-black/10 text-zinc-800"
-                    }`}
-                  >
-                    {data.overview.maintenanceActive ? "Nonaktifkan Maintenance" : "Aktifkan Maintenance"}
-                  </button>
+                  {/* Card 2: Per-Feature Maintenance Controls */}
+                  <div className={`p-5 rounded-2xl ${bgCard} space-y-4`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Sliders className="w-4 h-4 text-zinc-400" />
+                          <h3 className={`text-sm font-semibold ${textTitle}`}>
+                            Kontrol Pemeliharaan Per Bagian (Per-Feature Maintenance)
+                          </h3>
+                        </div>
+                        <p className={`text-xs mt-0.5 ${textSub}`}>
+                          Kelola status operasional 10 fitur secara independen. Mematikan satu fitur tidak akan memengaruhi fitur lain.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      {FEATURE_KEYS.map((k) => {
+                        const featMeta = FEATURE_METADATA[k];
+                        const featStatus = data.overview.maintenance?.features?.[k];
+                        const isFeatOn = Boolean(featStatus?.isEnabled);
+
+                        return (
+                          <div
+                            key={k}
+                            className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition ${
+                              isDark
+                                ? "bg-zinc-950/40 border-white/5 hover:border-white/10"
+                                : "bg-zinc-50 border-black/5 hover:border-black/10"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2.5">
+                                <div
+                                  className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                                    isFeatOn
+                                      ? isDark
+                                        ? "bg-white text-black"
+                                        : "bg-black text-white"
+                                      : isDark
+                                      ? "bg-white/5 text-zinc-400"
+                                      : "bg-black/5 text-zinc-600"
+                                  }`}
+                                >
+                                  {k === "chat" && <MessageSquare className="w-3.5 h-3.5" />}
+                                  {k === "code" && <Code className="w-3.5 h-3.5" />}
+                                  {k === "schedule" && <Calendar className="w-3.5 h-3.5" />}
+                                  {k === "messages" && <MessageSquare className="w-3.5 h-3.5" />}
+                                  {k === "image" && <ImageIcon className="w-3.5 h-3.5" />}
+                                  {k === "music" && <MusicIcon className="w-3.5 h-3.5" />}
+                                  {k === "notebook" && <BookOpen className="w-3.5 h-3.5" />}
+                                  {k === "emergency" && <HeartPulse className="w-3.5 h-3.5" />}
+                                  {k === "game" && <Gamepad2 className="w-3.5 h-3.5" />}
+                                  {k === "faith" && <Sparkles className="w-3.5 h-3.5" />}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-semibold ${textTitle}`}>
+                                      {featMeta.name}
+                                    </span>
+                                    <span
+                                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
+                                        isFeatOn
+                                          ? isDark
+                                            ? "bg-white text-black border-white"
+                                            : "bg-black text-white border-black"
+                                          : isDark
+                                          ? "bg-emerald-950/40 text-emerald-400 border-emerald-800"
+                                          : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                                      }`}
+                                    >
+                                      {isFeatOn ? "Maintenance" : "Operasional"}
+                                    </span>
+                                  </div>
+                                  <p className={`text-[11px] line-clamp-1 mt-0.5 ${textSub}`}>
+                                    {featStatus?.message || featMeta.defaultMessage}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
+                              <div className={`text-[10px] ${textMuted}`}>
+                                {featStatus?.updatedAt
+                                  ? `Diubah: ${new Date(featStatus.updatedAt).toLocaleDateString("id-ID", {
+                                      day: "numeric",
+                                      month: "short",
+                                    })}`
+                                  : "Status default"}
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSaveMaintenanceError(null);
+                                    setEditMaintenanceTarget({
+                                      target: k,
+                                      targetName: featMeta.name,
+                                      enabled: isFeatOn,
+                                      title: featStatus?.title || "",
+                                      message: featStatus?.message || featMeta.defaultMessage,
+                                      estimatedEnd: featStatus?.estimatedEnd
+                                        ? featStatus.estimatedEnd.slice(0, 16)
+                                        : "",
+                                    });
+                                  }}
+                                  className={`p-1.5 rounded-lg border text-zinc-400 hover:text-white transition cursor-pointer ${
+                                    isDark ? "border-white/10 hover:bg-white/5" : "border-black/10 hover:bg-black/5"
+                                  }`}
+                                  title="Kustomisasi Pesan Fitur"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickToggleFeature(k)}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                                    isFeatOn
+                                      ? isDark
+                                        ? "bg-white text-black border-white hover:bg-zinc-200"
+                                        : "bg-black text-white border-black hover:bg-zinc-800"
+                                      : isDark
+                                      ? "border-white/10 text-zinc-300 hover:bg-white/5"
+                                      : "border-black/10 text-zinc-700 hover:bg-black/5"
+                                  }`}
+                                >
+                                  {isFeatOn ? "Buka Fitur" : "Set Maintenance"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Service Health Snapshot */}
@@ -1593,6 +1977,175 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                   : data.overview.maintenanceActive
                   ? "Nonaktifkan"
                   : "Aktifkan Maintenance"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 1B: KUSTOMISASI PESAN & ESTIMASI MAINTENANCE (GLOBAL / FITUR) ─── */}
+      {editMaintenanceTarget && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div
+            className={`w-full max-w-lg p-6 rounded-2xl border shadow-2xl space-y-4 my-8 ${
+              isDark ? "bg-zinc-900 border-white/15 text-white" : "bg-white border-black/15 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  }`}
+                >
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">
+                    Kustomisasi: {editMaintenanceTarget.targetName}
+                  </h3>
+                  <div className={`text-[11px] ${textMuted}`}>
+                    {editMaintenanceTarget.target === "global"
+                      ? "Pemberitahuan layar penuh saat Global Maintenance aktif"
+                      : "Pemberitahuan khusus di dalam ruang kerja fitur"}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditMaintenanceTarget(null)}
+                disabled={isSavingMaintenance}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Toggle Status */}
+            <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
+              isDark ? "bg-zinc-950/40 border-white/5" : "bg-zinc-50 border-black/5"
+            }`}>
+              <div>
+                <div className={`text-xs font-semibold ${textTitle}`}>Status Pemeliharaan</div>
+                <div className={`text-[11px] ${textSub}`}>
+                  {editMaintenanceTarget.enabled
+                    ? "Fitur/layanan sedang dinonaktifkan untuk pemeliharaan."
+                    : "Fitur/layanan beroperasi normal untuk pengguna."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setEditMaintenanceTarget((prev) => (prev ? { ...prev, enabled: !prev.enabled } : null))
+                }
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                  editMaintenanceTarget.enabled
+                    ? isDark
+                      ? "bg-white text-black border-white"
+                      : "bg-black text-white border-black"
+                    : isDark
+                    ? "border-white/15 text-zinc-300 hover:bg-white/5"
+                    : "border-black/15 text-zinc-700 hover:bg-black/5"
+                }`}
+              >
+                {editMaintenanceTarget.enabled ? "Maintenance ON" : "Maintenance OFF"}
+              </button>
+            </div>
+
+            {/* Input Judul */}
+            <div className="space-y-1.5">
+              <label className={`block text-xs font-medium ${textSub}`}>
+                Judul Pemberitahuan (Opsional)
+              </label>
+              <input
+                type="text"
+                value={editMaintenanceTarget.title}
+                onChange={(e) =>
+                  setEditMaintenanceTarget((prev) => (prev ? { ...prev, title: e.target.value } : null))
+                }
+                placeholder="Contoh: Sedang Dalam Pemeliharaan Sistem"
+                maxLength={120}
+                className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition ${
+                  isDark
+                    ? "bg-zinc-950 border-white/15 text-white focus:border-white/40"
+                    : "bg-zinc-50 border-black/15 text-black focus:border-black/40"
+                }`}
+              />
+            </div>
+
+            {/* Input Deskripsi / Pesan */}
+            <div className="space-y-1.5">
+              <label className={`block text-xs font-medium ${textSub}`}>
+                Pesan / Deskripsi Pemeliharaan
+              </label>
+              <textarea
+                value={editMaintenanceTarget.message}
+                onChange={(e) =>
+                  setEditMaintenanceTarget((prev) => (prev ? { ...prev, message: e.target.value } : null))
+                }
+                placeholder="Pesan penjelasan untuk pengguna..."
+                rows={3}
+                maxLength={400}
+                className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition resize-none ${
+                  isDark
+                    ? "bg-zinc-950 border-white/15 text-white focus:border-white/40"
+                    : "bg-zinc-50 border-black/15 text-black focus:border-black/40"
+                }`}
+              />
+            </div>
+
+            {/* Input Estimasi Waktu Selesai */}
+            <div className="space-y-1.5">
+              <label className={`block text-xs font-medium ${textSub}`}>
+                Perkiraan Selesai (Opsional)
+              </label>
+              <input
+                type="datetime-local"
+                value={editMaintenanceTarget.estimatedEnd}
+                onChange={(e) =>
+                  setEditMaintenanceTarget((prev) => (prev ? { ...prev, estimatedEnd: e.target.value } : null))
+                }
+                className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition ${
+                  isDark
+                    ? "bg-zinc-950 border-white/15 text-white focus:border-white/40 [color-scheme:dark]"
+                    : "bg-zinc-50 border-black/15 text-black focus:border-black/40 [color-scheme:light]"
+                }`}
+              />
+              <div className={`text-[10px] ${textMuted}`}>
+                Biarkan kosong jika waktu pemulihan belum dapat dipastikan secara akurat.
+              </div>
+            </div>
+
+            {saveMaintenanceError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-400 text-xs">
+                {saveMaintenanceError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditMaintenanceTarget(null)}
+                disabled={isSavingMaintenance}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                  isDark
+                    ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                    : "border-black/10 hover:bg-black/5 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMaintenanceConfig}
+                disabled={isSavingMaintenance}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                } disabled:opacity-50`}
+              >
+                {isSavingMaintenance ? "Menyimpan..." : "Terapkan Perubahan"}
               </button>
             </div>
           </div>

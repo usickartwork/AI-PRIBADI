@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { verifyAdminSession, getAdminSupabaseClient } from "@/lib/adminServer";
-import { getMaintenanceStatus, invalidateMaintenanceCache } from "@/lib/accessControl";
+import {
+  getAllMaintenanceStatus,
+  invalidateMaintenanceCache,
+  FEATURE_KEYS,
+  FEATURE_METADATA,
+  FeatureKey,
+} from "@/lib/accessControl";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +20,8 @@ export async function GET() {
       );
     }
 
-    const config = await getMaintenanceStatus();
-    return NextResponse.json(config);
+    const dict = await getAllMaintenanceStatus();
+    return NextResponse.json(dict);
   } catch (err: unknown) {
     console.error("[api/admin/maintenance:GET] Error:", err);
     return NextResponse.json(
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
 
     // 2. Baca payload
     const body = await req.json().catch(() => ({}));
-    const { enabled, message } = body;
+    const { target = "global", enabled, title, message, estimatedEnd } = body;
 
     if (typeof enabled !== "boolean") {
       return NextResponse.json(
@@ -55,17 +61,39 @@ export async function POST(req: Request) {
       );
     }
 
+    const isGlobal = target === "global" || target === "global_config";
+    const isFeature = FEATURE_KEYS.includes(target as FeatureKey);
+
+    if (!isGlobal && !isFeature) {
+      return NextResponse.json(
+        { error: `Target maintenance tidak valid. Pilihan: global atau salah satu dari [${FEATURE_KEYS.join(", ")}].` },
+        { status: 400 }
+      );
+    }
+
+    const rowId = isGlobal ? "global_config" : target;
     const nowIso = new Date().toISOString();
+    const cleanTitle = typeof title === "string" && title.trim() ? title.trim().slice(0, 150) : null;
     const cleanMsg = typeof message === "string" && message.trim() ? message.trim().slice(0, 500) : null;
+
+    let cleanEstimatedEnd: string | null = null;
+    if (estimatedEnd && typeof estimatedEnd === "string" && estimatedEnd.trim()) {
+      const parsedDate = new Date(estimatedEnd.trim());
+      if (!isNaN(parsedDate.getTime())) {
+        cleanEstimatedEnd = parsedDate.toISOString();
+      }
+    }
 
     // 3. Update public.system_maintenance
     const { error: dbError } = await supabaseAdmin
       .from("system_maintenance")
       .upsert(
         {
-          id: "global_config",
+          id: rowId,
           is_enabled: enabled,
+          title: cleanTitle,
           message: cleanMsg,
+          estimated_end: cleanEstimatedEnd,
           updated_at: nowIso,
           updated_by: authResult.email,
         },
@@ -85,22 +113,45 @@ export async function POST(req: Request) {
 
     // 5. Catat audit log administratif (non-blocking)
     try {
+      const actionName = isGlobal
+        ? enabled
+          ? "maintenance_enable"
+          : "maintenance_disable"
+        : enabled
+        ? `feature_maintenance_enable`
+        : `feature_maintenance_disable`;
+
       await supabaseAdmin.from("admin_audit_logs").insert({
-        action: enabled ? "maintenance_enable" : "maintenance_disable",
-        target_id: "global_config",
+        action: actionName,
+        target_id: rowId,
         performed_by: authResult.email,
-        details: { enabled, message: cleanMsg, timestamp: nowIso },
+        details: {
+          target: rowId,
+          enabled,
+          title: cleanTitle,
+          message: cleanMsg,
+          estimatedEnd: cleanEstimatedEnd,
+          timestamp: nowIso,
+        },
       });
     } catch (auditErr) {
       console.warn("[api/admin/maintenance:POST] Audit log note:", auditErr);
     }
 
+    const targetDisplayName = isGlobal
+      ? "Global Maintenance"
+      : FEATURE_METADATA[target as FeatureKey]?.name || target;
+
     return NextResponse.json({
       success: true,
+      target: rowId,
       isEnabled: enabled,
-      message: enabled
-        ? "Maintenance Mode berhasil DIAKTIFKAN. Pengguna biasa dibatasi, admin tetap dapat mengakses."
-        : "Maintenance Mode berhasil DINONAKTIFKAN. Seluruh layanan dibuka kembali untuk semua pengguna.",
+      title: cleanTitle,
+      message: cleanMsg,
+      estimatedEnd: cleanEstimatedEnd,
+      notification: enabled
+        ? `${targetDisplayName} berhasil DIAKTIFKAN.`
+        : `${targetDisplayName} berhasil DINONAKTIFKAN.`,
     });
   } catch (err: unknown) {
     console.error("[api/admin/maintenance:POST] Exception:", err);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { verifyAdminSession, getAdminSupabaseClient } from "@/lib/adminServer";
+import { getAllMaintenanceStatus } from "@/lib/accessControl";
 
 export const dynamic = "force-dynamic";
 
@@ -126,21 +127,9 @@ export async function GET() {
       console.warn("[admin/stats] Gagal membaca tabel user_holds:", holdErr);
     }
 
-    // ─── 3c. AMBIL STATUS MAINTENANCE MODE GLOBAL ────────────────────────────
-    let isMaintenanceActive = false;
-    try {
-      const { data: maintData } = await supabaseAdmin
-        .from("system_maintenance")
-        .select("is_enabled")
-        .eq("id", "global_config")
-        .maybeSingle();
-
-      if (maintData) {
-        isMaintenanceActive = Boolean(maintData.is_enabled);
-      }
-    } catch (maintErr) {
-      console.warn("[admin/stats] Gagal membaca status system_maintenance:", maintErr);
-    }
+    // ─── 3c. AMBIL STATUS MAINTENANCE MODE (GLOBAL & SELURUH FITUR) ──────────
+    const maintenanceDict = await getAllMaintenanceStatus();
+    const isMaintenanceActive = maintenanceDict.global.isEnabled;
 
     // ─── 4. AMBIL METRIK AI DARI CREDIT_TRANSACTIONS ─────────────────────────
     let totalAiRequests = 0;
@@ -334,6 +323,7 @@ export async function GET() {
           totalAiRequests,
           totalTokensOverall,
           maintenanceActive: isMaintenanceActive,
+          maintenance: maintenanceDict,
           services: {
             database: {
               status: isDbHealthy ? "online" : "offline",

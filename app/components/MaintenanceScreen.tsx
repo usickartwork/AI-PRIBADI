@@ -5,19 +5,50 @@ import { BrainLogo } from "@/components/ui/brain-logo";
 
 interface MaintenanceScreenProps {
   isDark?: boolean;
+  title?: string | null;
+  message?: string | null;
+  estimatedEnd?: string | null;
 }
 
 /**
- * Tampilan Pemeliharaan Sistem (Maintenance Mode)
- * Sesuai spesifikasi brief & permintaan pengguna:
- * - TULISAN SAJA (tidak ada card, kotak, border, panel, atau dekorasi tambahan).
+ * Tampilan Pemeliharaan Sistem (Global Maintenance Mode)
+ * Sesuai spesifikasi brief & preferensi:
+ * - TULISAN SAJA (tidak ada card, kotak, border, panel, atau dekorasi berlebihan).
  * - Ikon One Mind (Brain Logo) murni di bagian atas tanpa latar belakang kotakan.
  * - Posisi terpusat sempurna di tengah layar (vertikal & horizontal).
- * - Dua bahasa sekaligus dalam satu halaman:
- *   1. Bahasa Indonesia di atas (teks normal)
- *   2. Bahasa Inggris di bawah (seluruh teks menggunakan huruf miring / italic)
+ * - Menampilkan judul dan deskripsi yang dapat dikustomisasi oleh admin.
+ * - Menampilkan estimasi waktu selesai jika diatur oleh admin.
  */
-export function MaintenanceScreen({ isDark = true }: MaintenanceScreenProps) {
+export function MaintenanceScreen({
+  isDark = true,
+  title,
+  message,
+  estimatedEnd,
+}: MaintenanceScreenProps) {
+  const displayTitle = title?.trim() || "One Mind sedang dalam pemeliharaan";
+  const displayMessage =
+    message?.trim() ||
+    "Kami sedang melakukan pemeliharaan sistem untuk meningkatkan layanan. Silakan coba kembali nanti.";
+
+  let formattedEstimatedEnd: string | null = null;
+  if (estimatedEnd) {
+    try {
+      const d = new Date(estimatedEnd);
+      if (!isNaN(d.getTime())) {
+        formattedEstimatedEnd = d.toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZoneName: "short",
+        });
+      }
+    } catch {
+      formattedEstimatedEnd = null;
+    }
+  }
+
   return (
     <div
       className={`min-h-screen w-full flex flex-col items-center justify-center px-6 py-12 select-none text-center ${
@@ -35,15 +66,25 @@ export function MaintenanceScreen({ isDark = true }: MaintenanceScreenProps) {
         {/* Versi Bahasa Indonesia (Bagian Atas, Normal) */}
         <div className="space-y-3">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            One Mind sedang dalam pemeliharaan
+            {displayTitle}
           </h1>
           <p
             className={`text-sm sm:text-base leading-relaxed ${
               isDark ? "text-zinc-400" : "text-zinc-600"
             }`}
           >
-            Kami sedang melakukan pemeliharaan sistem untuk meningkatkan layanan. Silakan coba kembali nanti.
+            {displayMessage}
           </p>
+
+          {formattedEstimatedEnd && (
+            <div
+              className={`text-xs font-mono pt-2 tracking-wide ${
+                isDark ? "text-zinc-500" : "text-zinc-400"
+              }`}
+            >
+              Perkiraan Selesai: {formattedEstimatedEnd}
+            </div>
+          )}
         </div>
 
         {/* Versi Bahasa Inggris (Bagian Bawah, Miring / Italic) */}

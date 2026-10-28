@@ -69,6 +69,10 @@ const UserHoldScreen = dynamic(
   () => import("./components/UserHoldScreen").then((m) => m.UserHoldScreen),
   { ssr: false }
 );
+const FeatureMaintenanceView = dynamic(
+  () => import("./components/FeatureMaintenanceView").then((m) => m.FeatureMaintenanceView),
+  { ssr: false }
+);
 const PricingModal = dynamic(() => import("./components/PricingModal").then((m) => m.PricingModal));
 const UpgradePromptModal = dynamic(() => import("./components/UpgradePromptModal").then((m) => m.UpgradePromptModal));
 const UsageHistoryModal = dynamic(() => import("./components/UsageHistoryModal").then((m) => m.UsageHistoryModal));
@@ -1125,17 +1129,21 @@ export default function Home() {
     subscription !== null
   );
 
+  // ─── Usick One: Real-time Initialization Controller for Intro Loading ───────
+  // Intro loading animation menutupi layar sampai data esensial selesai diproses:
+  // - Belum login: Clerk auth selesai memeriksa sesi DAN video hero background siap.
+  // - Sudah login: Clerk auth selesai memeriksa sesi DAN data subscription spesifik user sudah tuntas dimuat
+  //   sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker badge Pro / tab terkunci.
   const isAppReady = Boolean(
-    heroVideoReady &&
     isClerkLoaded &&
-    isUserSubscriptionSettled
+    (isClerkSignedIn ? isUserSubscriptionSettled : heroVideoReady)
   );
 
   const { introState, isInitializing } = useAppInitializer({
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
     subscriptionReady: isUserSubscriptionSettled,
-    minDurationMs: 1100,
+    minDurationMs: 1400,
     safetyTimeoutMs: 5000,
   });
 
@@ -1511,9 +1519,21 @@ export default function Home() {
   // Pemeriksaan hak akses Admin Usick One (hanya untuk visibilitas UI sidebar)
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Maintenance & User Hold)
+  // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Global, Per-Fitur, & User Hold)
   const [systemAccess, setSystemAccess] = useState<{
     maintenance: boolean;
+    global?: {
+      isEnabled: boolean;
+      title?: string | null;
+      message?: string | null;
+      estimatedEnd?: string | null;
+    };
+    features?: Record<string, {
+      isEnabled: boolean;
+      title?: string | null;
+      message?: string | null;
+      estimatedEnd?: string | null;
+    }>;
     isHeld: boolean;
     reason?: string | null;
     isAdmin: boolean;
@@ -1536,6 +1556,8 @@ export default function Home() {
         const serverIsAdmin = Boolean(json.isAdmin);
         setSystemAccess({
           maintenance: Boolean(json.maintenance),
+          global: json.global || undefined,
+          features: json.features || undefined,
           isHeld: Boolean(json.isHeld),
           reason: json.reason || null,
           isAdmin: serverIsAdmin,
@@ -1549,6 +1571,13 @@ export default function Home() {
       // Fail-open pada kegagalan jaringan frontend agar tidak langsung membuat browser error
     }
   }, []);
+
+  const isUserNonAdmin = Boolean(systemAccess.loaded && !systemAccess.isAdmin && !isAdmin);
+  const getFeatureMaintenance = (key: string) => {
+    if (!isUserNonAdmin) return null;
+    const feat = systemAccess.features?.[key];
+    return feat?.isEnabled ? feat : null;
+  };
 
   useEffect(() => {
     checkSystemStatus();
@@ -4546,7 +4575,14 @@ export default function Home() {
       return <UserHoldScreen isDark={isDark} reason={systemAccess.reason} />;
     }
     if (systemAccess.maintenance) {
-      return <MaintenanceScreen isDark={isDark} />;
+      return (
+        <MaintenanceScreen
+          isDark={isDark}
+          title={systemAccess.global?.title}
+          message={systemAccess.global?.message}
+          estimatedEnd={systemAccess.global?.estimatedEnd}
+        />
+      );
     }
   }
 
@@ -5240,20 +5276,40 @@ export default function Home() {
         {/* CodeWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama agar proses generate PRD / Estafet tidak ter-cancel saat berpindah tab */}
         {activeView === "code" || visitedViewsRef.current.code ? (
           <div className={`h-full w-full ${activeView === "code" ? "flex flex-col flex-1" : "hidden"}`}>
-            <CodeWorkspace
-              key="code-workspace-instance"
-              isDark={isDark}
-              onClose={() => setActiveView("chats")}
-              userId={user?.id}
-              userName={chatAccountName}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            />
+            {getFeatureMaintenance("code") ? (
+              <FeatureMaintenanceView
+                featureName="Code Studio & PRD"
+                title={getFeatureMaintenance("code")?.title}
+                message={getFeatureMaintenance("code")?.message}
+                estimatedEnd={getFeatureMaintenance("code")?.estimatedEnd}
+                onBack={() => setActiveView("chats")}
+                isDark={isDark}
+              />
+            ) : (
+              <CodeWorkspace
+                key="code-workspace-instance"
+                isDark={isDark}
+                onClose={() => setActiveView("chats")}
+                userId={user?.id}
+                userName={chatAccountName}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              />
+            )}
           </div>
         ) : null}
 
         {/* MusicWorkspace dijaga tetap ter-mount di latar belakang untuk pengguna Pro agar audio player & Music Connect tidak terputus saat beralih tab */}
         <div className={`h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
+          {getFeatureMaintenance("music") ? (
+            <FeatureMaintenanceView
+              featureName="Music One & Connect"
+              title={getFeatureMaintenance("music")?.title}
+              message={getFeatureMaintenance("music")?.message}
+              estimatedEnd={getFeatureMaintenance("music")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Music One & Connect (Eksklusif Pro)"
@@ -5279,30 +5335,61 @@ export default function Home() {
         {/* NotebookWorkspace dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
         {activeView === "notebook" || visitedViewsRef.current.notebook ? (
           <div className={`h-full w-full ${activeView === "notebook" ? "flex flex-col flex-1" : "hidden"}`}>
-            <NotebookWorkspace
-              key={user?.id || "guest-notebook"}
-              isDark={isDark}
-              onClose={() => setActiveView("chats")}
-              user={user}
-              setShowAuthModal={setShowAuthModal}
-              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-            />
+            {getFeatureMaintenance("notebook") ? (
+              <FeatureMaintenanceView
+                featureName="Notebook"
+                title={getFeatureMaintenance("notebook")?.title}
+                message={getFeatureMaintenance("notebook")?.message}
+                estimatedEnd={getFeatureMaintenance("notebook")?.estimatedEnd}
+                onBack={() => setActiveView("chats")}
+                isDark={isDark}
+              />
+            ) : (
+              <NotebookWorkspace
+                key={user?.id || "guest-notebook"}
+                isDark={isDark}
+                onClose={() => setActiveView("chats")}
+                user={user}
+                setShowAuthModal={setShowAuthModal}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+              />
+            )}
           </div>
         ) : null}
 
         {/* EmergencyWorkspace */}
         <div className={`h-full w-full ${activeView === "emergency" ? "flex flex-col flex-1" : "hidden"}`}>
-          <EmergencyWorkspace
-            key="emergency-workspace-instance"
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
+          {getFeatureMaintenance("emergency") ? (
+            <FeatureMaintenanceView
+              featureName="Emergency Contact"
+              title={getFeatureMaintenance("emergency")?.title}
+              message={getFeatureMaintenance("emergency")?.message}
+              estimatedEnd={getFeatureMaintenance("emergency")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (
+            <EmergencyWorkspace
+              key="emergency-workspace-instance"
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          )}
         </div>
 
         {/* FaithWorkspace (Sub-tab Faith di dalam Halaman) dijaga tetap ter-mount di latar belakang setelah kunjungan pertama */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "faith" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
+          {getFeatureMaintenance("faith") ? (
+            <FeatureMaintenanceView
+              featureName="Faith Space"
+              title={getFeatureMaintenance("faith")?.title}
+              message={getFeatureMaintenance("faith")?.message}
+              estimatedEnd={getFeatureMaintenance("faith")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Faith Space (Eksklusif Pro)"
@@ -5326,7 +5413,16 @@ export default function Home() {
 
         {/* MessagesWorkspace dijaga tetap ter-mount di latar belakang agar koneksi realtime & notifikasi pesan tetap aktif dan instan tanpa loading ulang */}
         <div className={`h-full w-full ${activeView === "messages" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(subscription?.plan || "free") === "free" ? (
+          {getFeatureMaintenance("messages") ? (
+            <FeatureMaintenanceView
+              featureName="Messages"
+              title={getFeatureMaintenance("messages")?.title}
+              message={getFeatureMaintenance("messages")?.message}
+              estimatedEnd={getFeatureMaintenance("messages")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Messages (Eksklusif Pro)"
@@ -5354,7 +5450,16 @@ export default function Home() {
 
         {/* GameHub (Game Center: Chess Arena & Neon Drift — Offline-First) */}
         <div className={`h-full w-full ${isHalamanActive && halamanSubTab === "game" ? "flex flex-col flex-1" : "hidden"}`}>
-          {(isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
+          {getFeatureMaintenance("game") ? (
+            <FeatureMaintenanceView
+              featureName="Game Center"
+              title={getFeatureMaintenance("game")?.title}
+              message={getFeatureMaintenance("game")?.message}
+              estimatedEnd={getFeatureMaintenance("game")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (isHalamanActive && halamanSubTab === "game") || visitedViewsRef.current.game ? (
             <GameHub
               key="game-hub-instance"
               isDark={isDark}
@@ -5367,16 +5472,36 @@ export default function Home() {
         </div>
 
         {activeView === "schedule" ? (
-          <ScheduleWorkspace
-            key={user?.id || "guest"}
-            isDark={isDark}
-            onClose={() => setActiveView("chats")}
-            user={user}
-            setShowAuthModal={setShowAuthModal}
-            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
-          />
+          getFeatureMaintenance("schedule") ? (
+            <FeatureMaintenanceView
+              featureName="Schedule & Kalender"
+              title={getFeatureMaintenance("schedule")?.title}
+              message={getFeatureMaintenance("schedule")?.message}
+              estimatedEnd={getFeatureMaintenance("schedule")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (
+            <ScheduleWorkspace
+              key={user?.id || "guest"}
+              isDark={isDark}
+              onClose={() => setActiveView("chats")}
+              user={user}
+              setShowAuthModal={setShowAuthModal}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
+            />
+          )
         ) : activeView === "image" ? (
-          (subscription?.plan || "free") === "free" ? (
+          getFeatureMaintenance("image") ? (
+            <FeatureMaintenanceView
+              featureName="Image Studio"
+              title={getFeatureMaintenance("image")?.title}
+              message={getFeatureMaintenance("image")?.message}
+              estimatedEnd={getFeatureMaintenance("image")?.estimatedEnd}
+              onBack={() => setActiveView("chats")}
+              isDark={isDark}
+            />
+          ) : (subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
               title="Image Generator & Translator (Eksklusif Pro)"
@@ -5486,10 +5611,22 @@ export default function Home() {
               </div>
             </header>
 
-            {/* Top fade: gradasi ke transparan murni menggunakan mask-image (tanpa warna hitam/putih) */}
-        {/* ─── SCROLLABLE CHAT CONTENT ─── */}
-        <div
-          ref={scrollContainerRef}
+            {getFeatureMaintenance("chat") ? (
+              <div className="h-full w-full flex-1 flex flex-col items-center justify-center p-6 select-none">
+                <FeatureMaintenanceView
+                  featureName="Chat AI"
+                  title={getFeatureMaintenance("chat")?.title}
+                  message={getFeatureMaintenance("chat")?.message}
+                  estimatedEnd={getFeatureMaintenance("chat")?.estimatedEnd}
+                  isDark={isDark}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Top fade: gradasi ke transparan murni menggunakan mask-image (tanpa warna hitam/putih) */}
+                {/* ─── SCROLLABLE CHAT CONTENT ─── */}
+                <div
+                  ref={scrollContainerRef}
           onScroll={handleScroll}
           style={
             messages.length > 0
@@ -6021,6 +6158,8 @@ export default function Home() {
         </div>
       </>
     )}
+  </>
+)}
   </main>
 
       {/* ─── SETTINGS FULL PAGE ───────────────────────────────────────────── */}

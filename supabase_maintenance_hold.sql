@@ -4,23 +4,40 @@
 -- pada Supabase SQL Editor. JANGAN MENJALANKAN OTOMATIS KE PRODUKSI.
 -- ==============================================================================
 
--- ─── 1. TABEL PENGATURAN MAINTENANCE MODE GLOBAL ─────────────────────────────
+-- ─── 1. TABEL PENGATURAN MAINTENANCE MODE GLOBAL & PER-FITUR ─────────────────
 CREATE TABLE IF NOT EXISTS public.system_maintenance (
   id TEXT PRIMARY KEY DEFAULT 'global_config',
   is_enabled BOOLEAN NOT NULL DEFAULT false,
+  title TEXT,
   message TEXT,
+  estimated_end TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_by TEXT -- Email admin yang mengubah status
 );
+
+-- Kolom tambahan untuk skema tabel yang sudah ada
+ALTER TABLE public.system_maintenance ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.system_maintenance ADD COLUMN IF NOT EXISTS estimated_end TIMESTAMPTZ;
 
 -- RLS & Grants untuk system_maintenance
 ALTER TABLE public.system_maintenance ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.system_maintenance FROM anon, authenticated;
 GRANT ALL ON TABLE public.system_maintenance TO service_role;
 
--- Inisialisasi baris konfigurasi global (default: Maintenance OFF)
-INSERT INTO public.system_maintenance (id, is_enabled, updated_by)
-VALUES ('global_config', false, 'initial_setup')
+-- Inisialisasi baris konfigurasi global & per-fitur (default: Maintenance OFF)
+INSERT INTO public.system_maintenance (id, is_enabled, title, message, updated_by)
+VALUES
+  ('global_config', false, 'One Mind sedang dalam pemeliharaan', 'Kami sedang melakukan pemeliharaan sistem untuk meningkatkan layanan. Silakan coba kembali nanti.', 'initial_setup'),
+  ('chat', false, 'Chat AI Sedang Dalam Pemeliharaan', 'Fitur percakapan AI sedang diperbarui. Fitur lainnya tetap dapat digunakan.', 'initial_setup'),
+  ('code', false, 'Code Studio Sedang Dalam Pemeliharaan', 'Fitur Code Studio & Generate PRD sedang dalam pemeliharaan berkala.', 'initial_setup'),
+  ('schedule', false, 'Schedule Sedang Dalam Pemeliharaan', 'Fitur jadwal dan pengingat sedang dalam pemeliharaan.', 'initial_setup'),
+  ('messages', false, 'Messages Sedang Dalam Pemeliharaan', 'Layanan percakapan instan sedang dalam peningkatan server.', 'initial_setup'),
+  ('image', false, 'Image Studio Sedang Dalam Pemeliharaan', 'Layanan kreasi dan translasi gambar sedang dalam pemeliharaan.', 'initial_setup'),
+  ('music', false, 'Music One Sedang Dalam Pemeliharaan', 'Server streaming audio sedang dalam pemeliharaan sistem.', 'initial_setup'),
+  ('notebook', false, 'Notebook Sedang Dalam Pemeliharaan', 'Fitur catatan pribadi sedang dalam sinkronisasi sistem.', 'initial_setup'),
+  ('emergency', false, 'Emergency Sedang Dalam Pemeliharaan', 'Pusat kontak darurat sedang diperbarui.', 'initial_setup'),
+  ('game', false, 'Game Center Sedang Dalam Pemeliharaan', 'Arena game sedang dalam pemeliharaan berkala.', 'initial_setup'),
+  ('faith', false, 'Faith Space Sedang Dalam Pemeliharaan', 'Ruang renungan batin sedang dalam pemeliharaan sistem.', 'initial_setup')
 ON CONFLICT (id) DO NOTHING;
 
 

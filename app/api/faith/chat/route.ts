@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getFaithTemporalInfo, type FaithTemporalInfo } from '@/lib/faith/temporal';
+import { validateUserAccess } from '@/lib/accessControl';
+import { auth } from '@clerk/nextjs/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -152,6 +154,26 @@ async function streamGeminiModel(
 
 export async function POST(req: NextRequest) {
   try {
+    let clerkUserId: string | undefined;
+    try {
+      const a = await auth();
+      clerkUserId = a.userId || undefined;
+    } catch {}
+
+    const accessCheck = await validateUserAccess({ userId: clerkUserId, feature: 'faith' });
+    if (!accessCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: accessCheck.error || 'Akses ke Faith Space sedang dibatasi.',
+          reason: accessCheck.reason,
+        }),
+        {
+          status: accessCheck.status,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     const { messages, timeZone } = await req.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
