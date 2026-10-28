@@ -220,7 +220,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
   };
 
   return (
-    <section className="relative h-screen sm:h-[100dvh] w-full bg-black overflow-hidden">
+    <section className="relative h-screen sm:h-[100dvh] w-full bg-black">
       <div className="relative h-full w-full overflow-hidden bg-black">
         {/* Instant background poster behind video */}
         <img

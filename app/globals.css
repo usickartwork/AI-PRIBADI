@@ -48,11 +48,13 @@
 
 html,
 body {
-  height: 100%;
   min-height: 100%;
   background-color: var(--background);
   color: var(--foreground);
-  overflow-x: hidden;
+}
+
+html {
+  overflow-x: clip;
 }
 
 body {

@@ -178,7 +178,7 @@ export function HomeFeatureSections({
   const activeItem = FEATURE_ITEMS.find((f) => f.id === activeTabId) || FEATURE_ITEMS[0];
 
   return (
-    <section id="section-features" className="scroll-mt-24 relative w-full pt-16 sm:pt-20 pb-8 sm:pb-12 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto overflow-x-clip">
+    <section id="section-features" className="relative w-full pt-16 sm:pt-20 pb-8 sm:pb-12 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto">
       {/* ─── SECTION HEADER ────────────────────────────────────────────────── */}
       <ScrollReveal y={24} duration={0.6} className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
         <span className="text-[11px] font-mono tracking-widest text-zinc-400 uppercase">
@@ -233,8 +233,6 @@ export function HomeFeatureSections({
         <div
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          onTouchStart={() => setIsPaused(true)}
-          onTouchEnd={() => setIsPaused(false)}
         >
           <AnimatePresence mode="wait">
             <motion.div
