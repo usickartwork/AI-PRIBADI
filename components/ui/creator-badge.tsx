@@ -97,8 +97,8 @@ export function CreatorBadge({
           : "opacity-0 translate-y-4 scale-95 pointer-events-none"
       } ${className}`}
     >
-      {/* ─── Unified Bubble Panel (Pure obsidian black, tanpa tone biru navy) ─── */}
-      <div className="group relative inline-flex items-center gap-1 sm:gap-1.5 pl-3.5 pr-3.5 sm:pl-4.5 sm:pr-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
+      {/* ─── Unified Bubble Panel (Pure obsidian black, padding kanan mobile diperluas agar icon Behance masuk sempurna) ─── */}
+      <div className="group relative inline-flex items-center gap-1 sm:gap-1.5 pl-3.5 pr-5 sm:pl-4.5 sm:pr-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
         {/* Subtle Ambient Hover Glow */}
         <div
           className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
