@@ -24,7 +24,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
       role="status"
       aria-label="Memuat One Mind"
       aria-live="polite"
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] bg-[#09090b] text-white ${
         isExiting
           ? "opacity-0 scale-[1.03] pointer-events-none"
           : "opacity-100 scale-100"
@@ -58,7 +58,7 @@ export function IntroLoader({ state }: IntroLoaderProps) {
           dashGap={2}
           specks={15}
           sweep={true}
-          speed={3.4}
+          speed={3.2}
           draggable={true}
         />
       </div>
@@ -105,8 +105,8 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
 export function useAppInitializer({
   authLoading = false,
   subscriptionReady = true,
-  minDurationMs = 750,
-  safetyTimeoutMs = 4000,
+  minDurationMs = 1100,
+  safetyTimeoutMs = 5000,
   isReady = true,
 }: {
   authLoading?: boolean;
@@ -134,7 +134,7 @@ export function useAppInitializer({
         if (prev === "visible") {
           unmountTimer = setTimeout(() => {
             setIntroState("gone");
-          }, 250);
+          }, 300);
           return "exiting";
         }
         return prev;
@@ -167,7 +167,7 @@ export function useAppInitializer({
       setIntroState("exiting");
       const unmountTimer = setTimeout(() => {
         setIntroState("gone");
-      }, 250);
+      }, 300);
       return () => clearTimeout(unmountTimer);
     }
   }, [combinedReady, introState]);

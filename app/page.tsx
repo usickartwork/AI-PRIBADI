@@ -689,6 +689,7 @@ export default function Home() {
   const activeSessionIdRef = useRef(activeSessionId);
   activeSessionIdRef.current = activeSessionId;
   const isInitialBootRef = useRef(true);
+  const [chatHistorySettled, setChatHistorySettled] = useState<boolean>(false);
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
   const messages = currentSession?.messages || [];
@@ -762,6 +763,7 @@ export default function Home() {
   });
   const [subscriptionReady, setSubscriptionReady] = useState(() => Boolean(subscription));
   const [subscriptionLoadedForUser, setSubscriptionLoadedForUser] = useState<string | null>(() => subscription?.userId || null);
+  const [subscriptionServerSynced, setSubscriptionServerSynced] = useState<boolean>(false);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
   const [showUsageHistoryModal, setShowUsageHistoryModal] = useState<boolean>(false);
@@ -815,6 +817,7 @@ export default function Home() {
       console.warn("Failed to load subscription:", err);
     } finally {
       setSubscriptionReady(true);
+      setSubscriptionServerSynced(true);
       const curTarget = isClerkSignedIn ? (user?.id || clerkUser?.id || "") : "guest";
       if (curTarget) {
         setSubscriptionLoadedForUser(curTarget);
@@ -1302,35 +1305,43 @@ export default function Home() {
   };
 
   // ─── Usick One / One Mind: Initialization Controller for Intro Loading ───────
-  // Intro loading animation menutupi layar sampai data esensial selesai diproses:
-  // 1. Clerk auth sudah selesai memeriksa status sesi.
-  // 2. Jika user login: subscription khusus user ini harus sudah selesai dimuat dari server
-  //    sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker badge Pro / tab terkunci.
-  // 3. Hak akses admin dan profil avatar sudah tuntas diselesaikan dari server sehingga
-  //    panel akun di sidebar tidak tiba-tiba berubah/morphing setelah layar terbuka.
-  // 4. Jika guest: background hero video sudah siap.
+  // Intro loading animation menutupi layar sampai seluruh data esensial selesai digenerate dan diproses:
+  // 1. Clerk auth sudah selesai memeriksa status sesi (isClerkLoaded).
+  // 2. Jika user login: subscription khusus user ini harus sudah selesai disinkronkan langsung dari server (/api/subscription),
+  //    bukan hanya cache lokal lama, sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker.
+  // 3. Hak akses admin dan profil avatar sudah tuntas diselesaikan dari server (/api/admin/check & /api/system/status),
+  //    sehingga badge DEV dan panel akun di sidebar tidak tiba-tiba berubah/morphing setelah layar terbuka.
+  // 4. Riwayat percakapan (chat sessions/messages) sudah tuntas dimuat dan digabung dari server (/api/chat/history),
+  //    sehingga sidebar dan ruang obrolan sudah terisi penuh tanpa ada proses tertunda/delay.
+  // 5. Jika guest: background hero video sudah siap.
   const isUserSubscriptionSettled = !isClerkSignedIn || Boolean(
+    subscriptionServerSynced &&
     subscriptionLoadedForUser &&
     subscriptionLoadedForUser === (clerkUser?.id || user?.id) &&
     subscription !== null
   );
 
-  const isAdminSettled = !isClerkSignedIn || (adminCheckCompleted && systemAccess.loaded);
-  const isAvatarSettled = !isClerkSignedIn || !isAdmin || adminAvatarSettled;
+  const isAdminAndAvatarSettled = !isClerkSignedIn || Boolean(
+    adminCheckCompleted &&
+    systemAccess.loaded &&
+    adminAvatarSettled
+  );
+
+  const isSessionsSettled = !isClerkSignedIn || chatHistorySettled;
 
   const isAppReady = Boolean(
     isClerkLoaded &&
     (isClerkSignedIn
-      ? isUserSubscriptionSettled && isAdminSettled && isAvatarSettled
+      ? isUserSubscriptionSettled && isAdminAndAvatarSettled && isSessionsSettled
       : heroVideoReady)
   );
 
   const { introState, isInitializing } = useAppInitializer({
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
-    subscriptionReady: isUserSubscriptionSettled && isAdminSettled && isAvatarSettled,
-    minDurationMs: 750,
-    safetyTimeoutMs: 4000,
+    subscriptionReady: isUserSubscriptionSettled && isAdminAndAvatarSettled && isSessionsSettled,
+    minDurationMs: 1100,
+    safetyTimeoutMs: 5000,
   });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1721,6 +1732,8 @@ export default function Home() {
     setSubscription(null);
     setSubscriptionLoadedForUser(null);
     setSubscriptionReady(false);
+    setSubscriptionServerSynced(false);
+    setChatHistorySettled(false);
     try {
       localStorage.removeItem("usick-user-subscription");
     } catch {}
@@ -1965,6 +1978,7 @@ export default function Home() {
 
     if (!currentUserId) {
       historySyncedForRef.current = null;
+      setChatHistorySettled(true);
       return;
     }
 
@@ -2027,6 +2041,10 @@ export default function Home() {
         }
       } catch (err) {
         console.warn("[chat-sync] error:", err);
+      } finally {
+        if (isMounted) {
+          setChatHistorySettled(true);
+        }
       }
     }
 
