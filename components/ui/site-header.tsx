@@ -48,14 +48,14 @@ export function SiteHeader({
   }, [featuresOpen]);
 
   return (
-    <header className={`w-full z-50 ${className}`}>
+    <header className={`w-full z-50 bg-transparent ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-4">
         {/* ─── LEFT: BACK BUTTON + BRAIN LOGO + NAV LINKS ─── */}
         <div className="flex items-center gap-2 xs:gap-2.5 sm:gap-4 md:gap-6 min-w-0">
           {showBack && (
             <Link
               href={backHref}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-zinc-400 hover:text-white transition-all shrink-0"
               title="Kembali ke Beranda"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -78,8 +78,8 @@ export function SiteHeader({
               href="/usick-one"
               className={`whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium transition-all active:scale-95 ${
                 activeItem === "usick-one"
-                  ? "text-white bg-white/10 font-semibold"
-                  : "text-zinc-300 hover:text-white hover:bg-white/5"
+                  ? "text-white font-semibold"
+                  : "text-zinc-300 hover:text-white"
               }`}
             >
               Usick One
@@ -92,8 +92,8 @@ export function SiteHeader({
                 onClick={() => setFeaturesOpen((prev) => !prev)}
                 className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium transition-all cursor-pointer active:scale-95 ${
                   activeItem === "fitur"
-                    ? "text-white bg-white/10 font-semibold"
-                    : "text-zinc-300 hover:text-white hover:bg-white/5"
+                    ? "text-white font-semibold"
+                    : "text-zinc-300 hover:text-white"
                 }`}
               >
                 <span>Fitur</span>
@@ -133,8 +133,8 @@ export function SiteHeader({
               href="/harga"
               className={`whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium transition-all active:scale-95 ${
                 activeItem === "pricing"
-                  ? "text-white bg-white/10 font-semibold"
-                  : "text-zinc-300 hover:text-white hover:bg-white/5"
+                  ? "text-white font-semibold"
+                  : "text-zinc-300 hover:text-white"
               }`}
             >
               Pricing
@@ -145,8 +145,8 @@ export function SiteHeader({
               href="/#section-faq"
               className={`whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium transition-all active:scale-95 ${
                 activeItem === "faq"
-                  ? "text-white bg-white/10 font-semibold"
-                  : "text-zinc-300 hover:text-white hover:bg-white/5"
+                  ? "text-white font-semibold"
+                  : "text-zinc-300 hover:text-white"
               }`}
             >
               FAQ

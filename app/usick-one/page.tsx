@@ -24,13 +24,13 @@ export default function UsickOnePage() {
       {/* Ambient overlay */}
       <div className="fixed inset-0 pointer-events-none z-0 bg-black/25" aria-hidden="true" />
 
-      {/* ─── HEADER WITH BACK BUTTON, BRAND LOGO, NAV TABS, LOGIN ─── */}
+      {/* ─── CLEAN HEADER WITHOUT BACK BUTTON (TRANSPARENT) ─── */}
       <SiteHeader
-        showBack={true}
+        showBack={false}
         backHref="/"
         activeItem="usick-one"
         onGetStarted={openAuth}
-        className="relative z-20 border-b border-white/[0.08] bg-black/60 backdrop-blur-xl"
+        className="relative z-20 bg-transparent pt-2 sm:pt-4"
       />
 
       {/* ─── MAIN CONTENT: LIVE INTERACTIVE CHAT USICK ONE SAJA ─── */}

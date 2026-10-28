@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
+import { ArrowRight, Check } from "lucide-react";
 import Footer01 from "@/components/ui/footer-01";
 import { SiteHeader } from "@/components/ui/site-header";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
@@ -72,13 +71,13 @@ export default function PricingLandingPage() {
       {/* Ambient overlay */}
       <div className="fixed inset-0 pointer-events-none z-0 bg-black/25" aria-hidden="true" />
 
-      {/* ─── SITE HEADER WITH BACK BUTTON, BRAND LOGO, NAV TABS, LOGIN ─── */}
+      {/* ─── SITE HEADER (CLEAN & TRANSPARENT) ─── */}
       <SiteHeader
         showBack={true}
         backHref="/"
         activeItem="pricing"
         onGetStarted={openAuth}
-        className="relative z-20 border-b border-white/[0.08] bg-black/60 backdrop-blur-xl"
+        className="relative z-20 bg-transparent pt-2 sm:pt-4"
       />
 
       {/* Main Content Area */}
@@ -157,20 +156,6 @@ export default function PricingLandingPage() {
         </div>
 
       </main>
-
-      {/* FAQ Tabs Section */}
-      <div className="relative z-10">
-        <FAQ
-          title="Pertanyaan Umum"
-          subtitle="FAQ Harga & Kuota"
-          categories={{
-            "pricing": "Paket & Kredit",
-            "ai-chat": "Model & Fitur",
-          }}
-          faqData={ONE_MIND_FAQ_DATA}
-          className="max-w-4xl mx-auto"
-        />
-      </div>
 
       {/* Clean Footer */}
       <div className="relative z-10">
