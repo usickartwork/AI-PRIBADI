@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
 import Footer01 from "@/components/ui/footer-01";
+import { SiteHeader } from "@/components/ui/site-header";
 import { AnimatePresence } from "framer-motion";
 import { AuthModal } from "@/app/components/AuthModal";
 
@@ -64,23 +65,14 @@ export default function PricingLandingPage() {
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
       
-      {/* Minimal Top Header (Clean Back Link Only) */}
-      <header className="max-w-5xl mx-auto px-6 pt-8 pb-4 flex items-center justify-between">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Kembali</span>
-        </Link>
-        <button
-          type="button"
-          onClick={() => openAuth("signin")}
-          className="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
-        >
-          Sign In
-        </button>
-      </header>
+      {/* ─── SITE HEADER WITH BACK BUTTON, BRAND LOGO, NAV TABS, LOGIN ─── */}
+      <SiteHeader
+        showBack={true}
+        backHref="/"
+        activeItem="pricing"
+        onGetStarted={openAuth}
+        className="border-b border-white/[0.08] bg-black/60 backdrop-blur-xl"
+      />
 
       {/* Main Content Area */}
       <main className="max-w-4xl mx-auto px-6 pt-12 pb-24">

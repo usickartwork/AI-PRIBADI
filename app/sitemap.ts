@@ -11,6 +11,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
+      url: "https://onemind.web.id/usick-one",
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
       url: "https://onemind.web.id/harga",
       lastModified,
       changeFrequency: "weekly",

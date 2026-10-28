@@ -26,9 +26,6 @@ import {
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
 import { CreatorBadge } from "@/components/ui/creator-badge";
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
-const HomeInteractiveChat = dynamic(() =>
-  import("@/components/ui/home-interactive-chat").then((m) => m.HomeInteractiveChat)
-);
 const HomeAdvantagesSection = dynamic(() =>
   import("@/components/ui/home-advantages-section").then((m) => m.HomeAdvantagesSection)
 );
@@ -4853,22 +4850,6 @@ export default function Home() {
             }}
             aria-hidden="true"
           />
-
-          {/* ─── LIVE INTERACTIVE CHAT (USICK ONE 2 KESEMPATAN, FLOATING DI ATAS MESHDRIFT) ─── */}
-          <ScrollReveal
-            id="section-chat"
-            y={20}
-            duration={0.65}
-            className="scroll-mt-20 relative w-full z-10 pt-2 sm:pt-4 pb-16 sm:pb-24"
-          >
-            <HomeInteractiveChat
-              isDark={isDark}
-              onGetStarted={(targetMode) => {
-                setAuthModalMode(targetMode || "signup");
-                setShowAuthModal(true);
-              }}
-            />
-          </ScrollReveal>
 
           {/* ─── PRICING SECTION ───────────────────────────────────────────────── */}
           <HomePricingSection
