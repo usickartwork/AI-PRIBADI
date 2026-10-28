@@ -4892,16 +4892,15 @@ export default function Home() {
                                 </div>
                                 {isSubProLocked ? (
                                   <span
-                                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                                      subId === "faith"
-                                        ? isDark
-                                          ? "bg-zinc-800 text-amber-400 border-zinc-700/80"
-                                          : "bg-amber-50 text-amber-700 border-amber-200"
-                                        : isDark
-                                          ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
-                                          : "bg-zinc-100 text-zinc-700 border-zinc-300"
+                                    className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                                      isDark
+                                        ? "bg-zinc-800 text-zinc-300 border-zinc-700/80"
+                                        : "bg-zinc-100 text-zinc-700 border-zinc-300"
                                     }`}
                                   >
+                                    <svg className="w-2.5 h-2.5 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
                                     PRO
                                   </span>
                                 ) : showSubUnreadBadge ? (
