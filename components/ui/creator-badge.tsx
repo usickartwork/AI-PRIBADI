@@ -91,40 +91,43 @@ export function CreatorBadge({
 
   return (
     <div
-      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-24px)] flex items-center gap-2 sm:gap-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
+      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-20px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
         isVisible
           ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
           : "opacity-0 translate-y-4 scale-95 pointer-events-none"
       } ${className}`}
     >
-      {/* ─── 1. Main Bubble: Product by | Avatar | filius_pl | Followers | Instagram Icon ─── */}
-      <a
-        href={instagramUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`Kunjungi Instagram @${username} (${followers} followers)`}
-        title={`Instagram @${username}`}
-        className="group/ig relative inline-flex items-center gap-2 sm:gap-2.5 pl-3.5 pr-4.5 sm:pl-4 sm:pr-4 py-1.5 rounded-full bg-[#0a0d14]/90 border border-white/15 hover:border-white/35 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.8)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer no-underline shrink-0"
-      >
+      {/* ─── Unified Bubble Panel (Sedikit dibesarkan agar mudah & nyaman ditekan di mobile) ─── */}
+      <div className="group relative inline-flex items-center gap-2.5 sm:gap-3 pl-4 pr-4 sm:pl-5 sm:pr-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-[#0a0d14]/92 border border-white/18 hover:border-white/35 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.65)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.85)] transition-all duration-200">
         {/* Subtle Ambient Hover Glow */}
         <div
-          className="absolute inset-0 rounded-full opacity-0 group-hover/ig:opacity-100 transition-opacity duration-300 pointer-events-none"
+          className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
           style={{
             background:
-              "radial-gradient(circle at 50% 50%, rgba(220, 39, 67, 0.2) 0%, transparent 75%)",
+              "radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 75%)",
           }}
           aria-hidden="true"
         />
+
+        {/* ─── Instagram Link: Product by | Avatar | Username | Followers | IG Icon ─── */}
+        <a
+          href={instagramUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Kunjungi Instagram @${username} (${followers} followers)`}
+          title={`Instagram @${username}`}
+          className="relative z-10 inline-flex items-center gap-2 sm:gap-2.5 no-underline cursor-pointer group/ig"
+        >
           {/* Label: Product by */}
-          <span className="text-zinc-400 group-hover/ig:text-zinc-300 text-xs sm:text-sm font-medium tracking-normal transition-colors shrink-0">
+          <span className="text-zinc-400 group-hover/ig:text-zinc-300 text-xs sm:text-[13px] font-medium tracking-normal transition-colors shrink-0">
             Product by
           </span>
 
           {/* Pemisah halus vertikal */}
-          <span className="w-px h-3.5 bg-white/20 shrink-0" aria-hidden="true" />
+          <span className="w-px h-4 bg-white/20 shrink-0" aria-hidden="true" />
 
           {/* Circular Profile Avatar */}
-          <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-full overflow-hidden ring-1 ring-white/25 shrink-0 bg-zinc-800">
+          <div className="w-6.5 h-6.5 sm:w-7 sm:h-7 rounded-full overflow-hidden ring-1 ring-white/25 shrink-0 bg-zinc-800">
             {!imgError ? (
               <img
                 src={avatarUrl}
@@ -140,19 +143,19 @@ export function CreatorBadge({
           </div>
 
           {/* Creator Username */}
-          <span className="font-bold text-white text-xs sm:text-sm tracking-tight transition-colors shrink-0 group-hover/ig:text-zinc-200">
+          <span className="font-bold text-white text-xs sm:text-[13px] tracking-tight transition-colors shrink-0 group-hover/ig:text-zinc-200">
             {username}
           </span>
 
           {/* Followers Count */}
-          <span className="font-medium text-zinc-400 group-hover/ig:text-zinc-300 text-xs sm:text-sm tracking-tight transition-colors shrink-0">
+          <span className="font-medium text-zinc-400 group-hover/ig:text-zinc-300 text-xs sm:text-[13px] tracking-tight transition-colors shrink-0">
             {followers}
           </span>
 
           {/* Official Instagram Icon */}
-          <div className="shrink-0 flex items-center justify-center">
+          <div className="shrink-0 flex items-center justify-center p-0.5">
             <svg
-              className="w-4 h-4 sm:w-4.5 sm:h-4.5 group-hover/ig:scale-115 transition-transform duration-200"
+              className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover/ig:scale-115 transition-transform duration-200"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -183,38 +186,29 @@ export function CreatorBadge({
           </div>
         </a>
 
-      {/* ─── 2. Separate Behance Button (Di luar bubble IG & followers, di sebelah kanannya, ukuran lebih besar) ─── */}
-      <a
-        href={behanceUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Kunjungi Behance filiuspatrislahendra"
-        title="Behance @filiuspatrislahendra"
-        className="group/be relative shrink-0 flex items-center justify-center w-[34px] h-[34px] sm:w-[36px] sm:h-[36px] rounded-full bg-[#0a0d14]/90 border border-white/15 hover:border-white/35 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.8)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer no-underline"
-      >
-        {/* Subtle Ambient Hover Glow */}
-        <div
-          className="absolute inset-0 rounded-full opacity-0 group-hover/be:opacity-100 transition-opacity duration-300 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle at 50% 50%, rgba(0, 87, 255, 0.4) 0%, transparent 75%)",
-          }}
-          aria-hidden="true"
-        />
-
-        <svg
-          className="relative z-10 w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover/be:scale-110 transition-transform duration-200"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
+        {/* ─── Behance Link: Tetap di dalam bubble, di sebelah kanan icon IG ─── */}
+        <a
+          href={behanceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Kunjungi Behance filiuspatrislahendra"
+          title="Behance @filiuspatrislahendra"
+          className="relative z-10 shrink-0 flex items-center justify-center p-0.5 no-underline cursor-pointer group/be -ml-0.5 sm:ml-0"
         >
-          <rect width="24" height="24" rx="6.5" fill="#0057ff" />
-          <g transform="translate(3.5, 4.8) scale(0.65)" fill="#ffffff">
-            <path d="M22 7h-7v-2h7v2zm1.726 10c-.442 1.297-2.029 3-5.101 3-4.102 0-5.625-3.003-5.625-6 0-3.64 2.197-6 5.625-6 4.092 0 5.402 3.018 5.176 6.002h-7.8c.035 1.543.834 3.09 2.625 3.09 1.439 0 2.29-.691 2.658-1.503l2.442 1.411zm-5.101-7.051c-1.391 0-2.18.918-2.316 2.051h4.632c-.086-1.134-.925-2.051-2.316-2.051zm-13.625-7.949h7.458c2.441 0 4.167 1.258 4.167 3.498 0 1.488-.813 2.59-1.996 3.084 1.53.517 2.371 1.777 2.371 3.52 0 2.457-1.895 3.898-4.542 3.898h-7.458v-14zm3 2v3.5h4.167c1.1 0 1.833-.6 1.833-1.75 0-1.15-.733-1.75-1.833-1.75h-4.167zm0 5.5v4.5h4.458c1.2 0 1.958-.65 1.958-1.9 0-1.25-.758-1.9-1.958-1.9h-4.458z" />
-          </g>
-        </svg>
-      </a>
+          <svg
+            className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover/be:scale-115 transition-transform duration-200"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <rect width="24" height="24" rx="6.5" fill="#0057ff" />
+            <g transform="translate(3.5, 4.8) scale(0.65)" fill="#ffffff">
+              <path d="M22 7h-7v-2h7v2zm1.726 10c-.442 1.297-2.029 3-5.101 3-4.102 0-5.625-3.003-5.625-6 0-3.64 2.197-6 5.625-6 4.092 0 5.402 3.018 5.176 6.002h-7.8c.035 1.543.834 3.09 2.625 3.09 1.439 0 2.29-.691 2.658-1.503l2.442 1.411zm-5.101-7.051c-1.391 0-2.18.918-2.316 2.051h4.632c-.086-1.134-.925-2.051-2.316-2.051zm-13.625-7.949h7.458c2.441 0 4.167 1.258 4.167 3.498 0 1.488-.813 2.59-1.996 3.084 1.53.517 2.371 1.777 2.371 3.52 0 2.457-1.895 3.898-4.542 3.898h-7.458v-14zm3 2v3.5h4.167c1.1 0 1.833-.6 1.833-1.75 0-1.15-.733-1.75-1.833-1.75h-4.167zm0 5.5v4.5h4.458c1.2 0 1.958-.65 1.958-1.9 0-1.25-.758-1.9-1.958-1.9h-4.458z" />
+            </g>
+          </svg>
+        </a>
+      </div>
     </div>
   );
 }
