@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { SignUp } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
-  title: "Daftar — Usick One",
-  description: "Buat akun Usick One baru.",
+  title: "Daftar One Mind",
+  description: "Buat akun One Mind baru.",
   robots: {
     index: false,
     follow: false,

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Kebijakan Privasi — Usick One",
-  description: "Kebijakan Privasi Usick One dan Penggunaan Google API User Data.",
+  title: "Kebijakan Privasi One Mind",
+  description: "Kebijakan Privasi One Mind dan Penggunaan Google API User Data.",
   alternates: {
     canonical: "https://onemind.web.id/privacy",
   },

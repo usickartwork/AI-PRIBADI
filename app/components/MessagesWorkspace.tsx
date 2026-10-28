@@ -687,7 +687,7 @@ export default function MessagesWorkspace({
     if (!activeCall || activeCall.mode !== "incoming" || activeCall.status !== "memanggil") {
       return;
     }
-    const originalTitle = typeof document !== "undefined" ? document.title : "Usick One";
+    const originalTitle = typeof document !== "undefined" ? document.title : "One Mind";
     const callerName = activeCall.peerUser?.name || "Teman";
     const callIcon = activeCall.callType === "video" ? "📹" : "📞";
     let toggle = false;
@@ -696,7 +696,7 @@ export default function MessagesWorkspace({
       if (typeof document !== "undefined") {
         document.title = toggle
           ? `${callIcon} Panggilan Masuk dari ${callerName}!`
-          : `Usick One - Panggilan Masuk`;
+          : `One Mind Panggilan Masuk`;
         toggle = !toggle;
       }
     }, 1000);

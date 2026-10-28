@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Ketentuan Layanan — Usick One",
-  description: "Syarat dan Ketentuan Layanan Penggunaan Platform Usick One.",
+  title: "Ketentuan Layanan One Mind",
+  description: "Syarat dan Ketentuan Layanan Penggunaan Platform One Mind.",
   alternates: {
     canonical: "https://onemind.web.id/terms",
   },

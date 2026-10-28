@@ -16,19 +16,19 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { token } = await params;
   if (!token) {
-    return { title: "Tautan Tidak Ditemukan - Usick One" };
+    return { title: "Tautan Tidak Ditemukan One Mind" };
   }
 
   const link = await getPublicSharedLink(token);
   if (!link) {
     return {
-      title: "Tautan Tidak Ditemukan atau Telah Dicabut - Usick One",
+      title: "Tautan Tidak Ditemukan atau Telah Dicabut One Mind",
       description: "Tautan percakapan proyek ini tidak tersedia atau telah dicabut oleh pemiliknya.",
     };
   }
 
-  const title = `${link.title_snapshot || "Percakapan"} | Usick One`;
-  const description = `Lihat dan lanjutkan percakapan proyek "${link.title_snapshot || "Percakapan"}" di Usick One.`;
+  const title = `${link.title_snapshot || "Percakapan"} One Mind`;
+  const description = `Lihat dan lanjutkan percakapan proyek "${link.title_snapshot || "Percakapan"}" di One Mind.`;
 
   return {
     title,

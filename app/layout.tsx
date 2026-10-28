@@ -34,26 +34,26 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://onemind.web.id"),
-  title: "Usick One — Your AI Workspace",
+  title: "One Mind",
   description:
-    "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+    "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
   alternates: {
     canonical: "https://onemind.web.id/",
   },
   openGraph: {
-    title: "Usick One — Your AI Workspace",
+    title: "One Mind",
     description:
-      "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+      "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
     url: "https://onemind.web.id/",
-    siteName: "Usick One",
+    siteName: "One Mind",
     locale: "id_ID",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Usick One — Your AI Workspace",
+    title: "One Mind",
     description:
-      "Usick One is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+      "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
   },
   robots: {
     index: true,
