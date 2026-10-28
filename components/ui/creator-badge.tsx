@@ -27,30 +27,64 @@ export function CreatorBadge({
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      // Muncul hanya setelah pengguna melewati layar hero paling atas (~75% tinggi viewport)
-      // agar tidak menghalangi tombol CTA / navigasi di halaman animasi OneMind teratas.
-      const threshold = typeof window !== "undefined" ? window.innerHeight * 0.75 : 600;
-      const currentScroll = window.scrollY || document.documentElement.scrollTop;
+    const checkScroll = () => {
+      // Ambil posisi scroll dari seluruh kemungkinan elemen (window, html, body, atau container)
+      const page1 = typeof document !== "undefined" ? document.getElementById("page-1-container") : null;
+      const currentScroll = Math.max(
+        (typeof window !== "undefined" ? window.pageYOffset : 0) || 0,
+        (typeof window !== "undefined" ? window.scrollY : 0) || 0,
+        (typeof document !== "undefined" ? document.documentElement?.scrollTop : 0) || 0,
+        (typeof document !== "undefined" ? document.body?.scrollTop : 0) || 0,
+        page1?.scrollTop || 0
+      );
+
+      // Ambang batas: saat pengguna mulai scroll melewati bagian atas hero (cukup ~100px)
+      // Saat di paling atas (0 - 100px), disembunyikan agar tidak menghalangi tombol hero
+      // Begitu discroll melewati 100px, langsung muncul dengan pop-up halus
+      const threshold = 100;
       setIsVisible(currentScroll > threshold);
     };
 
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll, { passive: true });
+    checkScroll();
+
+    // Capture: true agar menangkap scroll di container mana pun
+    if (typeof window !== "undefined") {
+      window.addEventListener("scroll", checkScroll, { passive: true, capture: true });
+      window.addEventListener("resize", checkScroll, { passive: true });
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("scroll", checkScroll, { passive: true, capture: true });
+      const pageContainer = document.getElementById("page-1-container");
+      if (pageContainer) {
+        pageContainer.addEventListener("scroll", checkScroll, { passive: true });
+      }
+    }
+
+    // Interval pengaman ringan untuk memastikan status sinkron saat transisi/inertia scroll
+    const timer = setInterval(checkScroll, 250);
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("scroll", checkScroll, true);
+        window.removeEventListener("resize", checkScroll);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("scroll", checkScroll, true);
+        const pageContainer = document.getElementById("page-1-container");
+        if (pageContainer) {
+          pageContainer.removeEventListener("scroll", checkScroll);
+        }
+      }
+      clearInterval(timer);
     };
   }, []);
 
   return (
     <div
-      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-24px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
+      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-24px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
         isVisible
-          ? "opacity-100 translate-y-0 pointer-events-auto"
-          : "opacity-0 translate-y-4 pointer-events-none"
+          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+          : "opacity-0 translate-y-4 scale-95 pointer-events-none"
       } ${className}`}
     >
       {/* Unified Clickable Pill Badge: "Product by" disatukan di dalam kapsul hitam */}

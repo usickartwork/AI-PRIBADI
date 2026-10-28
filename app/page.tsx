@@ -24,9 +24,7 @@ import {
 } from "@heroicons/react/24/solid";
 
 const Footer01 = dynamic(() => import("@/components/ui/footer-01"));
-const CreatorBadge = dynamic(() =>
-  import("@/components/ui/creator-badge").then((m) => m.CreatorBadge)
-);
+import { CreatorBadge } from "@/components/ui/creator-badge";
 const FAQ = dynamic(() => import("@/components/ui/faq-tabs").then((m) => m.FAQ));
 const HomeInteractiveChat = dynamic(() =>
   import("@/components/ui/home-interactive-chat").then((m) => m.HomeInteractiveChat)
