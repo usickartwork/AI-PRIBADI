@@ -903,223 +903,6 @@ export default function Home() {
     return "dark"; // Default to dark mode as requested
   });
 
-  // Jaga activeView: jika sedang di tab "halaman", "faith" atau "game" (sementara dinonaktifkan), alihkan ke "chats"
-  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook" | "emergency" | "admin">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewParam = urlParams.get("view");
-        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)) {
-          return viewParam as any;
-        }
-        const saved = localStorage.getItem("usick-active-view");
-        if (saved === "halaman" || saved === "faith" || saved === "game") {
-          localStorage.removeItem("usick-active-view");
-          return "chats";
-        }
-        if (saved === "code" || saved === "schedule" || saved === "image" || saved === "messages" || saved === "music" || saved === "notebook" || saved === "emergency" || saved === "admin") return saved;
-      } catch {}
-    }
-    return "chats";
-  });
-  const [halamanSubTab, setHalamanSubTab] = useState<"game" | "faith">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewParam = urlParams.get("view");
-        if (viewParam === "faith" || viewParam === "game") return viewParam;
-        const saved = localStorage.getItem("usick-halaman-subtab");
-        if (saved === "faith" || saved === "game") return saved;
-        const view = localStorage.getItem("usick-active-view");
-        if (view === "faith") return "faith";
-        if (view === "game") return "game";
-      } catch {}
-    }
-    return "game";
-  });
-  const [lainnyaExpanded, setLainnyaExpanded] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const urlView = new URLSearchParams(window.location.search).get("view");
-        if (urlView === "halaman" || urlView === "faith" || urlView === "game") return true;
-        const saved = localStorage.getItem("usick-active-view");
-        return saved === "halaman" || saved === "faith" || saved === "game";
-      } catch {}
-    }
-    return false;
-  });
-  const isInitialActiveViewSyncDone = useRef(false);
-
-  const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
-
-  // Mount-on-first-visit tracker for heavy workspaces (Code, Notebook, Faith, Game):
-  // Defers chunk download and mount effects until the user actually visits the tab,
-  // then keeps the instance mounted in the background across tab switches.
-  const isProPlan = (subscription?.plan || "free") !== "free";
-  const visitedViewsRef = useRef({
-    code: false,
-    notebook: false,
-    faith: false,
-    game: false,
-  });
-  if (!user) {
-    visitedViewsRef.current.code = false;
-    visitedViewsRef.current.notebook = false;
-    visitedViewsRef.current.faith = false;
-  } else {
-    if (activeView === "code") visitedViewsRef.current.code = true;
-    if (activeView === "notebook") visitedViewsRef.current.notebook = true;
-    if (isProPlan && isHalamanActive && halamanSubTab === "faith") {
-      visitedViewsRef.current.faith = true;
-    }
-    if (!isProPlan) {
-      visitedViewsRef.current.faith = false;
-    }
-  }
-  if (activeView === "game" || (isHalamanActive && halamanSubTab === "game")) {
-    visitedViewsRef.current.game = true;
-  }
-
-  useEffect(() => {
-    try {
-      const urlView = new URLSearchParams(window.location.search).get("view");
-      const hasExplicitHalamanDeepLink =
-        urlView === "halaman" || urlView === "faith" || urlView === "game";
-      const saved = localStorage.getItem("usick-active-view");
-      if (!hasExplicitHalamanDeepLink && (saved === "halaman" || saved === "faith" || saved === "game")) {
-        setActiveView("chats");
-        localStorage.removeItem("usick-active-view");
-      }
-    } catch {}
-    isInitialActiveViewSyncDone.current = true;
-  }, []);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      try {
-        const viewParam = new URLSearchParams(window.location.search).get("view");
-        if (
-          viewParam &&
-          ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)
-        ) {
-          setActiveView(
-            viewParam as
-              | "chats"
-              | "code"
-              | "schedule"
-              | "faith"
-              | "image"
-              | "messages"
-              | "game"
-              | "halaman"
-              | "music"
-              | "notebook"
-              | "emergency"
-              | "admin"
-          );
-          if (viewParam === "faith" || viewParam === "game") {
-            setHalamanSubTab(viewParam);
-          }
-        }
-      } catch {}
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  useEffect(() => {
-    if (!isInitialActiveViewSyncDone.current) return;
-    try {
-      if (isHalamanActive) {
-        localStorage.setItem("usick-active-view", "halaman");
-        localStorage.setItem("usick-halaman-subtab", halamanSubTab);
-      } else if (activeView === "notebook") {
-        localStorage.setItem("usick-active-view", "notebook");
-      } else if (activeView === "emergency") {
-        localStorage.setItem("usick-active-view", "emergency");
-      } else {
-        localStorage.removeItem("usick-active-view");
-      }
-    } catch {}
-  }, [activeView, halamanSubTab, isHalamanActive]);
-
-  const handleSubscriptionUpdated = useCallback((updated: UserSubscriptionInfo) => {
-    setSubscription(updated);
-    try {
-      if (updated.userId && updated.userId !== "guest") {
-        localStorage.setItem("usick-user-subscription", JSON.stringify(updated));
-      }
-    } catch {}
-    if (updated.plan === "free") {
-      setActiveView((prev) => {
-        if (prev === "image" || prev === "halaman" || prev === "game" || prev === "faith" || prev === "messages") {
-          try {
-            localStorage.removeItem("usick-active-view");
-            localStorage.removeItem("usick-halaman-subtab");
-          } catch {}
-          return "chats";
-        }
-        return prev;
-      });
-      setModel((prev) => {
-        const isUsick = prev === "novita:apodex/apodex-1.1-mini" || prev.toLowerCase().includes("usick");
-        if (!isUsick) {
-          return FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini";
-        }
-        return prev;
-      });
-      setEffortLevel((prev) => (prev === "Max" ? "Balanced" : prev));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!subscription) return;
-    if (subscription.plan === "free") {
-      if (activeView === "image" || isHalamanActive || activeView === "messages") {
-        setActiveView("chats");
-        try {
-          localStorage.removeItem("usick-active-view");
-          localStorage.removeItem("usick-halaman-subtab");
-        } catch {}
-      }
-      const isUsick = model === "novita:apodex/apodex-1.1-mini" || model.toLowerCase().includes("usick");
-      if (!isUsick) {
-        setModel(FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini");
-      }
-      if (effortLevel === "Max") {
-        setEffortLevel("Balanced");
-      }
-    }
-  }, [subscription?.plan, activeView, isHalamanActive, model, effortLevel]);
-
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    const fetchUnread = async () => {
-      try {
-        const res = await fetch("/api/messages/conversations");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        const total = (data.conversations || []).reduce(
-          (sum: number, c: { unread?: number }) => sum + (c.unread || 0),
-          0
-        );
-        setUnreadMessagesCount(total);
-      } catch {}
-    };
-    void fetchUnread();
-    const interval = window.setInterval(fetchUnread, 15000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [user?.id]);
-
-  const [heroVideoReady, setHeroVideoReady] = useState(false);
-
   // ─── Usick One / One Mind: Hak Akses Admin & Kustomisasi Profil Admin ────────
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckCompleted, setAdminCheckCompleted] = useState(false);
@@ -1194,11 +977,11 @@ export default function Home() {
   }, []);
 
   const isUserNonAdmin = Boolean(systemAccess.loaded && !systemAccess.isAdmin && !isAdmin);
-  const getFeatureMaintenance = (key: string) => {
+  const getFeatureMaintenance = useCallback((key: string) => {
     if (!isUserNonAdmin) return null;
     const feat = systemAccess.features?.[key];
     return feat?.isEnabled ? feat : null;
-  };
+  }, [isUserNonAdmin, systemAccess.features]);
 
   useEffect(() => {
     checkSystemStatus();
@@ -1206,11 +989,254 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [checkSystemStatus]);
 
-  useEffect(() => {
-    if (isClerkLoaded) {
-      checkSystemStatus();
+  // Jaga activeView
+  const [activeView, setActiveView] = useState<"chats" | "code" | "schedule" | "faith" | "image" | "messages" | "game" | "halaman" | "music" | "notebook" | "emergency" | "admin">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewParam = urlParams.get("view");
+        if (viewParam && ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)) {
+          return viewParam as any;
+        }
+        const saved = localStorage.getItem("usick-active-view");
+        if (saved === "faith") {
+          localStorage.removeItem("usick-active-view");
+          return "chats";
+        }
+        if (saved && ["chats", "code", "schedule", "image", "messages", "music", "notebook", "emergency", "admin", "game", "halaman"].includes(saved)) {
+          return saved as any;
+        }
+      } catch {}
     }
-  }, [isClerkLoaded, isClerkSignedIn, clerkUser, checkSystemStatus]);
+    return "chats";
+  });
+  const [halamanSubTab, setHalamanSubTab] = useState<"game" | "faith">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewParam = urlParams.get("view");
+        if (viewParam === "faith" || viewParam === "game") return viewParam;
+        const saved = localStorage.getItem("usick-halaman-subtab");
+        if (saved === "faith" || saved === "game") return saved;
+        const view = localStorage.getItem("usick-active-view");
+        if (view === "faith") return "faith";
+        if (view === "game") return "game";
+      } catch {}
+    }
+    return "game";
+  });
+  const [lainnyaExpanded, setLainnyaExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const urlView = new URLSearchParams(window.location.search).get("view");
+        if (urlView === "halaman" || urlView === "faith" || urlView === "game") return true;
+        const saved = localStorage.getItem("usick-active-view");
+        return saved === "halaman" || saved === "faith" || saved === "game";
+      } catch {}
+    }
+    return false;
+  });
+  const isInitialActiveViewSyncDone = useRef(false);
+
+  const isHalamanActive = activeView === "halaman" || activeView === "game" || activeView === "faith";
+
+  // Mount-on-first-visit tracker for heavy workspaces (Code, Notebook, Faith, Game):
+  // Defers chunk download and mount effects until the user actually visits the tab,
+  // then keeps the instance mounted in the background across tab switches.
+  const isProPlan = (subscription?.plan || "free") !== "free";
+  const visitedViewsRef = useRef({
+    code: false,
+    notebook: false,
+    faith: false,
+    game: false,
+  });
+  if (!user) {
+    visitedViewsRef.current.code = false;
+    visitedViewsRef.current.notebook = false;
+    visitedViewsRef.current.faith = false;
+  } else {
+    if (activeView === "code") visitedViewsRef.current.code = true;
+    if (activeView === "notebook") visitedViewsRef.current.notebook = true;
+    if (isProPlan && isHalamanActive && halamanSubTab === "faith") {
+      visitedViewsRef.current.faith = true;
+    }
+    if (!isProPlan) {
+      visitedViewsRef.current.faith = false;
+    }
+  }
+  if (activeView === "game" || (isHalamanActive && halamanSubTab === "game")) {
+    visitedViewsRef.current.game = true;
+  }
+
+  useEffect(() => {
+    try {
+      const urlView = new URLSearchParams(window.location.search).get("view");
+      const hasExplicitHalamanDeepLink =
+        urlView === "halaman" || urlView === "faith" || urlView === "game";
+      const saved = localStorage.getItem("usick-active-view");
+      const savedSub = localStorage.getItem("usick-halaman-subtab");
+      const isFree = (subscription?.plan || "free") === "free";
+      if (
+        !hasExplicitHalamanDeepLink &&
+        (saved === "faith" || (saved === "halaman" && savedSub === "faith")) &&
+        isFree &&
+        !getFeatureMaintenance("faith")
+      ) {
+        setActiveView("chats");
+        localStorage.removeItem("usick-active-view");
+        localStorage.removeItem("usick-halaman-subtab");
+      }
+    } catch {}
+    isInitialActiveViewSyncDone.current = true;
+  }, [getFeatureMaintenance, subscription?.plan]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const viewParam = new URLSearchParams(window.location.search).get("view");
+        if (
+          viewParam &&
+          ["chats", "code", "schedule", "faith", "image", "messages", "game", "halaman", "music", "notebook", "emergency", "admin"].includes(viewParam)
+        ) {
+          setActiveView(
+            viewParam as
+              | "chats"
+              | "code"
+              | "schedule"
+              | "faith"
+              | "image"
+              | "messages"
+              | "game"
+              | "halaman"
+              | "music"
+              | "notebook"
+              | "emergency"
+              | "admin"
+          );
+          if (viewParam === "faith" || viewParam === "game") {
+            setHalamanSubTab(viewParam);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialActiveViewSyncDone.current) return;
+    try {
+      if (isHalamanActive) {
+        localStorage.setItem("usick-active-view", "halaman");
+        localStorage.setItem("usick-halaman-subtab", halamanSubTab);
+      } else if (activeView === "notebook") {
+        localStorage.setItem("usick-active-view", "notebook");
+      } else if (activeView === "emergency") {
+        localStorage.setItem("usick-active-view", "emergency");
+      } else {
+        localStorage.removeItem("usick-active-view");
+      }
+    } catch {}
+  }, [activeView, halamanSubTab, isHalamanActive]);
+
+  const handleSubscriptionUpdated = useCallback((updated: UserSubscriptionInfo) => {
+    setSubscription(updated);
+    try {
+      if (updated.userId && updated.userId !== "guest") {
+        localStorage.setItem("usick-user-subscription", JSON.stringify(updated));
+      }
+    } catch {}
+    if (updated.plan === "free") {
+      setActiveView((prev) => {
+        const isFaithActive = prev === "faith" || (prev === "halaman" && halamanSubTab === "faith");
+        const isProLocked =
+          (prev === "image" && !getFeatureMaintenance("image")) ||
+          (isFaithActive && !getFeatureMaintenance("faith")) ||
+          (prev === "messages" && !getFeatureMaintenance("messages")) ||
+          (prev === "music" && !getFeatureMaintenance("music"));
+
+        if (isProLocked) {
+          try {
+            localStorage.removeItem("usick-active-view");
+            localStorage.removeItem("usick-halaman-subtab");
+          } catch {}
+          return "chats";
+        }
+        return prev;
+      });
+      setModel((prev) => {
+        const isUsick = prev === "novita:apodex/apodex-1.1-mini" || prev.toLowerCase().includes("usick");
+        if (!isUsick) {
+          return FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini";
+        }
+        return prev;
+      });
+      setEffortLevel((prev) => (prev === "Max" ? "Balanced" : prev));
+    }
+  }, [getFeatureMaintenance, halamanSubTab]);
+
+  useEffect(() => {
+    if (!subscription) return;
+    if (subscription.plan === "free") {
+      const isFaithActive = isHalamanActive && halamanSubTab === "faith";
+      const isProLocked =
+        (activeView === "image" && !getFeatureMaintenance("image")) ||
+        (isFaithActive && !getFeatureMaintenance("faith")) ||
+        (activeView === "messages" && !getFeatureMaintenance("messages")) ||
+        (activeView === "music" && !getFeatureMaintenance("music"));
+
+      if (isProLocked) {
+        setActiveView("chats");
+        try {
+          localStorage.removeItem("usick-active-view");
+          localStorage.removeItem("usick-halaman-subtab");
+        } catch {}
+      }
+      const isUsick = model === "novita:apodex/apodex-1.1-mini" || model.toLowerCase().includes("usick");
+      if (!isUsick) {
+        setModel(FALLBACK_MODELS[0]?.id || "novita:apodex/apodex-1.1-mini");
+      }
+      if (effortLevel === "Max") {
+        setEffortLevel("Balanced");
+      }
+    }
+  }, [
+    subscription?.plan,
+    activeView,
+    isHalamanActive,
+    halamanSubTab,
+    model,
+    effortLevel,
+    getFeatureMaintenance,
+  ]);
+
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch("/api/messages/conversations");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const total = (data.conversations || []).reduce(
+          (sum: number, c: { unread?: number }) => sum + (c.unread || 0),
+          0
+        );
+        setUnreadMessagesCount(total);
+      } catch {}
+    };
+    void fetchUnread();
+    const interval = window.setInterval(fetchUnread, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [user?.id]);
+
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
 
   // Pemeriksaan Otorisasi Admin & Pengambilan Avatar Admin (Direct Sync tanpa Waterfall)
   useEffect(() => {
@@ -4500,7 +4526,7 @@ export default function Home() {
         closeSidebarOnMobile();
         return;
       case "image":
-        if (isFreePlan) {
+        if (isFreePlan && !getFeatureMaintenance("image")) {
           setSelectedLockedModelName("Image Generator & Translator (Pro)");
           setShowUpgradeModal(true);
           return;
@@ -4509,7 +4535,7 @@ export default function Home() {
         closeSidebarOnMobile();
         return;
       case "messages":
-        if (isFreePlan) {
+        if (isFreePlan && !getFeatureMaintenance("messages")) {
           setSelectedLockedModelName("Messages (Pro)");
           setShowUpgradeModal(true);
           return;
@@ -4519,7 +4545,7 @@ export default function Home() {
         closeSidebarOnMobile();
         return;
       case "music":
-        if (isFreePlan) {
+        if (isFreePlan && !getFeatureMaintenance("music")) {
           setSelectedLockedModelName("Music One & Connect (Pro)");
           setShowUpgradeModal(true);
           return;
@@ -4537,7 +4563,7 @@ export default function Home() {
         closeSidebarOnMobile();
         return;
       case "faith":
-        if (isFreePlan) {
+        if (isFreePlan && !getFeatureMaintenance("faith")) {
           setSelectedLockedModelName("Faith Space (Pro)");
           setShowUpgradeModal(true);
           return;
@@ -4567,7 +4593,7 @@ export default function Home() {
             key={subId}
             type="button"
             onClick={() => {
-              if (subId === "faith" && (subscription?.plan || "free") === "free") {
+              if (subId === "faith" && (subscription?.plan || "free") === "free" && !getFeatureMaintenance("faith")) {
                 setSelectedLockedModelName("Faith Space (Pro)");
                 setShowUpgradeModal(true);
                 return;
@@ -5033,8 +5059,9 @@ export default function Home() {
                         <div className="pl-6 pr-1 space-y-1 pt-0.5">
                           {navPrefs.lainnyaOrder.map((subId) => {
                             const isSubActive = isNavTabActive(subId);
+                            const isSubMaintenance = Boolean(getFeatureMaintenance(subId));
                             const isSubProLocked =
-                              isFreePlanGroup && NAV_TAB_METADATA[subId].isProBadgeTab;
+                              isFreePlanGroup && NAV_TAB_METADATA[subId].isProBadgeTab && !isSubMaintenance;
                             const showSubUnreadBadge =
                               subId === "messages" && !isFreePlanGroup && unreadMessagesCount > 0;
                             return (
@@ -5051,7 +5078,20 @@ export default function Home() {
                                   {renderSidebarSlotIcon(subId, "w-4 h-4 shrink-0")}
                                   <span>{NAV_TAB_METADATA[subId].sidebarLabel}</span>
                                 </div>
-                                {isSubProLocked ? (
+                                {isSubMaintenance ? (
+                                  <span
+                                    className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                                      isDark
+                                        ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                        : "bg-amber-50 text-amber-700 border-amber-300"
+                                    }`}
+                                  >
+                                    <svg className="w-2.5 h-2.5 opacity-80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    MAINTENANCE
+                                  </span>
+                                ) : isSubProLocked ? (
                                   <span
                                     className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                                       isDark
@@ -5084,7 +5124,8 @@ export default function Home() {
 
                 const isActive = isNavTabActive(slotId);
                 const isFreePlan = (subscription?.plan || "free") === "free";
-                const showProLock = isFreePlan && NAV_TAB_METADATA[slotId].isProBadgeTab;
+                const isSlotMaintenance = Boolean(getFeatureMaintenance(slotId));
+                const showProLock = isFreePlan && NAV_TAB_METADATA[slotId].isProBadgeTab && !isSlotMaintenance;
                 const showUnreadBadge =
                   slotId === "messages" && !isFreePlan && unreadMessagesCount > 0;
 
@@ -5102,7 +5143,20 @@ export default function Home() {
                       {renderSidebarSlotIcon(slotId, "w-5 h-5 md:w-5 md:h-5 shrink-0")}
                       <span>{NAV_TAB_METADATA[slotId].sidebarLabel}</span>
                     </div>
-                    {showProLock ? (
+                    {isSlotMaintenance ? (
+                      <span
+                        className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDark
+                            ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            : "bg-amber-50 text-amber-700 border-amber-300"
+                        }`}
+                      >
+                        <svg className="w-2.5 h-2.5 opacity-80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        MAINTENANCE
+                      </span>
+                    ) : showProLock ? (
                       <span
                         className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                           isDark
@@ -5543,6 +5597,7 @@ export default function Home() {
                 message={getFeatureMaintenance("code")?.message}
                 estimatedEnd={getFeatureMaintenance("code")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5579,6 +5634,7 @@ export default function Home() {
               message={getFeatureMaintenance("music")?.message}
               estimatedEnd={getFeatureMaintenance("music")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5602,6 +5658,7 @@ export default function Home() {
                 message={getFeatureMaintenance("notebook")?.message}
                 estimatedEnd={getFeatureMaintenance("notebook")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5623,6 +5680,7 @@ export default function Home() {
               message={getFeatureMaintenance("emergency")?.message}
               estimatedEnd={getFeatureMaintenance("emergency")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5657,6 +5715,7 @@ export default function Home() {
               message={getFeatureMaintenance("faith")?.message}
               estimatedEnd={getFeatureMaintenance("faith")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5695,6 +5754,7 @@ export default function Home() {
               message={getFeatureMaintenance("messages")?.message}
               estimatedEnd={getFeatureMaintenance("messages")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5719,6 +5779,7 @@ export default function Home() {
               message={getFeatureMaintenance("game")?.message}
               estimatedEnd={getFeatureMaintenance("game")?.estimatedEnd}
               onBack={() => setActiveView("chats")}
+              onTogglePanel={() => setSidebarOpen((prev) => !prev)}
               isDark={isDark}
             />
           )}
@@ -5741,6 +5802,7 @@ export default function Home() {
                 message={getFeatureMaintenance("schedule")?.message}
                 estimatedEnd={getFeatureMaintenance("schedule")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -5775,6 +5837,7 @@ export default function Home() {
                 message={getFeatureMaintenance("image")?.message}
                 estimatedEnd={getFeatureMaintenance("image")?.estimatedEnd}
                 onBack={() => setActiveView("chats")}
+                onTogglePanel={() => setSidebarOpen((prev) => !prev)}
                 isDark={isDark}
               />
             )}
@@ -6447,6 +6510,7 @@ export default function Home() {
             title={getFeatureMaintenance("chat")?.title}
             message={getFeatureMaintenance("chat")?.message}
             estimatedEnd={getFeatureMaintenance("chat")?.estimatedEnd}
+            onTogglePanel={() => setSidebarOpen((prev) => !prev)}
             isDark={isDark}
           />
         )}
