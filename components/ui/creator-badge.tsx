@@ -8,13 +8,15 @@ export interface CreatorBadgeProps {
   instagramUrl?: string;
   avatarUrl?: string;
   className?: string;
+  alwaysVisible?: boolean;
 }
 
 /**
  * CreatorBadge: Floating creator attribution pill
  * Displays unified "[ Product by | Avatar | filius_pl | Followers | Instagram Logo ]"
  * Styled as a single enclosed black obsidian pill so nothing clashes with background content.
- * Only appears as a pop-up after the user scrolls past the top hero screen (OneMind animation section).
+ * Only appears as a pop-up after the user scrolls past the top hero screen on homepage,
+ * or always visible directly on sub-pages like /usick-one and /harga.
  */
 export function CreatorBadge({
   username = "filius_pl",
@@ -22,11 +24,17 @@ export function CreatorBadge({
   instagramUrl = "https://www.instagram.com/filius_pl?cplk=a3pjZmhxeTBieXI5&utm_source=qr",
   avatarUrl = "/filius-avatar.png",
   className = "",
+  alwaysVisible = false,
 }: CreatorBadgeProps) {
   const [imgError, setImgError] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(alwaysVisible);
 
   useEffect(() => {
+    if (alwaysVisible) {
+      setIsVisible(true);
+      return;
+    }
+
     const checkScroll = () => {
       // Ambil posisi scroll dari seluruh kemungkinan elemen (window, html, body, atau container)
       const page1 = typeof document !== "undefined" ? document.getElementById("page-1-container") : null;
@@ -77,7 +85,7 @@ export function CreatorBadge({
       }
       clearInterval(timer);
     };
-  }, []);
+  }, [alwaysVisible]);
 
   return (
     <div

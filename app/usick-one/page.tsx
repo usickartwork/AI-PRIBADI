@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { SiteHeader } from "@/components/ui/site-header";
 import { HomeInteractiveChat } from "@/components/ui/home-interactive-chat";
 import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
+import { CreatorBadge } from "@/components/ui/creator-badge";
 import { AuthModal } from "@/app/components/AuthModal";
 
 export default function UsickOnePage() {
@@ -41,6 +42,9 @@ export default function UsickOnePage() {
           }}
         />
       </main>
+
+      {/* ─── FLOATING CREATOR ATTRIBUTION BADGE ─── */}
+      <CreatorBadge alwaysVisible={true} />
 
       {/* Auth Modal for Signin / Signup */}
       <AuthModal

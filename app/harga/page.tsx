@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { FAQ, ONE_MIND_FAQ_DATA } from "@/components/ui/faq-tabs";
 import Footer01 from "@/components/ui/footer-01";
 import { SiteHeader } from "@/components/ui/site-header";
+import { MeshDriftBackground } from "@/components/ui/mesh-drift-background";
+import { CreatorBadge } from "@/components/ui/creator-badge";
 import { AnimatePresence } from "framer-motion";
 import { AuthModal } from "@/app/components/AuthModal";
 
@@ -63,19 +65,24 @@ export default function PricingLandingPage() {
   ];
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans">
-      
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#09090b] text-white selection:bg-white/20 antialiased font-sans flex flex-col justify-between">
+      {/* ─── Mesh Drift WebGL Background (Sama persis seperti di halaman Usick One) ─── */}
+      <MeshDriftBackground isDark={true} />
+
+      {/* Ambient overlay */}
+      <div className="fixed inset-0 pointer-events-none z-0 bg-black/25" aria-hidden="true" />
+
       {/* ─── SITE HEADER WITH BACK BUTTON, BRAND LOGO, NAV TABS, LOGIN ─── */}
       <SiteHeader
         showBack={true}
         backHref="/"
         activeItem="pricing"
         onGetStarted={openAuth}
-        className="border-b border-white/[0.08] bg-black/60 backdrop-blur-xl"
+        className="relative z-20 border-b border-white/[0.08] bg-black/60 backdrop-blur-xl"
       />
 
       {/* Main Content Area */}
-      <main className="max-w-4xl mx-auto px-6 pt-12 pb-24">
+      <main className="relative z-10 max-w-4xl mx-auto px-6 pt-12 pb-24 flex-1">
         
         {/* Simple & Clean Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
@@ -152,19 +159,26 @@ export default function PricingLandingPage() {
       </main>
 
       {/* FAQ Tabs Section */}
-      <FAQ
-        title="Pertanyaan Umum"
-        subtitle="FAQ Harga & Kuota"
-        categories={{
-          "pricing": "Paket & Kredit",
-          "ai-chat": "Model & Fitur",
-        }}
-        faqData={ONE_MIND_FAQ_DATA}
-        className="max-w-4xl mx-auto"
-      />
+      <div className="relative z-10">
+        <FAQ
+          title="Pertanyaan Umum"
+          subtitle="FAQ Harga & Kuota"
+          categories={{
+            "pricing": "Paket & Kredit",
+            "ai-chat": "Model & Fitur",
+          }}
+          faqData={ONE_MIND_FAQ_DATA}
+          className="max-w-4xl mx-auto"
+        />
+      </div>
 
       {/* Clean Footer */}
-      <Footer01 isDark={true} onGetStarted={openAuth} />
+      <div className="relative z-10">
+        <Footer01 isDark={true} onGetStarted={openAuth} />
+      </div>
+
+      {/* ─── FLOATING CREATOR ATTRIBUTION BADGE ─── */}
+      <CreatorBadge alwaysVisible={true} />
 
       {/* Auth Modal */}
       <AuthModal

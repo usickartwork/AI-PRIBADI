@@ -32,9 +32,6 @@ const HomeAdvantagesSection = dynamic(() =>
 const HomeFeatureSections = dynamic(() =>
   import("@/components/ui/home-feature-sections").then((m) => m.HomeFeatureSections)
 );
-const HomePricingSection = dynamic(() =>
-  import("@/components/ui/home-pricing-section").then((m) => m.HomePricingSection)
-);
 const ScrollReveal = dynamic(() =>
   import("@/components/ui/scroll-reveal").then((m) => m.ScrollReveal)
 );
@@ -4798,90 +4795,21 @@ export default function Home() {
         <>
           <div
             id="page-1-container"
-          className={`relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-[#fafafc] dark:bg-[#121215] ${
-            isDark ? "text-zinc-100" : "text-zinc-900"
-          }`}
-        >
-          {/* ─── Mesh Drift WebGL Background (Sama persis seperti di tab chat & tab schedule) ─── */}
-          <MeshDriftBackground isDark={isDark} />
-          {/* Lapisan ambient halus untuk menyelaraskan kontras gelap shader dengan tema obsidian */}
-          <div className="fixed inset-0 pointer-events-none z-0 bg-black/15" aria-hidden="true" />
-
-          <PrismaHero
-            isDark={isDark}
-            onVideoReady={() => setHeroVideoReady(true)}
-            onGetStarted={(targetMode) => {
-              setAuthModalMode(targetMode || "signup");
-              setShowAuthModal(true);
-            }}
-            onOpenPricing={() => setShowPricingModal(true)}
-          />
-
-          {/* ─── KEUNGGULAN ALL-IN-ONE (MOTION GRAPHIC CARDS, KHUSUS DESKTOP) ─── */}
-          <div className="hidden md:block relative w-full bg-black z-10 border-b border-white/[0.06]">
-            <HomeAdvantagesSection
-              isDark={isDark}
-              onGetStarted={(targetMode) => {
-                setAuthModalMode(targetMode || "signup");
-                setShowAuthModal(true);
-              }}
-              onOpenPricing={() => setShowPricingModal(true)}
-            />
-          </div>
-
-          {/* ─── KETERANGAN FITUR (BG HITAM MURNI, MENYATU LANGSUNG DENGAN HERO & ADVANTAGES) ─── */}
-          <div className="relative w-full bg-black z-10">
-            <HomeFeatureSections
-              isDark={isDark}
-              onGetStarted={(targetMode) => {
-                setAuthModalMode(targetMode || "signup");
-                setShowAuthModal(true);
-              }}
-              onOpenPricing={() => setShowPricingModal(true)}
-            />
-          </div>
-
-          {/* ─── TRANSISI GRADASI HALUS & PROPORSIONAL: HITAM FITUR MELEBUR KE MESHDRIFT ─── */}
-          <div
-            className="w-full h-24 sm:h-36 pointer-events-none relative z-10 -mt-px"
-            style={{
-              background:
-                "linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.3) 70%, transparent 100%)",
-            }}
-            aria-hidden="true"
-          />
-
-          {/* ─── PRICING SECTION ───────────────────────────────────────────────── */}
-          <HomePricingSection
-            isDark={isDark}
-            onGetStarted={(targetMode) => {
-              setAuthModalMode(targetMode || "signup");
-              setShowAuthModal(true);
-            }}
-            onOpenPricing={() => setShowPricingModal(true)}
-          />
-
-          {/* ─── FAQ SECTION ───────────────────────────────────────────────────── */}
-          <ScrollReveal
-            id="section-faq"
-            y={20}
-            duration={0.65}
-            className="scroll-mt-20 relative z-10"
+            className="relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-black text-white selection:bg-white/20 antialiased font-sans"
           >
-            <FAQ
-              title="Pertanyaan Umum Seputar One Mind"
-              subtitle="FAQ & Pusat Bantuan"
-              className="max-w-6xl mx-auto"
+            <PrismaHero
+              isDark={isDark}
+              onVideoReady={() => setHeroVideoReady(true)}
+              onGetStarted={(targetMode) => {
+                setAuthModalMode(targetMode || "signup");
+                setShowAuthModal(true);
+              }}
+              onOpenPricing={() => setShowPricingModal(true)}
             />
-          </ScrollReveal>
 
-          {/* ─── FOOTER SECTION ────────────────────────────────────────────────── */}
-          <div className="relative w-full z-10">
-            {/* Transisi gradasi: MeshDrift melebur mulus ke latar hitam Footer */}
-            <div className="w-full h-20 sm:h-32 bg-gradient-to-b from-transparent via-black/70 to-black pointer-events-none -mb-px" />
-
-            <ScrollReveal y={20} duration={0.7} className="bg-black">
-              <Footer01
+            {/* ─── KEUNGGULAN ALL-IN-ONE (MOTION GRAPHIC CARDS, KHUSUS DESKTOP) ─── */}
+            <div className="hidden md:block relative w-full bg-black z-10 border-b border-white/[0.06]">
+              <HomeAdvantagesSection
                 isDark={isDark}
                 onGetStarted={(targetMode) => {
                   setAuthModalMode(targetMode || "signup");
@@ -4889,13 +4817,54 @@ export default function Home() {
                 }}
                 onOpenPricing={() => setShowPricingModal(true)}
               />
-            </ScrollReveal>
-          </div>
+            </div>
 
-          <AuthModal
-            isOpen={showAuthModal}
-            isDark={isDark}
-            initialMode={authModalMode}
+            {/* ─── KETERANGAN FITUR (BG HITAM MURNI, MENYATU LANGSUNG DENGAN HERO & ADVANTAGES) ─── */}
+            <div className="relative w-full bg-black z-10">
+              <HomeFeatureSections
+                isDark={isDark}
+                onGetStarted={(targetMode) => {
+                  setAuthModalMode(targetMode || "signup");
+                  setShowAuthModal(true);
+                }}
+                onOpenPricing={() => setShowPricingModal(true)}
+              />
+            </div>
+
+            {/* ─── FAQ SECTION (LATAR HITAM MURNI SELEPAS FITUR) ──────────────────── */}
+            <div className="relative w-full bg-black z-10 py-16 sm:py-24 border-t border-white/[0.06]">
+              <ScrollReveal
+                id="section-faq"
+                y={20}
+                duration={0.65}
+                className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6"
+              >
+                <FAQ
+                  title="Pertanyaan Umum Seputar One Mind"
+                  subtitle="FAQ & Pusat Bantuan"
+                  className="max-w-6xl mx-auto"
+                />
+              </ScrollReveal>
+            </div>
+
+            {/* ─── FOOTER SECTION (LATAR HITAM MURNI) ─────────────────────────────── */}
+            <div className="relative w-full z-10 bg-black border-t border-white/[0.06]">
+              <ScrollReveal y={20} duration={0.7} className="bg-black">
+                <Footer01
+                  isDark={isDark}
+                  onGetStarted={(targetMode) => {
+                    setAuthModalMode(targetMode || "signup");
+                    setShowAuthModal(true);
+                  }}
+                  onOpenPricing={() => setShowPricingModal(true)}
+                />
+              </ScrollReveal>
+            </div>
+
+            <AuthModal
+              isOpen={showAuthModal}
+              isDark={isDark}
+              initialMode={authModalMode}
             onSuccess={() => {
               setShowAuthModal(false);
             }}
