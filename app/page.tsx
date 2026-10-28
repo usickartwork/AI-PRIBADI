@@ -2330,6 +2330,8 @@ export default function Home() {
 
   // Interactive 1:1 mobile sidebar swipe gesture controller (home-screen style with direct finger tracking)
   useEffect(() => {
+    if (!user) return;
+
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -2566,7 +2568,7 @@ export default function Home() {
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (resetTimerId) clearTimeout(resetTimerId);
     };
-  }, [sidebarOpen, settingsOpen, activeView, clearDragStyles]);
+  }, [user, sidebarOpen, settingsOpen, activeView, clearDragStyles]);
 
   // Load models from API
   useEffect(() => {
@@ -4795,7 +4797,7 @@ export default function Home() {
         <>
           <div
             id="page-1-container"
-            className="relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-black text-white selection:bg-white/20 antialiased font-sans"
+            className="relative w-full min-h-screen bg-black text-white selection:bg-white/20 antialiased font-sans"
           >
             <PrismaHero
               isDark={isDark}

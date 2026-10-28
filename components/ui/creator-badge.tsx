@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 export interface CreatorBadgeProps {
   username?: string;
@@ -26,49 +26,13 @@ export function CreatorBadge({
   behanceUrl = "https://www.behance.net/filiuspatrislahendra",
   avatarUrl = "/filius-avatar.png",
   className = "",
-  alwaysVisible = false,
+  alwaysVisible = true,
 }: CreatorBadgeProps) {
   const [imgError, setImgError] = useState(false);
-  const [isVisible, setIsVisible] = useState(alwaysVisible);
-
-  useEffect(() => {
-    if (alwaysVisible) {
-      setIsVisible(true);
-      return;
-    }
-
-    const checkScroll = () => {
-      const currentScroll =
-        (typeof window !== "undefined" ? window.scrollY || window.pageYOffset : 0) ||
-        (typeof document !== "undefined" ? document.documentElement?.scrollTop || document.body?.scrollTop : 0) ||
-        0;
-
-      const threshold = 100;
-      setIsVisible(currentScroll > threshold);
-    };
-
-    checkScroll();
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("scroll", checkScroll, { passive: true });
-      window.addEventListener("resize", checkScroll, { passive: true });
-    }
-
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("scroll", checkScroll);
-        window.removeEventListener("resize", checkScroll);
-      }
-    };
-  }, [alwaysVisible]);
 
   return (
     <div
-      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-20px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none ${
-        isVisible
-          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-          : "opacity-0 translate-y-4 scale-95 pointer-events-none"
-      } ${className}`}
+      className={`fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-[70] max-w-[calc(100vw-20px)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] select-none opacity-100 translate-y-0 scale-100 pointer-events-auto ${className}`}
     >
       {/* ─── Unified Bubble Panel (Pure obsidian black, padding kanan mobile diperluas pr-8 agar pas dan simetris) ─── */}
       <div className="group relative inline-flex items-center gap-1 sm:gap-1.5 pl-4 pr-8 sm:pl-4.5 sm:pr-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
