@@ -95,12 +95,42 @@ export function OriginalStarLogo({ isDark }: { isDark: boolean }) {
   );
 }
 
+// Module-scoped memory flag: persists across client-side page navigation in the same session
+let hasIntroEverCompleted = false;
+
+export function isIntroCompleted(): boolean {
+  if (hasIntroEverCompleted) return true;
+  if (typeof window !== "undefined") {
+    try {
+      if (sessionStorage.getItem("onemind_intro_completed") === "true") {
+        hasIntroEverCompleted = true;
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return false;
+}
+
+export function markIntroCompleted(): void {
+  hasIntroEverCompleted = true;
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem("onemind_intro_completed", "true");
+    } catch {
+      // ignore
+    }
+  }
+}
+
 /**
  * Custom hook to orchestrate application initialization:
  * - Keeps the solid black intro screen active until the web process/hero video is ready.
- * - Guarantees minimum duration (~2.2s) so the "One Mind" TechText sweep and model slider play smoothly.
+ * - Guarantees minimum duration (~1.1s) on first entrance so the "One Mind" TechText sweep and model slider play smoothly.
  * - Transitions with an elegant fade-out exit once both minDuration and isReady are met.
- * - Has a safety timeout (~4s) to ensure the user never gets stuck.
+ * - Saves session state so navigating back from /usick-one, /harga, etc. NEVER re-runs the intro or delays the user.
+ * - Has a safety timeout (~5s) to ensure the user never gets stuck.
  */
 export function useAppInitializer({
   authLoading = false,
@@ -116,8 +146,10 @@ export function useAppInitializer({
   safetyTimeoutMs?: number;
   isReady?: boolean;
 } = {}) {
-  const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">("visible");
-  const minTimePassedRef = useRef(false);
+  const [introState, setIntroState] = useState<"visible" | "exiting" | "gone">(() => {
+    return isIntroCompleted() ? "gone" : "visible";
+  });
+  const minTimePassedRef = useRef(isIntroCompleted());
 
   const combinedReady = Boolean(isReady && !authLoading && subscriptionReady);
   const isReadyRef = useRef(combinedReady);
@@ -127,11 +159,18 @@ export function useAppInitializer({
   }, [combinedReady]);
 
   useEffect(() => {
+    // Jika intro sudah pernah selesai di sesi ini, langsung selesai tanpa timer/animasi ulang
+    if (isIntroCompleted()) {
+      setIntroState("gone");
+      return;
+    }
+
     let unmountTimer: NodeJS.Timeout | null = null;
 
     const triggerExit = () => {
       setIntroState((prev) => {
         if (prev === "visible") {
+          markIntroCompleted();
           unmountTimer = setTimeout(() => {
             setIntroState("gone");
           }, 300);
@@ -163,7 +202,10 @@ export function useAppInitializer({
 
   // When combinedReady changes to true, if min time already passed, trigger exit immediately
   useEffect(() => {
+    if (isIntroCompleted() && introState === "gone") return;
+
     if (combinedReady && minTimePassedRef.current && introState === "visible") {
+      markIntroCompleted();
       setIntroState("exiting");
       const unmountTimer = setTimeout(() => {
         setIntroState("gone");

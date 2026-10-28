@@ -71,9 +71,9 @@ export default function PricingLandingPage() {
       {/* Ambient overlay */}
       <div className="fixed inset-0 pointer-events-none z-0 bg-black/25" aria-hidden="true" />
 
-      {/* ─── SITE HEADER (CLEAN & TRANSPARENT) ─── */}
+      {/* ─── SITE HEADER (CLEAN & TRANSPARENT WITHOUT BACK BUTTON) ─── */}
       <SiteHeader
-        showBack={true}
+        showBack={false}
         backHref="/"
         activeItem="pricing"
         onGetStarted={openAuth}
