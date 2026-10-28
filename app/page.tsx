@@ -6,6 +6,7 @@ import { PrismaHero } from "@/components/ui/prisma-hero";
 import { IntroLoader, useAppInitializer } from "./components/IntroLoader";
 import { TechText } from "./components/TechText";
 import { BrainLogo } from "@/components/ui/brain-logo";
+import { StrokeDrawType } from "@/components/ui/stroke-draw-type";
 import { TypewriterText } from "@/components/ui/typewriter-text";
 import {
   ChatBubbleBottomCenterTextIcon,
@@ -2619,41 +2620,52 @@ export default function Home() {
       // Simpan dan sinkronkan ke database Supabase HANYA jika:
       // 1. Pengguna sedang login (ada currentUserId)
       // 2. Sesi server sudah selesai dimuat pertama kali (Mencegah cache desktop kosong/basi menimpa riwayat server)
-      // 3. Ada pesan riwayat di dalam sessions
       if (
         currentUserId &&
-        historySyncedForRef.current === currentUserId &&
-        sessionsToSave.length > 0 &&
-        sessionsToSave.some((s) => s.messages && s.messages.length > 0)
+        historySyncedForRef.current === currentUserId
       ) {
+        const hasMessages = sessionsToSave.length > 0 && sessionsToSave.some((s) => s.messages && s.messages.length > 0);
         const timer = setTimeout(async () => {
           if (
             sessionsOwnerIdRef.current === currentUserId &&
             historySyncedForRef.current === currentUserId
           ) {
-            // 1. Coba simpan via endpoint internal /api/chat/history
-            let apiSaved = false;
-            try {
-              const res = await fetch("/api/chat/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: currentUserId, messages: sessionsToSave }),
-              });
-              if (res.ok) apiSaved = true;
-            } catch {}
+            if (hasMessages) {
+              // 1. Coba simpan via endpoint internal /api/chat/history
+              let apiSaved = false;
+              try {
+                const res = await fetch("/api/chat/history", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ userId: currentUserId, messages: sessionsToSave }),
+                });
+                if (res.ok) apiSaved = true;
+              } catch {}
 
-            // 2. Fallback ke direct Supabase client jika API gagal
-            if (!apiSaved) {
+              // 2. Fallback ke direct Supabase client jika API gagal
+              if (!apiSaved) {
+                supabase
+                  .from("chat_history")
+                  .upsert({
+                    user_id: currentUserId,
+                    messages: sessionsToSave,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .then(({ error }) => {
+                    if (error) console.warn("[supabase] save chat_history error:", error.message);
+                  });
+              }
+            } else {
+              // Jika seluruh pesan/sesi telah dihapus, pastikan baris di Supabase juga dikosongkan permanen
+              fetch(`/api/chat/history?userId=${encodeURIComponent(currentUserId)}`, { method: "DELETE" }).catch(() => {});
               supabase
                 .from("chat_history")
                 .upsert({
                   user_id: currentUserId,
-                  messages: sessionsToSave,
+                  messages: [],
                   updated_at: new Date().toISOString(),
                 })
-                .then(({ error }) => {
-                  if (error) console.warn("[supabase] save chat_history error:", error.message);
-                });
+                .then(() => {});
             }
           }
         }, 1000);
@@ -3350,16 +3362,99 @@ export default function Home() {
   };
 
   const deleteSession = (sessionId: string) => {
+    const currentUserId = user?.id ?? null;
     setSessions((prev) => {
       const next = prev.filter((s) => s.id !== sessionId);
+      const nextActiveId = activeSessionId === sessionId
+        ? (next.length > 0 ? next[0].id : generateUUID())
+        : activeSessionId;
+
       if (activeSessionId === sessionId) {
-        if (next.length > 0) {
-          setActiveSessionId(next[0].id);
+        setActiveSessionId(nextActiveId);
+      }
+
+      // 1. Simpan langsung ke localStorage seketika
+      try {
+        const toSave = next.map((s) => ({
+          ...s,
+          messages: s.messages.map(({ image: _img, ...rest }) => rest),
+        }));
+        localStorage.setItem(getSessionsStorageKey(currentUserId), JSON.stringify(toSave));
+        localStorage.setItem(getActiveSessionStorageKey(currentUserId), nextActiveId);
+      } catch {}
+
+      // 2. Langsung hapus dan sinkronkan ke database Supabase secara real-time
+      if (currentUserId) {
+        const cleanSessions = next.map((s) => ({
+          ...s,
+          messages: s.messages.map(({ image: _img, ...rest }) => rest),
+        }));
+
+        if (cleanSessions.length === 0 || !cleanSessions.some((s) => s.messages && s.messages.length > 0)) {
+          fetch(`/api/chat/history?userId=${encodeURIComponent(currentUserId)}`, { method: "DELETE" }).catch(() => {});
+          supabase
+            .from("chat_history")
+            .upsert({
+              user_id: currentUserId,
+              messages: [],
+              updated_at: new Date().toISOString(),
+            })
+            .then(() => {});
         } else {
-          setActiveSessionId(generateUUID());
+          fetch("/api/chat/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUserId, messages: cleanSessions }),
+          }).catch(() => {});
+          supabase
+            .from("chat_history")
+            .upsert({
+              user_id: currentUserId,
+              messages: cleanSessions,
+              updated_at: new Date().toISOString(),
+            })
+            .then(() => {});
         }
       }
+
       return next;
+    });
+  };
+
+  const deleteMessage = (messageId: string) => {
+    const currentUserId = user?.id ?? null;
+    setMessages((prev) => {
+      const nextMsgs = prev.filter((m) => m.id !== messageId);
+      setSessions((prevSessions) => {
+        const curId = activeSessionIdRef.current;
+        const nextSessions = prevSessions.map((s) =>
+          s.id === curId ? { ...s, messages: nextMsgs, updatedAt: Date.now() } : s
+        );
+
+        if (currentUserId) {
+          const clean = nextSessions.map((s) => ({
+            ...s,
+            messages: s.messages.map(({ image: _img, ...rest }) => rest),
+          }));
+
+          fetch("/api/chat/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUserId, messages: clean }),
+          }).catch(() => {});
+          supabase
+            .from("chat_history")
+            .upsert({
+              user_id: currentUserId,
+              messages: clean,
+              updated_at: new Date().toISOString(),
+            })
+            .then(() => {});
+        }
+
+        return nextSessions;
+      });
+      return nextMsgs;
     });
   };
 
@@ -4855,26 +4950,46 @@ export default function Home() {
           <div className="flex items-center justify-between px-4 py-4 md:px-5 md:py-4">
             <div className="flex items-center">
               <div className="relative w-48 sm:w-44 h-11 sm:h-10 flex items-center font-[family-name:var(--font-geist-sans)]">
-                <TechText
-                  text="One Mind"
-                  fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
-                  fontWeight={700}
-                  fontSize={28}
-                  letterSpacing={-0.03}
-                  color={isDark ? "#ffffff" : "#09090b"}
-                  accentColor={isDark ? "#ffffff" : "#09090b"}
-                  align="left"
-                  leftPadding={22}
-                  reveal="letter"
-                  dashLength={3}
-                  dashGap={2}
-                  strokeWidth={1.2}
-                  specks={8}
-                  sweep={true}
-                  speed={0.9}
-                  draggable={true}
-                  labels={false}
-                />
+                {isAdmin ? (
+                  <StrokeDrawType
+                    text="DEVELOPER"
+                    trigger="in-view"
+                    strokeWidth={1.8}
+                    duration={1.4}
+                    stagger={0.08}
+                    drainOnHover
+                    fontSize={26}
+                    fontWeight={800}
+                    letterSpacing={-0.03}
+                    color={isDark ? "#ffffff" : "#09090b"}
+                    fillColor={isDark ? "#ffffff" : "#09090b"}
+                    accentColor={isDark ? "#e4e4e7" : "#27272a"}
+                    tone={isDark ? "dark" : "light"}
+                    className="justify-start items-center"
+                    ariaLabel="Developer Panel"
+                  />
+                ) : (
+                  <TechText
+                    text="One Mind"
+                    fontFamily="var(--font-geist-sans), Geist, -apple-system, BlinkMacSystemFont, sans-serif"
+                    fontWeight={700}
+                    fontSize={28}
+                    letterSpacing={-0.03}
+                    color={isDark ? "#ffffff" : "#09090b"}
+                    accentColor={isDark ? "#ffffff" : "#09090b"}
+                    align="left"
+                    leftPadding={22}
+                    reveal="letter"
+                    dashLength={3}
+                    dashGap={2}
+                    strokeWidth={1.2}
+                    specks={8}
+                    sweep={true}
+                    speed={0.9}
+                    draggable={true}
+                    labels={false}
+                  />
+                )}
               </div>
               {/* Original static One Mind brand text preserved for easy reversion:
               <span className={`tracking-tight text-2xl md:text-[26px] select-none ${isDark ? "text-white" : "text-zinc-950"}`}>
@@ -6044,6 +6159,25 @@ export default function Home() {
                               </svg>
                             )}
                           </button>
+
+                          {/* 4. Hapus pesan */}
+                          <button
+                            type="button"
+                            onClick={() => deleteMessage(msg.id)}
+                            disabled={isStreaming}
+                            title="Hapus pesan ini"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                            } ${
+                              isDark
+                                ? "text-zinc-400 hover:text-red-400 hover:bg-zinc-800/80"
+                                : "text-zinc-500 hover:text-red-600 hover:bg-zinc-200/80"
+                            }`}
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -6282,6 +6416,25 @@ export default function Home() {
                                 <circle cx="18" cy="19" r="3" />
                                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
                                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                              </svg>
+                            </button>
+
+                            {/* 7. Hapus jawaban / Delete assistant response */}
+                            <button
+                              type="button"
+                              onClick={() => deleteMessage(msg.id)}
+                              disabled={isStreaming}
+                              title="Hapus jawaban ini"
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isStreaming ? "opacity-35 cursor-not-allowed" : ""
+                              } ${
+                                isDark
+                                  ? "text-zinc-400 hover:text-red-400 hover:bg-zinc-800/80"
+                                  : "text-zinc-500 hover:text-red-600 hover:bg-zinc-200/70"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
                           </div>
