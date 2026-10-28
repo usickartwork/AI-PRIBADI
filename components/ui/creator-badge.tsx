@@ -98,7 +98,7 @@ export function CreatorBadge({
       } ${className}`}
     >
       {/* ─── Unified Bubble Panel (Pure obsidian black, tanpa tone biru navy) ─── */}
-      <div className="group relative inline-flex items-center gap-2.5 sm:gap-3 pl-4 pr-4 sm:pl-5 sm:pr-5 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
+      <div className="group relative inline-flex items-center gap-1 sm:gap-1.5 pl-3.5 pr-3.5 sm:pl-4.5 sm:pr-4 py-2 sm:py-2.5 min-h-[42px] sm:min-h-[46px] rounded-full bg-black/92 border border-white/15 hover:border-white/30 backdrop-blur-md shadow-[0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_14px_45px_rgba(0,0,0,0.9)] transition-all duration-200">
         {/* Subtle Ambient Hover Glow */}
         <div
           className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
@@ -153,7 +153,7 @@ export function CreatorBadge({
           </span>
 
           {/* Official Instagram Icon */}
-          <div className="shrink-0 flex items-center justify-center p-0.5">
+          <div className="shrink-0 flex items-center justify-center">
             <svg
               className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover/ig:scale-115 transition-transform duration-200"
               viewBox="0 0 24 24"
@@ -186,14 +186,14 @@ export function CreatorBadge({
           </div>
         </a>
 
-        {/* ─── Behance Link: Tetap di samping icon IG, tanpa margin negatif di mobile agar tidak tumpang tindih ─── */}
+        {/* ─── Behance Link: Benar-benar rapat di samping icon IG, gap presisi tanpa tumpang tindih ─── */}
         <a
           href={behanceUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Kunjungi Behance filiuspatrislahendra"
           title="Behance @filiuspatrislahendra"
-          className="relative z-10 shrink-0 flex items-center justify-center p-0.5 no-underline cursor-pointer group/be ml-0"
+          className="relative z-10 shrink-0 flex items-center justify-center no-underline cursor-pointer group/be ml-0"
         >
           <svg
             className="w-4.5 h-4.5 sm:w-5 sm:h-5 group-hover/be:scale-115 transition-transform duration-200"
