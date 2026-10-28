@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { AdminAvatarConfig, sanitizeAdminAvatarConfig } from "@/lib/adminAvatarTypes";
 
 export type AdminAuthResult =
   | {
@@ -169,5 +170,34 @@ export async function verifyAdminSession(): Promise<AdminAuthResult> {
       error: "Internal Server Error: Terjadi kendala saat memverifikasi akses.",
       status: 500,
     };
+  }
+}
+
+/**
+ * Mengambil konfigurasi foto profil admin dari Supabase secara aman di server.
+ */
+export async function getAdminAvatarConfigForUser(userId: string): Promise<AdminAvatarConfig | null> {
+  const supabase = getAdminSupabaseClient();
+  if (!supabase || !userId) return null;
+  try {
+    const configId = `admin_avatar_${userId}`;
+    const { data, error } = await supabase
+      .from("system_maintenance")
+      .select("is_enabled, message")
+      .eq("id", configId)
+      .maybeSingle();
+
+    if (error || !data || !data.is_enabled || !data.message) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(data.message);
+      return sanitizeAdminAvatarConfig(parsed);
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
   }
 }

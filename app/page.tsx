@@ -1122,32 +1122,213 @@ export default function Home() {
 
   const [heroVideoReady, setHeroVideoReady] = useState(false);
 
-  // ─── Usick One: Initialization Controller for Intro Loading ───────────────
+  // ─── Usick One / One Mind: Hak Akses Admin & Kustomisasi Profil Admin ────────
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckCompleted, setAdminCheckCompleted] = useState(false);
+  const [adminAvatarSettled, setAdminAvatarSettled] = useState(false);
+
+  // Kustomisasi Foto Profil Admin (Khusus Admin)
+  const [adminAvatarConfig, setAdminAvatarConfig] = useState<AdminAvatarConfig | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const local = localStorage.getItem(ADMIN_AVATAR_STORAGE_KEY);
+        if (local) return JSON.parse(local);
+      } catch {}
+    }
+    return null;
+  });
+  const [showAdminAvatarModal, setShowAdminAvatarModal] = useState(false);
+
+  // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Global, Per-Fitur, & User Hold)
+  const [systemAccess, setSystemAccess] = useState<{
+    maintenance: boolean;
+    global?: {
+      isEnabled: boolean;
+      title?: string | null;
+      message?: string | null;
+      estimatedEnd?: string | null;
+    };
+    features?: Record<string, {
+      isEnabled: boolean;
+      title?: string | null;
+      message?: string | null;
+      estimatedEnd?: string | null;
+    }>;
+    isHeld: boolean;
+    reason?: string | null;
+    isAdmin: boolean;
+    loaded: boolean;
+  }>({
+    maintenance: false,
+    isHeld: false,
+    reason: null,
+    isAdmin: false,
+    loaded: false,
+  });
+
+  const checkSystemStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/system/status", {
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const serverIsAdmin = Boolean(json.isAdmin);
+        setSystemAccess({
+          maintenance: Boolean(json.maintenance),
+          global: json.global || undefined,
+          features: json.features || undefined,
+          isHeld: Boolean(json.isHeld),
+          reason: json.reason || null,
+          isAdmin: serverIsAdmin,
+          loaded: true,
+        });
+        if (serverIsAdmin) {
+          setIsAdmin(true);
+        }
+      } else {
+        setSystemAccess((prev) => ({ ...prev, loaded: true }));
+      }
+    } catch {
+      // Fail-open pada kegagalan jaringan frontend agar tidak langsung membuat browser error
+      setSystemAccess((prev) => ({ ...prev, loaded: true }));
+    }
+  }, []);
+
+  const isUserNonAdmin = Boolean(systemAccess.loaded && !systemAccess.isAdmin && !isAdmin);
+  const getFeatureMaintenance = (key: string) => {
+    if (!isUserNonAdmin) return null;
+    const feat = systemAccess.features?.[key];
+    return feat?.isEnabled ? feat : null;
+  };
+
+  useEffect(() => {
+    checkSystemStatus();
+    const interval = setInterval(checkSystemStatus, 30_000);
+    return () => clearInterval(interval);
+  }, [checkSystemStatus]);
+
+  useEffect(() => {
+    if (isClerkLoaded) {
+      checkSystemStatus();
+    }
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser, checkSystemStatus]);
+
+  // Pemeriksaan Otorisasi Admin & Pengambilan Avatar Admin (Direct Sync tanpa Waterfall)
+  useEffect(() => {
+    if (!isClerkLoaded) return;
+
+    if (!isClerkSignedIn || !clerkUser) {
+      setIsAdmin(false);
+      setAdminAvatarConfig(null);
+      setAdminCheckCompleted(true);
+      setAdminAvatarSettled(true);
+      return;
+    }
+
+    let isCancelled = false;
+    setAdminCheckCompleted(false);
+    setAdminAvatarSettled(false);
+
+    fetch("/api/admin/check")
+      .then((res) => res.json())
+      .then((resData) => {
+        if (!isCancelled) {
+          const userIsAdmin = Boolean(resData?.isAdmin);
+          setIsAdmin(userIsAdmin);
+          if (userIsAdmin) {
+            if (resData?.adminAvatarConfig) {
+              setAdminAvatarConfig(resData.adminAvatarConfig);
+              try {
+                localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(resData.adminAvatarConfig));
+              } catch {}
+            } else if (resData?.adminAvatarConfig === null) {
+              setAdminAvatarConfig(null);
+              try {
+                localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+              } catch {}
+            }
+          } else {
+            setAdminAvatarConfig(null);
+            try {
+              localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+            } catch {}
+          }
+          setAdminAvatarSettled(true);
+          setAdminCheckCompleted(true);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsAdmin(false);
+          setAdminAvatarSettled(true);
+          setAdminCheckCompleted(true);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
+
+  // Jika pengguna bukan admin tetapi mencoba membuka tampilan admin (misal lewat URL ?view=admin), alihkan ke chats
+  useEffect(() => {
+    if (isClerkLoaded && !isAdmin && activeView === "admin") {
+      setActiveView("chats");
+    }
+  }, [isClerkLoaded, isAdmin, activeView]);
+
+  const handleSaveAdminAvatar = async (config: AdminAvatarConfig | null) => {
+    if (!isAdmin) return;
+    setAdminAvatarConfig(config);
+    try {
+      if (config) {
+        localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(config));
+      } else {
+        localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+      }
+    } catch {}
+
+    const res = await fetch("/api/admin/profile-avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || "Gagal menyimpan foto profil ke server.");
+    }
+  };
+
+  // ─── Usick One / One Mind: Initialization Controller for Intro Loading ───────
   // Intro loading animation menutupi layar sampai data esensial selesai diproses:
-  // 1. Hero background video sudah siap.
-  // 2. Clerk auth sudah selesai memeriksa status sesi.
-  // 3. Jika user login: subscription khusus user ini harus sudah selesai dimuat dari server
+  // 1. Clerk auth sudah selesai memeriksa status sesi.
+  // 2. Jika user login: subscription khusus user ini harus sudah selesai dimuat dari server
   //    sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker badge Pro / tab terkunci.
+  // 3. Hak akses admin dan profil avatar sudah tuntas diselesaikan dari server sehingga
+  //    panel akun di sidebar tidak tiba-tiba berubah/morphing setelah layar terbuka.
+  // 4. Jika guest: background hero video sudah siap.
   const isUserSubscriptionSettled = !isClerkSignedIn || Boolean(
     subscriptionLoadedForUser &&
     subscriptionLoadedForUser === (clerkUser?.id || user?.id) &&
     subscription !== null
   );
 
-  // ─── Usick One: Real-time Initialization Controller for Intro Loading ───────
-  // Intro loading animation menutupi layar sampai data esensial selesai diproses:
-  // - Belum login: Clerk auth selesai memeriksa sesi DAN video hero background siap.
-  // - Sudah login: Clerk auth selesai memeriksa sesi DAN data subscription spesifik user sudah tuntas dimuat
-  //   sehingga saat tirai intro terbuka, status Pro sudah aktif sempurna tanpa flicker badge Pro / tab terkunci.
+  const isAdminSettled = !isClerkSignedIn || (adminCheckCompleted && systemAccess.loaded);
+  const isAvatarSettled = !isClerkSignedIn || !isAdmin || adminAvatarSettled;
+
   const isAppReady = Boolean(
     isClerkLoaded &&
-    (isClerkSignedIn ? isUserSubscriptionSettled : heroVideoReady)
+    (isClerkSignedIn
+      ? isUserSubscriptionSettled && isAdminSettled && isAvatarSettled
+      : heroVideoReady)
   );
 
   const { introState, isInitializing } = useAppInitializer({
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
-    subscriptionReady: isUserSubscriptionSettled,
+    subscriptionReady: isUserSubscriptionSettled && isAdminSettled && isAvatarSettled,
     minDurationMs: 1400,
     safetyTimeoutMs: 5000,
   });
@@ -1521,175 +1702,6 @@ export default function Home() {
     }
   }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
 
-  // Pemeriksaan hak akses Admin Usick One (hanya untuk visibilitas UI sidebar)
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  // Kustomisasi Foto Profil Admin (Khusus Admin)
-  const [adminAvatarConfig, setAdminAvatarConfig] = useState<AdminAvatarConfig | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const local = localStorage.getItem(ADMIN_AVATAR_STORAGE_KEY);
-        if (local) return JSON.parse(local);
-      } catch {}
-    }
-    return null;
-  });
-  const [showAdminAvatarModal, setShowAdminAvatarModal] = useState(false);
-
-  // Pemeriksaan Hak Akses Sistem & Pemeliharaan (Global, Per-Fitur, & User Hold)
-  const [systemAccess, setSystemAccess] = useState<{
-    maintenance: boolean;
-    global?: {
-      isEnabled: boolean;
-      title?: string | null;
-      message?: string | null;
-      estimatedEnd?: string | null;
-    };
-    features?: Record<string, {
-      isEnabled: boolean;
-      title?: string | null;
-      message?: string | null;
-      estimatedEnd?: string | null;
-    }>;
-    isHeld: boolean;
-    reason?: string | null;
-    isAdmin: boolean;
-    loaded: boolean;
-  }>({
-    maintenance: false,
-    isHeld: false,
-    reason: null,
-    isAdmin: false,
-    loaded: false,
-  });
-
-  const checkSystemStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/system/status", {
-        headers: { "Cache-Control": "no-cache" },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const serverIsAdmin = Boolean(json.isAdmin);
-        setSystemAccess({
-          maintenance: Boolean(json.maintenance),
-          global: json.global || undefined,
-          features: json.features || undefined,
-          isHeld: Boolean(json.isHeld),
-          reason: json.reason || null,
-          isAdmin: serverIsAdmin,
-          loaded: true,
-        });
-        if (serverIsAdmin) {
-          setIsAdmin(true);
-        }
-      }
-    } catch {
-      // Fail-open pada kegagalan jaringan frontend agar tidak langsung membuat browser error
-    }
-  }, []);
-
-  const isUserNonAdmin = Boolean(systemAccess.loaded && !systemAccess.isAdmin && !isAdmin);
-  const getFeatureMaintenance = (key: string) => {
-    if (!isUserNonAdmin) return null;
-    const feat = systemAccess.features?.[key];
-    return feat?.isEnabled ? feat : null;
-  };
-
-  useEffect(() => {
-    checkSystemStatus();
-    const interval = setInterval(checkSystemStatus, 30_000);
-    return () => clearInterval(interval);
-  }, [checkSystemStatus]);
-
-  useEffect(() => {
-    if (isClerkLoaded) {
-      checkSystemStatus();
-    }
-  }, [isClerkLoaded, isClerkSignedIn, clerkUser, checkSystemStatus]);
-
-  useEffect(() => {
-    if (!isClerkLoaded || !isClerkSignedIn || !clerkUser) {
-      setIsAdmin(false);
-      return;
-    }
-
-    let isCancelled = false;
-    fetch("/api/admin/check")
-      .then((res) => res.json())
-      .then((resData) => {
-        if (!isCancelled) {
-          setIsAdmin(Boolean(resData?.isAdmin));
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setIsAdmin(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isClerkLoaded, isClerkSignedIn, clerkUser]);
-
-  // Jika pengguna bukan admin tetapi mencoba membuka tampilan admin (misal lewat URL ?view=admin), alihkan ke chats
-  useEffect(() => {
-    if (isClerkLoaded && !isAdmin && activeView === "admin") {
-      setActiveView("chats");
-    }
-  }, [isClerkLoaded, isAdmin, activeView]);
-
-  // Sinkronisasi konfigurasi foto profil admin dari cloud server
-  useEffect(() => {
-    if (!isAdmin) return;
-    let isCancelled = false;
-    fetch("/api/admin/profile-avatar")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isCancelled && data?.success) {
-          if (data.config) {
-            setAdminAvatarConfig(data.config);
-            try {
-              localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(data.config));
-            } catch {}
-          } else if (data.config === null) {
-            setAdminAvatarConfig(null);
-            try {
-              localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
-            } catch {}
-          }
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isCancelled = true;
-    };
-  }, [isAdmin]);
-
-  const handleSaveAdminAvatar = async (config: AdminAvatarConfig | null) => {
-    if (!isAdmin) return;
-    setAdminAvatarConfig(config);
-    try {
-      if (config) {
-        localStorage.setItem(ADMIN_AVATAR_STORAGE_KEY, JSON.stringify(config));
-      } else {
-        localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
-      }
-    } catch {}
-
-    const res = await fetch("/api/admin/profile-avatar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error || "Gagal menyimpan foto profil ke server.");
-    }
-  };
-
   // Auth is now fully managed by Clerk — no Supabase auth session listener needed
 
   const handleSignOut = async () => {
@@ -1699,6 +1711,12 @@ export default function Home() {
       }
     } catch {}
     setIsAdmin(false);
+    setAdminAvatarConfig(null);
+    setAdminCheckCompleted(true);
+    setAdminAvatarSettled(true);
+    try {
+      localStorage.removeItem(ADMIN_AVATAR_STORAGE_KEY);
+    } catch {}
     setActiveView((prev) => (prev === "admin" ? "chats" : prev));
     setSubscription(null);
     setSubscriptionLoadedForUser(null);
