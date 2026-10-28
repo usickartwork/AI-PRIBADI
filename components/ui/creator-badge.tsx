@@ -94,7 +94,7 @@ export function CreatorBadge({
         rel="noopener noreferrer"
         aria-label={`Kunjungi Instagram @${username} (${followers} followers)`}
         title={`Instagram @${username}`}
-        className="group relative inline-flex items-center gap-2 sm:gap-2.5 pl-3.5 pr-4.5 sm:pl-3.5 sm:pr-3.5 py-1.5 rounded-full bg-[#0a0d14]/90 border border-white/15 hover:border-white/35 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.8)] hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 cursor-pointer no-underline"
+        className="group relative inline-flex items-center gap-2 sm:gap-2.5 pl-4 pr-6 sm:pl-4 sm:pr-4 py-1.5 rounded-full bg-[#0a0d14]/90 border border-white/15 hover:border-white/35 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.8)] hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 cursor-pointer no-underline"
       >
         {/* Subtle Ambient Hover Glow */}
         <div
@@ -141,7 +141,7 @@ export function CreatorBadge({
         </span>
 
         {/* Official Instagram Icon */}
-        <div className="relative z-10 shrink-0 flex items-center justify-center mr-0.5 sm:mr-0">
+        <div className="relative z-10 shrink-0 flex items-center justify-center">
           <svg
             className="w-4 h-4 sm:w-4.5 sm:h-4.5 group-hover:scale-110 transition-transform duration-200"
             viewBox="0 0 24 24"
