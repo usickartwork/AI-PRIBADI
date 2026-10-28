@@ -1135,7 +1135,7 @@ export default function Home() {
     isReady: isAppReady,
     authLoading: !isClerkLoaded,
     subscriptionReady: isUserSubscriptionSettled,
-    minDurationMs: 2200,
+    minDurationMs: 1100,
     safetyTimeoutMs: 5000,
   });
 

@@ -350,6 +350,72 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
     }
   };
 
+  // ─── USER PLAN (PRO / FREE) MANAGEMENT ACTIONS ──────────────────────────
+  const [planModalUser, setPlanModalUser] = useState<{ user: UserListItem; targetPlan: "free" | "pro" } | null>(null);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [planChangeError, setPlanChangeError] = useState<string | null>(null);
+
+  const handleConfirmPlanChange = async () => {
+    if (!planModalUser) return;
+    setIsChangingPlan(true);
+    setPlanChangeError(null);
+    const { user: targetUser, targetPlan } = planModalUser;
+
+    try {
+      const res = await fetch("/api/admin/user-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: targetUser.id,
+          plan: targetPlan,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal mengubah paket akun pengguna.");
+      }
+
+      // Update data.users.list & overview counts
+      setData((prev) => {
+        if (!prev) return prev;
+        const wasPro = targetUser.plan === "pro";
+        const isNowPro = targetPlan === "pro";
+        let proDiff = 0;
+        if (!wasPro && isNowPro) proDiff = 1;
+        if (wasPro && !isNowPro) proDiff = -1;
+
+        const updatedList = prev.users.list.map((u) =>
+          u.id === targetUser.id ? { ...u, plan: targetPlan } : u
+        );
+
+        return {
+          ...prev,
+          overview: {
+            ...prev.overview,
+            proSubscribers: Math.max(0, prev.overview.proSubscribers + proDiff),
+            freeUsers: Math.max(0, prev.overview.freeUsers - proDiff),
+          },
+          users: {
+            ...prev.users,
+            list: updatedList,
+          },
+        };
+      });
+
+      // Update selectedUser if currently viewing this user
+      setSelectedUser((prev) =>
+        prev && prev.id === targetUser.id ? { ...prev, plan: targetPlan } : prev
+      );
+
+      setPlanModalUser(null);
+    } catch (err: unknown) {
+      setPlanChangeError(err instanceof Error ? err.message : "Terjadi kesalahan saat mengubah paket.");
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
+
   // Styling helper tokens
   const bgCard = isDark
     ? "bg-zinc-900/60 border border-white/10"
@@ -819,19 +885,71 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                   {/* Detail Attributes Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {/* Paket & Langganan */}
-                    <div className={`p-4 rounded-2xl ${bgCard} space-y-2`}>
-                      <div className={`text-xs font-semibold ${textTitle}`}>Paket & Langganan</div>
-                      <div className="space-y-1.5 text-xs">
+                    <div className={`p-4 rounded-2xl ${bgCard} flex flex-col justify-between space-y-3`}>
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className={textSub}>Paket Akun:</span>
-                          <span className={`font-semibold uppercase ${textTitle}`}>
-                            {selectedUser.plan}
+                          <span className={`text-xs font-semibold ${textTitle}`}>Paket & Langganan</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase border ${
+                              selectedUser.plan === "pro"
+                                ? isDark
+                                  ? "bg-white text-black border-white"
+                                  : "bg-black text-white border-black"
+                                : isDark
+                                ? "bg-white/5 text-zinc-400 border-white/10"
+                                : "bg-black/5 text-zinc-600 border-black/10"
+                            }`}
+                          >
+                            {selectedUser.plan.toUpperCase()}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className={textSub}>Status Langganan:</span>
-                          <span className={`capitalize ${textTitle}`}>{selectedUser.status}</span>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className={textSub}>Status:</span>
+                            <span className={`capitalize ${textTitle}`}>{selectedUser.status}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className={textSub}>Akses Fitur:</span>
+                            <span className={textTitle}>
+                              {selectedUser.plan === "pro" ? "Semua Fitur Pro & Model" : "Fitur & Model Terbatas"}
+                            </span>
+                          </div>
                         </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/5">
+                        {selectedUser.plan === "pro" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlanChangeError(null);
+                              setPlanModalUser({ user: selectedUser, targetPlan: "free" });
+                            }}
+                            className={`w-full py-1.5 px-3 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                              isDark
+                                ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                                : "border-black/10 hover:bg-black/5 text-zinc-700"
+                            }`}
+                          >
+                            Ubah ke Free
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlanChangeError(null);
+                              setPlanModalUser({ user: selectedUser, targetPlan: "pro" });
+                            }}
+                            className={`w-full py-1.5 px-3 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                              isDark
+                                ? "bg-white text-black hover:bg-zinc-200"
+                                : "bg-black text-white hover:bg-zinc-800"
+                            }`}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Jadikan Pro</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1693,6 +1811,92 @@ export function AdminWorkspace({ isDark = true, onClose }: AdminWorkspaceProps) 
                 } disabled:opacity-50`}
               >
                 {isSubmittingUnhold ? "Memproses..." : "Buka Kunci Akun"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: USER PLAN (PRO/FREE) CHANGE CONFIRMATION ─────────────── */}
+      {planModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl space-y-4 ${
+              isDark ? "bg-zinc-900 border-white/15 text-white" : "bg-white border-black/15 text-black"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
+                  }`}
+                >
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-semibold">
+                  {planModalUser.targetPlan === "pro" ? "Tingkatkan ke Akun Pro" : "Ubah ke Akun Free"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlanModalUser(null)}
+                disabled={isChangingPlan}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className={`text-xs leading-relaxed ${textSub}`}>
+              {planModalUser.targetPlan === "pro" ? (
+                <>
+                  Aktifkan status <span className={`font-semibold ${textTitle}`}>Pro</span> untuk{" "}
+                  <span className={`font-semibold ${textTitle}`}>{planModalUser.user.fullName}</span> (
+                  {planModalUser.user.email})? Pengguna akan langsung mendapatkan akses penuh ke semua model AI, game, serta kuota kredit harian Pro (100.000 AI credits &amp; 200 code credits).
+                </>
+              ) : (
+                <>
+                  Kembalikan akun <span className={`font-semibold ${textTitle}`}>{planModalUser.user.fullName}</span> (
+                  {planModalUser.user.email}) ke status <span className={`font-semibold ${textTitle}`}>Free</span>? Fitur berbayar dan kuota Pro akan dinonaktifkan sesuai batas akun Free standar.
+                </>
+              )}
+            </p>
+
+            {planChangeError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-400 text-xs">
+                {planChangeError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPlanModalUser(null)}
+                disabled={isChangingPlan}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                  isDark
+                    ? "border-white/10 hover:bg-white/5 text-zinc-300"
+                    : "border-black/10 hover:bg-black/5 text-zinc-700"
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPlanChange}
+                disabled={isChangingPlan}
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  isDark
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-black text-white hover:bg-zinc-800"
+                } disabled:opacity-50`}
+              >
+                {isChangingPlan
+                  ? "Menyimpan..."
+                  : planModalUser.targetPlan === "pro"
+                  ? "Konfirmasi Jadikan Pro"
+                  : "Konfirmasi Ubah ke Free"}
               </button>
             </div>
           </div>
