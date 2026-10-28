@@ -90,7 +90,7 @@ export default function MusicLandingPage() {
           <div className="max-w-xl mx-auto text-center">
             <h3 className="font-semibold text-white text-base">Impor Playlist Spotify / Apple Music</h3>
             <p className="text-xs text-zinc-400 mt-1">
-              Tempelkan tautan playlist untuk mendengarkan langsung di One Mind.
+              Tempelkan tautan playlist untuk mendengarkan langsung di OneMind.
             </p>
 
             <form onSubmit={handleImport} className="mt-4 flex items-center gap-2">

@@ -34,26 +34,26 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://onemind.web.id"),
-  title: "One Mind",
+  title: "OneMind — Platform AI Workspace & Asisten Produktivitas Indonesia",
   description:
-    "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+    "OneMind adalah platform AI workspace terpadu di Indonesia untuk multi-model chat, asisten koding, penjadwalan pintar, catatan kerja, dan alur kreatif dalam satu tempat.",
   alternates: {
     canonical: "https://onemind.web.id/",
   },
   openGraph: {
-    title: "One Mind",
+    title: "OneMind — Platform AI Workspace & Asisten Produktivitas Indonesia",
     description:
-      "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+      "OneMind adalah platform AI workspace terpadu di Indonesia untuk multi-model chat, asisten koding, penjadwalan pintar, catatan kerja, dan alur kreatif dalam satu tempat.",
     url: "https://onemind.web.id/",
-    siteName: "One Mind",
+    siteName: "OneMind",
     locale: "id_ID",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "One Mind",
+    title: "OneMind — Platform AI Workspace & Asisten Produktivitas Indonesia",
     description:
-      "One Mind is an AI workspace for multi-model chat, coding assistance, schedule planning, and creative workflows.",
+      "OneMind adalah platform AI workspace terpadu di Indonesia untuk multi-model chat, asisten koding, penjadwalan pintar, catatan kerja, dan alur kreatif dalam satu tempat.",
   },
   robots: {
     index: true,

@@ -68,7 +68,7 @@ export default function CodeStudioLandingPage() {
           <div className="relative mt-3 rounded-xl overflow-hidden border border-white/10 bg-black aspect-[16/10] w-full">
             <Image
               src="/previews/preview-prd-generator.png"
-              alt="Tampilan Antarmuka PRD Generator One Mind"
+              alt="Tampilan Antarmuka PRD Generator OneMind"
               fill
               priority
               sizes="(max-width: 1200px) 100vw, 1200px"

@@ -107,7 +107,7 @@ export default function AIChatLandingPage() {
           <div className="relative mt-3 rounded-xl overflow-hidden border border-white/10 bg-black aspect-[16/10] w-full">
             <Image
               src="/previews/preview-ai-chat.png"
-              alt="Tampilan Antarmuka AI Chat One Mind"
+              alt="Tampilan Antarmuka AI Chat OneMind"
               fill
               priority
               sizes="(max-width: 1200px) 100vw, 1200px"

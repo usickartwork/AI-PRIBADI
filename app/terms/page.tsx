@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Ketentuan Layanan One Mind",
-  description: "Syarat dan Ketentuan Layanan Penggunaan Platform One Mind.",
+  title: "Ketentuan Layanan OneMind",
+  description: "Syarat dan Ketentuan Layanan Penggunaan Platform OneMind.",
   alternates: {
     canonical: "https://onemind.web.id/terms",
   },
@@ -18,7 +18,7 @@ export default function TermsOfServicePage() {
             href="/"
             className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1 mb-4"
           >
-            ← Kembali ke Usick One
+            ← Kembali ke OneMind
           </Link>
           <h1 className="text-3xl font-bold tracking-tight text-white">
             Ketentuan Layanan (Terms of Service)
@@ -31,7 +31,7 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">1. Penerimaan Ketentuan</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Selamat datang di Usick One (dapat diakses di{" "}
+            Selamat datang di OneMind (dapat diakses di{" "}
             <a href="https://onemind.web.id" className="text-emerald-400 underline">
               onemind.web.id
             </a>
@@ -42,7 +42,7 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">2. Deskripsi Layanan</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Usick One adalah platform produktivitas dan AI workspace yang menyediakan fitur asisten percakapan cerdas, coding assistance, perencana jadwal (Schedule), dan fitur kreatif lainnya untuk mempermudah produktivitas pengguna.
+            OneMind adalah platform produktivitas dan AI workspace yang menyediakan fitur asisten percakapan cerdas, coding assistance, perencana jadwal (Schedule), dan fitur kreatif lainnya untuk mempermudah produktivitas pengguna.
           </p>
         </section>
 
@@ -58,19 +58,19 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">4. Integrasi Layanan Pihak Ketiga (Google Calendar)</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Platform kami menyediakan integrasi opsional dengan Google Calendar API agar jadwal yang Anda buat di Usick One dapat disinkronkan secara otomatis ke Google Calendar milik Anda.
+            Platform kami menyediakan integrasi opsional dengan Google Calendar API agar jadwal yang Anda buat di OneMind dapat disinkronkan secara otomatis ke Google Calendar milik Anda.
           </p>
           <ul className="list-disc list-inside text-sm leading-relaxed text-slate-300 space-y-1">
             <li>Penggunaan integrasi Google Calendar tunduk pada kebijakan privasi dan ketentuan Google API.</li>
             <li>Anda dapat menghubungkan dan memutuskan sambungan akun Google Anda kapan saja melalui tab Schedule.</li>
-            <li>Data yang disinkronkan hanya mencakup event kalender yang dibuat atau dikelola melalui fitur Schedule Usick One.</li>
+            <li>Data yang disinkronkan hanya mencakup event kalender yang dibuat atau dikelola melalui fitur Schedule OneMind.</li>
           </ul>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">5. Penggunaan yang Dilarang</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Pengguna dilarang menggunakan platform Usick One untuk:
+            Pengguna dilarang menggunakan platform OneMind untuk:
           </p>
           <ul className="list-disc list-inside text-sm leading-relaxed text-slate-300 space-y-1">
             <li>Melakukan tindakan melawan hukum, penipuan, atau pelanggaran hak pihak ketiga.</li>
@@ -82,7 +82,7 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">6. Batasan Tanggung Jawab</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Layanan Usick One disediakan &ldquo;sebagaimana adanya&rdquo; (*as is*). Kami berusaha memberikan uptime dan akurasi layanan terbaik, namun tidak menjamin bahwa layanan akan selalu bebas gangguan secara permanen dari faktor eksternal pihak ketiga (seperti keterbatasan API pihak ketiga atau gangguan jaringan).
+            Layanan OneMind disediakan &ldquo;sebagaimana adanya&rdquo; (*as is*). Kami berusaha memberikan uptime dan akurasi layanan terbaik, namun tidak menjamin bahwa layanan akan selalu bebas gangguan secara permanen dari faktor eksternal pihak ketiga (seperti keterbatasan API pihak ketiga atau gangguan jaringan).
           </p>
         </section>
 
@@ -107,7 +107,7 @@ export default function TermsOfServicePage() {
               Kebijakan Privasi (Privacy Policy)
             </Link>
             <Link href="/" className="hover:text-emerald-400 underline">
-              Beranda Usick One
+              Beranda OneMind
             </Link>
           </div>
         </section>

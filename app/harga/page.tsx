@@ -23,10 +23,10 @@ export default function PricingLandingPage() {
       name: "Free",
       price: "Rp0",
       period: "selamanya",
-      desc: "Eksplorasi modul esensial One Mind tanpa biaya langganan selamanya.",
+      desc: "Eksplorasi modul esensial OneMind tanpa biaya langganan selamanya.",
       features: [
         "10.000 AI Credits / Hari (Reset harian 00:00 WIB)",
-        "Model Flagship Usick One — Mesin AI utama cepat & adaptif",
+        "Model Flagship OneMind — Mesin AI utama cepat & adaptif",
         "Voice Assistant Realtime & Input Suara Percakapan",
         "Mode Browse — Penelusuran web & verifikasi fakta terkini",
         "50 Code Credits / Hari: Studio PRD & Perancang Ide Aplikasi",

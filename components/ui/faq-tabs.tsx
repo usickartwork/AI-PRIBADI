@@ -31,7 +31,7 @@ export const ONE_MIND_FAQ_DATA: Record<string, FAQItemData[]> = {
     {
       question: "Apa saja model AI yang tersedia di ekosistem One Mind?",
       answer:
-        "One Mind mengintegrasikan model-model AI terbaik dunia dalam satu workspace: Claude 3.7 Sonnet & 3.5 Sonnet (Anthropic), Gemini 3.6 Flash & 3.5 Flash Lite (Google), DeepSeek R1 Distill & DeepSeek V4, Qwen 3.8 Flash, Kimi K2 Instruct (Moonshot), Ling 3.1 Flash, Llama 3.3 70B, GPT OSS 120B, serta model unggulan utama Usick One Flagship.",
+        "One Mind mengintegrasikan model-model AI terbaik dunia dalam satu workspace: Claude 3.7 Sonnet & 3.5 Sonnet (Anthropic), Gemini 3.6 Flash & 3.5 Flash Lite (Google), DeepSeek R1 Distill & DeepSeek V4, Qwen 3.8 Flash, Kimi K2 Instruct (Moonshot), Ling 3.1 Flash, Llama 3.3 70B, GPT OSS 120B, serta model unggulan utama OneMind Flagship.",
     },
     {
       question: "Bagaimana cara kerja Upaya Penalaran (Reasoning Efforts)?",
@@ -87,7 +87,7 @@ export const ONE_MIND_FAQ_DATA: Record<string, FAQItemData[]> = {
     {
       question: "Apa perbedaan antara Paket Free dan Paket Pro?",
       answer:
-        "Paket Free memberi Anda 10.000 AI Credits/hari, 50 Code Credits/hari, model Usick One Flagship, Voice Assistant, dan Catatan Pintar. Paket Pro seharga Rp49.000/bulan memberikan 100.000 AI Credits/hari, 200 Code Credits/hari, akses penuh ke SEMUA model eksternal (Claude, Gemini, GPT, DeepSeek), Mode Max reasoning, streaming Music One tanpa batas, dan pesan realtime.",
+        "Paket Free memberi Anda 10.000 AI Credits/hari, 50 Code Credits/hari, model OneMind Flagship, Voice Assistant, dan Catatan Pintar. Paket Pro seharga Rp49.000/bulan memberikan 100.000 AI Credits/hari, 200 Code Credits/hari, akses penuh ke SEMUA model eksternal (Claude, Gemini, GPT, DeepSeek), Mode Max reasoning, streaming Music One tanpa batas, dan pesan realtime.",
     },
     {
       question: "Kapan kuota kredit di-reset?",

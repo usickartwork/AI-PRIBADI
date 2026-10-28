@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Kebijakan Privasi One Mind",
-  description: "Kebijakan Privasi One Mind dan Penggunaan Google API User Data.",
+  title: "Kebijakan Privasi OneMind",
+  description: "Kebijakan Privasi OneMind dan Penggunaan Google API User Data.",
   alternates: {
     canonical: "https://onemind.web.id/privacy",
   },
@@ -18,10 +18,10 @@ export default function PrivacyPolicyPage() {
             href="/"
             className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors inline-flex items-center gap-1 mb-4"
           >
-            ← Kembali ke Usick One
+            ← Kembali ke OneMind
           </Link>
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            Kebijakan Privasi Usick One
+            Kebijakan Privasi OneMind
           </h1>
           <p className="text-sm text-slate-400 mt-2">
             Terakhir diperbarui: 16 Oktober 2026
@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-white">1. Pendahuluan</h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Usick One (tersedia di{" "}
+            OneMind (tersedia di{" "}
             <a href="https://onemind.web.id" className="text-emerald-400 underline">
               onemind.web.id
             </a>
@@ -59,13 +59,13 @@ export default function PrivacyPolicyPage() {
             3. Penggunaan Data Google API (Google Calendar)
           </h2>
           <p className="text-sm leading-relaxed text-slate-300">
-            Fitur integrasi Google Calendar di Usick One menggunakan Google Calendar API resmi dengan scope izin minimum yang diperlukan (<code>https://www.googleapis.com/auth/calendar.events</code>).
+            Fitur integrasi Google Calendar di OneMind menggunakan Google Calendar API resmi dengan scope izin minimum yang diperlukan (<code>https://www.googleapis.com/auth/calendar.events</code>).
           </p>
           <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 space-y-2">
             <p className="font-medium text-emerald-300">Prinsip Penggunaan Data Google:</p>
             <ul className="list-disc list-inside space-y-1 text-slate-300">
               <li>
-                <strong>Tujuan Eksklusif:</strong> Akses Google Calendar hanya digunakan untuk membuat, memperbarui, atau menghapus event kalender yang Anda buat melalui tab Schedule Usick One.
+                <strong>Tujuan Eksklusif:</strong> Akses Google Calendar hanya digunakan untuk membuat, memperbarui, atau menghapus event kalender yang Anda buat melalui tab Schedule OneMind.
               </li>
               <li>
                 <strong>Tanpa Akses Kontak atau Email:</strong> Kami tidak pernah membaca email, daftar kontak, atau data Google lain di luar kalender yang Anda izinkan.
@@ -77,7 +77,7 @@ export default function PrivacyPolicyPage() {
                 <strong>Tidak Digunakan untuk Melatih Model AI:</strong> Data kalender Anda tidak pernah digunakan untuk melatih model kecerdasan buatan (AI/LLM).
               </li>
               <li>
-                <strong>Kepatuhan Kebijakan Pengguna Google API:</strong> Penggunaan dan transfer informasi yang diterima dari Google API oleh Usick One tunduk pada{" "}
+                <strong>Kepatuhan Kebijakan Pengguna Google API:</strong> Penggunaan dan transfer informasi yang diterima dari Google API oleh OneMind tunduk pada{" "}
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
@@ -106,7 +106,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc list-inside text-sm leading-relaxed text-slate-300 space-y-1">
             <li>
-              Anda dapat memutuskan koneksi Google Calendar kapan saja melalui menu pengaturan Schedule di Usick One.
+              Anda dapat memutuskan koneksi Google Calendar kapan saja melalui menu pengaturan Schedule di OneMind.
             </li>
             <li>
               Anda juga dapat mencabut akses kapan saja melalui halaman izin Google Anda di{" "}

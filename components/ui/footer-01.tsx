@@ -414,7 +414,7 @@ export default function Footer01({
                   </div>
                 </div>
                 <div className={cn("space-y-2 text-xs sm:text-sm leading-relaxed max-h-72 overflow-y-auto pr-1", isDark ? "text-zinc-300" : "text-zinc-600")}>
-                  <p>• <strong>Chat Multi-Model & Mode Max:</strong> Beralih fleksibel antara Usick One Flagship, Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi, dan GLM dengan penalaran Faster, Balanced, hingga Max.</p>
+                  <p>• <strong>Chat Multi-Model & Mode Max:</strong> Beralih fleksibel antara OneMind Flagship, Claude, ChatGPT, Gemini, DeepSeek, Qwen, Kimi, dan GLM dengan penalaran Faster, Balanced, hingga Max.</p>
                   <p>• <strong>Voice Assistant Realtime:</strong> Percakapan suara dua arah interaktif dengan Voice Orb berlatensi rendah.</p>
                   <p>• <strong>Code Studio & Estafet PRD:</strong> Ruang kerja penyusunan spesifikasi teknis, arsitektur sistem, dan generator prompt coding profesional.</p>
                   <p>• <strong>Image Studio (One Design) & Translasi:</strong> Generator gambar AI berbagai rasio/gaya visual serta penerjemah teks di dalam gambar secara instan.</p>
@@ -451,10 +451,10 @@ export default function Footer01({
                   <div className={cn("p-4 rounded-xl border flex flex-col justify-between", isDark ? "border-zinc-800 bg-zinc-950/60" : "border-zinc-200 bg-zinc-50")}>
                     <div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">Starter</span>
-                      <h4 className="font-bold text-base mt-2">Usick One Free</h4>
+                      <h4 className="font-bold text-base mt-2">OneMind Free</h4>
                       <p className="text-2xl font-extrabold mt-1">Rp 0 <span className="text-xs font-normal opacity-70">/ selamanya</span></p>
                       <ul className="mt-3 space-y-1.5 text-xs opacity-85">
-                        <li>• Usick One AI Flagship & Voice Assistant</li>
+                        <li>• OneMind AI Flagship & Voice Assistant</li>
                         <li>• 10.000 AI Credits & 50 Code Credits / hari</li>
                         <li>• Penalaran Faster & Balanced</li>
                         <li>• Smart Schedule (Maks. 3 Jadwal)</li>
@@ -478,7 +478,7 @@ export default function Footer01({
                     <span className={cn("absolute -top-2.5 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", isDark ? "bg-white text-black" : "bg-black text-white")}>Populer</span>
                     <div>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Pro Member</span>
-                      <h4 className="font-bold text-base mt-2">Usick One Pro</h4>
+                      <h4 className="font-bold text-base mt-2">OneMind Pro</h4>
                       <p className="text-2xl font-extrabold mt-1">Rp 49.000 <span className="text-xs font-normal opacity-70">/ bln</span></p>
                       <ul className="mt-3 space-y-1.5 text-xs opacity-90">
                         <li>• 100.000 AI Credits & 200 Code Credits / hari</li>
@@ -552,7 +552,7 @@ export default function Footer01({
                     <span className="font-bold text-sm block mb-1">v2.5 — Full Pro Ecosystem & Music Connect</span>
                     <p>• Hadirnya Tab Music (Pro) dengan pemutar lagu penuh, lirik tersinkronisasi, dan Music Connect untuk dengar bersama teman secara realtime.</p>
                     <p>• Integrasi Tab Messages (Pro) untuk chat pribadi realtime antar pengguna dan Tab Image Studio (One Design) & Translasi Gambar.</p>
-                    <p>• Penambahan Catatan Pintar (AI Notebook) serta pembaruan paket Usick One Pro.</p>
+                    <p>• Penambahan Catatan Pintar (AI Notebook) serta pembaruan paket OneMind Pro.</p>
                   </div>
                   <div className={cn("p-3 rounded-xl border", isDark ? "border-zinc-800 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50")}>
                     <span className="font-bold text-sm block mb-1">v2.4 — One Mind Experience & Voice Assistant</span>
