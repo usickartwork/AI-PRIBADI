@@ -924,7 +924,7 @@ export function MusicWorkspace({
           width: "100%",
           videoId: currentVideoId || "3BFTio5296w",
           playerVars: {
-            autoplay: 0,
+            autoplay: 1,
             controls: 1,
             modestbranding: 1,
             rel: 0,
@@ -995,13 +995,18 @@ export function MusicWorkspace({
                   } catch {}
                   return;
                 }
-                // Only mark as paused if user intentionally paused or page is visible in foreground
-                if (userRequestedPauseRef.current || (typeof document !== "undefined" && !document.hidden)) {
+                // Only mark as paused if user intentionally paused
+                if (userRequestedPauseRef.current) {
                   playbackClockRef.current.isPlaying = false;
                   try {
                     playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
                   } catch {}
                   setIsPlaying(false);
+                } else {
+                  // If YouTube transitioned to paused without user asking (e.g. transient buffering on load), auto-play!
+                  try {
+                    event.target.playVideo();
+                  } catch {}
                 }
               } else if (event.data === 0) {
                 // If Live Radio is active, ignore YouTube track ended!
@@ -1013,7 +1018,7 @@ export function MusicWorkspace({
                 handleTrackEnded();
               } else if (event.data === 5) {
                 // 5: CUED — Video is ready and cued. If playback was requested and not paused, start it!
-                if (!userRequestedPauseRef.current && isPlayingRef.current) {
+                if (!userRequestedPauseRef.current) {
                   try {
                     event.target.playVideo();
                   } catch {}
@@ -1022,8 +1027,49 @@ export function MusicWorkspace({
             },
             onError: (err: any) => {
               console.warn("[YouTube Player Error]:", err);
-              // Error 101/150 (embedding disabled by owner) or 100 (not found/private)
               const track = currentTrackRef.current;
+              const errCode = typeof err === "number" ? err : err?.data;
+              // Error 150/101 (embedding disabled by owner) or 100 (not found/private): Auto-recover with alternative video
+              if (track && (errCode === 150 || errCode === 101 || errCode === 100 || errCode === 2)) {
+                const badVid = track.youtubeVideoId || currentVideoId;
+                const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
+                fetch(
+                  `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}&exclude=${encodeURIComponent(badVid || "")}`
+                )
+                  .then((r) => r.json())
+                  .then((d) => {
+                    if (d?.success && d?.videoId && d.videoId !== badVid && ytPlayerRef.current) {
+                      console.log("[YouTube Player]: Embed blocked, recovered with alternative videoId:", d.videoId);
+                      track.youtubeVideoId = d.videoId;
+                      setCurrentVideoId(d.videoId);
+                      try {
+                        ytPlayerRef.current.loadVideoById({
+                          videoId: d.videoId,
+                          startSeconds: d.startSeconds || 0,
+                        });
+                        ytPlayerRef.current.playVideo();
+                        setIsPlaying(true);
+                      } catch {}
+                      return;
+                    }
+                    if (track?.previewUrl && audioRef.current) {
+                      try {
+                        audioRef.current.src = track.previewUrl;
+                        audioRef.current.loop = false;
+                        audioRef.current.volume = isMuted ? 0 : volume;
+                        audioRef.current.muted = isMuted;
+                        audioRef.current.onended = () => handleTrackEnded();
+                        audioRef.current.play().then(() => {
+                          setIsPlaying(true);
+                          isPlayingRef.current = true;
+                        }).catch(() => {});
+                      } catch {}
+                    }
+                  })
+                  .catch(() => {});
+                return;
+              }
+
               if (track?.previewUrl && audioRef.current) {
                 console.log("[YouTube Player]: Falling back to audio preview stream");
                 try {
@@ -1792,6 +1838,13 @@ export function MusicWorkspace({
             audioRef.current.loop = true;
           }
           audioRef.current.play().catch(() => {});
+        } catch {}
+      }
+
+      // Prime YouTube engine within user gesture
+      if (shouldAutoPlay && ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+        try {
+          ytPlayerRef.current.playVideo();
         } catch {}
       }
 
@@ -4949,10 +5002,10 @@ export function MusicWorkspace({
         }}
       />
 
-      {/* Background YouTube Audio Container (In-viewport with minimal opacity to prevent browser suspension of background media) */}
+      {/* Background YouTube Audio Container (Placed in-viewport behind solid layers without opacity penalty to allow smooth autoplay) */}
       <div
         id="youtube-music-player-container"
-        className="fixed bottom-0 right-0 w-[240px] h-[160px] pointer-events-none opacity-[0.01] z-[-1] overflow-hidden"
+        className="fixed bottom-0 right-0 w-[200px] h-[120px] pointer-events-none -z-50 overflow-hidden"
         aria-hidden="true"
       >
         <div id="youtube-music-player" />

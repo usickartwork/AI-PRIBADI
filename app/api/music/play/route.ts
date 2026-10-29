@@ -36,6 +36,16 @@ const PRELOADED_TRACKS: [string, string, string][] = [
   ["Espresso", "Sabrina Carpenter", "51zjlMhdSTE"],
   ["Taste", "Sabrina Carpenter", "z9Q9OzL_wI8"],
   ["Cruel Summer", "Taylor Swift", "ic8j13piAhQ"],
+  ["Enchanted", "Taylor Swift", "igIfiqqVHtA"],
+  ["Enchanted (Taylor's Version)", "Taylor Swift", "igIfiqqVHtA"],
+  ["Enchanted Taylors Version", "Taylor Swift", "igIfiqqVHtA"],
+  ["Anti-Hero", "Taylor Swift", "b1kbLwvqugk"],
+  ["Blank Space", "Taylor Swift", "e-ORhEE9VVg"],
+  ["Love Story", "Taylor Swift", "8xg3vE8Ie_E"],
+  ["Cardigan", "Taylor Swift", "K-a8s8OLBSE"],
+  ["August", "Taylor Swift", "nn_0zPA61d8"],
+  ["Lover", "Taylor Swift", "-BjZmE2gtdo"],
+  ["Style", "Taylor Swift", "-CmadmM5cOk"],
   ["Satu Bulan", "Bernadya", "7Jm2Il2U-c0"],
   ["Evaluasi", "Hindia", "saXhrw-7rQI"],
   ["Rayuan Perempuan Gila", "Nadin Amizah", "gIsoLyQX7W8"],
@@ -88,107 +98,89 @@ async function getIntroSkipSeconds(videoId: string): Promise<number> {
   return 0;
 }
 
-async function searchInnerTube(title: string, artist: string): Promise<string | null> {
+function extractVideoCandidates(data: any): { videoId: string; channel: string; title: string }[] {
+  const candidates: { videoId: string; channel: string; title: string }[] = [];
+  try {
+    const contents =
+      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+    for (const c of contents) {
+      const items = c?.itemSectionRenderer?.contents || [];
+      for (const item of items) {
+        const v = item?.videoRenderer;
+        if (v?.videoId && typeof v.videoId === "string" && v.videoId.length === 11) {
+          const channel = v.ownerText?.runs?.[0]?.text || "";
+          const title = v.title?.runs?.[0]?.text || "";
+          candidates.push({ videoId: v.videoId, channel, title });
+        }
+      }
+    }
+  } catch {}
+  return candidates;
+}
+
+async function searchInnerTube(title: string, artist: string, excludeId?: string): Promise<string | null> {
   const cleanTitle = title.trim();
   const cleanArtist = artist.trim();
 
-  // Method 1: YouTube Web with "${title} ${artist} official audio" to prioritize pure studio audio over dialogue-heavy MVs
-  try {
-    const res = await fetch("https://www.youtube.com/youtubei/v1/search?prettyPrint=false", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "WEB",
-            clientVersion: "2.20240101.00.00",
-            hl: "en",
-            gl: "US",
-          },
+  // Try standard search first (returns embeddable official lyric videos / MVs),
+  // then fallback to "official audio"
+  const queries = [
+    `${cleanTitle} ${cleanArtist}`.trim(),
+    `${cleanTitle} ${cleanArtist} official audio`.trim(),
+  ];
+
+  for (const q of queries) {
+    try {
+      const res = await fetch("https://www.youtube.com/youtubei/v1/search?prettyPrint=false", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         },
-        query: `${cleanTitle} ${cleanArtist} official audio`.trim(),
-      }),
-      signal: AbortSignal.timeout(4000),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const str = JSON.stringify(data);
-      const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-  } catch {}
-
-  // Method 2: YouTube Music WEB_REMIX API
-  try {
-    const res = await fetch("https://music.youtube.com/youtubei/v1/search?prettyPrint=false", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: "https://music.youtube.com/",
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "WEB_REMIX",
-            clientVersion: "1.20240101.01.00",
-            hl: "en",
-            gl: "US",
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: "WEB",
+              clientVersion: "2.20240101.00.00",
+              hl: "en",
+              gl: "US",
+            },
           },
-        },
-        query: `${cleanTitle} ${cleanArtist}`.trim(),
-      }),
-      signal: AbortSignal.timeout(4000),
-    });
+          query: q,
+        }),
+        signal: AbortSignal.timeout(4000),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      const str = JSON.stringify(data);
-      const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (match && match[1]) {
-        return match[1];
+      if (res.ok) {
+        const data = await res.json();
+        const candidates = extractVideoCandidates(data);
+
+        // Filter out excluded video IDs (e.g. if previous video had embedding blocked)
+        const available = excludeId ? candidates.filter((c) => c.videoId !== excludeId) : candidates;
+
+        // 1. Prefer non-Topic videos (channels ending in "- Topic" often have embedding disabled by UMG/labels)
+        const nonTopic = available.find(
+          (c) => !c.channel.endsWith("- Topic") && !c.channel.includes("Topic")
+        );
+        if (nonTopic) {
+          return nonTopic.videoId;
+        }
+
+        // 2. Fallback to first available candidate
+        if (available.length > 0) {
+          return available[0].videoId;
+        }
+
+        // 3. Regex fallback
+        const str = JSON.stringify(data);
+        const matches = Array.from(str.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)).map((m) => m[1]);
+        const validMatch = matches.find((id) => !excludeId || id !== excludeId);
+        if (validMatch) {
+          return validMatch;
+        }
       }
-    }
-  } catch {}
-
-  // Method 3: Standard YouTube Web Fallback
-  try {
-    const res = await fetch("https://www.youtube.com/youtubei/v1/search?prettyPrint=false", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: "WEB",
-            clientVersion: "2.20240101.00.00",
-            hl: "en",
-            gl: "US",
-          },
-        },
-        query: `${cleanTitle} ${cleanArtist}`.trim(),
-      }),
-      signal: AbortSignal.timeout(4000),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const str = JSON.stringify(data);
-      const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-  } catch {}
+    } catch {}
+  }
 
   return null;
 }
@@ -198,37 +190,42 @@ export async function GET(request: Request) {
   const title = searchParams.get("title")?.trim() || "";
   const artist = searchParams.get("artist")?.trim() || "";
   const trackId = searchParams.get("id")?.trim() || "";
+  const exclude = searchParams.get("exclude")?.trim() || "";
 
   if (!title && !trackId) {
     return NextResponse.json({ success: false, error: "Missing title or id" }, { status: 400 });
   }
 
-  // 1. Check in-memory preloaded cache
+  // 1. Check in-memory preloaded cache (only if not excluding this videoId)
   const keyWithArtist = normalizeKey(title, artist);
   if (videoCache.has(keyWithArtist)) {
     const cached = videoCache.get(keyWithArtist)!;
-    return NextResponse.json({
-      success: true,
-      videoId: cached.videoId,
-      startSeconds: cached.startSeconds || 0,
-      cached: true,
-    });
+    if (!exclude || cached.videoId !== exclude) {
+      return NextResponse.json({
+        success: true,
+        videoId: cached.videoId,
+        startSeconds: cached.startSeconds || 0,
+        cached: true,
+      });
+    }
   }
 
   const keyTitleOnly = normalizeKey(title, "");
   if (videoCache.has(keyTitleOnly)) {
     const cached = videoCache.get(keyTitleOnly)!;
-    return NextResponse.json({
-      success: true,
-      videoId: cached.videoId,
-      startSeconds: cached.startSeconds || 0,
-      cached: true,
-    });
+    if (!exclude || cached.videoId !== exclude) {
+      return NextResponse.json({
+        success: true,
+        videoId: cached.videoId,
+        startSeconds: cached.startSeconds || 0,
+        cached: true,
+      });
+    }
   }
 
-  // 2. Perform live resolution using YouTube Official Audio / InnerTube
+  // 2. Perform live resolution using YouTube InnerTube
   try {
-    const videoId = await searchInnerTube(title, artist);
+    const videoId = await searchInnerTube(title, artist, exclude);
     if (videoId) {
       const startSeconds = await getIntroSkipSeconds(videoId);
       setCachedVideo(keyWithArtist, { videoId, startSeconds });
@@ -244,8 +241,7 @@ export async function GET(request: Request) {
     console.warn("[Music Play Resolution Error]:", err);
   }
 
-  // 3. Honest unresolved fallback: never substitute a random unrelated song (e.g. Shape of You),
-  // allowing the client player to fall back to genuine previewUrl or skip cleanly during Autoplay.
+  // 3. Honest unresolved fallback
   return NextResponse.json({
     success: false,
     videoId: null,
