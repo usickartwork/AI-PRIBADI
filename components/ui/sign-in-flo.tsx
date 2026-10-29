@@ -77,7 +77,7 @@ export const AnimatedFormField: React.FC<FormFieldProps> = ({
           onBlur={() => setIsFocused(false)}
           autoComplete={autoComplete}
           required={required}
-          className={`w-full bg-transparent pl-11 pr-11 pt-5 pb-2 text-sm focus:outline-none transition-colors ${
+          className={`w-full bg-transparent pl-11 pr-11 pt-5 pb-2 text-base sm:text-sm focus:outline-none transition-colors ${
             isDark ? "text-zinc-100 placeholder:text-transparent" : "text-zinc-900 placeholder:text-transparent"
           }`}
           placeholder=""

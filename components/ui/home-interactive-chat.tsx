@@ -376,7 +376,7 @@ export function HomeInteractiveChat({
                       ? "Batas 2 pertanyaan uji coba tercapai. Daftar akun gratis untuk melanjutkan..."
                       : "Tanyakan apa saja tentang One Mind atau pilih opsi di bawah..."
                   }
-                  className={`w-full bg-transparent px-1 py-0.5 text-sm sm:text-base outline-none resize-none leading-relaxed ${
+                  className={`w-full bg-transparent px-1 py-0.5 text-base outline-none resize-none leading-relaxed ${
                     isDark ? "text-white placeholder-zinc-500" : "text-zinc-900 placeholder-zinc-500 font-normal"
                   } disabled:cursor-not-allowed disabled:opacity-60`}
                   style={{ maxHeight: "120px" }}

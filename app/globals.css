@@ -549,3 +549,18 @@ video::-webkit-media-controls-panel {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* ─── PREVENT IOS SAFARI AUTO-ZOOM ON INPUT/TEXTAREA FOCUS ─── */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
