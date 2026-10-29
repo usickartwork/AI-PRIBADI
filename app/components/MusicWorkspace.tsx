@@ -693,10 +693,6 @@ export function MusicWorkspace({
   const isPlayingRef = useRef<boolean>(isPlaying);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
-  // Session-Level Video ID & Metadata Cache to eliminate async delays on search results
-  const resolvedVideoIdsMapRef = useRef<Map<string, { videoId: string; startSeconds: number }>>(new Map());
-  const prefetchingIdsRef = useRef<Set<string>>(new Set());
-
   // Synchronized Lyrics State & High-Performance Playback Clock
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyricsData, setLyricsData] = useState<LyricsData | null>(null);
@@ -999,20 +995,13 @@ export function MusicWorkspace({
                   } catch {}
                   return;
                 }
-                // Only mark as paused if user explicitly requested pause
-                if (userRequestedPauseRef.current) {
+                // Only mark as paused if user intentionally paused or page is visible in foreground
+                if (userRequestedPauseRef.current || (typeof document !== "undefined" && !document.hidden)) {
                   playbackClockRef.current.isPlaying = false;
                   try {
                     playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
                   } catch {}
                   setIsPlaying(false);
-                  isPlayingRef.current = false;
-                } else if (currentTrackRef.current) {
-                  // User did NOT request pause: player paused due to video loading transition, buffering, or initial playback.
-                  // Auto-resume to ensure playback starts on the first click without requiring a second click.
-                  try {
-                    event.target.playVideo();
-                  } catch {}
                 }
               } else if (event.data === 0) {
                 // If Live Radio is active, ignore YouTube track ended!
@@ -1220,38 +1209,6 @@ export function MusicWorkspace({
   const lastFetchedSearchQueryRef = useRef<string>("");
   const searchAbortControllerRef = useRef<AbortController | null>(null);
 
-  // ─── Instant Audio Pre-resolution (Prevents Autoplay Throttling on 1st Click) ───
-  const prefetchTrackAudio = useCallback(async (track: MusicItem) => {
-    if (!track || !track.id) return;
-    if (track.youtubeVideoId) return;
-    if (resolvedVideoIdsMapRef.current.has(track.id)) {
-      const cached = resolvedVideoIdsMapRef.current.get(track.id)!;
-      track.youtubeVideoId = cached.videoId;
-      return;
-    }
-    if (prefetchingIdsRef.current.has(track.id)) return;
-    prefetchingIdsRef.current.add(track.id);
-
-    try {
-      const artist = track.artistNames && track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
-      const res = await fetch(
-        `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
-      );
-      const data = await res.json();
-      if (data.success && data.videoId) {
-        track.youtubeVideoId = data.videoId;
-        resolvedVideoIdsMapRef.current.set(track.id, {
-          videoId: data.videoId,
-          startSeconds: data.startSeconds || 0,
-        });
-      }
-    } catch {
-      // Best-effort background prefetch; ignore abort/network errors
-    } finally {
-      prefetchingIdsRef.current.delete(track.id);
-    }
-  }, []);
-
   // ─── Initial & Category-Based Spotify Catalog Fetch (Loads 50 songs) ──────
   const fetchSpotifyMusic = useCallback(
     async (
@@ -1306,12 +1263,6 @@ export function MusicWorkspace({
               setDiscoverTracks(ordered);
             } else {
               setTracks(fetchedTracks);
-              // Pre-resolve top search results in background so first-click plays synchronously without delay
-              if (fetchedTracks.length > 0) {
-                fetchedTracks.slice(0, 3).forEach((t) => {
-                  void prefetchTrackAudio(t);
-                });
-              }
             }
           }
           if (json.data.artists) setArtists(json.data.artists);
@@ -1845,22 +1796,10 @@ export function MusicWorkspace({
         setDuration(track.durationMs / 1000);
       }
 
-      let videoId = track.youtubeVideoId || (track.id ? resolvedVideoIdsMapRef.current.get(track.id)?.videoId : undefined);
+      let videoId = track.youtubeVideoId;
       if (videoId && LEGACY_DIALOGUE_VIDEO_FIXES[videoId]) {
         videoId = LEGACY_DIALOGUE_VIDEO_FIXES[videoId];
         track.youtubeVideoId = videoId;
-      }
-      if (videoId && !track.youtubeVideoId) {
-        track.youtubeVideoId = videoId;
-        const cachedMeta = track.id ? resolvedVideoIdsMapRef.current.get(track.id) : undefined;
-        if (cachedMeta?.startSeconds && cachedMeta.startSeconds > 0 && !options?.startSeconds) {
-          startSec = cachedMeta.startSeconds;
-          setCurrentTime(startSec);
-          if (playbackClockRef.current) {
-            playbackClockRef.current.positionSeconds = startSec;
-            playbackClockRef.current.snapshotPerfTime = performance.now();
-          }
-        }
       }
 
       if (!videoId) {
@@ -1874,12 +1813,6 @@ export function MusicWorkspace({
           if (data.success && data.videoId) {
             videoId = data.videoId;
             track.youtubeVideoId = videoId;
-            if (track.id && data.videoId) {
-              resolvedVideoIdsMapRef.current.set(track.id, {
-                videoId: data.videoId,
-                startSeconds: data.startSeconds || 0,
-              });
-            }
             // If the resolved video has an intro dialogue/skit to skip and caller didn't pass custom seek
             if (data.startSeconds && data.startSeconds > 0 && !options?.startSeconds) {
               startSec = data.startSeconds;
@@ -3633,8 +3566,6 @@ export function MusicWorkspace({
             <div
               key={`${track.id}-${idx}`}
               onClick={() => playTrack(track)}
-              onMouseEnter={() => prefetchTrackAudio(track)}
-              onPointerDown={() => prefetchTrackAudio(track)}
               className={`grid grid-cols-[2rem_1fr_auto] sm:grid-cols-[2.5rem_1fr_auto] md:grid-cols-[2.5rem_1fr_12rem_auto] lg:grid-cols-[2.5rem_1fr_14rem_9rem_auto] items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl transition-colors duration-150 cursor-pointer group select-none ${
                 activeMenuTrackId === track.id ? "relative z-30" : ""
               } ${
@@ -5746,8 +5677,6 @@ export function MusicWorkspace({
                           <div
                             key={`quick-pick-${track.id}`}
                             onClick={() => playTrack(track)}
-                            onMouseEnter={() => prefetchTrackAudio(track)}
-                            onPointerDown={() => prefetchTrackAudio(track)}
                             className={`group relative flex items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 pr-2.5 sm:pr-3 rounded-xl sm:rounded-2xl transition-colors cursor-pointer overflow-hidden border ${
                               isCurrent
                                 ? isDark
@@ -7773,8 +7702,6 @@ export function MusicWorkspace({
                       >
                         <div
                           onClick={() => playTrack(rec)}
-                          onMouseEnter={() => prefetchTrackAudio(rec)}
-                          onPointerDown={() => prefetchTrackAudio(rec)}
                           className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
                         >
                           {rec.artworkUrl && (
