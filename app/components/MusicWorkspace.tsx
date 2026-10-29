@@ -84,6 +84,71 @@ const LEGACY_DIALOGUE_VIDEO_FIXES: Record<string, string> = {
   G7KNmW9a75Y: "SWpAYbgHmTo", // Flowers (removes 4s dialogue)
 };
 
+// Client-side instant preloaded tracks for 0ms audio lookup on popular titles
+const CLIENT_PRELOADED_TRACKS: [string, string, string][] = [
+  ["Gala bunga matahari", "Sal Priadi", "lABZ_-uhC0E"],
+  ["Shape of You", "Ed Sheeran", "_dK2tDK9grQ"],
+  ["Blinding Lights", "The Weeknd", "fHI8X4OXluQ"],
+  ["Save Your Tears", "The Weeknd", "XXYlFuWEuKI"],
+  ["BIRDS OF A FEATHER", "Billie Eilish", "V9PVRfjEBTI"],
+  ["Die With A Smile", "Lady Gaga Bruno Mars", "kPa7bsKwL-c"],
+  ["Espresso", "Sabrina Carpenter", "51zjlMhdSTE"],
+  ["Taste", "Sabrina Carpenter", "z9Q9OzL_wI8"],
+  ["Cruel Summer", "Taylor Swift", "ic8j13piAhQ"],
+  ["Enchanted", "Taylor Swift", "igIfiqqVHtA"],
+  ["Enchanted (Taylor's Version)", "Taylor Swift", "igIfiqqVHtA"],
+  ["Enchanted Taylors Version", "Taylor Swift", "igIfiqqVHtA"],
+  ["Anti-Hero", "Taylor Swift", "b1kbLwvqugk"],
+  ["Blank Space", "Taylor Swift", "e-ORhEE9VVg"],
+  ["Love Story", "Taylor Swift", "8xg3vE8Ie_E"],
+  ["Cardigan", "Taylor Swift", "K-a8s8OLBSE"],
+  ["August", "Taylor Swift", "nn_0zPA61d8"],
+  ["Lover", "Taylor Swift", "-BjZmE2gtdo"],
+  ["Style", "Taylor Swift", "-CmadmM5cOk"],
+  ["Satu Bulan", "Bernadya", "7Jm2Il2U-c0"],
+  ["Evaluasi", "Hindia", "saXhrw-7rQI"],
+  ["Rayuan Perempuan Gila", "Nadin Amizah", "gIsoLyQX7W8"],
+  ["Viva La Vida", "Coldplay", "dvgZkm1xWPE"],
+  ["Levitating", "Dua Lipa", "TUVcZfQe-Kw"],
+  ["Bohemian Rhapsody", "Queen", "fJ9rUzIMcZQ"],
+  ["APT.", "ROSÉ Bruno Mars", "8Ebqe2Dbzls"],
+  ["Untungnya, Hidup Harus Tetap Berjalan", "Bernadya", "HB8vftGxsIc"],
+  ["As It Was", "Harry Styles", "H5v3kku4y6Q"],
+  ["Glimpse of Us", "Joji", "FvOpPeKSf_4"],
+  ["Yellow", "Coldplay", "yKNxeF4KMsY"],
+  ["Starboy", "The Weeknd Daft Punk", "Rif-RTvmmss"],
+  ["Sial", "Mahalini", "QSWYyoF79oE"],
+  ["Komang", "Raim Laode", "vl_3mZx88zw"],
+  ["Never Gonna Give You Up", "Rick Astley", "3BFTio5296w"],
+  ["Mr. Brightside", "The Killers", "l7MaKmKJqoc"],
+  ["Someone Like You", "Adele", "hLQl3WQQoQ0"],
+  ["Perfect", "Ed Sheeran", "iKzRIweSBLA"],
+  ["Flowers", "Miley Cyrus", "SWpAYbgHmTo"],
+  ["Attention", "Charlie Puth", "nfs8NYg7yQM"],
+  ["Stay", "The Kid LAROI Justin Bieber", "kTJczUoc268"],
+];
+
+function getClientPreloadedVideoId(title: string, artist: string = ""): string | undefined {
+  if (!title) return undefined;
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const cleanTitle = norm(title);
+  const cleanArtist = norm(artist);
+
+  for (const [pTitle, pArtist, vId] of CLIENT_PRELOADED_TRACKS) {
+    const cpTitle = norm(pTitle);
+    const cpArtist = norm(pArtist);
+    if (cleanTitle === cpTitle && (!cpArtist || cleanArtist.includes(cpArtist) || cpArtist.includes(cleanArtist))) {
+      return vId;
+    }
+  }
+  return undefined;
+}
+
 // Curated starter tracks with 100% verified Spotify artworks & pre-resolved YouTube IDs
 const FEATURED_STARTER_TRACKS: MusicItem[] = [
   {
@@ -665,6 +730,8 @@ export function MusicWorkspace({
   const isYtReadyRef = useRef<boolean>(false);
   const [isYtReady, setIsYtReady] = useState(false);
   const [isResolvingAudio, setIsResolvingAudio] = useState(false);
+  const isResolvingAudioRef = useRef(false);
+  const resolvedVideoIdsMapRef = useRef<Map<string, { videoId: string; startSeconds: number }>>(new Map());
   const pendingVideoIdRef = useRef<string | null>(null);
   const pendingVideoOptionsRef = useRef<{ startSeconds: number; autoPlay: boolean }>({
     startSeconds: 0,
@@ -995,13 +1062,19 @@ export function MusicWorkspace({
                   } catch {}
                   return;
                 }
-                // Only mark as paused if user intentionally paused or page is visible in foreground
-                if (userRequestedPauseRef.current || (typeof document !== "undefined" && !document.hidden)) {
+                // Only mark as paused if user intentionally paused
+                if (userRequestedPauseRef.current) {
                   playbackClockRef.current.isPlaying = false;
                   try {
                     playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
                   } catch {}
                   setIsPlaying(false);
+                } else if (!isResolvingAudioRef.current) {
+                  // If YouTube transitioned to paused without user asking (e.g. transient buffering or video loading transition),
+                  // auto-resume so the song starts immediately on the first click!
+                  try {
+                    event.target.playVideo();
+                  } catch {}
                 }
               } else if (event.data === 0) {
                 // If Live Radio is active, ignore YouTube track ended!
@@ -1013,7 +1086,7 @@ export function MusicWorkspace({
                 handleTrackEnded();
               } else if (event.data === 5) {
                 // 5: CUED — Video is ready and cued. If playback was requested and not paused, start it!
-                if (!userRequestedPauseRef.current) {
+                if (!userRequestedPauseRef.current && !isResolvingAudioRef.current) {
                   try {
                     event.target.playVideo();
                   } catch {}
@@ -1311,6 +1384,38 @@ export function MusicWorkspace({
               setDiscoverTracks(ordered);
             } else {
               setTracks(fetchedTracks);
+              // Pre-resolve the top 1 search result into memory so clicking the top match is 100% instantaneous!
+              const topTrack = fetchedTracks[0];
+              if (topTrack && !topTrack.youtubeVideoId) {
+                const preloaded = getClientPreloadedVideoId(topTrack.title, topTrack.artistNames.join(" "));
+                if (preloaded) {
+                  topTrack.youtubeVideoId = preloaded;
+                  if (topTrack.id) {
+                    resolvedVideoIdsMapRef.current.set(topTrack.id, {
+                      videoId: preloaded,
+                      startSeconds: 0,
+                    });
+                  }
+                } else {
+                  const artist = topTrack.artistNames.length > 0 ? topTrack.artistNames.join(" ") : "";
+                  fetch(
+                    `/api/music/play?title=${encodeURIComponent(topTrack.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(topTrack.id)}`
+                  )
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if (d?.success && d?.videoId) {
+                        topTrack.youtubeVideoId = d.videoId;
+                        if (topTrack.id) {
+                          resolvedVideoIdsMapRef.current.set(topTrack.id, {
+                            videoId: d.videoId,
+                            startSeconds: d.startSeconds || 0,
+                          });
+                        }
+                      }
+                    })
+                    .catch(() => {});
+                }
+              }
             }
           }
           if (json.data.artists) setArtists(json.data.artists);
@@ -1856,13 +1961,21 @@ export function MusicWorkspace({
         setDuration(track.durationMs / 1000);
       }
 
-      let videoId = track.youtubeVideoId;
+      let videoId: string | undefined =
+        track.youtubeVideoId ||
+        (track.id ? resolvedVideoIdsMapRef.current.get(track.id)?.videoId : undefined) ||
+        getClientPreloadedVideoId(track.title, track.artistNames.join(" "));
+
+      if (videoId && !track.youtubeVideoId) {
+        track.youtubeVideoId = videoId;
+      }
       if (videoId && LEGACY_DIALOGUE_VIDEO_FIXES[videoId]) {
         videoId = LEGACY_DIALOGUE_VIDEO_FIXES[videoId];
         track.youtubeVideoId = videoId;
       }
 
       if (!videoId) {
+        isResolvingAudioRef.current = true;
         setIsResolvingAudio(true);
         try {
           const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
@@ -1871,8 +1984,14 @@ export function MusicWorkspace({
           );
           const data = await res.json();
           if (data.success && data.videoId) {
-            videoId = data.videoId;
+            videoId = String(data.videoId);
             track.youtubeVideoId = videoId;
+            if (track.id) {
+              resolvedVideoIdsMapRef.current.set(track.id, {
+                videoId: data.videoId,
+                startSeconds: data.startSeconds || 0,
+              });
+            }
             // If the resolved video has an intro dialogue/skit to skip and caller didn't pass custom seek
             if (data.startSeconds && data.startSeconds > 0 && !options?.startSeconds) {
               startSec = data.startSeconds;
@@ -1894,6 +2013,7 @@ export function MusicWorkspace({
         } catch (err) {
           console.warn("Failed to resolve audio for track:", err);
         } finally {
+          isResolvingAudioRef.current = false;
           setIsResolvingAudio(false);
         }
       }
@@ -1940,6 +2060,10 @@ export function MusicWorkspace({
       if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
         try {
           if (shouldAutoPlay) {
+            try {
+              ytPlayerRef.current.unMute();
+              ytPlayerRef.current.setVolume(isMuted ? 0 : volume * 100);
+            } catch {}
             ytPlayerRef.current.loadVideoById({
               videoId: targetVideoId,
               startSeconds: startSec,
@@ -2092,6 +2216,10 @@ export function MusicWorkspace({
               audioRef.current.loop = true;
             } catch {}
           }
+          try {
+            ytPlayerRef.current.unMute();
+            ytPlayerRef.current.setVolume(isMuted ? 0 : volume * 100);
+          } catch {}
           ytPlayerRef.current.playVideo();
           if (audioRef.current) {
             try {
