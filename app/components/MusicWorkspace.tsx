@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@clerk/nextjs";
 import Avatar from "@/components/ui/components-primitives-avatar";
 import {
@@ -142,7 +143,10 @@ function getClientPreloadedVideoId(title: string, artist: string = ""): string |
   for (const [pTitle, pArtist, vId] of CLIENT_PRELOADED_TRACKS) {
     const cpTitle = norm(pTitle);
     const cpArtist = norm(pArtist);
-    if (cleanTitle === cpTitle && (!cpArtist || cleanArtist.includes(cpArtist) || cpArtist.includes(cleanArtist))) {
+    if (
+      (cleanTitle === cpTitle || cleanTitle.startsWith(cpTitle) || cpTitle.startsWith(cleanTitle)) &&
+      (!cpArtist || cleanArtist.includes(cpArtist) || cpArtist.includes(cleanArtist))
+    ) {
       return vId;
     }
   }
@@ -1003,6 +1007,7 @@ export function MusicWorkspace({
             onReady: (event: any) => {
               if (!isMounted) return;
               ytPlayerRef.current = event.target;
+              (window as any).__ytPlayer = event.target;
               isYtReadyRef.current = true;
               setIsYtReady(true);
               try {
@@ -1034,6 +1039,7 @@ export function MusicWorkspace({
             },
             onStateChange: (event: any) => {
               if (!isMounted) return;
+              console.log("[YT onStateChange]:", event.data);
               // 1: PLAYING, 2: PAUSED, 0: ENDED
               if (event.data === 1) {
                 setIsPlaying(true);
@@ -1231,6 +1237,15 @@ export function MusicWorkspace({
       window.addEventListener("focus", handleVisibilityChange);
     }
 
+    const tryInitPlayer = () => {
+      if (!isMounted) return;
+      if (typeof window !== "undefined" && (window as any).YT && (window as any).YT.Player) {
+        initPlayer();
+      } else {
+        setTimeout(tryInitPlayer, 100);
+      }
+    };
+
     if (typeof window !== "undefined") {
       if (!(window as any).YT) {
         const existingScript = document.getElementById("youtube-iframe-api-script");
@@ -1245,10 +1260,10 @@ export function MusicWorkspace({
           if (typeof prevReady === "function") {
             try { prevReady(); } catch {}
           }
-          initPlayer();
+          tryInitPlayer();
         };
       } else {
-        initPlayer();
+        tryInitPlayer();
       }
     }
 
@@ -2056,6 +2071,7 @@ export function MusicWorkspace({
       autoplayErrorRetryCountRef.current = 0;
       const targetVideoId = videoId;
       setCurrentVideoId(targetVideoId);
+      console.log("[playTrack loading targetVideoId]:", targetVideoId, "isYtReady:", isYtReadyRef.current, "hasPlayer:", !!ytPlayerRef.current);
 
       if (ytPlayerRef.current && isYtReadyRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
         try {
@@ -5125,14 +5141,18 @@ export function MusicWorkspace({
         }}
       />
 
-      {/* Background YouTube Audio Container (Placed in-viewport behind solid layers without opacity penalty to allow smooth autoplay) */}
-      <div
-        id="youtube-music-player-container"
-        className="fixed bottom-0 right-0 w-[200px] h-[120px] pointer-events-none -z-50 overflow-hidden"
-        aria-hidden="true"
-      >
-        <div id="youtube-music-player" />
-      </div>
+      {/* Background YouTube Audio Container (Portaled to document.body so it is never affected by ancestor display:none or tab transitions) */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <div
+            id="youtube-music-player-container"
+            className="fixed bottom-0 right-0 w-[200px] h-[120px] pointer-events-none -z-50 overflow-hidden"
+            aria-hidden="true"
+          >
+            <div id="youtube-music-player" />
+          </div>,
+          document.body
+        )}
 
       {/* ─── TOP WORKSPACE CONTAINER: MAIN CONTENT + DESKTOP RIGHT SIDEBAR ─ */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">

@@ -5589,7 +5589,13 @@ export default function Home() {
         ) : null}
 
         {/* MusicWorkspace dijaga tetap ter-mount di latar belakang untuk pengguna Pro agar audio player & Music Connect tidak terputus saat beralih tab */}
-        <div className={`relative h-full w-full ${activeView === "music" ? "flex flex-col flex-1" : "hidden"}`}>
+        <div
+          className={`h-full w-full ${
+            activeView === "music"
+              ? "flex flex-col flex-1 relative"
+              : "absolute inset-0 pointer-events-none opacity-0 -z-50 overflow-hidden"
+          }`}
+        >
           {(subscription?.plan || "free") === "free" ? (
             <LockedFeatureView
               isDark={isDark}
