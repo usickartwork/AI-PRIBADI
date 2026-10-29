@@ -995,18 +995,13 @@ export function MusicWorkspace({
                   } catch {}
                   return;
                 }
-                // Only mark as paused if user intentionally paused
-                if (userRequestedPauseRef.current) {
+                // Only mark as paused if user intentionally paused or page is visible in foreground
+                if (userRequestedPauseRef.current || (typeof document !== "undefined" && !document.hidden)) {
                   playbackClockRef.current.isPlaying = false;
                   try {
                     playbackClockRef.current.positionSeconds = event.target.getCurrentTime() || playbackClockRef.current.positionSeconds;
                   } catch {}
                   setIsPlaying(false);
-                } else {
-                  // If YouTube transitioned to paused without user asking (e.g. transient buffering on load), auto-play!
-                  try {
-                    event.target.playVideo();
-                  } catch {}
                 }
               } else if (event.data === 0) {
                 // If Live Radio is active, ignore YouTube track ended!
@@ -1841,10 +1836,10 @@ export function MusicWorkspace({
         } catch {}
       }
 
-      // Prime YouTube engine within user gesture
-      if (shouldAutoPlay && ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+      // Immediately stop/pause previous YouTube audio so it never leaks sound while loading the new track
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.pauseVideo === "function") {
         try {
-          ytPlayerRef.current.playVideo();
+          ytPlayerRef.current.pauseVideo();
         } catch {}
       }
 
