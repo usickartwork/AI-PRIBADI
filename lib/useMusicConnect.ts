@@ -12,6 +12,7 @@ import {
   SpotifyConnectState,
   createCommandEnvelope,
   detectDeviceInfo,
+  getDeviceBaseId,
   getOrCreateInstanceId,
   isDeviceSessionOnline,
   isMusicConnectEnabled,
@@ -644,11 +645,30 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
           return merged;
         });
 
-        setSessions((prev) => (areSessionsEqual(prev, protectedSessions) ? prev : protectedSessions));
+        // Filter out any stale/duplicate sessions sharing the same physical device base
+        const myBase = getDeviceBaseId(localInstanceId);
+        const filteredSessions = protectedSessions.filter((s: AppDeviceSession) => {
+          if (s.session_instance_id === localInstanceId) return true;
+          const otherBase = getDeviceBaseId(s.session_instance_id);
+          if (myBase && otherBase && myBase === otherBase) return false;
+          return true;
+        });
+
+        setSessions((prev) => (areSessionsEqual(prev, filteredSessions) ? prev : filteredSessions));
       }
       if (json.activeSession !== undefined) {
         setActiveSession((prev) => {
           let target = json.activeSession as AppDeviceSession | null;
+          // If target is a ghost session from the same physical device, discard it
+          const myBase = getDeviceBaseId(localInstanceId);
+          if (
+            target &&
+            target.session_instance_id !== localInstanceId &&
+            myBase &&
+            getDeviceBaseId(target.session_instance_id) === myBase
+          ) {
+            target = null;
+          }
           if (target && pendingCommandMapRef.current.size > 0) {
             for (const pending of pendingCommandMapRef.current.values()) {
               if (pending.targetInstanceId === target.session_instance_id) {
@@ -1653,9 +1673,13 @@ export function useMusicConnect(bridge: MusicConnectPlayerBridge) {
   // Computed: Other online devices & remote active session
   const onlineOtherSessions = useMemo(() => {
     const now = Date.now();
-    return sessions.filter(
-      (s) => s.session_instance_id !== localInstanceId && isDeviceSessionOnline(s, now)
-    );
+    const myBase = getDeviceBaseId(localInstanceId);
+    return sessions.filter((s) => {
+      if (s.session_instance_id === localInstanceId) return false;
+      const otherBase = getDeviceBaseId(s.session_instance_id);
+      if (myBase && otherBase && myBase === otherBase) return false;
+      return isDeviceSessionOnline(s, now);
+    });
   }, [sessions, localInstanceId]);
 
   const remoteActiveSession = useMemo(() => {

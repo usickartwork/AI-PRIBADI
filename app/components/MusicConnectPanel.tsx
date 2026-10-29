@@ -6,6 +6,7 @@ import {
   MusicConnectCommandPayload,
   MusicConnectCommandType,
   SpotifyConnectState,
+  getDeviceBaseId,
   getInterpolatedRemoteProgressSec,
   isDeviceSessionOnline,
   setCustomDeviceName,
@@ -603,14 +604,22 @@ export function MusicConnectContent({
 
   const onlineSessions = sessions.filter((s) => isDeviceSessionOnline(s, nowMs));
 
+  const myBase = getDeviceBaseId(localInstanceId);
+  const isDifferentDevice = (s: AppDeviceSession) => {
+    if (s.session_instance_id === localInstanceId) return false;
+    const otherBase = getDeviceBaseId(s.session_instance_id);
+    if (myBase && otherBase && myBase === otherBase) return false;
+    return true;
+  };
+
   // Determine if a remote session is actively playing or owns playback
   const remoteControllableSession =
     activeSession &&
-    activeSession.session_instance_id !== localInstanceId &&
+    isDifferentDevice(activeSession) &&
     isDeviceSessionOnline(activeSession, nowMs)
       ? activeSession
       : onlineSessions.find(
-          (s) => s.session_instance_id !== localInstanceId && (s.is_playing || s.current_track_id)
+          (s) => isDifferentDevice(s) && (s.is_playing || s.current_track_id)
         ) || null;
 
   // The local session
@@ -667,7 +676,7 @@ export function MusicConnectContent({
   }
 
   for (const s of onlineSessions) {
-    if (s.session_instance_id === localInstanceId) continue;
+    if (!isDifferentDevice(s)) continue;
     if (activeSessionDisplay && s.session_instance_id === activeSessionDisplay.session_instance_id) {
       continue;
     }

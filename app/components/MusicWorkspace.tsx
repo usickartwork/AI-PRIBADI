@@ -37,7 +37,7 @@ import {
   setClientLyricsCache,
 } from "@/lib/lyrics";
 import { useMusicConnect } from "@/lib/useMusicConnect";
-import { getInterpolatedRemoteProgressSec, getOrCreateInstanceId } from "@/lib/musicConnect";
+import { getDeviceBaseId, getInterpolatedRemoteProgressSec, getOrCreateInstanceId } from "@/lib/musicConnect";
 import {
   type ListeningEndReason,
   type ListeningSourceContext,
@@ -1011,6 +1011,13 @@ export function MusicWorkspace({
                 playbackClockRef.current.isPlaying = false;
                 setIsPlaying(false);
                 handleTrackEnded();
+              } else if (event.data === 5) {
+                // 5: CUED — Video is ready and cued. If playback was requested and not paused, start it!
+                if (!userRequestedPauseRef.current && isPlayingRef.current) {
+                  try {
+                    event.target.playVideo();
+                  } catch {}
+                }
               }
             },
             onError: (err: any) => {
@@ -1722,7 +1729,12 @@ export function MusicWorkspace({
       currentTrackRef.current = track;
 
       const mc = musicConnectRef.current;
-      if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession) {
+      const isRemoteSameDevice =
+        Boolean(mc?.remoteActiveSession) &&
+        Boolean(mc?.localInstanceId) &&
+        getDeviceBaseId(mc!.remoteActiveSession!.session_instance_id) === getDeviceBaseId(mc!.localInstanceId);
+
+      if (!options?.forceLocal && mc?.enabled && mc?.remoteActiveSession && !isRemoteSameDevice) {
         mc.sendAppCommand(
           mc.remoteActiveSession.session_instance_id,
           "PLAY_TRACK",
@@ -1958,7 +1970,12 @@ export function MusicWorkspace({
 
   const togglePlayPause = () => {
     const mc = musicConnectRef.current;
-    if (mc?.enabled && mc?.remoteActiveSession) {
+    const isRemoteSameDevice =
+      Boolean(mc?.remoteActiveSession) &&
+      Boolean(mc?.localInstanceId) &&
+      getDeviceBaseId(mc!.remoteActiveSession!.session_instance_id) === getDeviceBaseId(mc!.localInstanceId);
+
+    if (mc?.enabled && mc?.remoteActiveSession && !isRemoteSameDevice) {
       mc.sendAppCommand(
         mc.remoteActiveSession.session_instance_id,
         mc.remoteActiveSession.is_playing ? "PAUSE" : "PLAY"

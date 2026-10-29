@@ -14,6 +14,7 @@ import {
   MusicConnectCommandType,
   SpotifyConnectDevice,
   SpotifyConnectState,
+  getDeviceBaseId,
 } from "@/lib/musicConnect";
 import crypto from "crypto";
 
@@ -184,6 +185,20 @@ function pruneAndReconcileStore(store: UserConnectStore, nowMs: number = Date.no
     }
   }
 
+  // Deduplicate by physical device (deviceBase): keep only the newest/active session per physical device!
+  const seenDeviceBases = new Set<string>();
+  const deduplicatedSessions: AppDeviceSession[] = [];
+  for (const s of reconciledSessions) {
+    const baseId = getDeviceBaseId(s.session_instance_id);
+    if (baseId) {
+      if (seenDeviceBases.has(baseId)) {
+        continue; // Discard duplicate/stale tab from the same physical device!
+      }
+      seenDeviceBases.add(baseId);
+    }
+    deduplicatedSessions.push(s);
+  }
+
   // 2. Expire old commands and keep recent history
   const reconciledCommands: MusicConnectCommand[] = [];
   for (const cmd of store.commands) {
@@ -216,7 +231,7 @@ function pruneAndReconcileStore(store: UserConnectStore, nowMs: number = Date.no
 
   return {
     version: store.version || 1,
-    sessions: reconciledSessions.slice(0, MAX_SESSIONS_PER_USER),
+    sessions: deduplicatedSessions.slice(0, MAX_SESSIONS_PER_USER),
     commands: reconciledCommands.slice(-MAX_COMMANDS_HISTORY),
     acks: reconciledAcks.slice(-MAX_COMMANDS_HISTORY),
     updatedAt: new Date(nowMs).toISOString(),
@@ -409,6 +424,20 @@ async function mutateUserConnectStore<R>(
             .upsert(sessionRows, { onConflict: "user_id,session_instance_id" });
           if (!upsertErr) {
             persistedOk = true;
+          }
+
+          // Delete any removed or superseded sessions from Supabase
+          const retainedIds = new Set(reconciled.sessions.map((s) => s.session_instance_id));
+          const removedIds = (baseStore.sessions || [])
+            .map((s) => s.session_instance_id)
+            .filter((id) => id && !retainedIds.has(id));
+
+          if (removedIds.length > 0) {
+            await db
+              .from("music_device_sessions")
+              .delete()
+              .eq("user_id", userId)
+              .in("session_instance_id", removedIds);
           }
         } catch {}
       }
@@ -1047,6 +1076,18 @@ export async function POST(req: NextRequest) {
 
       const { store, result } = await mutateUserConnectStore(userId, (workingStore, nowMs) => {
         const nowIso = new Date(nowMs).toISOString();
+
+        // Purge any stale tab sessions from the same physical device base
+        const localBase = getDeviceBaseId(instanceId);
+        if (localBase) {
+          for (let i = workingStore.sessions.length - 1; i >= 0; i--) {
+            const s = workingStore.sessions[i];
+            if (s.session_instance_id !== instanceId && getDeviceBaseId(s.session_instance_id) === localBase) {
+              workingStore.sessions.splice(i, 1);
+            }
+          }
+        }
+
         const existingIdx = workingStore.sessions.findIndex(
           (s) => s.session_instance_id === instanceId
         );

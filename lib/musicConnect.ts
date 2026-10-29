@@ -170,10 +170,19 @@ export function isMusicConnectEnabled(): boolean {
 }
 
 /**
- * Generates or retrieves a unique session_instance_id for the current browser tab.
- * Uses sessionStorage per tab combined with a localStorage device prefix so that:
- * - Refreshing the same tab preserves its `session_instance_id`.
- * - Opening a second tab on the same browser creates a distinct `session_instance_id`.
+ * Extracts the base physical device identifier from any session_instance_id
+ * (e.g. "dev_abc123_tab_xyz" -> "dev_abc123", or "dev_abc123" -> "dev_abc123").
+ */
+export function getDeviceBaseId(instanceId?: string | null): string {
+  if (!instanceId) return "";
+  const idx = instanceId.indexOf("_tab_");
+  return idx > 0 ? instanceId.slice(0, idx) : instanceId;
+}
+
+/**
+ * Generates or retrieves the persistent session_instance_id for this physical browser/device.
+ * Stored in localStorage so it remains constant across tabs and browser restarts,
+ * preventing phantom duplicate devices or playback interception on tab re-entry.
  */
 export function getOrCreateInstanceId(): string {
   if (typeof window === "undefined") {
@@ -181,10 +190,10 @@ export function getOrCreateInstanceId(): string {
   }
 
   try {
-    const existingTabId = window.sessionStorage.getItem(SESSION_TAB_KEY);
-    if (existingTabId && existingTabId.length >= 8) {
-      return existingTabId;
-    }
+    // Clear legacy tab session storage to ensure clean migration to persistent deviceBase
+    try {
+      window.sessionStorage.removeItem(SESSION_TAB_KEY);
+    } catch {}
 
     let deviceBase = window.localStorage.getItem(LOCAL_BASE_KEY);
     if (!deviceBase || deviceBase.length < 6) {
@@ -192,10 +201,7 @@ export function getOrCreateInstanceId(): string {
       window.localStorage.setItem(LOCAL_BASE_KEY, deviceBase);
     }
 
-    const tabSuffix = Math.random().toString(36).slice(2, 7);
-    const instanceId = `${deviceBase}_tab_${tabSuffix}`;
-    window.sessionStorage.setItem(SESSION_TAB_KEY, instanceId);
-    return instanceId;
+    return deviceBase;
   } catch {
     return `inst_${Math.random().toString(36).slice(2, 10)}`;
   }
