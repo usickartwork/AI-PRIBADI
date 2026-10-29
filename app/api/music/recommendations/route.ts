@@ -21,6 +21,7 @@ import {
   loadUserTasteProfile,
   userHomeRecommendationCache,
 } from "@/lib/musicTasteServer";
+import { enrichTracksWithYouTubeAudio } from "@/lib/youtubeAudioServer";
 
 function parseDelimitedList(raw: string | null, maxItems = 40): string[] {
   if (!raw) return [];
@@ -149,6 +150,7 @@ export async function GET(req: NextRequest) {
         limit: requestedLimit,
       });
       const tracks = ranked.map((r) => r.item);
+      await enrichTracksWithYouTubeAudio(tracks, 8);
       const generatedAt = new Date().toISOString();
 
       if (userId && tracks.length >= 12) {
@@ -241,13 +243,15 @@ export async function GET(req: NextRequest) {
       excludeTrackIds,
       sessionRecentKeys,
     });
+    const autoTracks = rankedAuto.map((r) => r.item);
+    await enrichTracksWithYouTubeAudio(autoTracks, 6);
 
     return NextResponse.json({
       success: true,
       mode: "autoplay",
       authenticated: Boolean(userId),
       maturityFactor,
-      tracks: rankedAuto.map((r) => r.item),
+      tracks: autoTracks,
     });
   } catch (err: any) {
     console.error("[music/recommendations] GET error:", err);

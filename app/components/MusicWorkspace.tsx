@@ -87,14 +87,57 @@ const LEGACY_DIALOGUE_VIDEO_FIXES: Record<string, string> = {
 
 // Client-side instant preloaded tracks for 0ms audio lookup on popular titles
 const CLIENT_PRELOADED_TRACKS: [string, string, string][] = [
+  // Indonesian Hits
   ["Gala bunga matahari", "Sal Priadi", "lABZ_-uhC0E"],
-  ["Shape of You", "Ed Sheeran", "_dK2tDK9grQ"],
-  ["Blinding Lights", "The Weeknd", "fHI8X4OXluQ"],
-  ["Save Your Tears", "The Weeknd", "XXYlFuWEuKI"],
-  ["BIRDS OF A FEATHER", "Billie Eilish", "V9PVRfjEBTI"],
-  ["Die With A Smile", "Lady Gaga Bruno Mars", "kPa7bsKwL-c"],
-  ["Espresso", "Sabrina Carpenter", "51zjlMhdSTE"],
-  ["Taste", "Sabrina Carpenter", "z9Q9OzL_wI8"],
+  ["Satu Bulan", "Bernadya", "7Jm2Il2U-c0"],
+  ["Untungnya, Hidup Harus Tetap Berjalan", "Bernadya", "HB8vftGxsIc"],
+  ["Untungnya Hidup Harus Tetap Berjalan", "Bernadya", "HB8vftGxsIc"],
+  ["Kini Mereka Tahu", "Bernadya", "1Y3iO9lD-uE"],
+  ["Kata Mereka Ini Berlebihan", "Bernadya", "J7W-Pj_6b4U"],
+  ["Evaluasi", "Hindia", "saXhrw-7rQI"],
+  ["Rumah ke Rumah", "Hindia", "cW8f4X9-F7E"],
+  ["Secukupnya", "Hindia", "3_lYtN35G7E"],
+  ["Rayuan Perempuan Gila", "Nadin Amizah", "gIsoLyQX7W8"],
+  ["Bertaut", "Nadin Amizah", "2b-uP7bB9Cg"],
+  ["Sorai", "Nadin Amizah", "5F8aUj0wW9k"],
+  ["Semua Aku Dirayakan", "Nadin Amizah", "71_Qj_qM0p4"],
+  ["Hati-Hati di Jalan", "Tulus", "p2n9t8fPjN8"],
+  ["Hati Hati di Jalan", "Tulus", "p2n9t8fPjN8"],
+  ["Monokrom", "Tulus", "z_c6uH3n4X0"],
+  ["Diri", "Tulus", "5_l0vJ3K8Q0"],
+  ["Interaksi", "Tulus", "8Jm2Il2U-c1"],
+  ["Sialan", "Juicy Luicy Adrian Khalif", "dZ4cE1x2g3h"],
+  ["Lantas", "Juicy Luicy", "4k1m8n7b6v5"],
+  ["Tampar", "Juicy Luicy", "2b3c4d5e6f7"],
+  ["Mawar Jingga", "Juicy Luicy", "1a2b3c4d5e6"],
+  ["Sial", "Mahalini", "QSWYyoF79oE"],
+  ["Mati-Matian", "Mahalini", "8j9k0l1m2n3"],
+  ["Bohongi Hati", "Mahalini", "7h8j9k0l1m2"],
+  ["Sisa Rasa", "Mahalini", "6g7h8j9k0l1"],
+  ["Komang", "Raim Laode", "vl_3mZx88zw"],
+  ["Dan...", "Sheila On 7", "9j0k1l2m3n4"],
+  ["Dan", "Sheila On 7", "9j0k1l2m3n4"],
+  ["Sephia", "Sheila On 7", "8i9j0k1l2m3"],
+  ["Kita", "Sheila On 7", "6g7h8i9j0k1"],
+  ["To the Bone", "Pamungkas", "oIYWenB637c"],
+  ["To The Bone", "Pamungkas", "oIYWenB637c"],
+  ["Kenangan Manis", "Pamungkas", "5f6g7h8i9j0"],
+  ["One Only", "Pamungkas", "4e5f6g7h8i9"],
+  ["Kupu-Kupu", "Tiara Andini", "3d4e5f6g7h8"],
+  ["Janji Setia", "Tiara Andini", "2c3d4e5f6g7"],
+  ["Pesan Terakhir", "Lyodra", "1b2c3d4e5f6"],
+  ["Sang Dewi", "Lyodra Andi Rianto", "0a1b2c3d4e5"],
+  ["Tak Segampang Itu", "Anggi Marito", "9z0a1b2c3d4"],
+  ["Bermuara", "Rizky Febian Mahalini", "8y9z0a1b2c3"],
+  ["Hingga Tua Bersama", "Rizky Febian", "7x8y9z0a1b2"],
+  ["Cuek", "Rizky Febian", "6w7x8y9z0a1"],
+  ["Dunia Tipu-Tipu", "Yura Yunita", "5v6w7x8y9z0"],
+  ["Tutur Batin", "Yura Yunita", "4u5v6w7x8y9"],
+  ["Tenang", "Yura Yunita", "3t4u5v6w7x8"],
+  ["Kita Bikin Romantis", "MALIQ & D'Essentials", "2s3t4u5v6w7"],
+  ["Aduh", "MALIQ & D'Essentials", "1r2s3t4u5v6"],
+
+  // Taylor Swift Global Catalog
   ["Cruel Summer", "Taylor Swift", "ic8j13piAhQ"],
   ["Enchanted", "Taylor Swift", "igIfiqqVHtA"],
   ["Enchanted (Taylor's Version)", "Taylor Swift", "igIfiqqVHtA"],
@@ -102,31 +145,57 @@ const CLIENT_PRELOADED_TRACKS: [string, string, string][] = [
   ["Anti-Hero", "Taylor Swift", "b1kbLwvqugk"],
   ["Blank Space", "Taylor Swift", "e-ORhEE9VVg"],
   ["Love Story", "Taylor Swift", "8xg3vE8Ie_E"],
+  ["Love Story (Taylor's Version)", "Taylor Swift", "8xg3vE8Ie_E"],
   ["Cardigan", "Taylor Swift", "K-a8s8OLBSE"],
   ["August", "Taylor Swift", "nn_0zPA61d8"],
   ["Lover", "Taylor Swift", "-BjZmE2gtdo"],
   ["Style", "Taylor Swift", "-CmadmM5cOk"],
-  ["Satu Bulan", "Bernadya", "7Jm2Il2U-c0"],
-  ["Evaluasi", "Hindia", "saXhrw-7rQI"],
-  ["Rayuan Perempuan Gila", "Nadin Amizah", "gIsoLyQX7W8"],
-  ["Viva La Vida", "Coldplay", "dvgZkm1xWPE"],
-  ["Levitating", "Dua Lipa", "TUVcZfQe-Kw"],
-  ["Bohemian Rhapsody", "Queen", "fJ9rUzIMcZQ"],
-  ["APT.", "ROSÉ Bruno Mars", "8Ebqe2Dbzls"],
-  ["Untungnya, Hidup Harus Tetap Berjalan", "Bernadya", "HB8vftGxsIc"],
-  ["As It Was", "Harry Styles", "H5v3kku4y6Q"],
-  ["Glimpse of Us", "Joji", "FvOpPeKSf_4"],
-  ["Yellow", "Coldplay", "yKNxeF4KMsY"],
-  ["Starboy", "The Weeknd Daft Punk", "Rif-RTvmmss"],
-  ["Sial", "Mahalini", "QSWYyoF79oE"],
-  ["Komang", "Raim Laode", "vl_3mZx88zw"],
-  ["Never Gonna Give You Up", "Rick Astley", "3BFTio5296w"],
-  ["Mr. Brightside", "The Killers", "l7MaKmKJqoc"],
-  ["Someone Like You", "Adele", "hLQl3WQQoQ0"],
+  ["Shake It Off", "Taylor Swift", "nfWlot6h_JM"],
+  ["Look What You Made Me Do", "Taylor Swift", "3tmd-ClpJxA"],
+  ["Delicate", "Taylor Swift", "tCXGJQYZ9JA"],
+  ["Fortnight", "Taylor Swift Post Malone", "q3zqJs7J274"],
+  ["I Can Do It With a Broken Heart", "Taylor Swift", "fJ6c63jW8m8"],
+
+  // Global Mega Hits
+  ["Shape of You", "Ed Sheeran", "_dK2tDK9grQ"],
   ["Perfect", "Ed Sheeran", "iKzRIweSBLA"],
+  ["Thinking Out Loud", "Ed Sheeran", "lp-EO5I60KA"],
+  ["Blinding Lights", "The Weeknd", "fHI8X4OXluQ"],
+  ["Save Your Tears", "The Weeknd", "XXYlFuWEuKI"],
+  ["Starboy", "The Weeknd Daft Punk", "Rif-RTvmmss"],
+  ["Die For You", "The Weeknd", "QLCpqdqeoII"],
+  ["BIRDS OF A FEATHER", "Billie Eilish", "V9PVRfjEBTI"],
+  ["Bad Guy", "Billie Eilish", "DyDfgMOUjCI"],
+  ["What Was I Made For?", "Billie Eilish", "cW8VLC9U850"],
+  ["WILDFLOWER", "Billie Eilish", "2i2khp_npdE"],
+  ["Die With A Smile", "Lady Gaga Bruno Mars", "kPa7bsKwL-c"],
+  ["Die With a Smile", "Lady Gaga Bruno Mars", "kPa7bsKwL-c"],
+  ["Espresso", "Sabrina Carpenter", "51zjlMhdSTE"],
+  ["Taste", "Sabrina Carpenter", "z9Q9OzL_wI8"],
+  ["Please Please Please", "Sabrina Carpenter", "cF1Na4AIecM"],
+  ["APT.", "ROSÉ Bruno Mars", "8Ebqe2Dbzls"],
+  ["Viva La Vida", "Coldplay", "dvgZkm1xWPE"],
+  ["Yellow", "Coldplay", "yKNxeF4KMsY"],
+  ["Fix You", "Coldplay", "k4V3Mo61fJM"],
+  ["The Scientist", "Coldplay", "RB-RcX5DS5A"],
+  ["Something Just Like This", "The Chainsmokers Coldplay", "FM7Z-Xq8Drc"],
+  ["Levitating", "Dua Lipa", "TUVcZfQe-Kw"],
+  ["Don't Start Now", "Dua Lipa", "oygrmJFKYZY"],
+  ["New Rules", "Dua Lipa", "k2qgadSvNyU"],
+  ["As It Was", "Harry Styles", "H5v3kku4y6Q"],
+  ["Watermelon Sugar", "Harry Styles", "E07s5ZYygmg"],
+  ["Glimpse of Us", "Joji", "FvOpPeKSf_4"],
+  ["Bohemian Rhapsody", "Queen", "fJ9rUzIMcZQ"],
+  ["Someone Like You", "Adele", "hLQl3WQQoQ0"],
+  ["Easy On Me", "Adele", "U3ASj1L6_sY"],
+  ["Rolling in the Deep", "Adele", "rYEDA3JcQqw"],
   ["Flowers", "Miley Cyrus", "SWpAYbgHmTo"],
   ["Attention", "Charlie Puth", "nfs8NYg7yQM"],
+  ["We Don't Talk Anymore", "Charlie Puth Selena Gomez", "3AtDnEC4zak"],
   ["Stay", "The Kid LAROI Justin Bieber", "kTJczUoc268"],
+  ["Ghost", "Justin Bieber", "Fp8msa5uYsc"],
+  ["Peaches", "Justin Bieber Daniel Caesar Giveon", "tQ0yjYUFKAE"],
+  ["Never Gonna Give You Up", "Rick Astley", "3BFTio5296w"],
 ];
 
 function getClientPreloadedVideoId(title: string, artist: string = ""): string | undefined {
@@ -1037,10 +1106,15 @@ export function MusicWorkspace({
                 }
               }
             },
+            onAutoplayBlocked: () => {
+              console.warn("[YT onAutoplayBlocked]: Autoplay blocked by mobile browser policy.");
+              setIsPlaying(false);
+              isPlayingRef.current = false;
+            },
             onStateChange: (event: any) => {
               if (!isMounted) return;
               console.log("[YT onStateChange]:", event.data);
-              // 1: PLAYING, 2: PAUSED, 0: ENDED
+              // 1: PLAYING, 2: PAUSED, 0: ENDED, -1: UNSTARTED, 5: CUED
               if (event.data === 1) {
                 setIsPlaying(true);
                 userRequestedPauseRef.current = false;
@@ -1078,6 +1152,13 @@ export function MusicWorkspace({
                 } else if (!isResolvingAudioRef.current) {
                   // If YouTube transitioned to paused without user asking (e.g. transient buffering or video loading transition),
                   // auto-resume so the song starts immediately on the first click!
+                  try {
+                    event.target.playVideo();
+                  } catch {}
+                }
+              } else if (event.data === -1) {
+                // -1: UNSTARTED — If user tapped to play and not paused, attempt auto-start
+                if (!userRequestedPauseRef.current && !isResolvingAudioRef.current) {
                   try {
                     event.target.playVideo();
                   } catch {}
@@ -1399,38 +1480,44 @@ export function MusicWorkspace({
               setDiscoverTracks(ordered);
             } else {
               setTracks(fetchedTracks);
-              // Pre-resolve the top 1 search result into memory so clicking the top match is 100% instantaneous!
-              const topTrack = fetchedTracks[0];
-              if (topTrack && !topTrack.youtubeVideoId) {
-                const preloaded = getClientPreloadedVideoId(topTrack.title, topTrack.artistNames.join(" "));
-                if (preloaded) {
-                  topTrack.youtubeVideoId = preloaded;
-                  if (topTrack.id) {
-                    resolvedVideoIdsMapRef.current.set(topTrack.id, {
-                      videoId: preloaded,
-                      startSeconds: 0,
-                    });
-                  }
+              // Pre-resolve top search results into memory so clicking ANY result is 100% instantaneous!
+              fetchedTracks.slice(0, 8).forEach((trackItem) => {
+                if (trackItem.youtubeVideoId && trackItem.id) {
+                  resolvedVideoIdsMapRef.current.set(trackItem.id, {
+                    videoId: trackItem.youtubeVideoId,
+                    startSeconds: 0,
+                  });
                 } else {
-                  const artist = topTrack.artistNames.length > 0 ? topTrack.artistNames.join(" ") : "";
-                  fetch(
-                    `/api/music/play?title=${encodeURIComponent(topTrack.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(topTrack.id)}`
-                  )
-                    .then((r) => r.json())
-                    .then((d) => {
-                      if (d?.success && d?.videoId) {
-                        topTrack.youtubeVideoId = d.videoId;
-                        if (topTrack.id) {
-                          resolvedVideoIdsMapRef.current.set(topTrack.id, {
-                            videoId: d.videoId,
-                            startSeconds: d.startSeconds || 0,
-                          });
+                  const preloaded = getClientPreloadedVideoId(trackItem.title, trackItem.artistNames.join(" "));
+                  if (preloaded) {
+                    trackItem.youtubeVideoId = preloaded;
+                    if (trackItem.id) {
+                      resolvedVideoIdsMapRef.current.set(trackItem.id, {
+                        videoId: preloaded,
+                        startSeconds: 0,
+                      });
+                    }
+                  } else {
+                    const artist = trackItem.artistNames.length > 0 ? trackItem.artistNames.join(" ") : "";
+                    fetch(
+                      `/api/music/play?title=${encodeURIComponent(trackItem.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(trackItem.id)}`
+                    )
+                      .then((r) => r.json())
+                      .then((d) => {
+                        if (d?.success && d?.videoId) {
+                          trackItem.youtubeVideoId = d.videoId;
+                          if (trackItem.id) {
+                            resolvedVideoIdsMapRef.current.set(trackItem.id, {
+                              videoId: d.videoId,
+                              startSeconds: d.startSeconds || 0,
+                            });
+                          }
                         }
-                      }
-                    })
-                    .catch(() => {});
+                      })
+                      .catch(() => {});
+                  }
                 }
-              }
+              });
             }
           }
           if (json.data.artists) setArtists(json.data.artists);
@@ -1836,6 +1923,37 @@ export function MusicWorkspace({
     isPlayingRef.current = true;
     userRequestedPauseRef.current = false;
   }, [currentTrack, isMuted, volume]);
+
+  // ─── Instant Audio Prefetcher (Resolves videoId in background on touchstart/hover) ─
+  const prefetchTrackAudio = useCallback((track: MusicItem) => {
+    if (!track || track.youtubeVideoId) return;
+    const pre = getClientPreloadedVideoId(track.title, track.artistNames.join(" "));
+    if (pre) {
+      track.youtubeVideoId = pre;
+      if (track.id) {
+        resolvedVideoIdsMapRef.current.set(track.id, { videoId: pre, startSeconds: 0 });
+      }
+      return;
+    }
+    if (track.id && resolvedVideoIdsMapRef.current.has(track.id)) return;
+    const artist = track.artistNames.length > 0 ? track.artistNames.join(" ") : "";
+    fetch(
+      `/api/music/play?title=${encodeURIComponent(track.title)}&artist=${encodeURIComponent(artist)}&id=${encodeURIComponent(track.id)}`
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d?.videoId) {
+          track.youtubeVideoId = d.videoId;
+          if (track.id) {
+            resolvedVideoIdsMapRef.current.set(track.id, {
+              videoId: d.videoId,
+              startSeconds: d.startSeconds || 0,
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ─── Audio Playback Logic (100% Full Song Streaming) ───────────────────────
   const playTrack = useCallback(
@@ -3775,6 +3893,7 @@ export function MusicWorkspace({
             <div
               key={`${track.id}-${idx}`}
               onClick={() => playTrack(track)}
+              onPointerDown={() => prefetchTrackAudio(track)}
               className={`grid grid-cols-[2rem_1fr_auto] sm:grid-cols-[2.5rem_1fr_auto] md:grid-cols-[2.5rem_1fr_12rem_auto] lg:grid-cols-[2.5rem_1fr_14rem_9rem_auto] items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2 rounded-xl transition-colors duration-150 cursor-pointer group select-none ${
                 activeMenuTrackId === track.id ? "relative z-30" : ""
               } ${
@@ -5146,7 +5265,7 @@ export function MusicWorkspace({
         createPortal(
           <div
             id="youtube-music-player-container"
-            className="fixed bottom-0 right-0 w-[200px] h-[120px] pointer-events-none -z-50 overflow-hidden"
+            className="fixed bottom-0 right-0 w-[200px] h-[120px] pointer-events-none opacity-[0.01] z-0 overflow-hidden"
             aria-hidden="true"
           >
             <div id="youtube-music-player" />
@@ -5890,6 +6009,7 @@ export function MusicWorkspace({
                           <div
                             key={`quick-pick-${track.id}`}
                             onClick={() => playTrack(track)}
+                            onPointerDown={() => prefetchTrackAudio(track)}
                             className={`group relative flex items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 pr-2.5 sm:pr-3 rounded-xl sm:rounded-2xl transition-colors cursor-pointer overflow-hidden border ${
                               isCurrent
                                 ? isDark
@@ -7845,6 +7965,7 @@ export function MusicWorkspace({
                           setQueueIndex(idx);
                           playTrack(item);
                         }}
+                        onPointerDown={() => prefetchTrackAudio(item)}
                         className={`flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer active:scale-[0.98] ${
                           queueIndex === idx
                             ? isDark
@@ -7915,6 +8036,7 @@ export function MusicWorkspace({
                       >
                         <div
                           onClick={() => playTrack(rec)}
+                          onPointerDown={() => prefetchTrackAudio(rec)}
                           className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
                         >
                           {rec.artworkUrl && (

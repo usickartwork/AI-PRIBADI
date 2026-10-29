@@ -19,6 +19,7 @@ import {
   mapITunesCatalogTrack,
   recordArtistGenresInCache,
 } from "@/lib/musicTasteServer";
+import { enrichTracksWithYouTubeAudio } from "@/lib/youtubeAudioServer";
 
 // ─── Server-Side Search Cache (Bounded LRU) ──────────────────────────────────
 // Mencegah pemborosan kuota API Spotify untuk pencarian berulang dan lagu trending.
@@ -464,6 +465,7 @@ export async function GET(req: NextRequest) {
     }
 
     const enrichedTracks = await enrichTracksWithArtistGenres(tracks);
+    await enrichTracksWithYouTubeAudio(enrichedTracks, 6);
     const resultData = { tracks: enrichedTracks, artists, albums, playlists };
 
     // Simpan ke bounded LRU cache jika menghasilkan lagu yang cukup
