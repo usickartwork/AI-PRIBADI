@@ -224,7 +224,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
       <div className="relative h-full w-full overflow-hidden bg-black">
         {/* Instant background poster behind video */}
         <img
-          src="/hero-bw-poster.jpg"
+          src="/hero-bw-poster-opt.jpg"
           alt=""
           className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
           aria-hidden="true"
@@ -254,7 +254,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
           onLoadedData={() => onVideoReady?.()}
           style={{ pointerEvents: "none" }}
           className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
-          src="/hero-bw-logo.mp4"
+          src="/hero-bw-logo-opt.mp4"
         />
 
         {/* Noise overlay */}

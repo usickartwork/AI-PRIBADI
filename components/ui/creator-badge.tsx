@@ -23,7 +23,7 @@ export function CreatorBadge({
   followers = "1.073",
   instagramUrl = "https://www.instagram.com/filius_pl?cplk=a3pjZmhxeTBieXI5&utm_source=qr",
   behanceUrl = "https://www.behance.net/filiuspatrislahendra",
-  avatarUrl = "/filius-avatar.png",
+  avatarUrl = "/filius-avatar-opt.png",
   className = "",
   alwaysVisible = false,
 }: CreatorBadgeProps) {

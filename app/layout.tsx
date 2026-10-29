@@ -80,7 +80,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#18181b" },
@@ -98,8 +97,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${satoshi.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fafafc] dark:bg-[#121215]`}
       >
         <head>
-          <link rel="preconnect" href="https://api.fontshare.com" />
-          <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2&display=swap" />
           <link rel="icon" type="image/svg+xml" href="/icon.svg?v=6" />
           <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=6" />
           <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=6" />

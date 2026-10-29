@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 export interface FormFieldProps {
+  id?: string;
   type: string;
   placeholder: string;
   value: string;
@@ -18,6 +19,7 @@ export interface FormFieldProps {
 }
 
 export const AnimatedFormField: React.FC<FormFieldProps> = ({
+  id,
   type,
   placeholder,
   value,
@@ -30,6 +32,8 @@ export const AnimatedFormField: React.FC<FormFieldProps> = ({
   required,
   isDark = true,
 }) => {
+  const generatedId = useId();
+  const inputId = id || generatedId;
   const [isFocused, setIsFocused] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
@@ -65,6 +69,7 @@ export const AnimatedFormField: React.FC<FormFieldProps> = ({
         </div>
 
         <input
+          id={inputId}
           type={type}
           value={value}
           onChange={onChange}
@@ -79,6 +84,7 @@ export const AnimatedFormField: React.FC<FormFieldProps> = ({
         />
 
         <label
+          htmlFor={inputId}
           className={`absolute left-11 transition-all duration-200 ease-in-out pointer-events-none select-none ${
             isFocused || value
               ? `top-1.5 text-[11px] font-medium ${isDark ? "text-zinc-400" : "text-zinc-600"}`
@@ -92,6 +98,7 @@ export const AnimatedFormField: React.FC<FormFieldProps> = ({
           <button
             type="button"
             onClick={onToggle}
+            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
             className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${
               isDark ? "text-zinc-500 hover:text-zinc-200" : "text-zinc-400 hover:text-zinc-700"
             }`}

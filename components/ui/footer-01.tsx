@@ -397,6 +397,7 @@ export default function Footer01({
                 isDark ? "text-zinc-400 hover:bg-zinc-800 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-black"
               )}
               title="Tutup"
+              aria-label="Tutup modal"
             >
               <X className="w-5 h-5" />
             </button>

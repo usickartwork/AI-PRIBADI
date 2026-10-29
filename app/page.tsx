@@ -4821,7 +4821,7 @@ export default function Home() {
     <>
       {!user ? (
         <>
-          <div
+          <main
             id="page-1-container"
             className="relative w-full min-h-screen overflow-x-hidden scroll-smooth bg-black text-white selection:bg-white/20 antialiased font-sans"
           >
@@ -4898,7 +4898,7 @@ export default function Home() {
             }}
             onClose={() => setShowAuthModal(false)}
           />
-        </div>
+        </main>
 
         {/* ─── FLOATING CREATOR ATTRIBUTION BADGE (POPS UP PAST HERO ON SCROLL) ─── */}
         <CreatorBadge />
