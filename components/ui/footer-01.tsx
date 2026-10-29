@@ -323,16 +323,6 @@ export default function Footer01({
               )}
             >
               <span>© {new Date().getFullYear()} One Mind, Inc. All rights reserved.</span>
-              <button
-                type="button"
-                onClick={(e) => handleLinkClick(e, "status")}
-                className={cn(
-                  "inline-flex items-center gap-2 transition-colors cursor-pointer text-left",
-                  isDark ? "hover:text-white text-zinc-300" : "hover:text-black text-zinc-700"
-                )}
-              >
-                <span>Seluruh Sistem Beroperasi Normal</span>
-              </button>
             </div>
 
             {/* Social Links */}
