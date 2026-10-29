@@ -40,7 +40,9 @@ export function AuthModal({ isDark, isOpen = true, onSuccess, onClose }: AuthMod
 
     // Sinkronkan waktu video dengan video latar belakang halaman 1 jika ada
     try {
-      const heroVid = document.querySelector<HTMLVideoElement>("section video[src='/hero-bw-logo.mp4']");
+      const heroVid = document.querySelector<HTMLVideoElement>(
+        "section video[src='/hero-bw-logo-opt.mp4'], section video[src='/hero-bw-logo.mp4']"
+      );
       if (heroVid && heroVid.currentTime > 0) {
         v.currentTime = heroVid.currentTime;
       }
@@ -168,7 +170,7 @@ export function AuthModal({ isDark, isOpen = true, onSuccess, onClose }: AuthMod
       <div className="relative w-full md:w-1/2 h-44 sm:h-52 md:h-full overflow-hidden shrink-0 bg-[#09090b]">
         {/* Gambar Poster Resolusi Tinggi sebagai fallback instan (mencegah layar hitam sekejap pun) */}
         <img
-          src="/hero-bw-poster.jpg"
+          src="/hero-bw-poster-opt.jpg"
           alt=""
           className="absolute inset-0 w-full h-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
         />
@@ -181,9 +183,9 @@ export function AuthModal({ isDark, isOpen = true, onSuccess, onClose }: AuthMod
           muted
           playsInline
           preload="auto"
-          poster="/hero-bw-poster.jpg"
+          poster="/hero-bw-poster-opt.jpg"
           className="absolute inset-0 w-full h-full object-cover object-center filter grayscale contrast-[1.05] brightness-[0.95]"
-          src="/hero-bw-logo.mp4"
+          src="/hero-bw-logo-opt.mp4"
         />
 
         {/* Cinematic Vignette Overlay */}

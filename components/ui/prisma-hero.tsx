@@ -33,8 +33,8 @@ export const WordsPullUp = ({
         return (
           <motion.span
             key={i}
-            initial={{ y: 20, opacity: 0 }}
-            animate={isInView ? { y: 0, opacity: 1 } : {}}
+            initial={false}
+            animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
             className="inline-block relative"
             style={{ marginRight: isLast ? 0 : wordSpacing }}
@@ -280,6 +280,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                 {/* 1. Usick One */}
                 <Link
                   href="/usick-one"
+                  prefetch={false}
                   className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95 no-underline"
                 >
                   Usick One
@@ -331,6 +332,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                 {/* 3. Pricing */}
                 <Link
                   href="/harga"
+                  prefetch={false}
                   className="whitespace-nowrap px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] md:text-sm font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95 no-underline"
                 >
                   Pricing
@@ -374,7 +376,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
 
             <div className="col-span-12 flex flex-col gap-3 sm:gap-4 md:gap-5 pb-2 sm:pb-4 lg:col-span-4 lg:pb-10">
               <motion.p
-                initial={{ y: 20, opacity: 0 }}
+                initial={false}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 className="text-xs sm:text-xs md:text-sm font-semibold uppercase tracking-[0.16em]"
@@ -384,7 +386,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
               </motion.p>
 
               <motion.p
-                initial={{ y: 20, opacity: 0 }}
+                initial={false}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 className="-mt-1.5 text-xs sm:text-sm md:text-base leading-snug sm:leading-relaxed"
@@ -405,7 +407,7 @@ const PrismaHero = ({ onGetStarted, onOpenPricing, isDark = true, onVideoReady }
                     onGetStarted?.("signup");
                   }
                 }}
-                initial={{ y: 20, opacity: 0 }}
+                initial={false}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full py-1 pl-4 sm:pl-5 pr-1 text-xs sm:text-sm md:text-base font-medium text-black transition-all hover:gap-3 hover:bg-zinc-100"
